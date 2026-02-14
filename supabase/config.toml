@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.competitor-scan]
 verify_jwt = false
+
+[functions.dead-stock-analyze]
+verify_jwt = false

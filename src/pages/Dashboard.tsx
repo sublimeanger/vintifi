@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, X, CreditCard,
-  Clock, ChevronRight, ArrowRightLeft, Radar,
+  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 
@@ -23,6 +23,7 @@ const navItems = [
   { icon: TrendingUp, label: "Trends", path: "/trends" },
   { icon: ArrowRightLeft, label: "Arbitrage", path: "/arbitrage" },
   { icon: Radar, label: "Competitors", path: "/competitors" },
+  { icon: AlertTriangle, label: "Dead Stock", path: "/dead-stock" },
   { icon: CreditCard, label: "Billing", path: "/settings" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
@@ -291,6 +292,14 @@ export default function Dashboard() {
               <Radar className="w-5 h-5 text-primary mb-3" />
               <h4 className="font-display font-bold mb-1">Competitor Tracker</h4>
               <p className="text-sm text-muted-foreground">Monitor rivals &amp; get price alerts</p>
+            </Card>
+            <Card
+              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-destructive/20 bg-destructive/[0.02]"
+              onClick={() => navigate("/dead-stock")}
+            >
+              <AlertTriangle className="w-5 h-5 text-destructive mb-3" />
+              <h4 className="font-display font-bold mb-1">Dead Stock</h4>
+              <p className="text-sm text-muted-foreground">Liquidate stale inventory with AI</p>
             </Card>
           </div>
         </div>
