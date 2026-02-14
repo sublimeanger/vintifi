@@ -183,7 +183,7 @@ export default function TrendRadar() {
       {(loading || scanning) ? (
         <div className="grid md:grid-cols-2 gap-4">
           {Array.from({ length: scanning ? 8 : 4 }).map((_, i) => (
-            <Card key={i} className="p-4 space-y-3">
+            <Card key={i} className="p-4 space-y-3 skeleton-shimmer">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-5 w-32" />
                 <Skeleton className="h-5 w-16 rounded-full" />
