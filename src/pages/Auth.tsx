@@ -97,9 +97,9 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="flex justify-center">
-            <img src="/vintifi-logo.png" alt="Vintifi" className="h-10 w-auto" />
-          </div>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight">
+            <span className="text-gradient">Vintifi</span>
+          </h1>
           <p className="text-muted-foreground mt-2">
             {mode === "signup" ? "Create your account" : "Welcome back"}
           </p>
