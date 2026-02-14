@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, User, CreditCard, Loader2, Check, Mail, Send } from "lucide-react";
-import { STRIPE_TIERS, TierKey } from "@/lib/constants";
+import { ArrowLeft, User, CreditCard, Loader2, Check, Mail, Send, Globe } from "lucide-react";
+import { STRIPE_TIERS, TierKey, TIMEZONES } from "@/lib/constants";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function SettingsPage() {
   const { user, profile, credits, signOut, refreshProfile } = useAuth();
@@ -24,6 +25,10 @@ export default function SettingsPage() {
   );
   const [digestSaving, setDigestSaving] = useState(false);
   const [sendingDigest, setSendingDigest] = useState(false);
+  const [selectedTimezone, setSelectedTimezone] = useState(
+    (profile as any)?.timezone || "Europe/London"
+  );
+  const [timezoneSaving, setTimezoneSaving] = useState(false);
 
   const currentTier = (profile?.subscription_tier || "free") as TierKey;
 
@@ -101,6 +106,44 @@ export default function SettingsPage() {
             <div>
               <Label>Email</Label>
               <Input value={user?.email || ""} disabled />
+            </div>
+            <div>
+              <Label className="flex items-center gap-1.5 mb-1.5">
+                <Globe className="w-3.5 h-3.5" /> Timezone
+              </Label>
+              <Select
+                value={selectedTimezone}
+                onValueChange={async (val) => {
+                  if (!user) return;
+                  setSelectedTimezone(val);
+                  setTimezoneSaving(true);
+                  try {
+                    const { error } = await supabase
+                      .from("profiles")
+                      .update({ timezone: val } as any)
+                      .eq("user_id", user.id);
+                    if (error) throw error;
+                    await refreshProfile();
+                    toast.success("Timezone updated!");
+                  } catch (err: any) {
+                    toast.error(err.message);
+                  } finally {
+                    setTimezoneSaving(false);
+                  }
+                }}
+                disabled={timezoneSaving}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONES.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button onClick={handleSaveProfile} disabled={saving}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
