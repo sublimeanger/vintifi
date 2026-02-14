@@ -62,23 +62,44 @@ serve(async (req) => {
         );
       }
 
-      // 1. Create squid
-      console.log("Creating Lobstr.io squid...");
-      const squidRes = await fetch(`${LOBSTR_BASE}/squids`, {
-        method: "POST",
-        headers: lobstrHeaders,
-        body: JSON.stringify({ crawler: GOOGLE_SEARCH_CRAWLER }),
-      });
+      // 1. Reuse or create squid
+      let squidId: string;
+      console.log("Looking for existing Lobstr.io squids...");
 
-      if (!squidRes.ok) {
-        const err = await squidRes.text();
-        console.error("Squid creation failed:", err);
-        throw new Error(`Failed to create squid: ${squidRes.status}`);
+      // Try to find an existing squid with our crawler
+      const listRes = await fetch(`${LOBSTR_BASE}/squids`, { headers: lobstrHeaders });
+      if (listRes.ok) {
+        const squids = await listRes.json();
+        const existing = (Array.isArray(squids) ? squids : squids.results || [])
+          .find((s: any) => String(s.crawler) === GOOGLE_SEARCH_CRAWLER);
+        if (existing) {
+          squidId = existing.id;
+          console.log("Reusing existing squid:", squidId);
+        } else {
+          // Delete the oldest squid to free a slot, then create
+          const allSquids = Array.isArray(squids) ? squids : squids.results || [];
+          if (allSquids.length > 0) {
+            const oldest = allSquids[allSquids.length - 1];
+            console.log("Deleting oldest squid to free slot:", oldest.id);
+            await fetch(`${LOBSTR_BASE}/squids/${oldest.id}`, { method: "DELETE", headers: lobstrHeaders });
+          }
+          const createRes = await fetch(`${LOBSTR_BASE}/squids`, {
+            method: "POST",
+            headers: lobstrHeaders,
+            body: JSON.stringify({ crawler: GOOGLE_SEARCH_CRAWLER }),
+          });
+          if (!createRes.ok) {
+            const err = await createRes.text();
+            console.error("Squid creation failed:", err);
+            throw new Error(`Failed to create squid: ${createRes.status}`);
+          }
+          const squidData = await createRes.json();
+          squidId = squidData.id;
+          console.log("Created new squid:", squidId);
+        }
+      } else {
+        throw new Error(`Failed to list squids: ${listRes.status}`);
       }
-
-      const squidData = await squidRes.json();
-      const squidId = squidData.id;
-      console.log("Squid created:", squidId);
 
       // 2. Add tasks (Vinted search queries)
       const searchQueries = [
