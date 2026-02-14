@@ -30,7 +30,7 @@ export default function Landing() {
       <header className="sticky top-0 z-50 glass">
         <nav className="container mx-auto flex items-center justify-between py-4 px-4">
           <Link to="/" className="font-display text-2xl font-extrabold tracking-tight">
-            <span className="text-gradient">Raqkt</span>
+            <span className="text-gradient">Vintifi</span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</a>
@@ -71,7 +71,7 @@ export default function Landing() {
             <span className="text-gradient">Start selling smarter.</span>
           </motion.h1>
           <motion.p variants={fadeUp} custom={2} className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-            Raqkt analyses the Vinted marketplace in real-time and tells you the optimal price for any item — backed by AI and market data.
+            Vintifi analyses the Vinted marketplace in real-time and tells you the optimal price for any item — backed by AI and market data.
           </motion.p>
           <motion.div variants={fadeUp} custom={3} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12">
@@ -96,7 +96,7 @@ export default function Landing() {
               <div className="w-3 h-3 rounded-full bg-destructive/60" />
               <div className="w-3 h-3 rounded-full bg-accent/60" />
               <div className="w-3 h-3 rounded-full bg-success/60" />
-              <span className="ml-3 text-xs text-muted-foreground font-mono">raqkt.com/dashboard</span>
+              <span className="ml-3 text-xs text-muted-foreground font-mono">vintifi.com/dashboard</span>
             </div>
             <div className="rounded-xl bg-muted/50 p-8 text-center">
               <p className="text-sm text-muted-foreground mb-2">Paste a Vinted URL to get started</p>
@@ -133,7 +133,7 @@ export default function Landing() {
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">Everything you need to sell smarter</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Raqkt combines web scraping, AI analysis, and market intelligence into one seamless tool.
+              Vintifi combines web scraping, AI analysis, and market intelligence into one seamless tool.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
@@ -219,7 +219,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">Ready to sell smarter?</h2>
           <p className="text-secondary-foreground/70 text-lg mb-8 max-w-xl mx-auto">
-            Join thousands of Vinted sellers who use Raqkt to price their items perfectly.
+            Join thousands of Vinted sellers who use Vintifi to price their items perfectly.
           </p>
           <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12">
             Get Started Free
@@ -232,9 +232,9 @@ export default function Landing() {
       <footer className="py-12 border-t border-border">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="font-display font-bold text-lg">
-            <span className="text-gradient">Raqkt</span>
+            <span className="text-gradient">Vintifi</span>
           </p>
-          <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} Raqkt. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} Vintifi. All rights reserved.</p>
         </div>
       </footer>
     </div>

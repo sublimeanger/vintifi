@@ -82,7 +82,7 @@ export default function Dashboard() {
       <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
         <div className="p-6">
           <h1 className="font-display text-xl font-extrabold">
-            <span className="text-gradient">Raqkt</span>
+            <span className="text-gradient">Vintifi</span>
           </h1>
         </div>
         <nav className="flex-1 px-3 space-y-1">
@@ -116,7 +116,7 @@ export default function Dashboard() {
 
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass flex items-center justify-between px-4 py-3">
-        <h1 className="font-display text-lg font-extrabold"><span className="text-gradient">Raqkt</span></h1>
+        <h1 className="font-display text-lg font-extrabold"><span className="text-gradient">Vintifi</span></h1>
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
