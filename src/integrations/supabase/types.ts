@@ -429,6 +429,7 @@ export type Database = {
           id: string
           job_type: string
           lobstr_run_id: string | null
+          lobstr_run_ids: Json | null
           lobstr_squid_id: string | null
           processed: boolean
           raw_results: Json | null
@@ -441,6 +442,7 @@ export type Database = {
           id?: string
           job_type?: string
           lobstr_run_id?: string | null
+          lobstr_run_ids?: Json | null
           lobstr_squid_id?: string | null
           processed?: boolean
           raw_results?: Json | null
@@ -453,6 +455,7 @@ export type Database = {
           id?: string
           job_type?: string
           lobstr_run_id?: string | null
+          lobstr_run_ids?: Json | null
           lobstr_squid_id?: string | null
           processed?: boolean
           raw_results?: Json | null

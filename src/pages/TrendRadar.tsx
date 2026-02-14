@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,9 +50,9 @@ export default function TrendRadar() {
   const [cached, setCached] = useState(false);
   const [dataSource, setDataSource] = useState<string>("ai_generated");
   const [scanning, setScanning] = useState(false);
-  const [scanJobId, setScanJobId] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanStatus, setScanStatus] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchTrends = async (forceRefresh = false) => {
     if (!user) return;
@@ -78,14 +78,20 @@ export default function TrendRadar() {
 
   useEffect(() => { fetchTrends(); }, [user, selectedCategory]);
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
   const launchScan = async () => {
     setScanning(true);
-    setScanStatus("launching");
-    setScanProgress(0);
+    setScanStatus("Launching Vinted scrapers...");
+    setScanProgress(5);
+
     try {
-      // Step 1: Launch (Firecrawl searches — completes synchronously)
-      setScanStatus("running");
-      setScanProgress(20);
+      // Step 1: Launch
       const { data, error } = await supabase.functions.invoke("lobstr-sync", {
         body: { action: "launch" },
       });
@@ -93,27 +99,93 @@ export default function TrendRadar() {
       if (data?.error) throw new Error(data.error);
 
       const jobId = data.job_id;
-      setScanProgress(60);
-      setScanStatus("processing");
+      const isFallback = !!data.fallback;
 
-      // Step 2: Process with AI
-      const { data: processData, error: processError } = await supabase.functions.invoke("lobstr-sync", {
-        body: { action: "process", job_id: jobId },
-      });
-      if (processError) throw processError;
-      if (processData?.error) throw new Error(processData.error);
+      if (isFallback || data.status === "completed") {
+        // Firecrawl fallback completed synchronously
+        setScanProgress(60);
+        setScanStatus("AI analysing web search data...");
 
-      setScanProgress(100);
-      setScanStatus("done");
-      toast.success(`Market scan complete! ${processData?.trends_count || 0} trends extracted.`);
-      await fetchTrends(true);
+        const { data: processData, error: processError } = await supabase.functions.invoke("lobstr-sync", {
+          body: { action: "process", job_id: jobId },
+        });
+        if (processError) throw processError;
+        if (processData?.error) throw new Error(processData.error);
+
+        setScanProgress(100);
+        setScanStatus("Scan complete!");
+        toast.success(`Market scan complete! ${processData?.trends_count || 0} trends extracted (web search fallback).`);
+        await fetchTrends(true);
+        finishScan();
+        return;
+      }
+
+      // Lobstr.io async flow — poll until complete
+      const totalRuns = data.runs_launched || 1;
+      setScanProgress(10);
+      setScanStatus(`Collecting marketplace data (0/${totalRuns} complete)...`);
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const { data: pollData, error: pollError } = await supabase.functions.invoke("lobstr-sync", {
+            body: { action: "poll", job_id: jobId },
+          });
+          if (pollError) throw pollError;
+          if (pollData?.error) throw new Error(pollData.error);
+
+          const completed = pollData.completed || 0;
+          const total = pollData.total || totalRuns;
+          const progress = 10 + Math.round((completed / total) * 50);
+          setScanProgress(progress);
+          setScanStatus(`Collecting marketplace data (${completed}/${total} complete)...`);
+
+          if (pollData.status === "completed" || pollData.status === "failed") {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+
+            if (pollData.status === "failed") {
+              throw new Error("All scraping runs failed");
+            }
+
+            // Process results
+            setScanProgress(65);
+            setScanStatus("AI analysing real listing data...");
+
+            const { data: processData, error: processError } = await supabase.functions.invoke("lobstr-sync", {
+              body: { action: "process", job_id: jobId },
+            });
+            if (processError) throw processError;
+            if (processData?.error) throw new Error(processData.error);
+
+            const source = processData.data_source === "lobstr" ? "real Vinted data" : "web search";
+            setScanProgress(100);
+            setScanStatus("Scan complete!");
+            toast.success(`Market scan complete! ${processData?.trends_count || 0} trends from ${source}.`);
+            await fetchTrends(true);
+            finishScan();
+          }
+        } catch (e: any) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          toast.error(e.message || "Polling failed");
+          finishScan("failed");
+        }
+      }, 5000);
     } catch (e: any) {
       toast.error(e.message || "Failed to launch scan");
-      setScanStatus("failed");
-    } finally {
-      setScanning(false);
-      setTimeout(() => { setScanStatus(null); setScanProgress(0); }, 2000);
+      finishScan("failed");
     }
+  };
+
+  const finishScan = (status?: string) => {
+    if (status === "failed") {
+      setScanStatus("Scan failed");
+    }
+    setTimeout(() => {
+      setScanning(false);
+      setScanStatus(null);
+      setScanProgress(0);
+    }, 2000);
   };
 
   const risingCount = trends.filter((t) => t.trend_direction === "rising").length;
@@ -154,13 +226,7 @@ export default function TrendRadar() {
             <div className="flex items-center gap-3 mb-2">
               <Satellite className="w-5 h-5 text-primary animate-pulse" />
               <div className="flex-1">
-                <p className="text-sm font-semibold">
-                  {scanStatus === "launching" && "Launching market scan..."}
-                  {scanStatus === "running" && "Scraping Vinted marketplace data..."}
-                  {scanStatus === "processing" && "AI analysing scraped data..."}
-                  {scanStatus === "done" && "Scan complete!"}
-                  {scanStatus === "failed" && "Scan failed"}
-                </p>
+                <p className="text-sm font-semibold">{scanStatus}</p>
               </div>
             </div>
             <Progress value={scanProgress} className="h-2" />
