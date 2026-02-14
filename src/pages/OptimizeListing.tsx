@@ -13,8 +13,9 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Upload, Loader2, Sparkles, Copy, Check, Save,
-  ImagePlus, X, AlertCircle, Camera,
+  ImagePlus, X, AlertCircle, Camera, Globe, Languages,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type HealthScore = {
   overall: number;
@@ -40,6 +41,21 @@ type OptimiseResult = {
   style_notes: string;
 };
 
+type TranslationEntry = {
+  title: string;
+  description: string;
+  tags: string[];
+};
+
+type Translations = Record<string, TranslationEntry>;
+
+const LANGUAGES = [
+  { code: "fr", label: "🇫🇷 French", short: "FR" },
+  { code: "de", label: "🇩🇪 German", short: "DE" },
+  { code: "nl", label: "🇳🇱 Dutch", short: "NL" },
+  { code: "es", label: "🇪🇸 Spanish", short: "ES" },
+] as const;
+
 export default function OptimizeListing() {
   const navigate = useNavigate();
   const { user, session, refreshCredits } = useAuth();
@@ -55,6 +71,9 @@ export default function OptimizeListing() {
   const [result, setResult] = useState<OptimiseResult | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [translations, setTranslations] = useState<Translations | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [activeTransLang, setActiveTransLang] = useState("fr");
 
   const handlePhotoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -159,6 +178,31 @@ export default function OptimizeListing() {
       console.error(e);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTranslate = async () => {
+    if (!result) return;
+    setTranslating(true);
+    setTranslations(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("translate-listing", {
+        body: {
+          title: result.optimised_title,
+          description: result.optimised_description,
+          tags: result.suggested_tags,
+          languages: LANGUAGES.map((l) => l.code),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setTranslations(data.translations);
+      toast.success("Listing translated into 4 languages!");
+    } catch (e: any) {
+      toast.error(e.message || "Translation failed");
+      console.error(e);
+    } finally {
+      setTranslating(false);
     }
   };
 
@@ -398,6 +442,135 @@ export default function OptimizeListing() {
                     )}
                   </Card>
                 )}
+
+                {/* Multi-Language Translation */}
+                <Card className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-display font-bold text-lg flex items-center gap-2">
+                      <Globe className="w-5 h-5 text-primary" />
+                      Multi-Language Listings
+                    </h2>
+                    <Button
+                      onClick={handleTranslate}
+                      disabled={translating}
+                      size="sm"
+                      variant={translations ? "outline" : "default"}
+                    >
+                      {translating ? (
+                        <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Translating...</>
+                      ) : translations ? (
+                        <><Languages className="w-3 h-3 mr-1" /> Retranslate</>
+                      ) : (
+                        <><Languages className="w-3 h-3 mr-1" /> Translate to 4 Languages</>
+                      )}
+                    </Button>
+                  </div>
+
+                  {!translations && !translating && (
+                    <p className="text-sm text-muted-foreground">
+                      Expand your reach across Vinted's 18+ European markets. Translate your optimised listing into French, German, Dutch, and Spanish with one click.
+                    </p>
+                  )}
+
+                  {translating && (
+                    <div className="text-center py-8">
+                      <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">Translating into French, German, Dutch &amp; Spanish...</p>
+                    </div>
+                  )}
+
+                  {translations && !translating && (
+                    <Tabs value={activeTransLang} onValueChange={setActiveTransLang}>
+                      <TabsList className="w-full grid grid-cols-4 mb-4">
+                        {LANGUAGES.map((lang) => (
+                          <TabsTrigger key={lang.code} value={lang.code} className="text-xs">
+                            {lang.label}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+
+                      {LANGUAGES.map((lang) => {
+                        const t = translations[lang.code];
+                        if (!t) return null;
+                        return (
+                          <TabsContent key={lang.code} value={lang.code} className="space-y-3">
+                            {/* Translated Title */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <Label className="text-xs font-semibold">Title ({lang.short})</Label>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 text-xs"
+                                  onClick={() => copyToClipboard(t.title, `trans-title-${lang.code}`)}
+                                >
+                                  {copiedField === `trans-title-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                  {copiedField === `trans-title-${lang.code}` ? "Copied" : "Copy"}
+                                </Button>
+                              </div>
+                              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                                <p className="text-sm font-medium">{t.title}</p>
+                              </div>
+                            </div>
+
+                            {/* Translated Description */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <Label className="text-xs font-semibold">Description ({lang.short})</Label>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 text-xs"
+                                  onClick={() => copyToClipboard(t.description, `trans-desc-${lang.code}`)}
+                                >
+                                  {copiedField === `trans-desc-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                  {copiedField === `trans-desc-${lang.code}` ? "Copied" : "Copy"}
+                                </Button>
+                              </div>
+                              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 max-h-48 overflow-y-auto">
+                                <p className="text-sm whitespace-pre-wrap">{t.description}</p>
+                              </div>
+                            </div>
+
+                            {/* Translated Tags */}
+                            {t.tags?.length > 0 && (
+                              <div>
+                                <Label className="text-xs font-semibold mb-2 block">Tags ({lang.short})</Label>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {t.tags.map((tag) => (
+                                    <Badge
+                                      key={tag}
+                                      variant="secondary"
+                                      className="text-[10px] cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                                      onClick={() => copyToClipboard(tag, `trans-tag-${lang.code}-${tag}`)}
+                                    >
+                                      {tag}
+                                      {copiedField === `trans-tag-${lang.code}-${tag}` ? <Check className="w-2.5 h-2.5 ml-1" /> : <Copy className="w-2.5 h-2.5 ml-1" />}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Copy All */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full text-xs"
+                              onClick={() => copyToClipboard(
+                                `${t.title}\n\n${t.description}\n\nTags: ${t.tags?.join(", ") || ""}`,
+                                `trans-all-${lang.code}`
+                              )}
+                            >
+                              {copiedField === `trans-all-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                              Copy Full {lang.label} Listing
+                            </Button>
+                          </TabsContent>
+                        );
+                      })}
+                    </Tabs>
+                  )}
+                </Card>
 
                 {/* Save Button */}
                 <Button onClick={handleSaveAsListing} disabled={saving} className="w-full font-semibold" size="lg">
