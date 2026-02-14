@@ -20,7 +20,7 @@ const navItems = [
   { icon: Search, label: "Price Check", path: "/price-check" },
   { icon: Zap, label: "Optimise", path: "/optimize" },
   { icon: Tag, label: "My Listings", path: "/listings" },
-  { icon: TrendingUp, label: "Trends", path: "/dashboard", badge: "Soon" },
+  { icon: TrendingUp, label: "Trends", path: "/trends" },
   { icon: CreditCard, label: "Billing", path: "/settings" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
@@ -86,7 +86,7 @@ export default function Dashboard() {
             >
               <item.icon className="w-4 h-4" />
               {item.label}
-              {item.badge && <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">{item.badge}</Badge>}
+              {(item as any).badge && <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">{(item as any).badge}</Badge>}
             </button>
           ))}
         </nav>

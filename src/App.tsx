@@ -12,6 +12,7 @@ import Listings from "./pages/Listings";
 import PriceCheck from "./pages/PriceCheck";
 import SettingsPage from "./pages/SettingsPage";
 import OptimizeListing from "./pages/OptimizeListing";
+import TrendRadar from "./pages/TrendRadar";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/price-check" element={<ProtectedRoute><OnboardingGuard><PriceCheck /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/listings" element={<ProtectedRoute><OnboardingGuard><Listings /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/optimize" element={<ProtectedRoute><OnboardingGuard><OptimizeListing /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/trends" element={<ProtectedRoute><OnboardingGuard><TrendRadar /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
