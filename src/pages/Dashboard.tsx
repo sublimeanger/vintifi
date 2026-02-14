@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, X, CreditCard,
-  Clock, ChevronRight, ArrowRightLeft,
+  Clock, ChevronRight, ArrowRightLeft, Radar,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 
@@ -22,6 +22,7 @@ const navItems = [
   { icon: Tag, label: "My Listings", path: "/listings" },
   { icon: TrendingUp, label: "Trends", path: "/trends" },
   { icon: ArrowRightLeft, label: "Arbitrage", path: "/arbitrage" },
+  { icon: Radar, label: "Competitors", path: "/competitors" },
   { icon: CreditCard, label: "Billing", path: "/settings" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
@@ -250,7 +251,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Quick Actions */}
-          <div className="grid md:grid-cols-4 gap-4">
+          <div className="grid md:grid-cols-5 gap-4">
             <Card
               className="p-5 cursor-pointer hover:shadow-md transition-shadow border-border/50"
               onClick={() => navigate("/price-check")}
@@ -282,6 +283,14 @@ export default function Dashboard() {
               <ArrowRightLeft className="w-5 h-5 text-primary mb-3" />
               <h4 className="font-display font-bold mb-1">Arbitrage Scanner</h4>
               <p className="text-sm text-muted-foreground">Find profitable flips on eBay &amp; Depop</p>
+            </Card>
+            <Card
+              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-border/50"
+              onClick={() => navigate("/competitors")}
+            >
+              <Radar className="w-5 h-5 text-primary mb-3" />
+              <h4 className="font-display font-bold mb-1">Competitor Tracker</h4>
+              <p className="text-sm text-muted-foreground">Monitor rivals &amp; get price alerts</p>
             </Card>
           </div>
         </div>

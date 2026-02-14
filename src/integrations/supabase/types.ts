@@ -77,6 +77,104 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_alerts: {
+        Row: {
+          alert_type: string
+          competitor_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_read: boolean
+          new_value: number | null
+          old_value: number | null
+          source_url: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          alert_type?: string
+          competitor_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_read?: boolean
+          new_value?: number | null
+          old_value?: number | null
+          source_url?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          competitor_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_read?: boolean
+          new_value?: number | null
+          old_value?: number | null
+          source_url?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_alerts_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "competitor_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competitor_profiles: {
+        Row: {
+          avg_price: number | null
+          category: string | null
+          competitor_name: string
+          created_at: string
+          id: string
+          last_scanned_at: string | null
+          listing_count: number | null
+          notes: string | null
+          price_trend: string | null
+          search_query: string | null
+          updated_at: string
+          user_id: string
+          vinted_username: string | null
+        }
+        Insert: {
+          avg_price?: number | null
+          category?: string | null
+          competitor_name: string
+          created_at?: string
+          id?: string
+          last_scanned_at?: string | null
+          listing_count?: number | null
+          notes?: string | null
+          price_trend?: string | null
+          search_query?: string | null
+          updated_at?: string
+          user_id: string
+          vinted_username?: string | null
+        }
+        Update: {
+          avg_price?: number | null
+          category?: string | null
+          competitor_name?: string
+          created_at?: string
+          id?: string
+          last_scanned_at?: string | null
+          listing_count?: number | null
+          notes?: string | null
+          price_trend?: string | null
+          search_query?: string | null
+          updated_at?: string
+          user_id?: string
+          vinted_username?: string | null
+        }
+        Relationships: []
+      }
       listings: {
         Row: {
           brand: string | null
