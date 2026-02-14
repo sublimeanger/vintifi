@@ -30,7 +30,7 @@ export default function Landing() {
       <header className="sticky top-0 z-50 glass">
         <nav className="container mx-auto flex items-center justify-between py-4 px-4">
           <Link to="/" className="flex items-center">
-            <img src="/vintifi-logo.png" alt="Vintifi" className="h-8 w-auto" />
+            <img src="/vintifi-logo.png" alt="Vintifi" className="h-10 w-auto" />
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</a>
@@ -231,7 +231,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="py-12 border-t border-border">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <img src="/vintifi-logo.png" alt="Vintifi" className="h-6 w-auto" />
+          <img src="/vintifi-logo.png" alt="Vintifi" className="h-8 w-auto" />
           <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} Vintifi. All rights reserved.</p>
         </div>
       </footer>
