@@ -202,12 +202,52 @@ export type Database = {
         }
         Relationships: []
       }
+      scrape_jobs: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          job_type: string
+          lobstr_run_id: string | null
+          lobstr_squid_id: string | null
+          processed: boolean
+          raw_results: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          job_type?: string
+          lobstr_run_id?: string | null
+          lobstr_squid_id?: string | null
+          processed?: boolean
+          raw_results?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          job_type?: string
+          lobstr_run_id?: string | null
+          lobstr_squid_id?: string | null
+          processed?: boolean
+          raw_results?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trends: {
         Row: {
           ai_summary: string | null
           avg_price: number | null
           brand_or_item: string
           category: string
+          data_source: string
           detected_at: string
           estimated_peak_date: string | null
           id: string
@@ -224,6 +264,7 @@ export type Database = {
           avg_price?: number | null
           brand_or_item: string
           category: string
+          data_source?: string
           detected_at?: string
           estimated_peak_date?: string | null
           id?: string
@@ -240,6 +281,7 @@ export type Database = {
           avg_price?: number | null
           brand_or_item?: string
           category?: string
+          data_source?: string
           detected_at?: string
           estimated_peak_date?: string | null
           id?: string

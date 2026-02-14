@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.fetch-trends]
 verify_jwt = false
+
+[functions.lobstr-sync]
+verify_jwt = false

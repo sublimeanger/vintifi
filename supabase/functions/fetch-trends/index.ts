@@ -41,7 +41,7 @@ serve(async (req) => {
     const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
     const { data: existingTrends } = await serviceClient
       .from("trends")
-      .select("id")
+      .select("id, data_source")
       .gte("updated_at", sixHoursAgo)
       .limit(1);
 
@@ -57,12 +57,13 @@ serve(async (req) => {
       }
 
       const { data: trends } = await query.limit(20);
-      return new Response(JSON.stringify({ trends, cached: true }), {
+      const dataSource = existingTrends[0]?.data_source || "ai_generated";
+      return new Response(JSON.stringify({ trends, cached: true, data_source: dataSource }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Generate fresh trends using AI
+    // Generate fresh trends using AI (fallback when no Lobstr data)
     const categories = [
       "Womenswear", "Menswear", "Streetwear", "Vintage",
       "Designer", "Shoes", "Accessories", "Kids",
@@ -145,6 +146,7 @@ Return ONLY the JSON array, no other text.`;
       opportunity_score: t.opportunity_score,
       ai_summary: t.ai_summary,
       estimated_peak_date: t.estimated_peak_date,
+      data_source: "ai_generated",
     }));
 
     const { error: insertError } = await serviceClient.from("trends").insert(rows);
@@ -165,7 +167,7 @@ Return ONLY the JSON array, no other text.`;
 
     const { data: freshTrends } = await query.limit(20);
 
-    return new Response(JSON.stringify({ trends: freshTrends, cached: false }), {
+    return new Response(JSON.stringify({ trends: freshTrends, cached: false, data_source: "ai_generated" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
