@@ -281,6 +281,14 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">AI-powered listing optimisation</p>
             </Card>
             <Card
+              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-accent/20 bg-accent/[0.02]"
+              onClick={() => navigate("/bulk-optimize")}
+            >
+              <BarChart3 className="w-5 h-5 text-accent mb-3" />
+              <h4 className="font-display font-bold mb-1">Bulk Optimise</h4>
+              <p className="text-sm text-muted-foreground">CSV upload for batch AI listings</p>
+            </Card>
+            <Card
               className="p-5 cursor-pointer hover:shadow-md transition-shadow border-primary/20 bg-primary/[0.02]"
               onClick={() => navigate("/arbitrage")}
             >
