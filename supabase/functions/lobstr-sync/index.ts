@@ -262,15 +262,34 @@ async function handleProcess(serviceClient: any, jobId: string) {
   let isLobstrData = false;
   let resultsSummary = "";
 
-  // If we have Lobstr.io run IDs, fetch real scraped data
-  if (runIds && runIds.length > 0 && LOBSTR_API_KEY) {
+  // Check if this is an import job (data already in raw_results from Lobstr)
+  const isImportJob = job.job_type === "trend_import";
+
+  if (isImportJob && job.raw_results) {
+    // Import job — Lobstr data already stored in raw_results
+    isLobstrData = true;
+    const allResults = Array.isArray(job.raw_results) ? job.raw_results : [];
+    console.log(`Processing ${allResults.length} imported Lobstr results`);
+
+    resultsSummary = allResults.slice(0, 200).map((item: any) => {
+      const title = item.title || item.name || "";
+      const price = item.price || item.total_price || "";
+      const brand = item.brand || item.brand_title || "";
+      const category = item.category || item.catalog_title || "";
+      const condition = item.status || item.condition || "";
+      const views = item.views || item.view_count || "";
+      const favourites = item.favourites || item.favourite_count || "";
+      return `${title} | Brand: ${brand} | Price: ${price} | Category: ${category} | Condition: ${condition} | Views: ${views} | Favs: ${favourites}`;
+    }).join("\n");
+  } else if (runIds && runIds.length > 0 && LOBSTR_API_KEY) {
+    // Standard Lobstr run — fetch results from API
     isLobstrData = true;
     const allResults: any[] = [];
 
     for (const entry of runIds) {
       if (entry.status !== "completed") continue;
       try {
-        const res = await fetch(`${LOBSTR_BASE}/runs/${entry.run_id}/results?limit=500`, {
+        const res = await fetch(`${LOBSTR_BASE}/results?run=${entry.run_id}&limit=500`, {
           headers: lobstrHeaders(LOBSTR_API_KEY),
         });
         if (res.ok) {
@@ -285,7 +304,6 @@ async function handleProcess(serviceClient: any, jobId: string) {
 
     console.log(`Lobstr.io returned ${allResults.length} total results`);
 
-    // Build summary from real Vinted listing data
     resultsSummary = allResults.slice(0, 200).map((item: any) => {
       const title = item.title || item.name || "";
       const price = item.price || item.total_price || "";
@@ -414,6 +432,81 @@ Return ONLY the JSON array, no other text.`;
   return { success: true, trends_count: trends.length, data_source: isLobstrData ? "lobstr" : "firecrawl" };
 }
 
+// ── IMPORT: Fetch latest existing results from Lobstr without launching ──
+async function handleImport(serviceClient: any, squidIds: string[]) {
+  const LOBSTR_API_KEY = Deno.env.get("LOBSTR_API_KEY");
+  if (!LOBSTR_API_KEY) throw new Error("LOBSTR_API_KEY not configured");
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+  const allResults: any[] = [];
+
+  for (const squidId of squidIds) {
+    // List recent runs for this squid
+    const runsRes = await fetch(`${LOBSTR_BASE}/runs?squid=${squidId}&limit=5`, {
+      headers: lobstrHeaders(LOBSTR_API_KEY),
+    });
+    if (!runsRes.ok) {
+      const text = await runsRes.text();
+      console.warn(`Failed to list runs for squid ${squidId}: ${runsRes.status} ${text}`);
+      continue;
+    }
+    const runsData = await runsRes.json();
+    console.log(`Runs API response for squid ${squidId}:`, JSON.stringify(runsData).slice(0, 500));
+    const runs = Array.isArray(runsData) ? runsData : (runsData.results || runsData.data || []);
+
+    // Find the latest completed run
+    const completedRun = runs.find((r: any) => {
+      const status = r.status || r.state || "";
+      return ["completed", "finished", "done"].includes(status.toLowerCase());
+    }) || runs.find((r: any) => r.is_done === true);
+
+    if (!completedRun) {
+      console.warn(`No completed runs found for squid ${squidId}. Statuses:`, runs.map((r: any) => r.status || r.state));
+      continue;
+    }
+
+    const runId = completedRun.id || completedRun._id || completedRun.run_id;
+    console.log(`Importing results from run ${runId} for squid ${squidId}`);
+
+    // Fetch results
+    const resultsRes = await fetch(`${LOBSTR_BASE}/results?run=${runId}&limit=500`, {
+      headers: lobstrHeaders(LOBSTR_API_KEY),
+    });
+    const resultsText = await resultsRes.text();
+    console.log(`Results API response (status ${resultsRes.status}):`, resultsText.slice(0, 500));
+    if (resultsRes.ok) {
+      try {
+        const data = JSON.parse(resultsText);
+        const results = Array.isArray(data) ? data : (data.results || data.data || []);
+        allResults.push(...results);
+      } catch (e) {
+        console.warn(`Failed to parse results JSON for run ${runId}`);
+      }
+    }
+  }
+
+  console.log(`Imported ${allResults.length} total results from Lobstr.io`);
+  if (allResults.length === 0) throw new Error("No results found in latest Lobstr.io runs");
+
+  // Create a job record
+  const { data: job, error: insertError } = await serviceClient
+    .from("scrape_jobs")
+    .insert({
+      job_type: "trend_import",
+      status: "completed",
+      raw_results: allResults.slice(0, 200),
+      lobstr_run_ids: squidIds.map(id => ({ squid_id: id, run_id: "imported", status: "completed" })),
+    })
+    .select()
+    .single();
+  if (insertError) throw insertError;
+
+  // Process through AI (reuse handleProcess)
+  const result = await handleProcess(serviceClient, job.id);
+  return { ...result, imported_count: allResults.length };
+}
+
 // ── SCHEDULED: Full pipeline for cron jobs ──
 async function handleScheduled(serviceClient: any) {
   console.log("Starting scheduled trend scan...");
@@ -492,9 +585,11 @@ serve(async (req) => {
     } else if (action === "process") {
       if (!job_id) throw new Error("job_id required for process");
       result = await handleProcess(serviceClient, job_id);
+    } else if (action === "import") {
+      result = await handleImport(serviceClient, squid_ids || DEFAULT_SQUID_IDS);
     } else {
       return new Response(
-        JSON.stringify({ error: "Invalid action. Use: launch, poll, process, scheduled" }),
+        JSON.stringify({ error: "Invalid action. Use: launch, poll, process, scheduled, import" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
