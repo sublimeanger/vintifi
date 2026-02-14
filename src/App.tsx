@@ -15,6 +15,7 @@ import OptimizeListing from "./pages/OptimizeListing";
 import TrendRadar from "./pages/TrendRadar";
 import ArbitrageScanner from "./pages/ArbitrageScanner";
 import CompetitorTracker from "./pages/CompetitorTracker";
+import DeadStock from "./pages/DeadStock";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/trends" element={<ProtectedRoute><OnboardingGuard><TrendRadar /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/arbitrage" element={<ProtectedRoute><OnboardingGuard><ArbitrageScanner /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/competitors" element={<ProtectedRoute><OnboardingGuard><CompetitorTracker /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/dead-stock" element={<ProtectedRoute><OnboardingGuard><DeadStock /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
