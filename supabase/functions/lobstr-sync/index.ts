@@ -414,6 +414,47 @@ Return ONLY the JSON array, no other text.`;
   return { success: true, trends_count: trends.length, data_source: isLobstrData ? "lobstr" : "firecrawl" };
 }
 
+// ── SCHEDULED: Full pipeline for cron jobs ──
+async function handleScheduled(serviceClient: any) {
+  console.log("Starting scheduled trend scan...");
+  const squidIds = DEFAULT_SQUID_IDS;
+
+  // Launch
+  const launchResult = await handleLaunch(serviceClient, squidIds);
+  if (launchResult.error) throw new Error(launchResult.error);
+  const jobId = launchResult.job_id;
+  const isFallback = !!launchResult.fallback;
+
+  if (isFallback || launchResult.status === "completed") {
+    // Firecrawl fallback completed synchronously
+    const processResult = await handleProcess(serviceClient, jobId);
+    console.log("Scheduled scan complete (fallback):", processResult);
+    return processResult;
+  }
+
+  // Poll until complete (max 10 minutes)
+  const maxWaitMs = 10 * 60 * 1000;
+  const pollIntervalMs = 15_000;
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < maxWaitMs) {
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    const pollResult = await handlePoll(serviceClient, jobId);
+    console.log(`Poll: ${pollResult.completed}/${pollResult.total} complete`);
+
+    if (pollResult.status === "completed") {
+      const processResult = await handleProcess(serviceClient, jobId);
+      console.log("Scheduled scan complete (lobstr):", processResult);
+      return processResult;
+    }
+    if (pollResult.status === "failed") {
+      throw new Error("All scraping runs failed");
+    }
+  }
+
+  throw new Error("Scheduled scan timed out after 10 minutes");
+}
+
 // ── Main handler ──
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -421,9 +462,25 @@ serve(async (req) => {
   }
 
   try {
-    await authenticateUser(req);
-    const serviceClient = getServiceClient();
     const { action, job_id, squid_ids } = await req.json();
+    const serviceClient = getServiceClient();
+
+    // Scheduled action: called by pg_cron, uses anon key auth bypass
+    if (action === "scheduled") {
+      const cronSecret = req.headers.get("x-cron-secret");
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      if (cronSecret !== anonKey) {
+        // Not a cron call — require normal user auth
+        await authenticateUser(req);
+      }
+      const result = await handleScheduled(serviceClient);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // All other actions require user auth
+    await authenticateUser(req);
 
     let result: any;
 
@@ -437,7 +494,7 @@ serve(async (req) => {
       result = await handleProcess(serviceClient, job_id);
     } else {
       return new Response(
-        JSON.stringify({ error: "Invalid action. Use: launch, poll, process" }),
+        JSON.stringify({ error: "Invalid action. Use: launch, poll, process, scheduled" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
