@@ -17,6 +17,7 @@ import ArbitrageScanner from "./pages/ArbitrageScanner";
 import CompetitorTracker from "./pages/CompetitorTracker";
 import DeadStock from "./pages/DeadStock";
 import Analytics from "./pages/Analytics";
+import RelistScheduler from "./pages/RelistScheduler";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/competitors" element={<ProtectedRoute><OnboardingGuard><CompetitorTracker /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/dead-stock" element={<ProtectedRoute><OnboardingGuard><DeadStock /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><OnboardingGuard><Analytics /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/relist" element={<ProtectedRoute><OnboardingGuard><RelistScheduler /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

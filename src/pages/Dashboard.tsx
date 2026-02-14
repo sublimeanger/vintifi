@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, X, CreditCard,
-  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart,
+  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 
@@ -25,6 +25,7 @@ const navItems = [
   { icon: Radar, label: "Competitors", path: "/competitors" },
   { icon: AlertTriangle, label: "Dead Stock", path: "/dead-stock" },
   { icon: PieChart, label: "P&L Analytics", path: "/analytics" },
+  { icon: Timer, label: "Relist Scheduler", path: "/relist" },
   { icon: CreditCard, label: "Billing", path: "/settings" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
@@ -309,6 +310,14 @@ export default function Dashboard() {
               <PieChart className="w-5 h-5 text-success mb-3" />
               <h4 className="font-display font-bold mb-1">P&L Analytics</h4>
               <p className="text-sm text-muted-foreground">Revenue, margins &amp; ROI charts</p>
+            </Card>
+            <Card
+              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-primary/20 bg-primary/[0.02]"
+              onClick={() => navigate("/relist")}
+            >
+              <Timer className="w-5 h-5 text-primary mb-3" />
+              <h4 className="font-display font-bold mb-1">Relist Scheduler</h4>
+              <p className="text-sm text-muted-foreground">Auto-schedule relists with smart pricing</p>
             </Card>
           </div>
         </div>

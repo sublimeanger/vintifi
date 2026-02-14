@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.dead-stock-analyze]
 verify_jwt = false
+
+[functions.relist-scheduler]
+verify_jwt = false
