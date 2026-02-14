@@ -79,6 +79,20 @@ export const PRIMARY_GOALS = [
   { value: "save_time", label: "Save time" },
 ] as const;
 
+// Default Lobstr.io Squid IDs for Vinted scraping.
+// Replace these with your actual Squid IDs from your Lobstr.io account.
+// Each Squid should be configured to scrape a specific Vinted category/market.
+export const DEFAULT_LOBSTR_SQUID_IDS = [
+  "vinted-uk-womenswear",
+  "vinted-uk-menswear",
+  "vinted-uk-streetwear",
+  "vinted-uk-vintage",
+  "vinted-uk-designer",
+  "vinted-uk-shoes",
+  "vinted-uk-accessories",
+  "vinted-uk-kids",
+] as const;
+
 export const TIMEZONES = [
   { value: "Europe/London", label: "🇬🇧 London (GMT/BST)" },
   { value: "Europe/Paris", label: "🇫🇷 Paris (CET/CEST)" },

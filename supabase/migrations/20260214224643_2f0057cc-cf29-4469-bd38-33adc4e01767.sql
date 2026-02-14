@@ -1,0 +1,1 @@
+ALTER TABLE public.scrape_jobs ADD COLUMN IF NOT EXISTS lobstr_run_ids jsonb;
