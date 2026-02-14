@@ -20,6 +20,7 @@ import Analytics from "./pages/Analytics";
 import RelistScheduler from "./pages/RelistScheduler";
 import PortfolioOptimizer from "./pages/PortfolioOptimizer";
 import SeasonalCalendar from "./pages/SeasonalCalendar";
+import CharityBriefing from "./pages/CharityBriefing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/relist" element={<ProtectedRoute><OnboardingGuard><RelistScheduler /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/portfolio" element={<ProtectedRoute><OnboardingGuard><PortfolioOptimizer /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/seasonal" element={<ProtectedRoute><OnboardingGuard><SeasonalCalendar /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/charity-briefing" element={<ProtectedRoute><OnboardingGuard><CharityBriefing /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

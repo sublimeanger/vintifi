@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, X, CreditCard,
-  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target, CalendarDays,
+  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target, CalendarDays, MapPin,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 
@@ -28,6 +28,7 @@ const navItems = [
   { icon: Timer, label: "Relist Scheduler", path: "/relist" },
   { icon: Target, label: "Portfolio Optimiser", path: "/portfolio" },
   { icon: CalendarDays, label: "Seasonal Calendar", path: "/seasonal" },
+  { icon: MapPin, label: "Charity Briefing", path: "/charity-briefing" },
   { icon: CreditCard, label: "Billing", path: "/settings" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
@@ -336,6 +337,14 @@ export default function Dashboard() {
               <CalendarDays className="w-5 h-5 text-accent mb-3" />
               <h4 className="font-display font-bold mb-1">Seasonal Calendar</h4>
               <p className="text-sm text-muted-foreground">Know when demand peaks for each category</p>
+            </Card>
+            <Card
+              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-primary/20 bg-primary/[0.02]"
+              onClick={() => navigate("/charity-briefing")}
+            >
+              <MapPin className="w-5 h-5 text-primary mb-3" />
+              <h4 className="font-display font-bold mb-1">Charity Briefing</h4>
+              <p className="text-sm text-muted-foreground">AI sourcing list for charity shop trips</p>
             </Card>
           </div>
         </div>
