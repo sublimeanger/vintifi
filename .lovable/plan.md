@@ -1,60 +1,57 @@
 
 
-## Add User Timezone Setting
+## Rebrand from Raqkt to Vintifi
 
 ### Overview
-Add a timezone preference to user profiles, collected during onboarding and editable in Settings. This timezone will be used across all backend functions that deal with scheduling and time-sensitive content (relist scheduler, weekly digest, charity briefing).
+Rename the brand from "Raqkt" to "Vintifi" across the entire application, update the domain to vintifi.com, update the Resend email sender to use @vintifi.com, and generate a professional logo using AI image generation.
 
-### What Changes
+### Changes
 
-**1. Database Migration**
-- Add a `timezone` column to the `profiles` table (type `text`, default `'Europe/London'`, not null).
+**1. Logo Generation**
+- Use the Lovable AI image generation API (Nano banana pro model) to create a professional logo for "Vintifi" -- a clean, modern wordmark/icon that fits the coral red (#E94560) and deep navy (#1A1A2E) colour palette.
+- Save the generated logo as `public/vintifi-logo.png` and use it in the navbar, auth page, dashboard sidebar, and footer.
 
-**2. Constants (`src/lib/constants.ts`)**
-- Add a `TIMEZONES` array with common European timezones relevant to Vinted markets (e.g., `Europe/London`, `Europe/Paris`, `Europe/Berlin`, `Europe/Amsterdam`, `Europe/Madrid`, `Europe/Rome`, `Europe/Warsaw`, `Europe/Stockholm`).
+**2. `index.html` -- Meta Tags & SEO**
+- Update `<title>` to "Vintifi -- AI-Powered Vinted Selling Intelligence"
+- Update all `<meta>` tags (description, og:title, og:description, twitter:title, twitter:description, author) from "Raqkt" to "Vintifi"
+- Update canonical URL from `https://raqkt.com` to `https://vintifi.com`
 
-**3. Onboarding (`src/pages/Onboarding.tsx`)**
-- Add a 4th step: "What's your timezone?" with a selectable list of timezone options (auto-detect the browser's timezone via `Intl.DateTimeFormat().resolvedOptions().timeZone` to pre-select).
-- Update the `handleFinish` function to save the selected timezone to the profile.
-- Update progress indicators from 3 steps to 4 steps.
+**3. `src/pages/Landing.tsx` -- Landing Page**
+- Replace all 7 instances of "Raqkt" with "Vintifi" (navbar logo, hero description, mock UI preview URL, features description, CTA section, footer logo, footer copyright)
+- Update mock browser bar from `raqkt.com/dashboard` to `vintifi.com/dashboard`
 
-**4. Auth Context (`src/contexts/AuthContext.tsx`)**
-- Add `timezone` to the `Profile` type definition so it's available app-wide.
+**4. `src/pages/Auth.tsx` -- Auth Page**
+- Replace "Raqkt" logo text with "Vintifi"
 
-**5. Settings Page (`src/pages/SettingsPage.tsx`)**
-- Add a timezone selector (dropdown) in the Profile section so users can change it after onboarding.
+**5. `src/pages/Dashboard.tsx` -- Dashboard Sidebar & Mobile Header**
+- Replace "Raqkt" logo text in desktop sidebar and mobile header with "Vintifi"
 
-**6. Edge Functions Updates**
+**6. `src/pages/Onboarding.tsx` -- Welcome Toast**
+- Change "Welcome to Raqkt!" to "Welcome to Vintifi!"
 
-- **`weekly-digest/index.ts`**: Read the user's timezone from their profile. Use it to format dates/times in the email subject and body so they reflect the user's local time.
+**7. `supabase/functions/weekly-digest/index.ts` -- Email Branding**
+- Update `from` field from `"Raqkt <onboarding@resend.dev>"` to `"Vintifi <hello@vintifi.com>"`
+- Update email subject from "Your Weekly Raqkt Digest" to "Your Weekly Vintifi Digest"
+- Update HTML email header logo text from "Raqkt" to "Vintifi"
+- Update dashboard CTA link from `raqkt.lovable.app/dashboard` to `vintifi.com/dashboard`
+- Update footer text from "Raqkt" to "Vintifi"
 
-- **`relist-scheduler/index.ts`**: Pass the user's timezone to the AI prompt so scheduling recommendations (e.g., "Sunday evening 18:00-20:00") are in the user's local time, not hardcoded GMT.
+### Files Affected
+| File | Changes |
+|------|---------|
+| `index.html` | 8 text replacements (meta tags, title, canonical URL) |
+| `src/pages/Landing.tsx` | 7 text replacements + domain update |
+| `src/pages/Auth.tsx` | 1 text replacement |
+| `src/pages/Dashboard.tsx` | 2 text replacements (sidebar + mobile) |
+| `src/pages/Onboarding.tsx` | 1 text replacement (toast) |
+| `supabase/functions/weekly-digest/index.ts` | 5 replacements (from, subject, HTML logo, CTA link, footer) |
+| `public/vintifi-logo.png` | New file -- AI-generated logo |
 
-- **`charity-briefing/index.ts`**: Read the user's timezone from their profile and include it in the AI prompt context so time-sensitive tips reference the user's local context.
-
-### Technical Details
-
-**Database SQL:**
-```sql
-ALTER TABLE public.profiles
-ADD COLUMN timezone text NOT NULL DEFAULT 'Europe/London';
-```
-
-**Browser auto-detection logic (onboarding):**
-```typescript
-const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-```
-
-**Edge function timezone usage pattern:**
-Each function that reads a profile will also select the `timezone` column. For the relist scheduler, the AI system prompt will change from hardcoded "GMT" references to use the user's timezone string. For the weekly digest, date formatting will use the timezone for localized output.
-
-**Affected files:**
-- `supabase/migrations/` (new migration)
-- `src/lib/constants.ts`
-- `src/pages/Onboarding.tsx`
-- `src/contexts/AuthContext.tsx`
-- `src/pages/SettingsPage.tsx`
-- `supabase/functions/weekly-digest/index.ts`
-- `supabase/functions/relist-scheduler/index.ts`
-- `supabase/functions/charity-briefing/index.ts`
+### Logo Design Brief
+The logo will be generated with these specifications:
+- Modern, clean wordmark reading "Vintifi"
+- Uses the brand colours: coral red (#E94560) as primary, deep navy (#1A1A2E) as secondary
+- Style: bold, professional SaaS aesthetic matching Plus Jakarta Sans typography
+- Transparent or white background, suitable for both light and dark contexts
+- Compact enough for navbar use (approx 120x32px display size)
 
