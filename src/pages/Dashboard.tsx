@@ -17,7 +17,7 @@ import { STRIPE_TIERS } from "@/lib/constants";
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Search, label: "Price Check", path: "/price-check" },
-  { icon: Tag, label: "My Listings", path: "/dashboard", badge: "Soon" },
+  { icon: Tag, label: "My Listings", path: "/listings" },
   { icon: TrendingUp, label: "Trends", path: "/dashboard", badge: "Soon" },
   { icon: CreditCard, label: "Billing", path: "/settings" },
   { icon: Settings, label: "Settings", path: "/settings" },

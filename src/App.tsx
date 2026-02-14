@@ -8,6 +8,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
+import Listings from "./pages/Listings";
 import PriceCheck from "./pages/PriceCheck";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><OnboardingGuard><Dashboard /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/price-check" element={<ProtectedRoute><OnboardingGuard><PriceCheck /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/listings" element={<ProtectedRoute><OnboardingGuard><Listings /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
