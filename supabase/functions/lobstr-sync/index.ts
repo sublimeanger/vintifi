@@ -7,21 +7,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LOBSTR_BASE = "https://api.lobstr.io/v1";
-const GOOGLE_SEARCH_CRAWLER = "ffd34f9b42a79b7323a048f09fc158e6";
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const LOBSTR_API_KEY = Deno.env.get("LOBSTR_API_KEY");
+    const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    if (!LOBSTR_API_KEY) throw new Error("LOBSTR_API_KEY not configured");
+    if (!FIRECRAWL_API_KEY) throw new Error("FIRECRAWL_API_KEY not configured");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     // Verify auth
@@ -41,12 +38,7 @@ serve(async (req) => {
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { action, job_id } = await req.json();
 
-    const lobstrHeaders = {
-      Authorization: `Token ${LOBSTR_API_KEY}`,
-      "Content-Type": "application/json",
-    };
-
-    // ==================== LAUNCH ====================
+    // ==================== LAUNCH (now uses Firecrawl search) ====================
     if (action === "launch") {
       // Check if there's already a running job
       const { data: runningJobs } = await serviceClient
@@ -62,105 +54,62 @@ serve(async (req) => {
         );
       }
 
-      // 1. Reuse any existing squid (avoids SlotsLimitExceeded)
-      let squidId: string;
-      console.log("Looking for existing Lobstr.io squids...");
-
-      const listRes = await fetch(`${LOBSTR_BASE}/squids`, { headers: lobstrHeaders });
-      if (!listRes.ok) {
-        const err = await listRes.text();
-        console.error("List squids failed:", err);
-        throw new Error(`Failed to list squids: ${listRes.status}`);
-      }
-
-      const squidsData = await listRes.json();
-      const allSquids = Array.isArray(squidsData) ? squidsData : squidsData.results || [];
-      console.log("Found squids:", allSquids.length, JSON.stringify(allSquids.map((s: any) => ({ id: s.id, crawler: s.crawler }))));
-
-      if (allSquids.length > 0) {
-        // Reuse the first available squid regardless of crawler type
-        squidId = allSquids[0].id;
-        console.log("Reusing existing squid:", squidId);
-      } else {
-        // No squids exist, create one
-        const createRes = await fetch(`${LOBSTR_BASE}/squids`, {
-          method: "POST",
-          headers: lobstrHeaders,
-          body: JSON.stringify({ crawler: GOOGLE_SEARCH_CRAWLER }),
-        });
-        if (!createRes.ok) {
-          const err = await createRes.text();
-          console.error("Squid creation failed:", err);
-          throw new Error(`Failed to create squid: ${createRes.status}`);
-        }
-        const squidData = await createRes.json();
-        squidId = squidData.id;
-        console.log("Created new squid:", squidId);
-      }
-
-      // 2. Add tasks (Vinted search queries)
-      const searchQueries = [
-        "https://www.google.com/search?q=site:vinted.co.uk+trending+brands+2026",
-        "https://www.google.com/search?q=site:vinted.co.uk+most+popular+items",
-        "https://www.google.com/search?q=vinted+best+selling+brands+UK+2026",
-        "https://www.google.com/search?q=vinted+trending+streetwear+2026",
-        "https://www.google.com/search?q=vinted+trending+vintage+clothing+UK",
-        "https://www.google.com/search?q=vinted+popular+designer+brands+resale",
-        "https://www.google.com/search?q=vinted+most+sold+shoes+UK+2026",
-        "https://www.google.com/search?q=vinted+trending+womenswear+spring+2026",
-        "https://www.google.com/search?q=vinted+trending+menswear+UK+february+2026",
-        "https://www.google.com/search?q=vinted+kids+clothing+most+popular+brands",
-      ];
-
-      console.log("Adding tasks...");
-      const tasksRes = await fetch(`${LOBSTR_BASE}/squids/${squidId}/tasks`, {
-        method: "POST",
-        headers: lobstrHeaders,
-        body: JSON.stringify(searchQueries.map((url) => ({ url }))),
-      });
-
-      if (!tasksRes.ok) {
-        const err = await tasksRes.text();
-        console.error("Task addition failed:", err);
-        throw new Error(`Failed to add tasks: ${tasksRes.status}`);
-      }
-      await tasksRes.text();
-      console.log("Tasks added");
-
-      // 3. Launch run
-      console.log("Launching run...");
-      const runRes = await fetch(`${LOBSTR_BASE}/runs`, {
-        method: "POST",
-        headers: lobstrHeaders,
-        body: JSON.stringify({ squid: squidId }),
-      });
-
-      if (!runRes.ok) {
-        const err = await runRes.text();
-        console.error("Run launch failed:", err);
-        throw new Error(`Failed to launch run: ${runRes.status}`);
-      }
-
-      const runData = await runRes.json();
-      const runId = runData.id;
-      console.log("Run launched:", runId);
-
-      // 4. Store in scrape_jobs
+      // Create job record
       const { data: job, error: insertError } = await serviceClient
         .from("scrape_jobs")
-        .insert({
-          job_type: "trend_scan",
-          lobstr_run_id: String(runId),
-          lobstr_squid_id: String(squidId),
-          status: "running",
-        })
+        .insert({ job_type: "trend_scan", status: "running" })
         .select()
         .single();
-
       if (insertError) throw insertError;
 
+      // Run Firecrawl searches in parallel
+      const searchQueries = [
+        "vinted trending brands UK 2026",
+        "vinted best selling items UK february 2026",
+        "vinted popular streetwear brands resale",
+        "vinted trending vintage clothing UK",
+        "vinted most sold shoes UK 2026",
+        "vinted trending womenswear spring 2026",
+        "vinted trending menswear UK 2026",
+        "vinted kids clothing popular brands UK",
+      ];
+
+      console.log("Running Firecrawl searches...");
+      const searchResults: any[] = [];
+
+      // Run searches sequentially to avoid rate limits (fast enough for 8 queries)
+      for (const query of searchQueries) {
+        try {
+          const res = await fetch("https://api.firecrawl.dev/v1/search", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ query, limit: 5 }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const results = data.data || data.results || [];
+            searchResults.push(...results);
+          } else {
+            console.warn(`Search failed for "${query}": ${res.status}`);
+          }
+        } catch (e) {
+          console.warn(`Search error for "${query}":`, e);
+        }
+      }
+
+      console.log("Firecrawl returned", searchResults.length, "total results");
+
+      // Store raw results and mark completed
+      await serviceClient
+        .from("scrape_jobs")
+        .update({ status: "completed", raw_results: searchResults })
+        .eq("id", job.id);
+
       return new Response(
-        JSON.stringify({ success: true, job_id: job.id, run_id: runId, status: "running" }),
+        JSON.stringify({ success: true, job_id: job.id, status: "completed", results_count: searchResults.length }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -168,82 +117,15 @@ serve(async (req) => {
     // ==================== POLL ====================
     if (action === "poll") {
       if (!job_id) throw new Error("job_id required for poll");
-
       const { data: job } = await serviceClient
         .from("scrape_jobs")
         .select("*")
         .eq("id", job_id)
         .single();
-
       if (!job) throw new Error("Job not found");
 
-      if (job.status === "completed" || job.status === "failed") {
-        return new Response(
-          JSON.stringify({ status: job.status, processed: job.processed }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Check Lobstr.io run status
-      const statusRes = await fetch(`${LOBSTR_BASE}/runs/${job.lobstr_run_id}`, {
-        headers: lobstrHeaders,
-      });
-
-      if (!statusRes.ok) {
-        const err = await statusRes.text();
-        console.error("Status check failed:", err);
-        throw new Error(`Failed to check status: ${statusRes.status}`);
-      }
-
-      const statusData = await statusRes.json();
-      console.log("Run status:", statusData.status);
-
-      if (statusData.status === "completed" || statusData.status === "finished") {
-        // Fetch results
-        const resultsRes = await fetch(
-          `${LOBSTR_BASE}/results?run=${job.lobstr_run_id}`,
-          { headers: lobstrHeaders }
-        );
-
-        let rawResults: any[] = [];
-        if (resultsRes.ok) {
-          const resultsData = await resultsRes.json();
-          rawResults = Array.isArray(resultsData) ? resultsData : resultsData.results || [];
-        }
-
-        await serviceClient
-          .from("scrape_jobs")
-          .update({
-            status: "completed",
-            raw_results: rawResults,
-          })
-          .eq("id", job_id);
-
-        return new Response(
-          JSON.stringify({ status: "completed", results_count: rawResults.length }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (statusData.status === "failed" || statusData.status === "error") {
-        await serviceClient
-          .from("scrape_jobs")
-          .update({ status: "failed" })
-          .eq("id", job_id);
-
-        return new Response(
-          JSON.stringify({ status: "failed" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Still running
       return new Response(
-        JSON.stringify({
-          status: "running",
-          progress: statusData.progress || statusData.tasks_done || 0,
-          total: statusData.total || statusData.tasks_total || 0,
-        }),
+        JSON.stringify({ status: job.status, processed: job.processed }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -268,14 +150,14 @@ serve(async (req) => {
       }
 
       const rawResults = job.raw_results || [];
-      console.log("Processing", rawResults.length, "raw results");
+      console.log("Processing", Array.isArray(rawResults) ? rawResults.length : 0, "raw results");
 
-      // Build context from raw results for AI
+      // Build context from Firecrawl search results
       const resultsSummary = (Array.isArray(rawResults) ? rawResults : [])
         .slice(0, 50)
         .map((r: any) => {
           const title = r.title || r.name || "";
-          const snippet = r.description || r.snippet || r.text || "";
+          const snippet = r.description || r.snippet || r.markdown?.slice(0, 200) || "";
           const link = r.url || r.link || "";
           return `- ${title}: ${snippet} (${link})`;
         })
@@ -286,7 +168,7 @@ serve(async (req) => {
         "Designer", "Shoes", "Accessories", "Kids",
       ];
 
-      const prompt = `You are a Vinted marketplace analyst. Based on these real Google Search results about Vinted trends, extract and generate 16 structured trend items.
+      const prompt = `You are a Vinted marketplace analyst. Based on these real web search results about Vinted trends, extract and generate 16 structured trend items.
 
 RAW SEARCH RESULTS:
 ${resultsSummary || "No results available - generate realistic trends based on current market knowledge for February 2026."}
@@ -336,7 +218,7 @@ Return ONLY the JSON array.`;
         throw new Error("Failed to parse trend data from AI");
       }
 
-      // Clear old trends and insert new ones with lobstr source
+      // Clear old trends and insert new ones
       await serviceClient.from("trends").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
       const rows = trends.map((t: any) => ({
@@ -351,13 +233,12 @@ Return ONLY the JSON array.`;
         opportunity_score: t.opportunity_score,
         ai_summary: t.ai_summary,
         estimated_peak_date: t.estimated_peak_date,
-        data_source: "lobstr",
+        data_source: "firecrawl",
       }));
 
-      const { error: insertError } = await serviceClient.from("trends").insert(rows);
-      if (insertError) throw insertError;
+      const { error: trendInsertError } = await serviceClient.from("trends").insert(rows);
+      if (trendInsertError) throw trendInsertError;
 
-      // Mark job as processed
       await serviceClient
         .from("scrape_jobs")
         .update({ processed: true })
@@ -374,7 +255,7 @@ Return ONLY the JSON array.`;
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
-    console.error("Lobstr sync error:", e);
+    console.error("Market scan error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
