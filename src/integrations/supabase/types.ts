@@ -21,12 +21,17 @@ export type Database = {
           condition: string | null
           created_at: string
           current_price: number | null
+          days_listed: number | null
+          description: string | null
           favourites_count: number | null
           health_score: number | null
           id: string
           image_url: string | null
+          purchase_price: number | null
           recommended_price: number | null
+          sale_price: number | null
           size: string | null
+          sold_at: string | null
           status: string
           title: string
           updated_at: string
@@ -40,12 +45,17 @@ export type Database = {
           condition?: string | null
           created_at?: string
           current_price?: number | null
+          days_listed?: number | null
+          description?: string | null
           favourites_count?: number | null
           health_score?: number | null
           id?: string
           image_url?: string | null
+          purchase_price?: number | null
           recommended_price?: number | null
+          sale_price?: number | null
           size?: string | null
+          sold_at?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -59,12 +69,17 @@ export type Database = {
           condition?: string | null
           created_at?: string
           current_price?: number | null
+          days_listed?: number | null
+          description?: string | null
           favourites_count?: number | null
           health_score?: number | null
           id?: string
           image_url?: string | null
+          purchase_price?: number | null
           recommended_price?: number | null
+          sale_price?: number | null
           size?: string | null
+          sold_at?: string | null
           status?: string
           title?: string
           updated_at?: string
