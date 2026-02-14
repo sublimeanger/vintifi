@@ -202,6 +202,57 @@ export type Database = {
         }
         Relationships: []
       }
+      trends: {
+        Row: {
+          ai_summary: string | null
+          avg_price: number | null
+          brand_or_item: string
+          category: string
+          detected_at: string
+          estimated_peak_date: string | null
+          id: string
+          opportunity_score: number | null
+          price_change_30d: number | null
+          search_volume_change_30d: number | null
+          search_volume_change_7d: number | null
+          supply_demand_ratio: number | null
+          trend_direction: string
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          avg_price?: number | null
+          brand_or_item: string
+          category: string
+          detected_at?: string
+          estimated_peak_date?: string | null
+          id?: string
+          opportunity_score?: number | null
+          price_change_30d?: number | null
+          search_volume_change_30d?: number | null
+          search_volume_change_7d?: number | null
+          supply_demand_ratio?: number | null
+          trend_direction?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          avg_price?: number | null
+          brand_or_item?: string
+          category?: string
+          detected_at?: string
+          estimated_peak_date?: string | null
+          id?: string
+          opportunity_score?: number | null
+          price_change_30d?: number | null
+          search_volume_change_30d?: number | null
+          search_volume_change_7d?: number | null
+          supply_demand_ratio?: number | null
+          trend_direction?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       usage_credits: {
         Row: {
           created_at: string
