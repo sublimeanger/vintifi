@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, Plus, Search, Loader2, Package, Heart, Eye,
+  ArrowLeft, Plus, Search, Loader2, Package, Heart, Eye, Upload,
   TrendingUp, TrendingDown, Minus, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
   PoundSterling, Calendar, Check, X, Pencil,
@@ -290,6 +290,9 @@ export default function Listings() {
               {stats.total} listings · £{stats.totalValue.toFixed(0)} portfolio value
             </p>
           </div>
+          <Button variant="outline" size="sm" onClick={() => navigate("/bulk-optimize")} className="font-semibold">
+            <Upload className="w-4 h-4 mr-1" /> Bulk Upload
+          </Button>
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="font-semibold">
