@@ -12,6 +12,7 @@ import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, X, CreditCard,
   Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target, CalendarDays, MapPin,
+  FileSpreadsheet,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 
@@ -19,6 +20,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Search, label: "Price Check", path: "/price-check" },
   { icon: Zap, label: "Optimise", path: "/optimize" },
+  { icon: FileSpreadsheet, label: "Bulk Optimise", path: "/bulk-optimize" },
   { icon: Tag, label: "My Listings", path: "/listings" },
   { icon: TrendingUp, label: "Trends", path: "/trends" },
   { icon: ArrowRightLeft, label: "Arbitrage", path: "/arbitrage" },
