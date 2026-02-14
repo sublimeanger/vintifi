@@ -14,7 +14,215 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      listings: {
+        Row: {
+          brand: string | null
+          category: string | null
+          condition: string | null
+          created_at: string
+          current_price: number | null
+          favourites_count: number | null
+          health_score: number | null
+          id: string
+          image_url: string | null
+          recommended_price: number | null
+          size: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          views_count: number | null
+          vinted_url: string | null
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          condition?: string | null
+          created_at?: string
+          current_price?: number | null
+          favourites_count?: number | null
+          health_score?: number | null
+          id?: string
+          image_url?: string | null
+          recommended_price?: number | null
+          size?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          views_count?: number | null
+          vinted_url?: string | null
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          condition?: string | null
+          created_at?: string
+          current_price?: number | null
+          favourites_count?: number | null
+          health_score?: number | null
+          id?: string
+          image_url?: string | null
+          recommended_price?: number | null
+          size?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          views_count?: number | null
+          vinted_url?: string | null
+        }
+        Relationships: []
+      }
+      price_reports: {
+        Row: {
+          ai_insights: string | null
+          comparable_items: Json | null
+          confidence_score: number | null
+          created_at: string
+          current_price: number | null
+          id: string
+          item_brand: string | null
+          item_category: string | null
+          item_condition: string | null
+          item_title: string | null
+          listing_id: string | null
+          price_distribution: Json | null
+          price_range_high: number | null
+          price_range_low: number | null
+          recommended_price: number | null
+          search_query: string | null
+          user_id: string
+          vinted_url: string | null
+        }
+        Insert: {
+          ai_insights?: string | null
+          comparable_items?: Json | null
+          confidence_score?: number | null
+          created_at?: string
+          current_price?: number | null
+          id?: string
+          item_brand?: string | null
+          item_category?: string | null
+          item_condition?: string | null
+          item_title?: string | null
+          listing_id?: string | null
+          price_distribution?: Json | null
+          price_range_high?: number | null
+          price_range_low?: number | null
+          recommended_price?: number | null
+          search_query?: string | null
+          user_id: string
+          vinted_url?: string | null
+        }
+        Update: {
+          ai_insights?: string | null
+          comparable_items?: Json | null
+          confidence_score?: number | null
+          created_at?: string
+          current_price?: number | null
+          id?: string
+          item_brand?: string | null
+          item_category?: string | null
+          item_condition?: string | null
+          item_title?: string | null
+          listing_id?: string | null
+          price_distribution?: Json | null
+          price_range_high?: number | null
+          price_range_low?: number | null
+          recommended_price?: number | null
+          search_query?: string | null
+          user_id?: string
+          vinted_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_reports_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          active_listing_count: string | null
+          created_at: string
+          display_name: string | null
+          experience_level: string | null
+          id: string
+          onboarding_completed: boolean
+          primary_goal: string | null
+          selling_categories: string[] | null
+          subscription_tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_listing_count?: string | null
+          created_at?: string
+          display_name?: string | null
+          experience_level?: string | null
+          id?: string
+          onboarding_completed?: boolean
+          primary_goal?: string | null
+          selling_categories?: string[] | null
+          subscription_tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_listing_count?: string | null
+          created_at?: string
+          display_name?: string | null
+          experience_level?: string | null
+          id?: string
+          onboarding_completed?: boolean
+          primary_goal?: string | null
+          selling_categories?: string[] | null
+          subscription_tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      usage_credits: {
+        Row: {
+          created_at: string
+          credits_limit: number
+          id: string
+          optimizations_used: number
+          period_end: string
+          period_start: string
+          price_checks_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_limit?: number
+          id?: string
+          optimizations_used?: number
+          period_end?: string
+          period_start?: string
+          price_checks_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_limit?: number
+          id?: string
+          optimizations_used?: number
+          period_end?: string
+          period_start?: string
+          price_checks_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
