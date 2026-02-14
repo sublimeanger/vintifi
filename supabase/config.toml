@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.lobstr-sync]
 verify_jwt = false
+
+[functions.arbitrage-scan]
+verify_jwt = false

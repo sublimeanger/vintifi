@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      arbitrage_opportunities: {
+        Row: {
+          ai_notes: string | null
+          brand: string | null
+          category: string | null
+          condition: string | null
+          created_at: string
+          estimated_profit: number | null
+          expires_at: string | null
+          id: string
+          image_url: string | null
+          profit_margin: number | null
+          source_platform: string
+          source_price: number | null
+          source_title: string | null
+          source_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          vinted_estimated_price: number | null
+        }
+        Insert: {
+          ai_notes?: string | null
+          brand?: string | null
+          category?: string | null
+          condition?: string | null
+          created_at?: string
+          estimated_profit?: number | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          profit_margin?: number | null
+          source_platform: string
+          source_price?: number | null
+          source_title?: string | null
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          vinted_estimated_price?: number | null
+        }
+        Update: {
+          ai_notes?: string | null
+          brand?: string | null
+          category?: string | null
+          condition?: string | null
+          created_at?: string
+          estimated_profit?: number | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          profit_margin?: number | null
+          source_platform?: string
+          source_price?: number | null
+          source_title?: string | null
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          vinted_estimated_price?: number | null
+        }
+        Relationships: []
+      }
       listings: {
         Row: {
           brand: string | null
