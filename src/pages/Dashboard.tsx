@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, X, CreditCard,
-  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer,
+  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 
@@ -26,6 +26,7 @@ const navItems = [
   { icon: AlertTriangle, label: "Dead Stock", path: "/dead-stock" },
   { icon: PieChart, label: "P&L Analytics", path: "/analytics" },
   { icon: Timer, label: "Relist Scheduler", path: "/relist" },
+  { icon: Target, label: "Portfolio Optimiser", path: "/portfolio" },
   { icon: CreditCard, label: "Billing", path: "/settings" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
@@ -318,6 +319,14 @@ export default function Dashboard() {
               <Timer className="w-5 h-5 text-primary mb-3" />
               <h4 className="font-display font-bold mb-1">Relist Scheduler</h4>
               <p className="text-sm text-muted-foreground">Auto-schedule relists with smart pricing</p>
+            </Card>
+            <Card
+              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-success/20 bg-success/[0.02]"
+              onClick={() => navigate("/portfolio")}
+            >
+              <Target className="w-5 h-5 text-success mb-3" />
+              <h4 className="font-display font-bold mb-1">Portfolio Optimiser</h4>
+              <p className="text-sm text-muted-foreground">Bulk-fix overpriced &amp; underpriced items</p>
             </Card>
           </div>
         </div>

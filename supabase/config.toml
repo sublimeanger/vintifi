@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.relist-scheduler]
 verify_jwt = false
+
+[functions.portfolio-optimizer]
+verify_jwt = false
