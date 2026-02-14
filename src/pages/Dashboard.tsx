@@ -84,23 +84,72 @@ export default function Dashboard() {
   const [recentReports, setRecentReports] = useState<PriceReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(true);
 
+  const [activeCount, setActiveCount] = useState<number>(0);
+  const [portfolioValue, setPortfolioValue] = useState<number>(0);
+  const [soldThisWeek, setSoldThisWeek] = useState<number>(0);
+  const [monthlyProfit, setMonthlyProfit] = useState<number>(0);
+
   const tier = (profile?.subscription_tier || "free") as keyof typeof STRIPE_TIERS;
   const tierInfo = STRIPE_TIERS[tier] || STRIPE_TIERS.free;
   const checksRemaining = credits ? credits.credits_limit - credits.price_checks_used : 0;
 
   useEffect(() => {
     if (!user) return;
-    const fetchReports = async () => {
-      const { data } = await supabase
+
+    const fetchAll = async () => {
+      // Recent reports
+      const { data: reports } = await supabase
         .from("price_reports")
         .select("id, item_title, item_brand, recommended_price, confidence_score, created_at, vinted_url")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(5);
-      setRecentReports((data as PriceReport[]) || []);
+      setRecentReports((reports as PriceReport[]) || []);
+
+      // Active listings count & portfolio value
+      const { data: activeListings } = await supabase
+        .from("listings")
+        .select("id, current_price")
+        .eq("user_id", user.id)
+        .eq("status", "active");
+      if (activeListings) {
+        setActiveCount(activeListings.length);
+        setPortfolioValue(activeListings.reduce((sum, l) => sum + (Number(l.current_price) || 0), 0));
+      }
+
+      // Sold this week
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const { data: soldItems } = await supabase
+        .from("listings")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "sold")
+        .gte("sold_at", weekAgo.toISOString());
+      setSoldThisWeek(soldItems?.length || 0);
+
+      // Monthly profit
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const { data: soldThisMonth } = await supabase
+        .from("listings")
+        .select("sale_price, purchase_price")
+        .eq("user_id", user.id)
+        .eq("status", "sold")
+        .gte("sold_at", monthStart.toISOString());
+      if (soldThisMonth) {
+        const profit = soldThisMonth.reduce((sum, l) => {
+          const sale = Number(l.sale_price) || 0;
+          const cost = Number(l.purchase_price) || 0;
+          return sum + (sale - cost);
+        }, 0);
+        setMonthlyProfit(profit);
+      }
+
       setLoadingReports(false);
     };
-    fetchReports();
+    fetchAll();
   }, [user]);
 
   const handleAnalyze = async () => {
@@ -206,10 +255,10 @@ export default function Dashboard() {
           {/* Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {[
-              { icon: Package, label: "Active Listings", value: "0", color: "text-primary" },
-              { icon: DollarSign, label: "Portfolio Value", value: "£0", color: "text-success" },
-              { icon: ShoppingBag, label: "Sold This Week", value: "0", color: "text-accent" },
-              { icon: Zap, label: "Checks Left", value: `${Math.max(0, checksRemaining)}`, color: "text-primary" },
+              { icon: Package, label: "Active Listings", value: `${activeCount}`, color: "text-primary" },
+              { icon: DollarSign, label: "Portfolio Value", value: `£${portfolioValue.toFixed(0)}`, color: "text-success" },
+              { icon: ShoppingBag, label: "Sold This Week", value: `${soldThisWeek}`, color: "text-accent" },
+              { icon: Zap, label: "Monthly Profit", value: `£${monthlyProfit.toFixed(0)}`, color: "text-primary" },
             ].map((m, i) => (
               <motion.div key={m.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                 <Card className="p-3 sm:p-4">
