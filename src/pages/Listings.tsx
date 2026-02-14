@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { HealthScoreMini } from "@/components/HealthScoreGauge";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -642,15 +643,8 @@ export default function Listings() {
                               </span>
                             )}
 
-                            {/* Health Score with traffic light */}
-                            {listing.health_score != null && (
-                              <div className="flex items-center gap-1">
-                                <div className={`w-2 h-2 rounded-full ${health.color}`} />
-                                <span className={`text-xs font-medium ${health.textColor}`}>
-                                  {listing.health_score}%
-                                </span>
-                              </div>
-                            )}
+                            {/* Health Score Mini Gauge */}
+                            <HealthScoreMini score={listing.health_score} />
 
                             {/* Days listed */}
                             <span className={`text-xs flex items-center gap-1 ${isDeadStock ? "text-destructive" : "text-muted-foreground"}`}>

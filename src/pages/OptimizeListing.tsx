@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -16,6 +15,7 @@ import {
   ImagePlus, X, AlertCircle, Camera, Globe, Languages,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HealthScoreGauge } from "@/components/HealthScoreGauge";
 
 type HealthScore = {
   overall: number;
@@ -206,18 +206,6 @@ export default function OptimizeListing() {
     }
   };
 
-  const getScoreColor = (score: number, max: number) => {
-    const pct = (score / max) * 100;
-    if (pct >= 80) return "text-success";
-    if (pct >= 50) return "text-accent";
-    return "text-destructive";
-  };
-
-  const getOverallColor = (score: number) => {
-    if (score >= 80) return "text-success";
-    if (score >= 60) return "text-accent";
-    return "text-destructive";
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -332,33 +320,8 @@ export default function OptimizeListing() {
                     <Sparkles className="w-5 h-5 text-primary" />
                     Listing Health Score
                   </h2>
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className={`font-display text-5xl font-extrabold ${getOverallColor(result.health_score.overall)}`}>
-                      {result.health_score.overall}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        {result.health_score.overall >= 80 ? "Excellent" : result.health_score.overall >= 60 ? "Good" : result.health_score.overall >= 40 ? "Fair" : "Needs Work"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">out of 100</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      { label: "Title Keywords", score: result.health_score.title_score, max: 25, feedback: result.health_score.title_feedback },
-                      { label: "Description Quality", score: result.health_score.description_score, max: 25, feedback: result.health_score.description_feedback },
-                      { label: "Photo Quality", score: result.health_score.photo_score, max: 25, feedback: result.health_score.photo_feedback },
-                      { label: "Completeness", score: result.health_score.completeness_score, max: 25, feedback: result.health_score.completeness_feedback },
-                    ].map((item) => (
-                      <div key={item.label}>
-                        <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="font-medium">{item.label}</span>
-                          <span className={`font-bold ${getScoreColor(item.score, item.max)}`}>{item.score}/{item.max}</span>
-                        </div>
-                        <Progress value={(item.score / item.max) * 100} className="h-2" />
-                        <p className="text-[11px] text-muted-foreground mt-0.5">{item.feedback}</p>
-                      </div>
-                    ))}
+                  <div className="flex justify-center mb-2">
+                    <HealthScoreGauge score={result.health_score} size="lg" />
                   </div>
                 </Card>
 
