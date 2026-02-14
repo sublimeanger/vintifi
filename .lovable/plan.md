@@ -1,57 +1,79 @@
 
 
-## Rebrand from Raqkt to Vintifi
+# Bulk Listing Optimiser — CSV Upload for Batch AI Optimisation
 
-### Overview
-Rename the brand from "Raqkt" to "Vintifi" across the entire application, update the domain to vintifi.com, update the Resend email sender to use @vintifi.com, and generate a professional logo using AI image generation.
+## Overview
+A new page where sellers upload a CSV file of their inventory, and the system processes each row through the AI listing optimiser to generate SEO-optimised titles, descriptions, tags, and health scores in batch. Results are displayed in a reviewable table with options to save all or selectively to My Listings.
 
-### Changes
+## User Flow
 
-**1. Logo Generation**
-- Use the Lovable AI image generation API (Nano banana pro model) to create a professional logo for "Vintifi" -- a clean, modern wordmark/icon that fits the coral red (#E94560) and deep navy (#1A1A2E) colour palette.
-- Save the generated logo as `public/vintifi-logo.png` and use it in the navbar, auth page, dashboard sidebar, and footer.
+1. Navigate to `/bulk-optimize` (accessible from Dashboard and Listings page)
+2. Download a CSV template with expected columns
+3. Upload a CSV file (parsed client-side, no server upload needed for the CSV itself)
+4. Preview parsed items in a table before processing
+5. Click "Optimise All" to process items sequentially through the existing `optimize-listing` edge function
+6. Watch real-time progress as each item completes (progress bar + status per row)
+7. Review results: expand any row to see full optimised title, description, tags, and health score
+8. "Save All to Listings" inserts all optimised items into the `listings` table, or cherry-pick individual items
 
-**2. `index.html` -- Meta Tags & SEO**
-- Update `<title>` to "Vintifi -- AI-Powered Vinted Selling Intelligence"
-- Update all `<meta>` tags (description, og:title, og:description, twitter:title, twitter:description, author) from "Raqkt" to "Vintifi"
-- Update canonical URL from `https://raqkt.com` to `https://vintifi.com`
+## What Gets Built
 
-**3. `src/pages/Landing.tsx` -- Landing Page**
-- Replace all 7 instances of "Raqkt" with "Vintifi" (navbar logo, hero description, mock UI preview URL, features description, CTA section, footer logo, footer copyright)
-- Update mock browser bar from `raqkt.com/dashboard` to `vintifi.com/dashboard`
+### 1. New Page: `src/pages/BulkOptimize.tsx`
+- Header with back navigation (consistent with other pages)
+- **Template Download**: Button to download a sample CSV with columns: `title, brand, category, size, condition, description, purchase_price`
+- **CSV Upload Zone**: Drag-and-drop or click-to-upload area accepting `.csv` files
+- **Preview Table**: Shows parsed rows before processing with validation indicators (missing required fields highlighted)
+- **Processing State**: Progress bar showing "Optimising 3 of 12...", each row gets a spinner then checkmark
+- **Results Table**: Expandable rows showing original vs optimised data, health score badge, suggested tags
+- **Bulk Actions**: "Save All to Listings" button, individual row "Save" and "Copy" buttons
+- Limit: max 50 items per batch (to respect API rate limits and credits)
 
-**4. `src/pages/Auth.tsx` -- Auth Page**
-- Replace "Raqkt" logo text with "Vintifi"
+### 2. New Route in `App.tsx`
+- Add `/bulk-optimize` route wrapped in `ProtectedRoute` and `OnboardingGuard`
 
-**5. `src/pages/Dashboard.tsx` -- Dashboard Sidebar & Mobile Header**
-- Replace "Raqkt" logo text in desktop sidebar and mobile header with "Vintifi"
+### 3. CSV Parsing (Client-Side)
+- Simple client-side CSV parser (no library needed — split by newlines and commas with quote handling)
+- Validates required columns exist
+- Shows row count and any validation warnings before processing
 
-**6. `src/pages/Onboarding.tsx` -- Welcome Toast**
-- Change "Welcome to Raqkt!" to "Welcome to Vintifi!"
+### 4. Processing Logic
+- Items are sent one-by-one to the existing `optimize-listing` edge function (no new edge function needed)
+- Sequential processing with a small delay between calls to avoid rate limiting
+- Each item's result is stored in component state and displayed as it completes
+- If a single item fails, it's marked as failed and processing continues with the next item
+- Credit usage is tracked per-item by the existing edge function logic
 
-**7. `supabase/functions/weekly-digest/index.ts` -- Email Branding**
-- Update `from` field from `"Raqkt <onboarding@resend.dev>"` to `"Vintifi <hello@vintifi.com>"`
-- Update email subject from "Your Weekly Raqkt Digest" to "Your Weekly Vintifi Digest"
-- Update HTML email header logo text from "Raqkt" to "Vintifi"
-- Update dashboard CTA link from `raqkt.lovable.app/dashboard` to `vintifi.com/dashboard`
-- Update footer text from "Raqkt" to "Vintifi"
+### 5. Navigation Links
+- Add "Bulk Upload" button on the Listings page header
+- Add quick action on Dashboard if appropriate
 
-### Files Affected
-| File | Changes |
-|------|---------|
-| `index.html` | 8 text replacements (meta tags, title, canonical URL) |
-| `src/pages/Landing.tsx` | 7 text replacements + domain update |
-| `src/pages/Auth.tsx` | 1 text replacement |
-| `src/pages/Dashboard.tsx` | 2 text replacements (sidebar + mobile) |
-| `src/pages/Onboarding.tsx` | 1 text replacement (toast) |
-| `supabase/functions/weekly-digest/index.ts` | 5 replacements (from, subject, HTML logo, CTA link, footer) |
-| `public/vintifi-logo.png` | New file -- AI-generated logo |
+## Technical Details
 
-### Logo Design Brief
-The logo will be generated with these specifications:
-- Modern, clean wordmark reading "Vintifi"
-- Uses the brand colours: coral red (#E94560) as primary, deep navy (#1A1A2E) as secondary
-- Style: bold, professional SaaS aesthetic matching Plus Jakarta Sans typography
-- Transparent or white background, suitable for both light and dark contexts
-- Compact enough for navbar use (approx 120x32px display size)
+### CSV Template Format
+```text
+title,brand,category,size,condition,description,purchase_price
+"Nike Air Max 90",Nike,Trainers,UK 9,Very Good,"Original Nike trainers, barely worn",25
+"Carhartt WIP Hoodie",Carhartt WIP,Hoodies,M,Good,"Classic logo hoodie",15
+```
+
+### Processing Architecture
+- Reuses the existing `optimize-listing` edge function without modification
+- Each row is sent as: `{ brand, category, size, condition, currentTitle: title, currentDescription: description }`
+- No photo support in bulk mode (text-only optimisation) — keeps it fast and practical for CSV imports
+- Results are held in React state; nothing is persisted until the user explicitly saves
+
+### Saving to Listings
+- Uses `supabase.from("listings").insert()` with the existing schema
+- Maps optimised fields: `title`, `description`, `brand`, `category`, `condition`, `size`, `health_score`, `purchase_price`, `status: "active"`
+
+### Rate Limit Handling
+- 1-second delay between API calls to avoid 429 errors
+- If a 429 is received, pause for 5 seconds then retry that item once
+- Shows clear messaging if credit limit is hit mid-batch
+
+### UI Patterns
+- Consistent with existing pages: same header style, Card components, motion animations
+- Progress uses the existing `Progress` component
+- Health scores use the existing `HealthScoreMini` component
+- Expandable rows use Collapsible or Accordion from the existing UI library
 
