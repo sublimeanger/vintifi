@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, X, CreditCard,
+  Clock, ChevronRight,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 
@@ -23,16 +24,43 @@ const navItems = [
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
+type PriceReport = {
+  id: string;
+  item_title: string | null;
+  item_brand: string | null;
+  recommended_price: number | null;
+  confidence_score: number | null;
+  created_at: string;
+  vinted_url: string | null;
+};
+
 export default function Dashboard() {
   const { user, profile, credits, signOut } = useAuth();
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [recentReports, setRecentReports] = useState<PriceReport[]>([]);
+  const [loadingReports, setLoadingReports] = useState(true);
 
   const tier = (profile?.subscription_tier || "free") as keyof typeof STRIPE_TIERS;
   const tierInfo = STRIPE_TIERS[tier] || STRIPE_TIERS.free;
   const checksRemaining = credits ? credits.credits_limit - credits.price_checks_used : 0;
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchReports = async () => {
+      const { data } = await supabase
+        .from("price_reports")
+        .select("id, item_title, item_brand, recommended_price, confidence_score, created_at, vinted_url")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      setRecentReports((data as PriceReport[]) || []);
+      setLoadingReports(false);
+    };
+    fetchReports();
+  }, [user]);
 
   const handleAnalyze = async () => {
     if (!url.trim()) { toast.error("Paste a Vinted URL or enter item details"); return; }
@@ -160,6 +188,65 @@ export default function Dashboard() {
             </div>
           </Card>
 
+          {/* Recent Price Checks */}
+          <Card className="p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display font-bold text-lg flex items-center gap-2">
+                <Clock className="w-5 h-5 text-primary" />
+                Recent Price Checks
+              </h3>
+              {recentReports.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => navigate("/price-check")} className="text-xs">
+                  New Check <ChevronRight className="w-3 h-3 ml-1" />
+                </Button>
+              )}
+            </div>
+            {loadingReports ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+              </div>
+            ) : recentReports.length === 0 ? (
+              <div className="text-center py-8">
+                <Search className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No price checks yet. Run your first analysis above!</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recentReports.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/80 cursor-pointer transition-colors"
+                    onClick={() => r.vinted_url ? navigate(`/price-check?url=${encodeURIComponent(r.vinted_url)}`) : navigate("/price-check")}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{r.item_title || "Untitled Item"}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {r.item_brand && <span className="text-xs text-muted-foreground">{r.item_brand}</span>}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(r.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right ml-4 shrink-0">
+                      {r.recommended_price !== null && (
+                        <p className="font-display font-bold text-sm">£{r.recommended_price.toFixed(2)}</p>
+                      )}
+                      {r.confidence_score !== null && (
+                        <Badge variant="outline" className={`text-[10px] ${
+                          r.confidence_score >= 80 ? "text-success border-success/30" :
+                          r.confidence_score >= 60 ? "text-accent border-accent/30" :
+                          "text-destructive border-destructive/30"
+                        }`}>
+                          {r.confidence_score}%
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           {/* Quick Actions */}
           <div className="grid md:grid-cols-3 gap-4">
             <Card
@@ -170,10 +257,13 @@ export default function Dashboard() {
               <h4 className="font-display font-bold mb-1">Price Check</h4>
               <p className="text-sm text-muted-foreground">Get instant pricing for any item</p>
             </Card>
-            <Card className="p-5 opacity-60 cursor-not-allowed">
-              <BarChart3 className="w-5 h-5 text-muted-foreground mb-3" />
-              <h4 className="font-display font-bold mb-1">Optimise Listing</h4>
-              <p className="text-sm text-muted-foreground">Coming in Phase 2</p>
+            <Card
+              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-border/50"
+              onClick={() => navigate("/listings")}
+            >
+              <Tag className="w-5 h-5 text-primary mb-3" />
+              <h4 className="font-display font-bold mb-1">My Listings</h4>
+              <p className="text-sm text-muted-foreground">Track and manage your items</p>
             </Card>
             <Card className="p-5 opacity-60 cursor-not-allowed">
               <TrendingUp className="w-5 h-5 text-muted-foreground mb-3" />
