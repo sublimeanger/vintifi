@@ -8,32 +8,62 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
-  Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, X, CreditCard,
+  Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, CreditCard,
   Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target, CalendarDays, MapPin,
   FileSpreadsheet,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Search, label: "Price Check", path: "/price-check" },
-  { icon: Zap, label: "Optimise", path: "/optimize" },
-  { icon: FileSpreadsheet, label: "Bulk Optimise", path: "/bulk-optimize" },
-  { icon: Tag, label: "My Listings", path: "/listings" },
-  { icon: TrendingUp, label: "Trends", path: "/trends" },
-  { icon: ArrowRightLeft, label: "Arbitrage", path: "/arbitrage" },
-  { icon: Radar, label: "Competitors", path: "/competitors" },
-  { icon: AlertTriangle, label: "Dead Stock", path: "/dead-stock" },
-  { icon: PieChart, label: "P&L Analytics", path: "/analytics" },
-  { icon: Timer, label: "Relist Scheduler", path: "/relist" },
-  { icon: Target, label: "Portfolio Optimiser", path: "/portfolio" },
-  { icon: CalendarDays, label: "Seasonal Calendar", path: "/seasonal" },
-  { icon: MapPin, label: "Charity Briefing", path: "/charity-briefing" },
-  { icon: CreditCard, label: "Billing", path: "/settings" },
-  { icon: Settings, label: "Settings", path: "/settings" },
+const navSections = [
+  {
+    label: "Core",
+    items: [
+      { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+      { icon: Search, label: "Price Check", path: "/price-check" },
+      { icon: Zap, label: "Optimise", path: "/optimize" },
+      { icon: FileSpreadsheet, label: "Bulk Optimise", path: "/bulk-optimize" },
+      { icon: Tag, label: "My Listings", path: "/listings" },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { icon: TrendingUp, label: "Trends", path: "/trends" },
+      { icon: ArrowRightLeft, label: "Arbitrage", path: "/arbitrage" },
+      { icon: Radar, label: "Competitors", path: "/competitors" },
+      { icon: CalendarDays, label: "Seasonal Calendar", path: "/seasonal" },
+      { icon: MapPin, label: "Charity Briefing", path: "/charity-briefing" },
+    ],
+  },
+  {
+    label: "Inventory",
+    items: [
+      { icon: AlertTriangle, label: "Dead Stock", path: "/dead-stock" },
+      { icon: Timer, label: "Relist Scheduler", path: "/relist" },
+      { icon: Target, label: "Portfolio Optimiser", path: "/portfolio" },
+      { icon: PieChart, label: "P&L Analytics", path: "/analytics" },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { icon: CreditCard, label: "Billing", path: "/settings" },
+      { icon: Settings, label: "Settings", path: "/settings" },
+    ],
+  },
 ];
+
+const allNavItems = navSections.flatMap((s) => s.items);
 
 type PriceReport = {
   id: string;
@@ -50,7 +80,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [recentReports, setRecentReports] = useState<PriceReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(true);
 
@@ -85,22 +115,28 @@ export default function Dashboard() {
         <div className="p-6">
           <h1 className="font-display text-xl font-extrabold"><span className="text-gradient">Vintifi</span></h1>
         </div>
-        <nav className="flex-1 px-3 space-y-1">
-          {navItems.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => navigate(item.path)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-              {(item as any).badge && <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">{(item as any).badge}</Badge>}
-            </button>
+        <nav className="flex-1 px-3 space-y-4 overflow-y-auto scrollbar-hide">
+          {navSections.map((section) => (
+            <div key={section.label}>
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">{section.label}</p>
+              <div className="space-y-0.5">
+                {section.items.map((item) => (
+                  <button
+                    key={item.label + item.path}
+                    onClick={() => navigate(item.path)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-bold">
+            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-bold shrink-0">
               {profile?.display_name?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">
@@ -115,82 +151,96 @@ export default function Dashboard() {
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass flex items-center justify-between px-4 py-3">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border flex items-center justify-between px-4 h-14">
         <h1 className="font-display text-lg font-extrabold"><span className="text-gradient">Vintifi</span></h1>
-        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </Button>
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-10 w-10">
+              <Menu className="w-5 h-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 p-0 bg-sidebar text-sidebar-foreground">
+            <SheetHeader className="p-5 border-b border-sidebar-border">
+              <SheetTitle className="font-display text-xl font-extrabold text-sidebar-foreground">
+                <span className="text-gradient">Vintifi</span>
+              </SheetTitle>
+            </SheetHeader>
+            <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto max-h-[calc(100vh-140px)] scrollbar-hide">
+              {navSections.map((section) => (
+                <div key={section.label}>
+                  <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">{section.label}</p>
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => (
+                      <button
+                        key={item.label + item.path}
+                        onClick={() => { navigate(item.path); setSheetOpen(false); }}
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                      >
+                        <item.icon className="w-4 h-4 shrink-0" /> {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+            <div className="p-4 border-t border-sidebar-border">
+              <button onClick={() => { signOut(); setSheetOpen(false); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-destructive">
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
 
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-secondary/95 backdrop-blur-sm pt-16">
-          <nav className="px-4 space-y-1">
-            {navItems.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => { navigate(item.path); setSidebarOpen(false); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-secondary-foreground/80 hover:bg-muted/10 transition-colors"
-              >
-                <item.icon className="w-4 h-4" /> {item.label}
-              </button>
-            ))}
-            <button onClick={signOut} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive">
-              <LogOut className="w-4 h-4" /> Sign Out
-            </button>
-          </nav>
-        </div>
-      )}
-
       {/* Main Content */}
-      <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-        <div className="p-6 lg:p-8 max-w-5xl mx-auto">
+      <main className="flex-1 overflow-auto pt-14 lg:pt-0 pb-20 lg:pb-0">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
           {/* Welcome */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <h2 className="font-display text-2xl lg:text-3xl font-bold mb-1">
+            <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold mb-1">
               Welcome back, {profile?.display_name?.split(" ")[0] || "there"} 👋
             </h2>
-            <p className="text-muted-foreground mb-8">Here's your selling intelligence overview</p>
+            <p className="text-muted-foreground text-sm mb-6 sm:mb-8">Here's your selling intelligence overview</p>
           </motion.div>
 
           {/* Metric Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {[
               { icon: Package, label: "Active Listings", value: "0", color: "text-primary" },
               { icon: DollarSign, label: "Portfolio Value", value: "£0", color: "text-success" },
               { icon: ShoppingBag, label: "Sold This Week", value: "0", color: "text-accent" },
-              { icon: Zap, label: "Price Checks Left", value: `${Math.max(0, checksRemaining)}`, color: "text-primary" },
+              { icon: Zap, label: "Checks Left", value: `${Math.max(0, checksRemaining)}`, color: "text-primary" },
             ].map((m, i) => (
               <motion.div key={m.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <m.icon className={`w-4 h-4 ${m.color}`} />
-                    <span className="text-xs text-muted-foreground font-medium">{m.label}</span>
+                <Card className="p-3 sm:p-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                    <m.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${m.color}`} />
+                    <span className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">{m.label}</span>
                   </div>
-                  <p className="font-display text-2xl font-bold">{m.value}</p>
+                  <p className="font-display text-xl sm:text-2xl font-bold">{m.value}</p>
                 </Card>
               </motion.div>
             ))}
           </div>
 
           {/* Price Check CTA */}
-          <Card className="p-6 mb-8 border-primary/20 bg-primary/[0.02]">
+          <Card className="p-4 sm:p-6 mb-6 sm:mb-8 border-primary/20 bg-primary/[0.02]">
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-5 h-5 text-primary" />
-              <h3 className="font-display font-bold text-lg">Price Intelligence Engine</h3>
+              <h3 className="font-display font-bold text-base sm:text-lg">Price Intelligence Engine</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               Paste a Vinted URL or enter item details to get AI-powered pricing intelligence
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://www.vinted.co.uk/items/... or describe your item"
+                placeholder="https://www.vinted.co.uk/items/..."
                 className="flex-1"
                 onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
               />
-              <Button onClick={handleAnalyze} disabled={analyzing} className="font-semibold shrink-0">
+              <Button onClick={handleAnalyze} disabled={analyzing} className="font-semibold shrink-0 h-10">
                 {analyzing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
                 Analyse
               </Button>
@@ -198,9 +248,9 @@ export default function Dashboard() {
           </Card>
 
           {/* Recent Price Checks */}
-          <Card className="p-6 mb-8">
+          <Card className="p-4 sm:p-6 mb-6 sm:mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display font-bold text-lg flex items-center gap-2">
+              <h3 className="font-display font-bold text-base sm:text-lg flex items-center gap-2">
                 <Clock className="w-5 h-5 text-primary" />
                 Recent Price Checks
               </h3>
@@ -256,107 +306,83 @@ export default function Dashboard() {
             )}
           </Card>
 
-          {/* Quick Actions */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-border/50"
-              onClick={() => navigate("/price-check")}
-            >
-              <Search className="w-5 h-5 text-primary mb-3" />
-              <h4 className="font-display font-bold mb-1">Price Check</h4>
-              <p className="text-sm text-muted-foreground">Get instant pricing for any item</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-border/50"
-              onClick={() => navigate("/listings")}
-            >
-              <Tag className="w-5 h-5 text-primary mb-3" />
-              <h4 className="font-display font-bold mb-1">My Listings</h4>
-              <p className="text-sm text-muted-foreground">Track and manage your items</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-border/50"
-              onClick={() => navigate("/optimize")}
-            >
-              <Zap className="w-5 h-5 text-primary mb-3" />
-              <h4 className="font-display font-bold mb-1">Optimise Listing</h4>
-              <p className="text-sm text-muted-foreground">AI-powered listing optimisation</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-accent/20 bg-accent/[0.02]"
-              onClick={() => navigate("/bulk-optimize")}
-            >
-              <BarChart3 className="w-5 h-5 text-accent mb-3" />
-              <h4 className="font-display font-bold mb-1">Bulk Optimise</h4>
-              <p className="text-sm text-muted-foreground">CSV upload for batch AI listings</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-primary/20 bg-primary/[0.02]"
-              onClick={() => navigate("/arbitrage")}
-            >
-              <ArrowRightLeft className="w-5 h-5 text-primary mb-3" />
-              <h4 className="font-display font-bold mb-1">Arbitrage Scanner</h4>
-              <p className="text-sm text-muted-foreground">Find profitable flips on eBay &amp; Depop</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-border/50"
-              onClick={() => navigate("/competitors")}
-            >
-              <Radar className="w-5 h-5 text-primary mb-3" />
-              <h4 className="font-display font-bold mb-1">Competitor Tracker</h4>
-              <p className="text-sm text-muted-foreground">Monitor rivals &amp; get price alerts</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-destructive/20 bg-destructive/[0.02]"
-              onClick={() => navigate("/dead-stock")}
-            >
-              <AlertTriangle className="w-5 h-5 text-destructive mb-3" />
-              <h4 className="font-display font-bold mb-1">Dead Stock</h4>
-              <p className="text-sm text-muted-foreground">Liquidate stale inventory with AI</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-success/20 bg-success/[0.02]"
-              onClick={() => navigate("/analytics")}
-            >
-              <PieChart className="w-5 h-5 text-success mb-3" />
-              <h4 className="font-display font-bold mb-1">P&L Analytics</h4>
-              <p className="text-sm text-muted-foreground">Revenue, margins &amp; ROI charts</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-primary/20 bg-primary/[0.02]"
-              onClick={() => navigate("/relist")}
-            >
-              <Timer className="w-5 h-5 text-primary mb-3" />
-              <h4 className="font-display font-bold mb-1">Relist Scheduler</h4>
-              <p className="text-sm text-muted-foreground">Auto-schedule relists with smart pricing</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-success/20 bg-success/[0.02]"
-              onClick={() => navigate("/portfolio")}
-            >
-              <Target className="w-5 h-5 text-success mb-3" />
-              <h4 className="font-display font-bold mb-1">Portfolio Optimiser</h4>
-              <p className="text-sm text-muted-foreground">Bulk-fix overpriced &amp; underpriced items</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-accent/20 bg-accent/[0.02]"
-              onClick={() => navigate("/seasonal")}
-            >
-              <CalendarDays className="w-5 h-5 text-accent mb-3" />
-              <h4 className="font-display font-bold mb-1">Seasonal Calendar</h4>
-              <p className="text-sm text-muted-foreground">Know when demand peaks for each category</p>
-            </Card>
-            <Card
-              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-primary/20 bg-primary/[0.02]"
-              onClick={() => navigate("/charity-briefing")}
-            >
-              <MapPin className="w-5 h-5 text-primary mb-3" />
-              <h4 className="font-display font-bold mb-1">Charity Briefing</h4>
-              <p className="text-sm text-muted-foreground">AI sourcing list for charity shop trips</p>
-            </Card>
+          {/* Quick Actions - Grouped */}
+          <div className="space-y-6">
+            {/* Intelligence Tools */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Intelligence Tools</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { icon: Search, label: "Price Check", desc: "Get instant pricing", path: "/price-check" },
+                  { icon: Zap, label: "Optimise Listing", desc: "AI-powered listing optimisation", path: "/optimize" },
+                  { icon: FileSpreadsheet, label: "Bulk Optimise", desc: "CSV batch AI listings", path: "/bulk-optimize", accent: "accent" },
+                  { icon: TrendingUp, label: "Trend Radar", desc: "Rising brands & styles", path: "/trends" },
+                ].map((item) => (
+                  <Card
+                    key={item.path + item.label}
+                    className="p-4 cursor-pointer hover:shadow-md transition-shadow border-border/50"
+                    onClick={() => navigate(item.path)}
+                  >
+                    <item.icon className={`w-5 h-5 mb-2 ${item.accent ? "text-accent" : "text-primary"}`} />
+                    <h4 className="font-display font-bold text-sm mb-0.5">{item.label}</h4>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{item.desc}</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Market Analysis */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Market Analysis</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { icon: ArrowRightLeft, label: "Arbitrage Scanner", desc: "Find profitable flips", path: "/arbitrage" },
+                  { icon: Radar, label: "Competitor Tracker", desc: "Monitor rivals", path: "/competitors" },
+                  { icon: CalendarDays, label: "Seasonal Calendar", desc: "Demand peaks by category", path: "/seasonal" },
+                  { icon: MapPin, label: "Charity Briefing", desc: "AI sourcing list", path: "/charity-briefing" },
+                ].map((item) => (
+                  <Card
+                    key={item.path}
+                    className="p-4 cursor-pointer hover:shadow-md transition-shadow border-border/50"
+                    onClick={() => navigate(item.path)}
+                  >
+                    <item.icon className="w-5 h-5 text-primary mb-2" />
+                    <h4 className="font-display font-bold text-sm mb-0.5">{item.label}</h4>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{item.desc}</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Inventory Management */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Inventory Management</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { icon: Tag, label: "My Listings", desc: "Track and manage items", path: "/listings" },
+                  { icon: AlertTriangle, label: "Dead Stock", desc: "Liquidate stale inventory", path: "/dead-stock", color: "text-destructive" },
+                  { icon: Timer, label: "Relist Scheduler", desc: "Auto-schedule relists", path: "/relist" },
+                  { icon: Target, label: "Portfolio Optimiser", desc: "Bulk-fix pricing", path: "/portfolio" },
+                  { icon: PieChart, label: "P&L Analytics", desc: "Revenue, margins & ROI", path: "/analytics", color: "text-success" },
+                ].map((item) => (
+                  <Card
+                    key={item.path + item.label}
+                    className="p-4 cursor-pointer hover:shadow-md transition-shadow border-border/50"
+                    onClick={() => navigate(item.path)}
+                  >
+                    <item.icon className={`w-5 h-5 mb-2 ${item.color || "text-primary"}`} />
+                    <h4 className="font-display font-bold text-sm mb-0.5">{item.label}</h4>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{item.desc}</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </main>
+
+      {/* Mobile Bottom Nav */}
+      <MobileBottomNav />
     </div>
   );
 }

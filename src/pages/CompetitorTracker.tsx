@@ -168,7 +168,7 @@ export default function CompetitorTracker() {
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <header className="border-b border-border glass sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
@@ -220,7 +220,7 @@ export default function CompetitorTracker() {
                           <Label className="text-xs">Name *</Label>
                           <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. VintageVibes_UK or 'Nike Air Max niche'" />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <Label className="text-xs">Vinted Username (optional)</Label>
                             <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="e.g. seller123" />

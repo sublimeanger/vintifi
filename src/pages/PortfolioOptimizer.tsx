@@ -130,7 +130,7 @@ export default function PortfolioOptimizer() {
   const actionableCount = recommendations.filter(r => r.classification !== "WELL_PRICED").length;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <header className="border-b border-border glass sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
@@ -200,7 +200,7 @@ export default function PortfolioOptimizer() {
             </div>
 
             {/* Filters */}
-            <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
               <Filter className="w-4 h-4 text-muted-foreground" />
               {[
                 { key: "all", label: "All" },

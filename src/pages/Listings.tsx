@@ -278,7 +278,7 @@ export default function Listings() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <header className="border-b border-border glass sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
@@ -290,13 +290,19 @@ export default function Listings() {
               {stats.total} listings · £{stats.totalValue.toFixed(0)} portfolio value
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => navigate("/bulk-optimize")} className="font-semibold">
+          <Button variant="outline" size="sm" onClick={() => navigate("/bulk-optimize")} className="font-semibold hidden sm:flex">
             <Upload className="w-4 h-4 mr-1" /> Bulk Upload
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => navigate("/bulk-optimize")} className="font-semibold sm:hidden h-10 w-10">
+            <Upload className="w-4 h-4" />
           </Button>
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="font-semibold">
+              <Button size="sm" className="font-semibold hidden sm:flex">
                 <Plus className="w-4 h-4 mr-1" /> Add Listing
+              </Button>
+              <Button size="icon" className="font-semibold sm:hidden h-10 w-10">
+                <Plus className="w-4 h-4" />
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -375,7 +381,7 @@ export default function Listings() {
                 <PoundSterling className="w-4 h-4 text-primary" />
                 Profit & Loss
               </h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Total Invested</p>
                   <p className="font-display font-bold text-lg">£{totalPurchaseCost.toFixed(0)}</p>

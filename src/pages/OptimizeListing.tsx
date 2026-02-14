@@ -208,7 +208,7 @@ export default function OptimizeListing() {
 
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <header className="border-b border-border glass sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
@@ -313,7 +313,7 @@ export default function OptimizeListing() {
           {/* Results Panel */}
           <AnimatePresence>
             {result && (
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+              <motion.div initial={{ opacity: 0, x: 0 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                 {/* Health Score */}
                 <Card className="p-6">
                   <h2 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
@@ -444,7 +444,7 @@ export default function OptimizeListing() {
 
                   {translations && !translating && (
                     <Tabs value={activeTransLang} onValueChange={setActiveTransLang}>
-                      <TabsList className="w-full grid grid-cols-4 mb-4">
+                      <TabsList className="w-full grid grid-cols-4 mb-4 overflow-x-auto">
                         {LANGUAGES.map((lang) => (
                           <TabsTrigger key={lang.code} value={lang.code} className="text-xs">
                             {lang.label}

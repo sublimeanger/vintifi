@@ -345,7 +345,7 @@ export default function BulkOptimize() {
   const progressPercent = items.length > 0 ? (processedCount / items.length) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <header className="border-b border-border glass sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/listings")}>
@@ -536,7 +536,7 @@ export default function BulkOptimize() {
                         <CollapsibleContent asChild>
                           <tr>
                             <td colSpan={7} className="p-0">
-                              <div className="px-6 py-4 bg-muted/30 border-t border-border space-y-3">
+                              <div className="px-3 sm:px-6 py-4 bg-muted/30 border-t border-border space-y-3">
                                 {item.status === "error" && (
                                   <p className="text-sm text-destructive flex items-center gap-2">
                                     <AlertCircle className="w-4 h-4" /> {item.error}

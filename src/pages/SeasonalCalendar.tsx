@@ -252,7 +252,7 @@ export default function SeasonalCalendar() {
   const hotCategories = currentMonthData.filter((c) => c.demand.level === "very_high" || c.demand.level === "high");
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background pb-20 lg:pb-0">
       <main className="flex-1 overflow-auto">
         <div className="p-6 lg:p-8 max-w-6xl mx-auto">
           {/* Header */}

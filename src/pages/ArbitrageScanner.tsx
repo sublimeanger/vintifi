@@ -94,7 +94,7 @@ export default function ArbitrageScanner() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <header className="border-b border-border glass sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
@@ -183,18 +183,18 @@ export default function ArbitrageScanner() {
             {/* Summary Stats */}
             {opportunities.length > 0 && (
               <div className="grid grid-cols-3 gap-3">
-                <Card className="p-4">
-                  <p className="text-[10px] text-muted-foreground font-medium">Opportunities</p>
+                <Card className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Opportunities</p>
                   <p className="font-display text-2xl font-bold">{opportunities.length}</p>
                 </Card>
-                <Card className="p-4">
-                  <p className="text-[10px] text-muted-foreground font-medium">Total Potential</p>
+                <Card className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Total Potential</p>
                   <p className="font-display text-2xl font-bold text-success">
                     £{totalPotentialProfit.toFixed(0)}
                   </p>
                 </Card>
-                <Card className="p-4">
-                  <p className="text-[10px] text-muted-foreground font-medium">Avg Margin</p>
+                <Card className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Avg Margin</p>
                   <p className={`font-display text-2xl font-bold ${getMarginColor(avgMargin)}`}>
                     {avgMargin}%
                   </p>
