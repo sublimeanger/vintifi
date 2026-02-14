@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
@@ -179,10 +180,33 @@ export default function TrendRadar() {
       </div>
 
       {/* Trend Cards */}
-      {loading ? (
-        <div className="text-center py-16">
-          <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Analysing market trends...</p>
+      {(loading || scanning) ? (
+        <div className="grid md:grid-cols-2 gap-4">
+          {Array.from({ length: scanning ? 8 : 4 }).map((_, i) => (
+            <Card key={i} className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-24" />
+              <div className="flex gap-4">
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </Card>
+          ))}
         </div>
       ) : trends.length === 0 ? (
         <div className="text-center py-16">
