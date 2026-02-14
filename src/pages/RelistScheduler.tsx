@@ -12,6 +12,7 @@ import {
   Package, Zap, CheckCircle2, XCircle, ArrowRightLeft, Layers,
   Timer, Trash2,
 } from "lucide-react";
+import { ScheduleCardSkeleton } from "@/components/LoadingSkeletons";
 
 type Schedule = {
   id: string;
@@ -212,9 +213,7 @@ export default function RelistScheduler() {
         </h3>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
+          <ScheduleCardSkeleton count={4} />
         ) : pendingSchedules.length === 0 ? (
           <Card className="p-8 text-center mb-8">
             <Calendar className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />

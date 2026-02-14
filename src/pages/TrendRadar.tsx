@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import TrendCard from "@/components/trends/TrendCard";
 import TrendStats from "@/components/trends/TrendStats";
+import { TrendCardSkeleton } from "@/components/LoadingSkeletons";
 
 type Trend = {
   id: string;
@@ -181,33 +181,7 @@ export default function TrendRadar() {
 
       {/* Trend Cards */}
       {(loading || scanning) ? (
-        <div className="grid md:grid-cols-2 gap-4">
-          {Array.from({ length: scanning ? 8 : 4 }).map((_, i) => (
-            <Card key={i} className="p-4 space-y-3 skeleton-shimmer">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-5 w-16 rounded-full" />
-              </div>
-              <Skeleton className="h-4 w-24" />
-              <div className="flex gap-4">
-                <div className="space-y-1.5 flex-1">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-5 w-16" />
-                </div>
-                <div className="space-y-1.5 flex-1">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-5 w-16" />
-                </div>
-                <div className="space-y-1.5 flex-1">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-5 w-16" />
-                </div>
-              </div>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </Card>
-          ))}
-        </div>
+        <TrendCardSkeleton count={scanning ? 8 : 4} />
       ) : trends.length === 0 ? (
         <div className="text-center py-16">
           <BarChart3 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />

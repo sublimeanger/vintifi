@@ -14,6 +14,7 @@ import {
   ArrowLeft, Search, Loader2, Zap, ExternalLink,
   TrendingUp, PoundSterling, ShoppingBag, BarChart3, ArrowRightLeft,
 } from "lucide-react";
+import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
 
 type Opportunity = {
   source_platform: string;
@@ -168,13 +169,7 @@ export default function ArbitrageScanner() {
 
         {/* Loading */}
         {loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
-            <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
-            <h3 className="font-display font-bold text-lg mb-2">Scanning marketplaces...</h3>
-            <p className="text-sm text-muted-foreground">
-              Searching eBay &amp; Depop for {brand} {category} and comparing with Vinted prices
-            </p>
-          </motion.div>
+          <ArbitrageCardSkeleton count={4} />
         )}
 
         {/* Results */}
