@@ -1,0 +1,109 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Not authenticated");
+
+    const { title, description, tags, languages } = await req.json();
+
+    if (!title || !description) {
+      return new Response(
+        JSON.stringify({ error: "Title and description are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const targetLanguages = languages || ["fr", "de", "nl", "es"];
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("AI not configured");
+
+    const langMap: Record<string, string> = {
+      fr: "French",
+      de: "German",
+      nl: "Dutch",
+      es: "Spanish",
+      it: "Italian",
+      pt: "Portuguese",
+      pl: "Polish",
+    };
+
+    const langNames = targetLanguages.map((l: string) => langMap[l] || l).join(", ");
+
+    const prompt = `You are a professional translator specialising in e-commerce product listings for Vinted. Translate the following Vinted listing into ${langNames}.
+
+IMPORTANT RULES:
+- Keep brand names, model names, and proper nouns UNCHANGED
+- Adapt sizing conventions where relevant (e.g. UK sizes)
+- Use natural, buyer-friendly language that sounds native (not robotic)
+- Optimise for local Vinted search keywords in each language
+- Keep the same structure and formatting as the original
+
+ORIGINAL TITLE:
+${title}
+
+ORIGINAL DESCRIPTION:
+${description}
+
+${tags?.length ? `ORIGINAL TAGS: ${tags.join(", ")}` : ""}
+
+Return a JSON object with language codes as keys. Each value should have "title", "description", and "tags" (array). Example:
+{
+  "fr": { "title": "...", "description": "...", "tags": ["..."] },
+  "de": { "title": "...", "description": "...", "tags": ["..."] }
+}
+Return ONLY the JSON object, no markdown or other text.`;
+
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are a professional multilingual translator for e-commerce listings. Always respond with valid JSON only." },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    if (!aiRes.ok) {
+      if (aiRes.status === 429) throw new Error("Rate limited, try again later.");
+      if (aiRes.status === 402) throw new Error("AI credits exhausted.");
+      throw new Error(`AI error: ${aiRes.status}`);
+    }
+
+    const aiData = await aiRes.json();
+    let content = aiData.choices?.[0]?.message?.content || "";
+    content = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
+    let translations;
+    try {
+      translations = JSON.parse(content);
+    } catch {
+      console.error("Failed to parse translations:", content);
+      throw new Error("AI returned invalid translation data");
+    }
+
+    return new Response(JSON.stringify({ translations }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("translate-listing error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
