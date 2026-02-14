@@ -81,7 +81,7 @@ export default function Dashboard() {
       {/* Sidebar - Desktop */}
       <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
         <div className="p-6">
-          <img src="/vintifi-logo.png" alt="Vintifi" className="h-7 w-auto" />
+          <img src="/vintifi-logo.png" alt="Vintifi" className="h-9 w-auto" />
         </div>
         <nav className="flex-1 px-3 space-y-1">
           {navItems.map((item) => (
@@ -114,7 +114,7 @@ export default function Dashboard() {
 
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass flex items-center justify-between px-4 py-3">
-        <img src="/vintifi-logo.png" alt="Vintifi" className="h-6 w-auto" />
+        <img src="/vintifi-logo.png" alt="Vintifi" className="h-8 w-auto" />
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
