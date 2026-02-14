@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, X, CreditCard,
-  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target,
+  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target, CalendarDays,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 
@@ -27,6 +27,7 @@ const navItems = [
   { icon: PieChart, label: "P&L Analytics", path: "/analytics" },
   { icon: Timer, label: "Relist Scheduler", path: "/relist" },
   { icon: Target, label: "Portfolio Optimiser", path: "/portfolio" },
+  { icon: CalendarDays, label: "Seasonal Calendar", path: "/seasonal" },
   { icon: CreditCard, label: "Billing", path: "/settings" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
@@ -327,6 +328,14 @@ export default function Dashboard() {
               <Target className="w-5 h-5 text-success mb-3" />
               <h4 className="font-display font-bold mb-1">Portfolio Optimiser</h4>
               <p className="text-sm text-muted-foreground">Bulk-fix overpriced &amp; underpriced items</p>
+            </Card>
+            <Card
+              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-accent/20 bg-accent/[0.02]"
+              onClick={() => navigate("/seasonal")}
+            >
+              <CalendarDays className="w-5 h-5 text-accent mb-3" />
+              <h4 className="font-display font-bold mb-1">Seasonal Calendar</h4>
+              <p className="text-sm text-muted-foreground">Know when demand peaks for each category</p>
             </Card>
           </div>
         </div>
