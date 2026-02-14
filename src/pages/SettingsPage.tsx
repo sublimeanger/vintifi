@@ -7,8 +7,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, User, CreditCard, Loader2, Check } from "lucide-react";
+import { ArrowLeft, User, CreditCard, Loader2, Check, Mail, Send } from "lucide-react";
 import { STRIPE_TIERS, TierKey } from "@/lib/constants";
 
 export default function SettingsPage() {
@@ -18,6 +19,11 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [digestEnabled, setDigestEnabled] = useState(
+    (profile as any)?.weekly_digest_enabled ?? true
+  );
+  const [digestSaving, setDigestSaving] = useState(false);
+  const [sendingDigest, setSendingDigest] = useState(false);
 
   const currentTier = (profile?.subscription_tier || "free") as TierKey;
 
@@ -155,6 +161,68 @@ export default function SettingsPage() {
               );
             })}
           </div>
+        </Card>
+
+        {/* Weekly Digest */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Mail className="w-5 h-5 text-primary" />
+            <h2 className="font-display font-bold text-lg">Weekly Digest</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Get a weekly email with your top trends, stale listings, and profit summary every Monday.
+          </p>
+          <div className="flex items-center justify-between mb-4">
+            <Label htmlFor="digest-toggle" className="text-sm font-medium">
+              Email digest enabled
+            </Label>
+            <Switch
+              id="digest-toggle"
+              checked={digestEnabled}
+              disabled={digestSaving}
+              onCheckedChange={async (checked) => {
+                if (!user) return;
+                setDigestSaving(true);
+                setDigestEnabled(checked);
+                try {
+                  const { error } = await supabase
+                    .from("profiles")
+                    .update({ weekly_digest_enabled: checked } as any)
+                    .eq("user_id", user.id);
+                  if (error) throw error;
+                  toast.success(checked ? "Weekly digest enabled" : "Weekly digest disabled");
+                } catch (err: any) {
+                  setDigestEnabled(!checked);
+                  toast.error(err.message);
+                } finally {
+                  setDigestSaving(false);
+                }
+              }}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={sendingDigest}
+            onClick={async () => {
+              if (!user) return;
+              setSendingDigest(true);
+              try {
+                const { data, error } = await supabase.functions.invoke("weekly-digest", {
+                  body: { user_id: user.id },
+                });
+                if (error) throw error;
+                toast.success("Digest sent! Check your email.");
+              } catch (err: any) {
+                toast.error(err.message || "Failed to send digest");
+              } finally {
+                setSendingDigest(false);
+              }
+            }}
+          >
+            {sendingDigest ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+            Send Test Digest Now
+          </Button>
         </Card>
 
         {/* Account Actions */}

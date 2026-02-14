@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN weekly_digest_enabled boolean NOT NULL DEFAULT true;

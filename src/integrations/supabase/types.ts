@@ -334,6 +334,7 @@ export type Database = {
           subscription_tier: string
           updated_at: string
           user_id: string
+          weekly_digest_enabled: boolean
         }
         Insert: {
           active_listing_count?: string | null
@@ -347,6 +348,7 @@ export type Database = {
           subscription_tier?: string
           updated_at?: string
           user_id: string
+          weekly_digest_enabled?: boolean
         }
         Update: {
           active_listing_count?: string | null
@@ -360,6 +362,7 @@ export type Database = {
           subscription_tier?: string
           updated_at?: string
           user_id?: string
+          weekly_digest_enabled?: boolean
         }
         Relationships: []
       }
