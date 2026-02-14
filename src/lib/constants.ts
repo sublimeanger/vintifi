@@ -78,3 +78,18 @@ export const PRIMARY_GOALS = [
   { value: "find_stock", label: "Find stock to resell" },
   { value: "save_time", label: "Save time" },
 ] as const;
+
+export const TIMEZONES = [
+  { value: "Europe/London", label: "🇬🇧 London (GMT/BST)" },
+  { value: "Europe/Paris", label: "🇫🇷 Paris (CET/CEST)" },
+  { value: "Europe/Berlin", label: "🇩🇪 Berlin (CET/CEST)" },
+  { value: "Europe/Amsterdam", label: "🇳🇱 Amsterdam (CET/CEST)" },
+  { value: "Europe/Madrid", label: "🇪🇸 Madrid (CET/CEST)" },
+  { value: "Europe/Rome", label: "🇮🇹 Rome (CET/CEST)" },
+  { value: "Europe/Warsaw", label: "🇵🇱 Warsaw (CET/CEST)" },
+  { value: "Europe/Stockholm", label: "🇸🇪 Stockholm (CET/CEST)" },
+  { value: "Europe/Lisbon", label: "🇵🇹 Lisbon (WET/WEST)" },
+  { value: "Europe/Brussels", label: "🇧🇪 Brussels (CET/CEST)" },
+  { value: "Europe/Vienna", label: "🇦🇹 Vienna (CET/CEST)" },
+  { value: "Europe/Prague", label: "🇨🇿 Prague (CET/CEST)" },
+] as const;

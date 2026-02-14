@@ -13,6 +13,7 @@ type Profile = {
   primary_goal: string;
   subscription_tier: string;
   onboarding_completed: boolean;
+  timezone: string;
 };
 
 type UsageCredits = {

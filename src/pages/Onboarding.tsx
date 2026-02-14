@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,8 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
-import { SELLING_CATEGORIES, LISTING_COUNTS, PRIMARY_GOALS } from "@/lib/constants";
+import { ArrowRight, ArrowLeft, Sparkles, Globe } from "lucide-react";
+import { SELLING_CATEGORIES, LISTING_COUNTS, PRIMARY_GOALS, TIMEZONES } from "@/lib/constants";
 
 export default function Onboarding() {
   const [step, setStep] = useState(0);
@@ -19,6 +19,13 @@ export default function Onboarding() {
   const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
+  const detectedTz = useMemo(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return TIMEZONES.some((t) => t.value === tz) ? tz : "Europe/London";
+  }, []);
+
+  const [timezone, setTimezone] = useState(detectedTz);
+
   const toggleCategory = (c: string) =>
     setCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
 
@@ -26,6 +33,7 @@ export default function Onboarding() {
     if (step === 0) return categories.length > 0;
     if (step === 1) return !!listingCount;
     if (step === 2) return !!goal;
+    if (step === 3) return !!timezone;
     return false;
   };
 
@@ -39,8 +47,9 @@ export default function Onboarding() {
           selling_categories: categories,
           active_listing_count: listingCount,
           primary_goal: goal,
+          timezone: timezone,
           onboarding_completed: true,
-        })
+        } as any)
         .eq("user_id", user.id);
       if (error) throw error;
       await refreshProfile();
@@ -106,7 +115,29 @@ export default function Onboarding() {
         </div>
       ),
     },
+    {
+      title: "What's your timezone?",
+      subtitle: "We'll schedule alerts and recommendations in your local time",
+      content: (
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+          {TIMEZONES.map((tz) => (
+            <Card
+              key={tz.value}
+              className={`p-3 cursor-pointer transition-all hover:scale-[1.02] ${timezone === tz.value ? "border-primary ring-1 ring-primary bg-primary/5" : ""}`}
+              onClick={() => setTimezone(tz.value)}
+            >
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium text-sm">{tz.label}</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ),
+    },
   ];
+
+  const totalSteps = steps.length;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -131,7 +162,7 @@ export default function Onboarding() {
           >
             <div className="mb-2 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              <span className="text-sm text-muted-foreground font-medium">Step {step + 1} of 3</span>
+              <span className="text-sm text-muted-foreground font-medium">Step {step + 1} of {totalSteps}</span>
             </div>
             <h2 className="font-display text-2xl font-bold mb-1">{steps[step].title}</h2>
             <p className="text-muted-foreground text-sm mb-6">{steps[step].subtitle}</p>
@@ -143,7 +174,7 @@ export default function Onboarding() {
           <Button variant="ghost" onClick={() => setStep((s) => s - 1)} disabled={step === 0}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
-          {step < 2 ? (
+          {step < totalSteps - 1 ? (
             <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()}>
               Next <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

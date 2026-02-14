@@ -332,6 +332,7 @@ export type Database = {
           primary_goal: string | null
           selling_categories: string[] | null
           subscription_tier: string
+          timezone: string
           updated_at: string
           user_id: string
           weekly_digest_enabled: boolean
@@ -346,6 +347,7 @@ export type Database = {
           primary_goal?: string | null
           selling_categories?: string[] | null
           subscription_tier?: string
+          timezone?: string
           updated_at?: string
           user_id: string
           weekly_digest_enabled?: boolean
@@ -360,6 +362,7 @@ export type Database = {
           primary_goal?: string | null
           selling_categories?: string[] | null
           subscription_tier?: string
+          timezone?: string
           updated_at?: string
           user_id?: string
           weekly_digest_enabled?: boolean

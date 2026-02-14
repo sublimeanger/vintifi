@@ -45,6 +45,14 @@ serve(async (req) => {
         });
       }
 
+      // Get user timezone
+      const { data: userProfile } = await supabase
+        .from("profiles")
+        .select("timezone")
+        .eq("user_id", user.id)
+        .single();
+      const userTimezone = userProfile?.timezone || "Europe/London";
+
       // Build AI prompt
       const listingSummary = listings.map(l => ({
         id: l.id,
@@ -75,12 +83,14 @@ serve(async (req) => {
               role: "system",
               content: `You are a Vinted selling expert. Analyse listings and generate optimal relist schedules.
 
+The seller's timezone is ${userTimezone}. All scheduled times MUST be in ${userTimezone}.
+
 Rules for scheduling:
-- Womenswear relists perform best on Sunday evenings (18:00-20:00 GMT)
-- Menswear performs best on Tuesday mornings (8:00-10:00 GMT)
-- Shoes/trainers: Thursday evenings (18:00-20:00 GMT)
-- Kids: Saturday mornings (9:00-11:00 GMT)
-- Vintage/designer: Friday evenings (19:00-21:00 GMT)
+- Womenswear relists perform best on Sunday evenings (18:00-20:00 ${userTimezone})
+- Menswear performs best on Tuesday mornings (8:00-10:00 ${userTimezone})
+- Shoes/trainers: Thursday evenings (18:00-20:00 ${userTimezone})
+- Kids: Saturday mornings (9:00-11:00 ${userTimezone})
+- Vintage/designer: Friday evenings (19:00-21:00 ${userTimezone})
 - Default/other: Wednesday or Saturday mornings
 
 Price adjustment rules:

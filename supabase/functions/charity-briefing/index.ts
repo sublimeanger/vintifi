@@ -21,6 +21,7 @@ serve(async (req) => {
     // Get user categories from auth token
     const authHeader = req.headers.get("authorization") || "";
     let userCategories: string[] = [];
+    let userTimezone = "Europe/London";
     if (authHeader.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "");
       try {
@@ -28,10 +29,11 @@ serve(async (req) => {
         if (user) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("selling_categories")
+            .select("selling_categories, timezone")
             .eq("user_id", user.id)
             .single();
           userCategories = profile?.selling_categories || [];
+          userTimezone = profile?.timezone || "Europe/London";
         }
       } catch { /* continue without personalisation */ }
     }
@@ -53,6 +55,8 @@ serve(async (req) => {
       : "The seller has no category preference set, so provide a broad mix.";
 
     const systemPrompt = `You are a Vinted reselling expert. Generate a "Charity Shop Briefing" — a concise, mobile-friendly sourcing guide for a reseller about to visit charity shops or car boot sales.
+
+The seller's local timezone is ${userTimezone}. Consider local market context and timing for any time-sensitive advice.
 
 Use the current trend data below to make recommendations grounded in real demand.
 

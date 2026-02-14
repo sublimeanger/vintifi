@@ -28,13 +28,13 @@ serve(async (req) => {
     // Get users who have digest enabled
     let profilesQuery = supabase
       .from("profiles")
-      .select("user_id, display_name, weekly_digest_enabled")
+      .select("user_id, display_name, weekly_digest_enabled, timezone")
       .eq("weekly_digest_enabled", true);
 
     if (targetUserId) {
       profilesQuery = supabase
         .from("profiles")
-        .select("user_id, display_name, weekly_digest_enabled")
+        .select("user_id, display_name, weekly_digest_enabled, timezone")
         .eq("user_id", targetUserId);
     }
 
@@ -54,6 +54,7 @@ serve(async (req) => {
       if (!authUser?.user?.email) continue;
       const email = authUser.user.email;
       const name = profile.display_name || "Seller";
+      const tz = (profile as any).timezone || "Europe/London";
 
       // 1. Top trends (last 7 days)
       const { data: trends } = await supabase
@@ -115,7 +116,7 @@ serve(async (req) => {
         body: JSON.stringify({
           from: "Raqkt <onboarding@resend.dev>",
           to: [email],
-          subject: `📊 Your Weekly Raqkt Digest — ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`,
+          subject: `📊 Your Weekly Raqkt Digest — ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: tz })}`,
           html,
         }),
       });
