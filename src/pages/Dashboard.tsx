@@ -18,6 +18,7 @@ import { STRIPE_TIERS } from "@/lib/constants";
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Search, label: "Price Check", path: "/price-check" },
+  { icon: Zap, label: "Optimise", path: "/optimize" },
   { icon: Tag, label: "My Listings", path: "/listings" },
   { icon: TrendingUp, label: "Trends", path: "/dashboard", badge: "Soon" },
   { icon: CreditCard, label: "Billing", path: "/settings" },
@@ -265,10 +266,13 @@ export default function Dashboard() {
               <h4 className="font-display font-bold mb-1">My Listings</h4>
               <p className="text-sm text-muted-foreground">Track and manage your items</p>
             </Card>
-            <Card className="p-5 opacity-60 cursor-not-allowed">
-              <TrendingUp className="w-5 h-5 text-muted-foreground mb-3" />
-              <h4 className="font-display font-bold mb-1">View Trends</h4>
-              <p className="text-sm text-muted-foreground">Coming in Phase 2</p>
+            <Card
+              className="p-5 cursor-pointer hover:shadow-md transition-shadow border-border/50"
+              onClick={() => navigate("/optimize")}
+            >
+              <Zap className="w-5 h-5 text-primary mb-3" />
+              <h4 className="font-display font-bold mb-1">Optimise Listing</h4>
+              <p className="text-sm text-muted-foreground">AI-powered listing optimisation</p>
             </Card>
           </div>
         </div>
