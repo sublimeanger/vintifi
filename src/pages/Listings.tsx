@@ -19,7 +19,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, Search, Loader2, Package, Heart, Eye,
   TrendingUp, TrendingDown, Minus, ExternalLink, Trash2,
-  RefreshCw, MoreVertical, Zap, Filter,
+  RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
+  PoundSterling, Calendar,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -38,11 +39,14 @@ type Listing = {
   status: string;
   current_price: number | null;
   recommended_price: number | null;
+  purchase_price: number | null;
+  sale_price: number | null;
   health_score: number | null;
   views_count: number | null;
   favourites_count: number | null;
   image_url: string | null;
   vinted_url: string | null;
+  days_listed: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -54,24 +58,27 @@ const statusColors: Record<string, string> = {
   inactive: "bg-muted text-muted-foreground border-border",
 };
 
-function getHealthColor(score: number | null) {
-  if (!score) return "text-muted-foreground";
-  if (score >= 80) return "text-success";
-  if (score >= 50) return "text-accent";
-  return "text-destructive";
+// Traffic light system
+function getHealthIndicator(score: number | null) {
+  if (score === null) return { color: "bg-muted-foreground/30", textColor: "text-muted-foreground", label: "Unknown", ring: "ring-muted-foreground/20" };
+  if (score >= 80) return { color: "bg-success", textColor: "text-success", label: "Excellent", ring: "ring-success/20" };
+  if (score >= 60) return { color: "bg-accent", textColor: "text-accent", label: "Good", ring: "ring-accent/20" };
+  if (score >= 40) return { color: "bg-orange-500", textColor: "text-orange-500", label: "Fair", ring: "ring-orange-500/20" };
+  return { color: "bg-destructive", textColor: "text-destructive", label: "Needs Work", ring: "ring-destructive/20" };
 }
 
-function getHealthLabel(score: number | null) {
-  if (!score) return "Unknown";
-  if (score >= 80) return "Excellent";
-  if (score >= 60) return "Good";
-  if (score >= 40) return "Fair";
-  return "Needs Work";
+function getDaysListed(createdAt: string): number {
+  return Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function getPriceDiff(current: number | null, recommended: number | null) {
-  if (!current || !recommended) return null;
-  return ((current - recommended) / recommended) * 100;
+function getProfit(listing: Listing): number | null {
+  if (listing.sale_price != null && listing.purchase_price != null) {
+    return listing.sale_price - listing.purchase_price;
+  }
+  if (listing.current_price != null && listing.purchase_price != null) {
+    return listing.current_price - listing.purchase_price;
+  }
+  return null;
 }
 
 export default function Listings() {
@@ -90,6 +97,7 @@ export default function Listings() {
   const [newCategory, setNewCategory] = useState("");
   const [newCondition, setNewCondition] = useState("");
   const [newPrice, setNewPrice] = useState("");
+  const [newPurchasePrice, setNewPurchasePrice] = useState("");
   const [newUrl, setNewUrl] = useState("");
 
   const fetchListings = async () => {
@@ -129,6 +137,7 @@ export default function Listings() {
       category: newCategory.trim() || null,
       condition: newCondition.trim() || null,
       current_price: newPrice ? parseFloat(newPrice) : null,
+      purchase_price: newPurchasePrice ? parseFloat(newPurchasePrice) : null,
       vinted_url: newUrl.trim() || null,
       status: "active",
     });
@@ -169,6 +178,7 @@ export default function Listings() {
     setNewCategory("");
     setNewCondition("");
     setNewPrice("");
+    setNewPurchasePrice("");
     setNewUrl("");
   };
 
@@ -180,6 +190,24 @@ export default function Listings() {
     const matchesStatus = statusFilter === "all" || l.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Dead stock: active items listed 30+ days
+  const deadStockListings = listings.filter(
+    (l) => l.status === "active" && getDaysListed(l.created_at) >= 30
+  );
+
+  // P&L stats
+  const totalPurchaseCost = listings
+    .filter((l) => l.purchase_price != null)
+    .reduce((sum, l) => sum + (l.purchase_price || 0), 0);
+
+  const totalRevenue = listings
+    .filter((l) => l.status === "sold" && l.sale_price != null)
+    .reduce((sum, l) => sum + (l.sale_price || 0), 0);
+
+  const totalProfit = totalRevenue - listings
+    .filter((l) => l.status === "sold" && l.purchase_price != null)
+    .reduce((sum, l) => sum + (l.purchase_price || 0), 0);
 
   const stats = {
     total: listings.length,
@@ -196,6 +224,8 @@ export default function Listings() {
               listings.filter((l) => l.health_score).length
           )
         : null,
+    sold: listings.filter((l) => l.status === "sold").length,
+    deadStock: deadStockListings.length,
   };
 
   return (
@@ -224,68 +254,38 @@ export default function Listings() {
               <div className="space-y-4 pt-2">
                 <div>
                   <Label>Title *</Label>
-                  <Input
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="e.g. Nike Air Force 1 White"
-                  />
+                  <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Nike Air Force 1 White" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Brand</Label>
-                    <Input
-                      value={newBrand}
-                      onChange={(e) => setNewBrand(e.target.value)}
-                      placeholder="e.g. Nike"
-                    />
+                    <Input value={newBrand} onChange={(e) => setNewBrand(e.target.value)} placeholder="e.g. Nike" />
                   </div>
                   <div>
                     <Label>Category</Label>
-                    <Input
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
-                      placeholder="e.g. Trainers"
-                    />
+                    <Input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="e.g. Trainers" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Condition</Label>
-                    <Input
-                      value={newCondition}
-                      onChange={(e) => setNewCondition(e.target.value)}
-                      placeholder="e.g. Good"
-                    />
+                    <Input value={newCondition} onChange={(e) => setNewCondition(e.target.value)} placeholder="e.g. Good" />
                   </div>
                   <div>
-                    <Label>Price (£)</Label>
-                    <Input
-                      value={newPrice}
-                      onChange={(e) => setNewPrice(e.target.value)}
-                      placeholder="0.00"
-                      type="number"
-                      step="0.01"
-                    />
+                    <Label>Listing Price (£)</Label>
+                    <Input value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="0.00" type="number" step="0.01" />
                   </div>
                 </div>
                 <div>
-                  <Label>Vinted URL (optional)</Label>
-                  <Input
-                    value={newUrl}
-                    onChange={(e) => setNewUrl(e.target.value)}
-                    placeholder="https://www.vinted.co.uk/items/..."
-                  />
+                  <Label>Purchase Price (£)</Label>
+                  <Input value={newPurchasePrice} onChange={(e) => setNewPurchasePrice(e.target.value)} placeholder="What you paid for it" type="number" step="0.01" />
                 </div>
-                <Button
-                  onClick={handleAddListing}
-                  disabled={adding}
-                  className="w-full font-semibold"
-                >
-                  {adding ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Plus className="w-4 h-4 mr-2" />
-                  )}
+                <div>
+                  <Label>Vinted URL (optional)</Label>
+                  <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="https://www.vinted.co.uk/items/..." />
+                </div>
+                <Button onClick={handleAddListing} disabled={adding} className="w-full font-semibold">
+                  {adding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
                   Add Listing
                 </Button>
               </div>
@@ -300,23 +300,10 @@ export default function Listings() {
           {[
             { label: "Total Listings", value: stats.total.toString(), icon: Package },
             { label: "Active", value: stats.active.toString(), icon: TrendingUp },
-            {
-              label: "Portfolio Value",
-              value: `£${stats.totalValue.toFixed(0)}`,
-              icon: Zap,
-            },
-            {
-              label: "Avg Health",
-              value: stats.avgHealth !== null ? `${stats.avgHealth}%` : "—",
-              icon: Heart,
-            },
+            { label: "Portfolio Value", value: `£${stats.totalValue.toFixed(0)}`, icon: Zap },
+            { label: "Avg Health", value: stats.avgHealth !== null ? `${stats.avgHealth}%` : "—", icon: Heart },
           ].map((s, i) => (
-            <motion.div
-              key={s.label}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-            >
+            <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Card className="p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <s.icon className="w-3.5 h-3.5 text-muted-foreground" />
@@ -328,16 +315,70 @@ export default function Listings() {
           ))}
         </div>
 
+        {/* P&L Summary */}
+        {(totalPurchaseCost > 0 || totalRevenue > 0) && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="p-4 mb-6 border-primary/20 bg-primary/[0.02]">
+              <h3 className="font-display font-bold text-sm mb-3 flex items-center gap-2">
+                <PoundSterling className="w-4 h-4 text-primary" />
+                Profit & Loss
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Invested</p>
+                  <p className="font-display font-bold text-lg">£{totalPurchaseCost.toFixed(0)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Revenue (Sold)</p>
+                  <p className="font-display font-bold text-lg text-success">£{totalRevenue.toFixed(0)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Net Profit</p>
+                  <p className={`font-display font-bold text-lg ${totalProfit >= 0 ? "text-success" : "text-destructive"}`}>
+                    {totalProfit >= 0 ? "+" : ""}£{totalProfit.toFixed(0)}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Dead Stock Alert */}
+        {deadStockListings.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="p-4 mb-6 border-destructive/30 bg-destructive/[0.03]">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-display font-bold text-sm text-destructive">
+                    {deadStockListings.length} Dead Stock Item{deadStockListings.length > 1 ? "s" : ""}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    These items have been listed for 30+ days without selling. Consider reducing prices, relisting, or bundling.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {deadStockListings.slice(0, 5).map((l) => (
+                      <Badge key={l.id} variant="outline" className="text-[10px] border-destructive/30 text-destructive">
+                        {l.title.length > 25 ? l.title.slice(0, 25) + "…" : l.title} · {getDaysListed(l.created_at)}d
+                      </Badge>
+                    ))}
+                    {deadStockListings.length > 5 && (
+                      <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive">
+                        +{deadStockListings.length - 5} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Search & Filters */}
         <div className="flex gap-3 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search listings..."
-              className="pl-10"
-            />
+            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search listings..." className="pl-10" />
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -366,11 +407,7 @@ export default function Listings() {
             <p className="text-sm text-muted-foreground">Loading listings...</p>
           </div>
         ) : filteredListings.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
             <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
             <h3 className="font-display font-bold text-lg mb-2">
               {listings.length === 0 ? "No listings yet" : "No matching listings"}
@@ -390,7 +427,11 @@ export default function Listings() {
           <div className="space-y-3">
             <AnimatePresence>
               {filteredListings.map((listing, i) => {
-                const priceDiff = getPriceDiff(listing.current_price, listing.recommended_price);
+                const daysListed = getDaysListed(listing.created_at);
+                const isDeadStock = listing.status === "active" && daysListed >= 30;
+                const health = getHealthIndicator(listing.health_score);
+                const profit = getProfit(listing);
+
                 return (
                   <motion.div
                     key={listing.id}
@@ -399,44 +440,34 @@ export default function Listings() {
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ delay: i * 0.03 }}
                   >
-                    <Card className="p-4 hover:shadow-md transition-shadow">
+                    <Card className={`p-4 hover:shadow-md transition-shadow ${isDeadStock ? "border-destructive/30" : ""}`}>
                       <div className="flex items-start gap-4">
-                        {/* Image placeholder */}
-                        <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        {/* Image */}
+                        <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative">
                           {listing.image_url ? (
-                            <img
-                              src={listing.image_url}
-                              alt={listing.title}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
+                            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
                           ) : (
                             <Package className="w-6 h-6 text-muted-foreground/40" />
                           )}
+                          {/* Traffic light dot */}
+                          <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full ${health.color} ring-2 ${health.ring}`} />
                         </div>
 
                         {/* Details */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <h3 className="font-display font-bold text-sm truncate">
-                                {listing.title}
-                              </h3>
+                              <h3 className="font-display font-bold text-sm truncate">{listing.title}</h3>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <Badge
-                                  variant="outline"
-                                  className={`text-[10px] capitalize ${statusColors[listing.status] || ""}`}
-                                >
+                                <Badge variant="outline" className={`text-[10px] capitalize ${statusColors[listing.status] || ""}`}>
                                   {listing.status}
                                 </Badge>
-                                {listing.brand && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {listing.brand}
-                                  </span>
-                                )}
-                                {listing.category && (
-                                  <span className="text-xs text-muted-foreground">
-                                    · {listing.category}
-                                  </span>
+                                {listing.brand && <span className="text-xs text-muted-foreground">{listing.brand}</span>}
+                                {listing.category && <span className="text-xs text-muted-foreground">· {listing.category}</span>}
+                                {isDeadStock && (
+                                  <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive gap-0.5">
+                                    <AlertTriangle className="w-2.5 h-2.5" /> Dead Stock
+                                  </Badge>
                                 )}
                               </div>
                             </div>
@@ -452,16 +483,11 @@ export default function Listings() {
                                   <Zap className="w-4 h-4 mr-2" /> Run Price Check
                                 </DropdownMenuItem>
                                 {listing.vinted_url && (
-                                  <DropdownMenuItem
-                                    onClick={() => window.open(listing.vinted_url!, "_blank")}
-                                  >
+                                  <DropdownMenuItem onClick={() => window.open(listing.vinted_url!, "_blank")}>
                                     <ExternalLink className="w-4 h-4 mr-2" /> View on Vinted
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleDeleteListing(listing.id)}
-                                >
+                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteListing(listing.id)}>
                                   <Trash2 className="w-4 h-4 mr-2" /> Delete
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -471,67 +497,56 @@ export default function Listings() {
                           {/* Metrics Row */}
                           <div className="flex items-center gap-4 mt-3 flex-wrap">
                             {/* Price */}
-                            {listing.current_price !== null && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-display font-bold text-sm">
-                                  £{listing.current_price.toFixed(2)}
+                            {listing.current_price != null && (
+                              <span className="font-display font-bold text-sm">
+                                £{listing.current_price.toFixed(2)}
+                              </span>
+                            )}
+
+                            {/* Purchase price & profit */}
+                            {listing.purchase_price != null && (
+                              <span className="text-xs text-muted-foreground">
+                                Cost: £{listing.purchase_price.toFixed(2)}
+                              </span>
+                            )}
+
+                            {profit !== null && (
+                              <span className={`text-xs font-semibold ${profit >= 0 ? "text-success" : "text-destructive"}`}>
+                                {profit >= 0 ? "+" : ""}£{profit.toFixed(2)} profit
+                              </span>
+                            )}
+
+                            {/* Health Score with traffic light */}
+                            {listing.health_score != null && (
+                              <div className="flex items-center gap-1">
+                                <div className={`w-2 h-2 rounded-full ${health.color}`} />
+                                <span className={`text-xs font-medium ${health.textColor}`}>
+                                  {listing.health_score}%
                                 </span>
-                                {priceDiff !== null && (
-                                  <span
-                                    className={`text-[10px] font-medium flex items-center ${
-                                      priceDiff > 5
-                                        ? "text-success"
-                                        : priceDiff < -5
-                                        ? "text-destructive"
-                                        : "text-muted-foreground"
-                                    }`}
-                                  >
-                                    {priceDiff > 0 ? (
-                                      <TrendingUp className="w-3 h-3 mr-0.5" />
-                                    ) : priceDiff < 0 ? (
-                                      <TrendingDown className="w-3 h-3 mr-0.5" />
-                                    ) : (
-                                      <Minus className="w-3 h-3 mr-0.5" />
-                                    )}
-                                    {Math.abs(priceDiff).toFixed(0)}%
-                                  </span>
-                                )}
                               </div>
                             )}
 
-                            {/* Health Score */}
-                            {listing.health_score !== null && (
-                              <div className="flex items-center gap-1">
-                                <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    listing.health_score >= 80
-                                      ? "bg-success"
-                                      : listing.health_score >= 50
-                                      ? "bg-accent"
-                                      : "bg-destructive"
-                                  }`}
-                                />
-                                <span className={`text-xs font-medium ${getHealthColor(listing.health_score)}`}>
-                                  {listing.health_score}% {getHealthLabel(listing.health_score)}
-                                </span>
-                              </div>
-                            )}
+                            {/* Days listed */}
+                            <span className={`text-xs flex items-center gap-1 ${isDeadStock ? "text-destructive" : "text-muted-foreground"}`}>
+                              <Calendar className="w-3 h-3" />
+                              {daysListed}d
+                            </span>
 
                             {/* Views & Favourites */}
-                            {(listing.views_count || listing.favourites_count) && (
+                            {(listing.views_count || listing.favourites_count) ? (
                               <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                {listing.views_count !== null && listing.views_count > 0 && (
+                                {listing.views_count != null && listing.views_count > 0 && (
                                   <span className="flex items-center gap-1">
                                     <Eye className="w-3 h-3" /> {listing.views_count}
                                   </span>
                                 )}
-                                {listing.favourites_count !== null && listing.favourites_count > 0 && (
+                                {listing.favourites_count != null && listing.favourites_count > 0 && (
                                   <span className="flex items-center gap-1">
                                     <Heart className="w-3 h-3" /> {listing.favourites_count}
                                   </span>
                                 )}
                               </div>
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       </div>
