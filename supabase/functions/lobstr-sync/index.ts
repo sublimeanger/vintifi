@@ -121,9 +121,10 @@ async function handleLaunch(serviceClient: any, squidIds: string[]) {
 
   for (const squidId of squidIds) {
     try {
-      const res = await fetch(`${LOBSTR_BASE}/squids/${squidId}/launch`, {
+      const res = await fetch(`${LOBSTR_BASE}/runs`, {
         method: "POST",
         headers: lobstrHeaders(LOBSTR_API_KEY),
+        body: JSON.stringify({ squid_id: squidId }),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -312,26 +313,32 @@ async function handleProcess(serviceClient: any, jobId: string) {
   const categories = ["Womenswear", "Menswear", "Streetwear", "Vintage", "Designer", "Shoes", "Accessories", "Kids"];
 
   const dataTypeLabel = isLobstrData ? "real scraped Vinted listing data" : "web search results about Vinted trends";
-  const prompt = `You are a Vinted marketplace analyst. Based on these ${dataTypeLabel}, extract and generate 16 structured trend items.
+  const prompt = `You are a Vinted marketplace analyst specialising in the UK resale market. Today's date is February 2026. Based on these ${dataTypeLabel}, extract and generate exactly 16 structured trend items.
+
+CRITICAL RULES:
+- "brand_or_item" MUST be a specific brand name (e.g. "Carhartt WIP", "The North Face", "Dr. Martens", "Fjällräven") — NEVER use generic category names like "Baby & Kids Clothing" or "Activewear".
+- "estimated_peak_date" MUST be a date in 2026 (between February and May 2026).
+- You MUST include at least 1 trend from EACH of these categories: ${categories.join(", ")}. Distribute the remaining 8 trends across categories with the most activity.
+- "opportunity_score" should have realistic variance: use the full 20-98 range. Declining trends should score 20-45, peaking 40-70, rising 55-98. No more than 3 trends above 90.
 
 RAW DATA:
-${resultsSummary || "No results available - generate realistic trends based on current market knowledge for February 2026."}
+${resultsSummary || "No results available - generate realistic trends based on current UK Vinted market knowledge for February 2026."}
 
-Generate a JSON array of 16 trends. For each trend provide:
-- brand_or_item: specific brand or item name
+Generate a JSON array of exactly 16 trends. For each trend provide:
+- brand_or_item: a specific brand or product name (NEVER a generic category)
 - category: one of [${categories.join(", ")}]
 - trend_direction: "rising", "peaking", or "declining"
 - search_volume_change_7d: percentage (-50 to +500)
 - search_volume_change_30d: percentage (-30 to +800)
-- avg_price: GBP (5-500)
+- avg_price: realistic GBP price (5-500)
 - price_change_30d: percentage (-20 to +40)
-- supply_demand_ratio: (0.1 to 3.0)
-- opportunity_score: 0-100
-- ai_summary: 1-2 sentence explanation${isLobstrData ? " referencing the actual data patterns you see" : ""}
-- estimated_peak_date: ISO date (within 3 months)
+- supply_demand_ratio: (0.1 to 3.0, lower = more demand than supply)
+- opportunity_score: 20-98 with realistic variance per trend_direction
+- ai_summary: 1-2 sentence explanation${isLobstrData ? " referencing actual data patterns" : ""} with actionable seller advice
+- estimated_peak_date: ISO date in 2026 (within next 3 months)
 
-Mix: 10 rising, 4 peaking, 2 declining. Use real brand names popular on Vinted.
-Return ONLY the JSON array.`;
+Distribution: 10 rising, 4 peaking, 2 declining. Use real brand names that are genuinely popular on Vinted UK.
+Return ONLY the JSON array, no other text.`;
 
   const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
