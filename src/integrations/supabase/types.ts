@@ -363,6 +363,59 @@ export type Database = {
         }
         Relationships: []
       }
+      relist_schedules: {
+        Row: {
+          ai_reason: string | null
+          created_at: string
+          executed_at: string | null
+          id: string
+          listing_id: string
+          new_price: number | null
+          price_adjustment_percent: number | null
+          scheduled_at: string
+          status: string
+          strategy: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_reason?: string | null
+          created_at?: string
+          executed_at?: string | null
+          id?: string
+          listing_id: string
+          new_price?: number | null
+          price_adjustment_percent?: number | null
+          scheduled_at: string
+          status?: string
+          strategy?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_reason?: string | null
+          created_at?: string
+          executed_at?: string | null
+          id?: string
+          listing_id?: string
+          new_price?: number | null
+          price_adjustment_percent?: number | null
+          scheduled_at?: string
+          status?: string
+          strategy?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relist_schedules_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scrape_jobs: {
         Row: {
           category: string | null
