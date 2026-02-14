@@ -9,16 +9,9 @@ const corsHeaders = {
 
 const LOBSTR_BASE = "https://api.lobstr.io/v1";
 
-// Default Squid IDs — replace with your own configured Vinted scrapers on Lobstr.io
+// Your configured Vinted scraper Squid on Lobstr.io
 const DEFAULT_SQUID_IDS = [
-  "vinted-uk-womenswear",
-  "vinted-uk-menswear",
-  "vinted-uk-streetwear",
-  "vinted-uk-vintage",
-  "vinted-uk-designer",
-  "vinted-uk-shoes",
-  "vinted-uk-accessories",
-  "vinted-uk-kids",
+  "2a6c83edef674d04a168760fe2f0d607",
 ];
 
 function lobstrHeaders(apiKey: string) {
