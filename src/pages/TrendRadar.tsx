@@ -82,58 +82,38 @@ export default function TrendRadar() {
     setScanStatus("launching");
     setScanProgress(0);
     try {
+      // Step 1: Launch (Firecrawl searches — completes synchronously)
+      setScanStatus("running");
+      setScanProgress(20);
       const { data, error } = await supabase.functions.invoke("lobstr-sync", {
         body: { action: "launch" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setScanJobId(data.job_id);
-      setScanStatus("running");
-      toast.success("Market scan launched! Scraping Vinted data...");
+
+      const jobId = data.job_id;
+      setScanProgress(60);
+      setScanStatus("processing");
+
+      // Step 2: Process with AI
+      const { data: processData, error: processError } = await supabase.functions.invoke("lobstr-sync", {
+        body: { action: "process", job_id: jobId },
+      });
+      if (processError) throw processError;
+      if (processData?.error) throw new Error(processData.error);
+
+      setScanProgress(100);
+      setScanStatus("done");
+      toast.success(`Market scan complete! ${processData?.trends_count || 0} trends extracted.`);
+      await fetchTrends(true);
     } catch (e: any) {
       toast.error(e.message || "Failed to launch scan");
+      setScanStatus("failed");
+    } finally {
       setScanning(false);
-      setScanStatus(null);
+      setTimeout(() => { setScanStatus(null); setScanProgress(0); }, 2000);
     }
   };
-
-  useEffect(() => {
-    if (!scanJobId || scanStatus !== "running") return;
-    const interval = setInterval(async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("lobstr-sync", {
-          body: { action: "poll", job_id: scanJobId },
-        });
-        if (error) throw error;
-        if (data?.status === "completed") {
-          setScanStatus("processing");
-          setScanProgress(80);
-          const { data: processData, error: processError } = await supabase.functions.invoke("lobstr-sync", {
-            body: { action: "process", job_id: scanJobId },
-          });
-          if (processError) throw processError;
-          setScanStatus("done");
-          setScanProgress(100);
-          setScanning(false);
-          toast.success(`Market scan complete! ${processData?.trends_count || 0} trends extracted.`);
-          await fetchTrends(true);
-          setScanJobId(null);
-          setScanStatus(null);
-        } else if (data?.status === "failed") {
-          setScanStatus("failed");
-          setScanning(false);
-          toast.error("Market scan failed. Try again later.");
-        } else if (data?.status === "running") {
-          const total = data.total || 10;
-          const progress = data.progress || 0;
-          setScanProgress(Math.min(70, Math.round((progress / total) * 70)));
-        }
-      } catch (e: any) {
-        console.error("Poll error:", e);
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [scanJobId, scanStatus]);
 
   const risingCount = trends.filter((t) => t.trend_direction === "rising").length;
   const peakingCount = trends.filter((t) => t.trend_direction === "peaking").length;
