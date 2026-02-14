@@ -111,15 +111,25 @@ export default function TrendRadar() {
       {/* Category Tabs */}
       <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="mb-6">
         <TabsList className="w-full justify-start overflow-x-auto h-auto flex-wrap gap-1 bg-transparent p-0">
-          {categories.map((cat) => (
-            <TabsTrigger
-              key={cat}
-              value={cat}
-              className="text-xs shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-1.5 border border-border data-[state=active]:border-primary"
-            >
-              {cat}
-            </TabsTrigger>
-          ))}
+          {categories.map((cat) => {
+            const count = cat === "All"
+              ? allTrends.length
+              : allTrends.filter((t) => t.category === cat).length;
+            return (
+              <TabsTrigger
+                key={cat}
+                value={cat}
+                className="text-xs shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-1.5 border border-border data-[state=active]:border-primary gap-1.5"
+              >
+                {cat}
+                {count > 0 && (
+                  <span className="bg-muted data-[state=active]:bg-primary-foreground/20 text-[10px] px-1.5 py-0.5 rounded-full">
+                    {count}
+                  </span>
+                )}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
 
         {categories.map((cat) => (

@@ -271,15 +271,11 @@ async function handleProcess(serviceClient: any, jobId: string) {
     const allResults = Array.isArray(job.raw_results) ? job.raw_results : [];
     console.log(`Processing ${allResults.length} imported Lobstr results`);
 
-    resultsSummary = allResults.slice(0, 200).map((item: any) => {
-      const title = item.title || item.name || "";
-      const price = item.price || item.total_price || "";
+    resultsSummary = allResults.map((item: any) => {
       const brand = item.brand || item.brand_title || "";
+      const price = item.price || item.total_price || "";
       const category = item.category || item.catalog_title || "";
-      const condition = item.status || item.condition || "";
-      const views = item.views || item.view_count || "";
-      const favourites = item.favourites || item.favourite_count || "";
-      return `${title} | Brand: ${brand} | Price: ${price} | Category: ${category} | Condition: ${condition} | Views: ${views} | Favs: ${favourites}`;
+      return `${brand}|${price}|${category}`;
     }).join("\n");
   } else if (runIds && runIds.length > 0 && LOBSTR_API_KEY) {
     // Standard Lobstr run — fetch results from API
@@ -304,15 +300,11 @@ async function handleProcess(serviceClient: any, jobId: string) {
 
     console.log(`Lobstr.io returned ${allResults.length} total results`);
 
-    resultsSummary = allResults.slice(0, 200).map((item: any) => {
-      const title = item.title || item.name || "";
-      const price = item.price || item.total_price || "";
+    resultsSummary = allResults.map((item: any) => {
       const brand = item.brand || item.brand_title || "";
+      const price = item.price || item.total_price || "";
       const category = item.category || item.catalog_title || "";
-      const condition = item.status || item.condition || "";
-      const views = item.views || item.view_count || "";
-      const favourites = item.favourites || item.favourite_count || "";
-      return `${title} | Brand: ${brand} | Price: ${price} | Category: ${category} | Condition: ${condition} | Views: ${views} | Favs: ${favourites}`;
+      return `${brand}|${price}|${category}`;
     }).join("\n");
   } else {
     // Firecrawl fallback data
@@ -331,18 +323,18 @@ async function handleProcess(serviceClient: any, jobId: string) {
   const categories = ["Womenswear", "Menswear", "Streetwear", "Vintage", "Designer", "Shoes", "Accessories", "Kids"];
 
   const dataTypeLabel = isLobstrData ? "real scraped Vinted listing data" : "web search results about Vinted trends";
-  const prompt = `You are a Vinted marketplace analyst specialising in the UK resale market. Today's date is February 2026. Based on these ${dataTypeLabel}, extract and generate exactly 16 structured trend items.
+  const prompt = `You are a Vinted marketplace analyst specialising in the UK resale market. Today's date is February 2026. Based on these ${dataTypeLabel} (format: brand|price|category), extract and generate exactly 40 structured trend items.
 
 CRITICAL RULES:
 - "brand_or_item" MUST be a specific brand name (e.g. "Carhartt WIP", "The North Face", "Dr. Martens", "Fjällräven") — NEVER use generic category names like "Baby & Kids Clothing" or "Activewear".
 - "estimated_peak_date" MUST be a date in 2026 (between February and May 2026).
-- You MUST include at least 1 trend from EACH of these categories: ${categories.join(", ")}. Distribute the remaining 8 trends across categories with the most activity.
-- "opportunity_score" should have realistic variance: use the full 20-98 range. Declining trends should score 20-45, peaking 40-70, rising 55-98. No more than 3 trends above 90.
+- You MUST include at least 3 trends from EACH of these 8 categories: ${categories.join(", ")}. That gives 24 baseline trends. Distribute the remaining 16 to categories with the most data/activity.
+- "opportunity_score" should have realistic variance: use the full 20-98 range. Declining trends should score 20-45, peaking 40-70, rising 55-98. No more than 5 trends above 90.
 
 RAW DATA:
 ${resultsSummary || "No results available - generate realistic trends based on current UK Vinted market knowledge for February 2026."}
 
-Generate a JSON array of exactly 16 trends. For each trend provide:
+Generate a JSON array of exactly 40 trends. For each trend provide:
 - brand_or_item: a specific brand or product name (NEVER a generic category)
 - category: one of [${categories.join(", ")}]
 - trend_direction: "rising", "peaking", or "declining"
@@ -355,7 +347,7 @@ Generate a JSON array of exactly 16 trends. For each trend provide:
 - ai_summary: 1-2 sentence explanation${isLobstrData ? " referencing actual data patterns" : ""} with actionable seller advice
 - estimated_peak_date: ISO date in 2026 (within next 3 months)
 
-Distribution: 10 rising, 4 peaking, 2 declining. Use real brand names that are genuinely popular on Vinted UK.
+Distribution: ~25 rising, 10 peaking, 5 declining. Use real brand names that are genuinely popular on Vinted UK.
 Return ONLY the JSON array, no other text.`;
 
   const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -470,7 +462,7 @@ async function handleImport(serviceClient: any, squidIds: string[]) {
     console.log(`Importing results from run ${runId} for squid ${squidId}`);
 
     // Fetch results
-    const resultsRes = await fetch(`${LOBSTR_BASE}/results?run=${runId}&limit=500`, {
+    const resultsRes = await fetch(`${LOBSTR_BASE}/results?run=${runId}&limit=500&page_size=500`, {
       headers: lobstrHeaders(LOBSTR_API_KEY),
     });
     const resultsText = await resultsRes.text();
@@ -495,7 +487,7 @@ async function handleImport(serviceClient: any, squidIds: string[]) {
     .insert({
       job_type: "trend_import",
       status: "completed",
-      raw_results: allResults.slice(0, 200),
+      raw_results: allResults,
       lobstr_run_ids: squidIds.map(id => ({ squid_id: id, run_id: "imported", status: "completed" })),
     })
     .select()
