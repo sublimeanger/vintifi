@@ -109,7 +109,7 @@ export default function DeadStock() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <header className="border-b border-border glass sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>

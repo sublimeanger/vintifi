@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { PageShell } from "@/components/PageShell";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import {
-  ArrowLeft, TrendingUp, TrendingDown, Minus, Loader2, RefreshCw,
-  Zap, Calendar, Target, Clock, Flame, BarChart3, Satellite, Cpu,
+  Loader2, RefreshCw, Zap, Flame, BarChart3, Satellite, Cpu,
 } from "lucide-react";
 import TrendCard from "@/components/trends/TrendCard";
 import TrendStats from "@/components/trends/TrendStats";
@@ -47,8 +48,6 @@ export default function TrendRadar() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [cached, setCached] = useState(false);
   const [dataSource, setDataSource] = useState<string>("ai_generated");
-
-  // Lobstr scan state
   const [scanning, setScanning] = useState(false);
   const [scanJobId, setScanJobId] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
@@ -63,40 +62,31 @@ export default function TrendRadar() {
       const { data, error } = await supabase.functions.invoke("fetch-trends", {
         body: { category: selectedCategory === "All" ? "all" : selectedCategory },
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       setTrends((data?.trends as Trend[]) || []);
       setCached(data?.cached || false);
       setDataSource(data?.data_source || "ai_generated");
     } catch (e: any) {
       toast.error(e.message || "Failed to load trends");
-      console.error(e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchTrends();
-  }, [user, selectedCategory]);
+  useEffect(() => { fetchTrends(); }, [user, selectedCategory]);
 
-  // ==================== LOBSTR SCAN ====================
   const launchScan = async () => {
     setScanning(true);
     setScanStatus("launching");
     setScanProgress(0);
-
     try {
       const { data, error } = await supabase.functions.invoke("lobstr-sync", {
         body: { action: "launch" },
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       setScanJobId(data.job_id);
       setScanStatus("running");
       toast.success("Market scan launched! Scraping Vinted data...");
@@ -107,35 +97,25 @@ export default function TrendRadar() {
     }
   };
 
-  // Poll for scan progress
   useEffect(() => {
     if (!scanJobId || scanStatus !== "running") return;
-
     const interval = setInterval(async () => {
       try {
         const { data, error } = await supabase.functions.invoke("lobstr-sync", {
           body: { action: "poll", job_id: scanJobId },
         });
-
         if (error) throw error;
-
         if (data?.status === "completed") {
           setScanStatus("processing");
           setScanProgress(80);
-
-          // Process results through AI
           const { data: processData, error: processError } = await supabase.functions.invoke("lobstr-sync", {
             body: { action: "process", job_id: scanJobId },
           });
-
           if (processError) throw processError;
-
           setScanStatus("done");
           setScanProgress(100);
           setScanning(false);
           toast.success(`Market scan complete! ${processData?.trends_count || 0} trends extracted.`);
-
-          // Refresh trends
           await fetchTrends(true);
           setScanJobId(null);
           setScanStatus(null);
@@ -152,7 +132,6 @@ export default function TrendRadar() {
         console.error("Poll error:", e);
       }
     }, 5000);
-
     return () => clearInterval(interval);
   }, [scanJobId, scanStatus]);
 
@@ -164,133 +143,92 @@ export default function TrendRadar() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border glass sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="w-5 h-5" />
+    <PageShell
+      title="Trend Radar"
+      icon={<Flame className="w-5 h-5 text-primary" />}
+      subtitle={`${dataSource === "lobstr" ? "Real market data" : "AI-generated data"} · ${trends.length} trends`}
+      actions={
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => fetchTrends(true)} disabled={refreshing} className="hidden sm:flex">
+            <RefreshCw className={`w-4 h-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
-          <div className="flex-1">
-            <h1 className="font-display font-bold text-lg flex items-center gap-2">
-              <Flame className="w-5 h-5 text-primary" />
-              Trend Radar
-            </h1>
-            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              {dataSource === "lobstr" ? (
-                <><Satellite className="w-3 h-3 text-success" /> Real market data</>
-              ) : (
-                <><Cpu className="w-3 h-3 text-accent" /> AI-generated data</>
-              )}
-              {cached ? " · Cached" : " · Fresh"} · {trends.length} trends
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchTrends(true)}
-              disabled={refreshing}
-            >
-              <RefreshCw className={`w-4 h-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button
-              size="sm"
-              onClick={launchScan}
-              disabled={scanning}
-              className="font-semibold"
-            >
-              {scanning ? (
-                <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Scanning...</>
-              ) : (
-                <><Satellite className="w-4 h-4 mr-1" /> Scan Market</>
-              )}
-            </Button>
-          </div>
+          <Button variant="outline" size="icon" onClick={() => fetchTrends(true)} disabled={refreshing} className="sm:hidden h-10 w-10">
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" onClick={launchScan} disabled={scanning} className="font-semibold">
+            {scanning ? (
+              <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> <span className="hidden sm:inline">Scanning...</span></>
+            ) : (
+              <><Satellite className="w-4 h-4 sm:mr-1" /> <span className="hidden sm:inline">Scan Market</span></>
+            )}
+          </Button>
         </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
-        {/* Scan Progress */}
-        {scanning && scanStatus && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
-              <div className="flex items-center gap-3 mb-2">
-                <Satellite className="w-5 h-5 text-primary animate-pulse" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">
-                    {scanStatus === "launching" && "Launching market scan..."}
-                    {scanStatus === "running" && "Scraping Vinted marketplace data..."}
-                    {scanStatus === "processing" && "AI analysing scraped data..."}
-                    {scanStatus === "done" && "Scan complete!"}
-                    {scanStatus === "failed" && "Scan failed"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {scanStatus === "running" && "Collecting search data from Google for Vinted trends"}
-                    {scanStatus === "processing" && "Extracting trend insights from raw data"}
-                  </p>
-                </div>
+      }
+    >
+      {/* Scan Progress */}
+      {scanning && scanStatus && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
+            <div className="flex items-center gap-3 mb-2">
+              <Satellite className="w-5 h-5 text-primary animate-pulse" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold">
+                  {scanStatus === "launching" && "Launching market scan..."}
+                  {scanStatus === "running" && "Scraping Vinted marketplace data..."}
+                  {scanStatus === "processing" && "AI analysing scraped data..."}
+                  {scanStatus === "done" && "Scan complete!"}
+                  {scanStatus === "failed" && "Scan failed"}
+                </p>
               </div>
-              <Progress value={scanProgress} className="h-2" />
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Stats */}
-        <TrendStats
-          risingCount={risingCount}
-          peakingCount={peakingCount}
-          decliningCount={decliningCount}
-          avgOpportunity={avgOpportunity}
-        />
-
-        {/* Category Filters */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-          {categories.map((cat) => (
-            <Button
-              key={cat}
-              variant={selectedCategory === cat ? "default" : "outline"}
-              size="sm"
-              className="shrink-0 text-xs"
-              onClick={() => setSelectedCategory(cat)}
-            >
-              {cat}
-            </Button>
-          ))}
-        </div>
-
-        {/* Trend Cards */}
-        {loading ? (
-          <div className="text-center py-16">
-            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Analysing market trends...</p>
-          </div>
-        ) : trends.length === 0 ? (
-          <div className="text-center py-16">
-            <BarChart3 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-            <h3 className="font-display font-bold text-lg mb-2">No trends found</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Try selecting a different category or scan the market for fresh data.
-            </p>
-            <div className="flex gap-3 justify-center">
-              <Button onClick={() => fetchTrends(true)} variant="outline">
-                <RefreshCw className="w-4 h-4 mr-2" /> Generate AI Trends
-              </Button>
-              <Button onClick={launchScan} disabled={scanning} className="font-semibold">
-                <Satellite className="w-4 h-4 mr-2" /> Scan Market
-              </Button>
             </div>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-4">
-            <AnimatePresence>
-              {trends.map((trend, i) => (
-                <TrendCard key={trend.id} trend={trend} index={i} />
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
+            <Progress value={scanProgress} className="h-2" />
+          </Card>
+        </motion.div>
+      )}
+
+      <TrendStats risingCount={risingCount} peakingCount={peakingCount} decliningCount={decliningCount} avgOpportunity={avgOpportunity} />
+
+      {/* Category Filters */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+        {categories.map((cat) => (
+          <Button key={cat} variant={selectedCategory === cat ? "default" : "outline"} size="sm" className="shrink-0 text-xs h-9" onClick={() => setSelectedCategory(cat)}>
+            {cat}
+          </Button>
+        ))}
       </div>
-    </div>
+
+      {/* Trend Cards */}
+      {loading ? (
+        <div className="text-center py-16">
+          <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Analysing market trends...</p>
+        </div>
+      ) : trends.length === 0 ? (
+        <div className="text-center py-16">
+          <BarChart3 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+          <h3 className="font-display font-bold text-lg mb-2">No trends found</h3>
+          <p className="text-sm text-muted-foreground mb-4">Try selecting a different category or scan the market.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => fetchTrends(true)} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" /> Generate AI Trends
+            </Button>
+            <Button onClick={launchScan} disabled={scanning} className="font-semibold">
+              <Satellite className="w-4 h-4 mr-2" /> Scan Market
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-4">
+          <AnimatePresence>
+            {trends.map((trend, i) => (
+              <TrendCard key={trend.id} trend={trend} index={i} />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+
+      <MobileBottomNav />
+    </PageShell>
   );
 }

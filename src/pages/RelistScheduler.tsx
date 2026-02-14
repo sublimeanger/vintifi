@@ -165,7 +165,7 @@ export default function RelistScheduler() {
   }, 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <header className="border-b border-border glass sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
@@ -179,7 +179,7 @@ export default function RelistScheduler() {
           </div>
           <Button onClick={handleGenerate} disabled={generating} className="font-semibold" size="sm">
             {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
-            {generating ? "Analysing..." : "Generate Schedule"}
+            {generating ? "Analysing..." : <><span className="hidden sm:inline">Generate Schedule</span><span className="sm:hidden">Generate</span></>}
           </Button>
         </div>
       </header>
