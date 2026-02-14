@@ -14,6 +14,7 @@ import {
   TrendingUp, TrendingDown, Minus, Bell, BellOff,
   Users, Search, AlertCircle, ExternalLink, Radar,
 } from "lucide-react";
+import { CompetitorCardSkeleton } from "@/components/LoadingSkeletons";
 
 type Competitor = {
   id: string;
@@ -191,9 +192,7 @@ export default function CompetitorTracker() {
 
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          </div>
+          <CompetitorCardSkeleton count={3} />
         ) : (
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Left column: Competitors list */}

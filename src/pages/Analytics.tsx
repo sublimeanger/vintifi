@@ -18,6 +18,7 @@ import {
   ArrowLeft, Loader2, PoundSterling, TrendingUp, TrendingDown,
   BarChart3, ShoppingBag, Package, Percent, Target, RefreshCw,
 } from "lucide-react";
+import { KpiGridSkeleton, ChartSkeleton } from "@/components/LoadingSkeletons";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -250,9 +251,10 @@ export default function Analytics() {
 
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {loading ? (
-          <div className="text-center py-16">
-            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Loading analytics...</p>
+          <div className="space-y-6">
+            <KpiGridSkeleton count={8} />
+            <ChartSkeleton />
+            <ChartSkeleton />
           </div>
         ) : filteredListings.length === 0 ? (
           <div className="text-center py-16">

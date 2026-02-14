@@ -14,6 +14,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2,
 } from "lucide-react";
+import { PriceReportSkeleton } from "@/components/LoadingSkeletons";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
@@ -166,11 +167,7 @@ export default function PriceCheck() {
 
       {/* Loading State */}
       {loading && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
-          <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
-          <h3 className="font-display font-bold text-lg mb-2">Analysing market data...</h3>
-          <p className="text-sm text-muted-foreground">Scraping comparables and running AI analysis</p>
-        </motion.div>
+        <PriceReportSkeleton />
       )}
 
       {/* Report */}

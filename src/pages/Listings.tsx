@@ -30,6 +30,7 @@ import {
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
   PoundSterling, Calendar, Check, X, Pencil,
 } from "lucide-react";
+import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -460,10 +461,7 @@ export default function Listings() {
 
         {/* Listings */}
         {loading ? (
-          <div className="text-center py-16">
-            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Loading listings...</p>
-          </div>
+          <ListingCardSkeleton count={5} />
         ) : filteredListings.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
             <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />

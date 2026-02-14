@@ -10,6 +10,7 @@ import {
   ArrowLeft, RefreshCw, ShoppingBag, TrendingUp, Star,
   PoundSterling, Lightbulb, Loader2, MapPin, ChevronDown, ChevronUp,
 } from "lucide-react";
+import { BriefingCardSkeleton } from "@/components/LoadingSkeletons";
 
 type BriefingItem = {
   brand: string;
@@ -94,10 +95,7 @@ export default function CharityBriefing() {
         )}
 
         {loading && !briefing && (
-          <div className="flex flex-col items-center justify-center py-16 gap-4">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Analysing trends & building your list…</p>
-          </div>
+          <BriefingCardSkeleton count={6} />
         )}
 
         {briefing && (
