@@ -114,9 +114,9 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Raqkt <onboarding@resend.dev>",
+          from: "Vintifi <hello@vintifi.com>",
           to: [email],
-          subject: `📊 Your Weekly Raqkt Digest — ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: tz })}`,
+          subject: `📊 Your Weekly Vintifi Digest — ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: tz })}`,
           html,
         }),
       });
@@ -197,7 +197,7 @@ function buildDigestEmail(data: DigestData): string {
       <!-- Header -->
       <div style="text-align:center;padding:24px 0;">
         <h1 style="margin:0;font-size:28px;font-weight:800;">
-          <span style="background:linear-gradient(135deg,#E94560,#F39C12);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Raqkt</span>
+          <span style="background:linear-gradient(135deg,#E94560,#F39C12);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Vintifi</span>
         </h1>
         <p style="margin:4px 0 0;color:#888;font-size:14px;">Your Weekly Selling Intelligence</p>
       </div>
@@ -268,7 +268,7 @@ function buildDigestEmail(data: DigestData): string {
 
       <!-- CTA -->
       <div style="text-align:center;padding:24px 0;">
-        <a href="https://raqkt.lovable.app/dashboard" style="display:inline-block;background:#E94560;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
+        <a href="https://vintifi.com/dashboard" style="display:inline-block;background:#E94560;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
           Open Your Dashboard →
         </a>
       </div>
@@ -276,7 +276,7 @@ function buildDigestEmail(data: DigestData): string {
       <!-- Footer -->
       <div style="text-align:center;padding:16px 0;border-top:1px solid #eee;">
         <p style="margin:0;font-size:12px;color:#aaa;">
-          You're receiving this because you enabled weekly digests in Raqkt.
+          You're receiving this because you enabled weekly digests in Vintifi.
           <br>Manage your preferences in Settings.
         </p>
       </div>

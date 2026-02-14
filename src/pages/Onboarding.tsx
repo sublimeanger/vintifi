@@ -54,7 +54,7 @@ export default function Onboarding() {
       if (error) throw error;
       await refreshProfile();
       navigate("/dashboard");
-      toast.success("Welcome to Raqkt! 🚀");
+      toast.success("Welcome to Vintifi! 🚀");
     } catch (err: any) {
       toast.error(err.message);
     } finally {
