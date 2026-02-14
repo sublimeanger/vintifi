@@ -1,31 +1,26 @@
 
 
-# Richer Trend Radar from Existing Data (Zero Extra Scraping Cost)
+# Increase Trends to 80 (Max Useful from 500 Listings)
 
-## The Problem
-The Lobstr Squid already returns ~500 listings per run across 21 URLs. That data is plenty. The bottleneck is the AI processing step, which currently generates only **16 trends** spread across 8 categories — resulting in 1-2 per tab.
+## Why 80, not 500?
+- 500 scraped listings contain roughly 50-80 unique brands
+- Asking for more trends than unique brands forces the AI to hallucinate fake data
+- 80 trends = ~10 per category tab, which looks rich and full
+- AI cost increase is negligible (extra ~6,000 output tokens, pennies per run)
 
-## The Fix (No additional scraping cost)
+## Changes
 
-### 1. Increase trend count from 16 to 40
-Update the AI prompt in `lobstr-sync/index.ts` to generate **40 trends** instead of 16:
-- Minimum 3 per category (8 categories x 3 = 24 baseline)
-- Remaining 16 distributed to categories with the most data
-- Distribution: ~25 rising, 10 peaking, 5 declining
+### 1. Update AI prompt in `supabase/functions/lobstr-sync/index.ts`
+- Change "exactly 40" to "exactly 80" trends
+- Update minimum per category from 3 to 6 (8 categories x 6 = 48 baseline, 32 distributed)
+- Update distribution: ~50 rising, 20 peaking, 10 declining
+- Update "no more than 5 trends above 90" to "no more than 10 trends above 90"
+- Add instruction: "Each brand_or_item should appear at most twice across different categories"
 
-This uses the same single AI call — the cost difference is negligible (slightly longer output).
-
-### 2. Feed more data to the AI
-Currently only 200 of 500 scraped items are passed to the prompt. Increase this to all 500 by compressing each item to a shorter format (brand + price + category only), keeping the prompt within token limits.
-
-### 3. Add trend count badges to category tabs
-Show a count next to each tab name (e.g. "Womenswear (7)") so users can see at a glance which categories are richest.
-
-## Files Changed
-- `supabase/functions/lobstr-sync/index.ts` — update AI prompt (trend count, distribution, data formatting)
-- `src/pages/TrendRadar.tsx` — add count badges to tabs
+### 2. No frontend changes needed
+- The TrendRadar page already dynamically filters and counts — more trends will automatically populate the tabs and badges
 
 ## Cost Impact
-- Scraping: **No change** (same Squid, same daily run)
-- AI: **Negligible** (~2x more output tokens per daily run, pennies)
-- Net result: 2-3x more trends per category tab from the same data you already pay for
+- One daily AI call goes from ~6K to ~12K output tokens
+- At Gemini Flash pricing, this is fractions of a penny difference
+- Zero additional scraping cost
