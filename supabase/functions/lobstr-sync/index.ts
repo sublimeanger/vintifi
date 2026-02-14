@@ -124,7 +124,7 @@ async function handleLaunch(serviceClient: any, squidIds: string[]) {
       const res = await fetch(`${LOBSTR_BASE}/runs`, {
         method: "POST",
         headers: lobstrHeaders(LOBSTR_API_KEY),
-        body: JSON.stringify({ squid_id: squidId }),
+        body: JSON.stringify({ squid: squidId }),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -375,20 +375,33 @@ Return ONLY the JSON array, no other text.`;
   // Clear old trends and insert new ones
   await serviceClient.from("trends").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
-  const rows = trends.map((t: any) => ({
-    brand_or_item: t.brand_or_item,
-    category: t.category,
-    trend_direction: t.trend_direction,
-    search_volume_change_7d: t.search_volume_change_7d,
-    search_volume_change_30d: t.search_volume_change_30d,
-    avg_price: t.avg_price,
-    price_change_30d: t.price_change_30d,
-    supply_demand_ratio: t.supply_demand_ratio,
-    opportunity_score: t.opportunity_score,
-    ai_summary: t.ai_summary,
-    estimated_peak_date: t.estimated_peak_date,
-    data_source: isLobstrData ? "lobstr" : "firecrawl",
-  }));
+  const rows = trends.map((t: any) => {
+    // Validate estimated_peak_date — reject invalid dates like Feb 29 in non-leap years
+    let peakDate = t.estimated_peak_date || null;
+    if (peakDate) {
+      const parsed = new Date(peakDate);
+      if (isNaN(parsed.getTime())) {
+        peakDate = null;
+      } else {
+        peakDate = parsed.toISOString().split("T")[0];
+      }
+    }
+
+    return {
+      brand_or_item: t.brand_or_item,
+      category: t.category,
+      trend_direction: t.trend_direction,
+      search_volume_change_7d: t.search_volume_change_7d,
+      search_volume_change_30d: t.search_volume_change_30d,
+      avg_price: t.avg_price,
+      price_change_30d: t.price_change_30d,
+      supply_demand_ratio: t.supply_demand_ratio,
+      opportunity_score: t.opportunity_score,
+      ai_summary: t.ai_summary,
+      estimated_peak_date: peakDate,
+      data_source: isLobstrData ? "lobstr" : "firecrawl",
+    };
+  });
 
   const { error: trendInsertError } = await serviceClient.from("trends").insert(rows);
   if (trendInsertError) throw trendInsertError;
