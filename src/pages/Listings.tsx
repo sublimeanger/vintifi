@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -20,7 +27,7 @@ import {
   ArrowLeft, Plus, Search, Loader2, Package, Heart, Eye,
   TrendingUp, TrendingDown, Minus, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
-  PoundSterling, Calendar,
+  PoundSterling, Calendar, Check, X, Pencil,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -90,6 +97,11 @@ export default function Listings() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [adding, setAdding] = useState(false);
+
+  // Inline editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editField, setEditField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   // Add listing form
   const [newTitle, setNewTitle] = useState("");
@@ -170,6 +182,42 @@ export default function Listings() {
     } else {
       navigate(`/price-check`);
     }
+  };
+
+  const startEdit = (id: string, field: string, currentValue: string | number | null) => {
+    setEditingId(id);
+    setEditField(field);
+    setEditValue(currentValue != null ? String(currentValue) : "");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditField(null);
+    setEditValue("");
+  };
+
+  const saveEdit = async (id: string) => {
+    const update: Record<string, unknown> = {};
+    if (editField === "purchase_price" || editField === "sale_price") {
+      update[editField] = editValue ? parseFloat(editValue) : null;
+    } else if (editField === "status") {
+      update.status = editValue;
+      if (editValue === "sold" && !listings.find(l => l.id === id)?.sale_price) {
+        // When marking as sold, also set sale_price to current_price if not set
+        const listing = listings.find(l => l.id === id);
+        if (listing?.current_price) update.sale_price = listing.current_price;
+      }
+    }
+
+    const { error } = await supabase.from("listings").update(update).eq("id", id);
+    if (error) {
+      toast.error("Failed to update");
+      console.error(error);
+    } else {
+      toast.success("Updated!");
+      setListings(prev => prev.map(l => l.id === id ? { ...l, ...update } as Listing : l));
+    }
+    cancelEdit();
   };
 
   const resetForm = () => {
@@ -460,7 +508,30 @@ export default function Listings() {
                               <h3 className="font-display font-bold text-sm truncate">{listing.title}</h3>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <Badge variant="outline" className={`text-[10px] capitalize ${statusColors[listing.status] || ""}`}>
-                                  {listing.status}
+                                  {editingId === listing.id && editField === "status" ? (
+                                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                      <Select value={editValue} onValueChange={(v) => { setEditValue(v); }}>
+                                        <SelectTrigger className="h-5 text-[10px] w-20 border-0 p-0 shadow-none">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {["active", "sold", "reserved", "inactive"].map(s => (
+                                            <SelectItem key={s} value={s} className="text-xs capitalize">{s}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => saveEdit(listing.id)}>
+                                        <Check className="w-3 h-3 text-success" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-4 w-4" onClick={cancelEdit}>
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <span className="cursor-pointer" onClick={() => startEdit(listing.id, "status", listing.status)} title="Click to change status">
+                                      {listing.status}
+                                    </span>
+                                  )}
                                 </Badge>
                                 {listing.brand && <span className="text-xs text-muted-foreground">{listing.brand}</span>}
                                 {listing.category && <span className="text-xs text-muted-foreground">· {listing.category}</span>}
@@ -503,10 +574,65 @@ export default function Listings() {
                               </span>
                             )}
 
-                            {/* Purchase price & profit */}
-                            {listing.purchase_price != null && (
-                              <span className="text-xs text-muted-foreground">
-                                Cost: £{listing.purchase_price.toFixed(2)}
+                            {/* Purchase price - inline editable */}
+                            {editingId === listing.id && editField === "purchase_price" ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">Cost:</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  className="h-6 w-20 text-xs px-1"
+                                  autoFocus
+                                  onKeyDown={e => { if (e.key === "Enter") saveEdit(listing.id); if (e.key === "Escape") cancelEdit(); }}
+                                />
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => saveEdit(listing.id)}>
+                                  <Check className="w-3 h-3 text-success" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={cancelEdit}>
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span
+                                className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group flex items-center gap-1"
+                                onClick={() => startEdit(listing.id, "purchase_price", listing.purchase_price)}
+                                title="Click to edit cost"
+                              >
+                                Cost: £{listing.purchase_price != null ? listing.purchase_price.toFixed(2) : "—"}
+                                <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </span>
+                            )}
+
+                            {/* Sale price - inline editable */}
+                            {editingId === listing.id && editField === "sale_price" ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">Sale:</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  className="h-6 w-20 text-xs px-1"
+                                  autoFocus
+                                  onKeyDown={e => { if (e.key === "Enter") saveEdit(listing.id); if (e.key === "Escape") cancelEdit(); }}
+                                />
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => saveEdit(listing.id)}>
+                                  <Check className="w-3 h-3 text-success" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={cancelEdit}>
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span
+                                className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group flex items-center gap-1"
+                                onClick={() => startEdit(listing.id, "sale_price", listing.sale_price)}
+                                title="Click to edit sale price"
+                              >
+                                Sale: £{listing.sale_price != null ? listing.sale_price.toFixed(2) : "—"}
+                                <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                               </span>
                             )}
 
