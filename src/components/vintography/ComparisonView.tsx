@@ -9,7 +9,6 @@ type Props = {
   originalUrl: string;
   processedUrl: string | null;
   processing: boolean;
-  // Variations
   variations: string[];
   currentVariation: number;
   onVariationChange: (idx: number) => void;
@@ -18,12 +17,7 @@ type Props = {
 type ViewMode = "overlay" | "side-by-side";
 
 export function ComparisonView({
-  originalUrl,
-  processedUrl,
-  processing,
-  variations,
-  currentVariation,
-  onVariationChange,
+  originalUrl, processedUrl, processing, variations, currentVariation, onVariationChange,
 }: Props) {
   const [sliderValue, setSliderValue] = useState([50]);
   const [viewMode, setViewMode] = useState<ViewMode>("overlay");
@@ -32,6 +26,9 @@ export function ComparisonView({
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Touch swipe state for overlay slider
+  const touchStart = useRef<number | null>(null);
 
   const clipPercent = sliderValue[0];
 
@@ -55,28 +52,35 @@ export function ComparisonView({
 
   const resetZoom = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
 
+  // Touch swipe for overlay mode
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (viewMode !== "overlay" || !processedUrl || zoom > 1) return;
+    touchStart.current = e.touches[0].clientX;
+  }, [viewMode, processedUrl, zoom]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchStart.current === null || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const currentX = e.touches[0].clientX;
+    const pct = Math.max(0, Math.min(100, ((currentX - rect.left) / rect.width) * 100));
+    setSliderValue([pct]);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => { touchStart.current = null; }, []);
+
   const showVariationNav = variations.length > 1;
 
   return (
     <Card className="overflow-hidden">
-      {/* Toolbar */}
       {processedUrl && (
         <div className="flex items-center justify-between px-3 py-2 border-b border-border gap-2">
           <div className="flex items-center gap-1">
-            <Button
-              size="sm"
-              variant={viewMode === "overlay" ? "default" : "ghost"}
-              className="h-7 px-2 text-xs"
-              onClick={() => setViewMode("overlay")}
-            >
+            <Button size="sm" variant={viewMode === "overlay" ? "default" : "ghost"} className="h-7 px-2 text-xs"
+              onClick={() => setViewMode("overlay")}>
               <Layers className="w-3.5 h-3.5 mr-1" /> Overlay
             </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "side-by-side" ? "default" : "ghost"}
-              className="h-7 px-2 text-xs"
-              onClick={() => setViewMode("side-by-side")}
-            >
+            <Button size="sm" variant={viewMode === "side-by-side" ? "default" : "ghost"} className="h-7 px-2 text-xs"
+              onClick={() => setViewMode("side-by-side")}>
               <Columns2 className="w-3.5 h-3.5 mr-1" /> Side by Side
             </Button>
           </div>
@@ -84,11 +88,8 @@ export function ComparisonView({
             {showVariationNav && (
               <div className="flex items-center gap-0.5 mr-2">
                 {variations.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => onVariationChange(i)}
-                    className={`w-2 h-2 rounded-full transition-colors ${i === currentVariation ? "bg-primary" : "bg-muted-foreground/30"}`}
-                  />
+                  <button key={i} onClick={() => onVariationChange(i)}
+                    className={`w-2 h-2 rounded-full transition-colors ${i === currentVariation ? "bg-primary" : "bg-muted-foreground/30"}`} />
                 ))}
               </div>
             )}
@@ -107,7 +108,6 @@ export function ComparisonView({
         </div>
       )}
 
-      {/* Image area */}
       <div
         ref={containerRef}
         className={`relative w-full overflow-hidden ${zoom > 1 ? "cursor-grab active:cursor-grabbing" : ""}`}
@@ -117,12 +117,13 @@ export function ComparisonView({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {viewMode === "side-by-side" && processedUrl ? (
-          <div
-            className="flex h-full gap-1"
-            style={{ transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`, transformOrigin: "center" }}
-          >
+          <div className="flex h-full gap-1"
+            style={{ transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`, transformOrigin: "center" }}>
             <div className="flex-1 relative">
               <img src={originalUrl} alt="Original" className="w-full h-full object-contain bg-muted/30" />
               <Badge variant="secondary" className="absolute top-2 left-2 text-[10px] bg-background/80 backdrop-blur-sm">Original</Badge>
@@ -134,15 +135,12 @@ export function ComparisonView({
           </div>
         ) : (
           <div style={{ transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`, transformOrigin: "center", width: "100%", height: "100%" }}>
-            {/* Original (full) */}
             <img src={originalUrl} alt="Original" className="absolute inset-0 w-full h-full object-contain bg-muted/30" />
-            {/* Processed overlay with clip */}
             {processedUrl && (
               <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - clipPercent}% 0 0)` }}>
                 <img src={processedUrl} alt="Processed" className="w-full h-full object-contain bg-background" />
               </div>
             )}
-            {/* Slider line */}
             {processedUrl && (
               <div className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none" style={{ left: `${clipPercent}%` }}>
                 <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-lg">
@@ -151,7 +149,6 @@ export function ComparisonView({
                 </div>
               </div>
             )}
-            {/* Labels */}
             <div className="absolute top-3 left-3 z-10">
               <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur-sm">Original</Badge>
             </div>
@@ -163,7 +160,6 @@ export function ComparisonView({
           </div>
         )}
 
-        {/* Processing overlay */}
         {processing && (
           <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
             <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
@@ -173,7 +169,6 @@ export function ComparisonView({
         )}
       </div>
 
-      {/* Overlay slider control */}
       {processedUrl && viewMode === "overlay" && (
         <div className="px-4 py-3 border-t border-border">
           <Slider value={sliderValue} onValueChange={setSliderValue} min={0} max={100} step={1} />
