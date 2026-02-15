@@ -224,18 +224,18 @@ export default function OptimizeListing() {
         tip="Upload photos too — the AI can detect brand, condition, and suggest the perfect category."
       />
 
-      <div className={`grid gap-5 sm:gap-6 ${result ? "lg:grid-cols-2" : "max-w-2xl mx-auto"}`}>
+      <div className={`grid gap-4 sm:gap-6 ${result ? "lg:grid-cols-2" : "max-w-2xl mx-auto"}`}>
         {/* Input Panel */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="p-4 sm:p-6 border-border/50">
-            <h2 className="font-display font-bold text-base sm:text-lg mb-4 flex items-center gap-2">
+            <h2 className="font-display font-bold text-sm sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
               <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               Your Item
             </h2>
 
             {/* Photo Upload */}
-            <div className="mb-5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+            <div className="mb-4 sm:mb-5">
+              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
                 Photos (up to 4)
               </Label>
               <div className="grid grid-cols-4 gap-2 sm:gap-3">
@@ -267,38 +267,38 @@ export default function OptimizeListing() {
             </div>
 
             {/* Item Details */}
-            <div className="space-y-3">
+            <div className="space-y-2.5 sm:space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Title</Label>
+                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Title</Label>
                 <Input value={currentTitle} onChange={(e) => setCurrentTitle(e.target.value)} placeholder="e.g. Nike trainers size 9" className="h-11 sm:h-10 text-base sm:text-sm" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Description</Label>
+                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Description</Label>
                 <Textarea value={currentDescription} onChange={(e) => setCurrentDescription(e.target.value)} placeholder="Paste your existing listing description..." rows={3} className="text-base sm:text-sm" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
                   <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Nike" className="h-11 sm:h-10 text-base sm:text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
                   <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Trainers" className="h-11 sm:h-10 text-base sm:text-sm" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
                   <Input value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. UK 9" className="h-11 sm:h-10 text-base sm:text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
                   <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Very Good" className="h-11 sm:h-10 text-base sm:text-sm" />
                 </div>
               </div>
             </div>
 
-            <Button onClick={handleOptimize} disabled={optimizing} className="w-full mt-5 font-semibold h-12 sm:h-11">
+            <Button onClick={handleOptimize} disabled={optimizing} className="w-full mt-4 sm:mt-5 font-semibold h-12 sm:h-11 active:scale-95 transition-transform">
               {optimizing ? (
                 <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Analysing with AI...</>
               ) : (
@@ -311,10 +311,10 @@ export default function OptimizeListing() {
         {/* Results Panel */}
         <AnimatePresence>
           {result && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 sm:space-y-4">
               {/* Health Score */}
               <Card className="p-4 sm:p-6 border-primary/10 bg-gradient-to-br from-primary/[0.03] to-transparent">
-                <h2 className="font-display font-bold text-base sm:text-lg mb-3 flex items-center gap-2">
+                <h2 className="font-display font-bold text-sm sm:text-lg mb-3 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   Listing Health
                 </h2>
@@ -405,7 +405,7 @@ export default function OptimizeListing() {
               {/* Multi-Language Translation */}
               <Card className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4 gap-2">
-                  <h2 className="font-display font-bold text-sm sm:text-lg flex items-center gap-2 min-w-0">
+                  <h2 className="font-display font-bold text-xs sm:text-lg flex items-center gap-2 min-w-0">
                     <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
                     <span className="truncate">Multi-Language</span>
                   </h2>
@@ -427,7 +427,7 @@ export default function OptimizeListing() {
                 </div>
 
                 {!translations && !translating && (
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                     Expand your reach across Vinted's 18+ European markets. Translate into French, German, Dutch & Spanish with one click.
                   </p>
                 )}
@@ -502,7 +502,7 @@ export default function OptimizeListing() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="w-full text-xs h-10"
+                            className="w-full text-xs h-10 active:scale-95 transition-transform"
                             onClick={() => copyToClipboard(
                               `${t.title}\n\n${t.description}\n\nTags: ${t.tags?.join(", ") || ""}`,
                               `trans-all-${lang.code}`
@@ -519,16 +519,16 @@ export default function OptimizeListing() {
               </Card>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 pb-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pb-4">
                 <Button
                   onClick={() => navigate(`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}&condition=${encodeURIComponent(result.detected_condition || condition)}`)}
                   variant="outline"
-                  className="w-full sm:w-auto h-12 sm:h-10"
+                  className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
                 >
                   Price Check This Item
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
-                <Button onClick={handleSaveAsListing} disabled={saving} className="w-full sm:w-auto font-semibold h-12 sm:h-10">
+                <Button onClick={handleSaveAsListing} disabled={saving} className="w-full sm:w-auto font-semibold h-12 sm:h-10 active:scale-95 transition-transform">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                   Save to My Listings
                 </Button>
