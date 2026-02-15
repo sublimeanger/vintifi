@@ -530,15 +530,21 @@ export default function PriceCheck() {
               <RotateCcw className="w-4 h-4 mr-2" />
               New Analysis
             </Button>
+            {/* Save preview */}
+            <p className="text-[10px] sm:text-xs text-muted-foreground text-center sm:text-left">
+              Adding to inventory: <span className="font-semibold text-foreground">"{`${brand} ${category}`.trim() || url || "Untitled"}"</span>
+              {report.recommended_price != null && <> at guideline price <span className="font-semibold text-foreground">£{report.recommended_price.toFixed(0)}</span></>}
+            </p>
             <Button
               onClick={async () => {
                 if (!user) { toast.error("Sign in to save"); return; }
                 const { error } = await supabase.from("listings").insert({
                   user_id: user.id,
-                  title: report.item_title || `${report.item_brand || brand} ${category}`.trim() || "Untitled",
-                  brand: report.item_brand || brand || null,
+                  title: `${brand} ${category}`.trim() || url || "Untitled",
+                  brand: brand || null,
                   category: category || null,
                   condition: condition || null,
+                  purchase_price: report.buy_price_max || null,
                   current_price: report.recommended_price,
                   recommended_price: report.recommended_price,
                   vinted_url: url || null,
@@ -554,7 +560,7 @@ export default function PriceCheck() {
               Save to Inventory
             </Button>
             <Button
-              onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(report.item_brand || brand)}&category=${encodeURIComponent(category)}`)}
+              onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(brand)}&category=${encodeURIComponent(category)}`)}
               variant="outline"
               className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
             >
@@ -562,7 +568,7 @@ export default function PriceCheck() {
               Find Arbitrage Deals
             </Button>
             <Button
-              onClick={() => navigate(`/competitors?brand=${encodeURIComponent(report.item_brand || brand)}`)}
+              onClick={() => navigate(`/competitors?brand=${encodeURIComponent(brand)}`)}
               variant="outline"
               className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
             >
@@ -570,7 +576,7 @@ export default function PriceCheck() {
               Track This Brand
             </Button>
             <Button
-              onClick={() => navigate(`/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`)}
+              onClick={() => navigate(`/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`)}
               className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
             >
               <Zap className="w-4 h-4 mr-2" />
@@ -584,12 +590,12 @@ export default function PriceCheck() {
             title="Listing Lifecycle"
             steps={[
               { label: "Price Check", path: "/price-check", icon: Search, completed: true },
-              { label: "Optimise", path: `/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`, icon: Sparkles },
+              { label: "Optimise", path: `/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`, icon: Sparkles },
               { label: "Enhance Photos", path: "/vintography", icon: Camera },
               { label: "Inventory", path: "/listings", icon: ShoppingBag },
             ]}
             nextLabel="Optimise This Listing"
-            nextPath={`/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`}
+            nextPath={`/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`}
             nextIcon={Sparkles}
           />
         </motion.div>
