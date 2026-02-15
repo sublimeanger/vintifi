@@ -78,13 +78,16 @@ export default function SettingsPage() {
     }
   };
 
+  const [billingAnnual, setBillingAnnual] = useState(false);
+
   const handleCheckout = async (tierKey: TierKey) => {
     const tier = STRIPE_TIERS[tierKey];
-    if (!tier.price_id) return;
+    const priceId = billingAnnual && 'annual_price_id' in tier ? (tier as any).annual_price_id : tier.price_id;
+    if (!priceId) return;
     setCheckoutLoading(tierKey);
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { price_id: tier.price_id },
+        body: { price_id: priceId },
       });
       if (error) throw error;
       if (data?.url) window.open(data.url, "_blank");
@@ -218,14 +221,29 @@ export default function SettingsPage() {
             </Button>
           )}
 
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className={`text-sm font-medium ${!billingAnnual ? "text-foreground" : "text-muted-foreground"}`}>Monthly</span>
+            <Switch checked={billingAnnual} onCheckedChange={setBillingAnnual} />
+            <span className={`text-sm font-medium ${billingAnnual ? "text-foreground" : "text-muted-foreground"}`}>Annual</span>
+            {billingAnnual && (
+              <Badge className="bg-success text-success-foreground ml-1 text-[10px]">Save 20%</Badge>
+            )}
+          </div>
+
           <div className="grid md:grid-cols-3 gap-4">
             {(["pro", "business", "scale"] as TierKey[]).map((key) => {
               const tier = STRIPE_TIERS[key];
               const isCurrent = currentTier === key;
+              const displayPrice = billingAnnual && 'annual_price' in tier
+                ? `£${((tier as any).annual_price / 12).toFixed(2)}`
+                : `£${tier.price}`;
               return (
                 <Card key={key} className={`p-4 ${isCurrent ? "border-primary ring-1 ring-primary" : ""}`}>
                   <h3 className="font-display font-bold">{tier.name}</h3>
-                  <p className="font-display text-2xl font-bold mt-1">£{tier.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+                  <p className="font-display text-2xl font-bold mt-1">{displayPrice}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+                  {billingAnnual && (
+                    <p className="text-xs text-muted-foreground line-through">£{tier.price}/mo</p>
+                  )}
                   <ul className="mt-3 space-y-1.5">
                     {tier.features.slice(0, 3).map((f) => (
                       <li key={f} className="text-xs flex items-start gap-1.5">
@@ -241,7 +259,7 @@ export default function SettingsPage() {
                     disabled={isCurrent || checkoutLoading === key}
                     onClick={() => handleCheckout(key)}
                   >
-                    {checkoutLoading === key ? <Loader2 className="w-4 h-4 animate-spin" /> : isCurrent ? "Current Plan" : "Upgrade"}
+                    {checkoutLoading === key ? <Loader2 className="w-4 h-4 animate-spin" /> : isCurrent ? "Current Plan" : "Start 7-Day Free Trial"}
                   </Button>
                 </Card>
               );

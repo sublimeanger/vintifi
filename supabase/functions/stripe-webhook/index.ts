@@ -6,6 +6,10 @@ const TIER_MAP: Record<string, { tier: string; credits: number }> = {
   "prod_TyltIvYWdZReZo": { tier: "pro", credits: 25 },
   "prod_TyltCrUUsbuddE": { tier: "business", credits: 100 },
   "prod_TyltldO5OcP5cE": { tier: "scale", credits: 999 },
+  // Annual billing products (same tiers, different billing interval)
+  "prod_Tyyp074Dme7iUa": { tier: "pro", credits: 25 },
+  "prod_TyypfEhNSNWn69": { tier: "business", credits: 100 },
+  "prod_Tyypa9CdcBcrjb": { tier: "scale", credits: 999 },
 };
 
 const CREDIT_PACK_MAP: Record<string, number> = {

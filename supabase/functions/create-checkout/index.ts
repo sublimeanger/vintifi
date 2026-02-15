@@ -31,16 +31,32 @@ serve(async (req) => {
 
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
-    if (customers.data.length > 0) customerId = customers.data[0].id;
+    let isFirstTimeSub = true;
 
-    const session = await stripe.checkout.sessions.create({
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
+      // Check if customer has had any previous subscriptions (to avoid repeat trials)
+      const subs = await stripe.subscriptions.list({ customer: customerId, limit: 1 });
+      if (subs.data.length > 0) {
+        isFirstTimeSub = false;
+      }
+    }
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: price_id, quantity: 1 }],
       mode: "subscription",
       success_url: `${req.headers.get("origin")}/dashboard?checkout=success`,
       cancel_url: `${req.headers.get("origin")}/settings`,
-    });
+    };
+
+    // Add 7-day free trial for first-time subscribers
+    if (isFirstTimeSub) {
+      sessionParams.subscription_data = { trial_period_days: 7 };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
