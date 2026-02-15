@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Sparkles, Copy, Check, Save,
   ImagePlus, X, Camera, Globe, Languages, ArrowRight,
-  Search, ShoppingBag,
+  Search, ShoppingBag, Link, ExternalLink,
 } from "lucide-react";
 import { JourneyBanner } from "@/components/JourneyBanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -68,6 +68,9 @@ export default function OptimizeListing() {
   const { user, session, refreshCredits } = useAuth();
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
+  const [remotePhotoUrls, setRemotePhotoUrls] = useState<string[]>([]);
+  const [vintedUrl, setVintedUrl] = useState(searchParams.get("vintedUrl") || "");
+  const [fetchingFromUrl, setFetchingFromUrl] = useState(false);
   const [brand, setBrand] = useState(searchParams.get("brand") || "");
   const [category, setCategory] = useState(searchParams.get("category") || "");
   const [size, setSize] = useState(searchParams.get("size") || "");
@@ -99,9 +102,39 @@ export default function OptimizeListing() {
     setPhotoPreviewUrls(newPhotos.map((f) => URL.createObjectURL(f)));
   };
 
+  const handleFetchFromVintedUrl = async () => {
+    if (!vintedUrl.trim() || !vintedUrl.includes("vinted")) {
+      toast.error("Enter a valid Vinted listing URL");
+      return;
+    }
+    setFetchingFromUrl(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("optimize-listing", {
+        body: { vintedUrl: vintedUrl.trim(), fetchOnly: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.photos && data.photos.length > 0) {
+        setRemotePhotoUrls(data.photos);
+        toast.success(`Found ${data.photos.length} photo(s) from listing`);
+      }
+      if (data?.title) setCurrentTitle(data.title);
+      if (data?.brand) setBrand(data.brand);
+      if (data?.description) setCurrentDescription(data.description);
+      if (data?.category) setCategory(data.category);
+      if (data?.size) setSize(data.size);
+      if (data?.condition) setCondition(data.condition);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to fetch listing details");
+    } finally {
+      setFetchingFromUrl(false);
+    }
+  };
+
   const handleOptimize = async () => {
     if (!user || !session) return;
-    if (photos.length === 0 && !currentTitle.trim() && !brand.trim()) {
+    const allPhotoUrls = [...remotePhotoUrls];
+    if (photos.length === 0 && allPhotoUrls.length === 0 && !currentTitle.trim() && !brand.trim()) {
       toast.error("Please upload photos or enter item details");
       return;
     }
@@ -110,7 +143,7 @@ export default function OptimizeListing() {
     setResult(null);
 
     try {
-      const photoUrls: string[] = [];
+      // Upload local photos
       for (const photo of photos) {
         const ext = photo.name.split(".").pop();
         const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
@@ -124,12 +157,12 @@ export default function OptimizeListing() {
         const { data: urlData } = supabase.storage
           .from("listing-photos")
           .getPublicUrl(path);
-        photoUrls.push(urlData.publicUrl);
+        allPhotoUrls.push(urlData.publicUrl);
       }
 
       const { data, error } = await supabase.functions.invoke("optimize-listing", {
         body: {
-          photoUrls,
+          photoUrls: allPhotoUrls,
           brand: brand.trim() || undefined,
           category: category.trim() || undefined,
           size: size.trim() || undefined,
@@ -237,10 +270,61 @@ export default function OptimizeListing() {
               Your Item
             </h2>
 
+            {/* Vinted URL Import */}
+            <div className="mb-4 sm:mb-5">
+              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                <Link className="w-3 h-3 inline mr-1" />
+                Import from Vinted URL
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  value={vintedUrl}
+                  onChange={(e) => setVintedUrl(e.target.value)}
+                  placeholder="https://www.vinted.co.uk/items/..."
+                  className="h-11 sm:h-10 text-base sm:text-sm flex-1"
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleFetchFromVintedUrl}
+                  disabled={fetchingFromUrl || !vintedUrl.trim()}
+                  className="h-11 sm:h-10 shrink-0 active:scale-95 transition-transform"
+                >
+                  {fetchingFromUrl ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <><ExternalLink className="w-4 h-4 mr-1" /> Fetch</>
+                  )}
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Paste a Vinted listing URL to auto-import photos &amp; details</p>
+            </div>
+
+            {/* Remote photos preview */}
+            {remotePhotoUrls.length > 0 && (
+              <div className="mb-4 sm:mb-5">
+                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-success mb-2 block">
+                  ✓ Imported Photos ({remotePhotoUrls.length})
+                </Label>
+                <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                  {remotePhotoUrls.map((url, i) => (
+                    <div key={`remote-${i}`} className="relative aspect-square rounded-xl overflow-hidden border-2 border-success/30 bg-muted">
+                      <img src={url} alt={`Imported ${i + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setRemotePhotoUrls(prev => prev.filter((_, j) => j !== i))}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center active:scale-90 transition-transform"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Photo Upload */}
             <div className="mb-4 sm:mb-5">
               <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                Photos (up to 4)
+                {remotePhotoUrls.length > 0 ? "Add More Photos" : "Photos (up to 4)"}
               </Label>
               <div className="grid grid-cols-4 gap-2 sm:gap-3">
                 {photoPreviewUrls.map((url, i) => (

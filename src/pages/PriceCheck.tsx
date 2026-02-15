@@ -384,7 +384,7 @@ export default function PriceCheck() {
               Track This Brand
             </Button>
             <Button
-              onClick={() => navigate(`/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}`)}
+              onClick={() => navigate(`/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`)}
               className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
             >
               <Zap className="w-4 h-4 mr-2" />
@@ -398,11 +398,11 @@ export default function PriceCheck() {
             title="Listing Lifecycle"
             steps={[
               { label: "Price Check", path: "/price-check", icon: Search, completed: true },
-              { label: "Optimise", path: `/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}`, icon: Sparkles },
+              { label: "Optimise", path: `/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`, icon: Sparkles },
               { label: "Inventory", path: "/listings", icon: ShoppingBag },
             ]}
             nextLabel="Optimise This Listing"
-            nextPath={`/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}`}
+            nextPath={`/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`}
             nextIcon={Sparkles}
           />
         </motion.div>
