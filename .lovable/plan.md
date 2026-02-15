@@ -1,92 +1,116 @@
 
 
-# Vintography Integration + System Logic Check + Feature Audit
+# Price Intelligence Engine Upgrade
 
-## Part 1: Bake Vintography Into the Ecosystem
+## What Changes
 
-Vintography currently lives in isolation at `/vintography`. It should be woven into every place where photos matter.
+### 1. Condition-Aware Pricing (New vs Used Differentiation)
 
-### 1.1 Listings Page -- "Enhance Photos" action in dropdown menu
-In `src/pages/Listings.tsx`, the per-listing dropdown menu (lines ~899-917) has "Run Price Check", "Optimise Listing", "Publish to Platforms", "View on Vinted", and "Delete". Add an **"Enhance Photos"** option that navigates to `/vintography?image_url={listing.image_url}` so users can enhance a listing's photo directly from their inventory.
+The current system treats condition as a free-text field with no real impact on the analysis. The upgrade adds:
 
-Also: when a listing has no `image_url`, show a subtle "Add Photo" prompt instead.
+- **Structured condition selector** replacing the free-text input: dropdown with Vinted's actual condition grades (New with tags, New without tags, Very good, Good, Satisfactory)
+- **Condition-segmented results** from the AI: the report will show separate pricing for "New" vs "Used" conditions so sellers can see the price gap
+- The AI prompt will be updated to explicitly separate new/used comparables and flag condition-based price differences in insights
 
-### 1.2 Optimise Listing Page -- Journey Banner with Vintography step
-The Listing Lifecycle journey banner on `OptimizeListing.tsx` (lines 626-636) currently flows: Optimise -> Price Check -> Inventory. Insert **Vintography** as a step: Optimise -> **Enhance Photos** -> Price Check -> Inventory. This prompts users to polish their photos after writing optimised copy.
+### 2. Reseller Price Guide (Buy At / Sell At)
 
-### 1.3 Price Check Page -- Journey Banner with Vintography step
-Similarly on `PriceCheck.tsx` (lines 397-407), the journey flows: Price Check -> Optimise -> Inventory. Update to: Price Check -> Optimise -> **Enhance Photos** -> Inventory.
+Add a new **"Reseller Guide"** card to the report with three key data points:
 
-### 1.4 Dashboard -- Add Vintography to Intelligence Tools grid
-In `Dashboard.tsx` (lines 452-474), the "Intelligence Tools" grid has Price Check, Optimise, Bulk Optimise, and Trend Radar. Add a **Vintography** card to the "Intelligence Tools" section (or create a mini "Studio" row) so it's discoverable from the main dashboard.
+- **Good Buy Price** -- the price at which this is a great deal to source (below market, high margin)
+- **Max Buy Price** -- the absolute most you should pay and still make profit after Vinted fees + shipping
+- **Estimated Resale Value** -- what you can realistically sell it for on Vinted
 
-### 1.5 Vintography -- Accept `image_url` query param on load
-Update `src/pages/Vintography.tsx` to check for `?image_url=` in query params on mount. If present, set it as the `originalUrl` directly so users arriving from Listings or Optimise pages land with their photo pre-loaded, ready to edit.
+The AI will calculate these factoring in:
+- ~5% Vinted buyer protection fee
+- Estimated shipping cost (based on category/weight)
+- A target minimum margin (default 40%)
 
----
+### 3. Richer Data in the Report
 
-## Part 2: Feature Utility Audit -- What Stays, What Goes, What Upgrades
+Add these new sections to the report UI:
 
-After reviewing all 20+ feature pages, here is the honest assessment:
+- **Sell Speed Indicator** -- "Estimated days to sell" at the recommended price, based on comparable sell-through data
+- **Demand Signal** -- High/Medium/Low demand indicator based on search volume vs supply ratio
+- **Condition Price Breakdown** -- a mini table showing avg price by condition grade
+- **Fee Calculator** -- shows the net profit after Vinted fees and estimated shipping
 
-### Features with Real Utility (Keep)
-| Feature | Verdict | Notes |
-|---------|---------|-------|
-| Price Check | Core. Keep | Primary conversion driver |
-| AI Listing Optimiser | Core. Keep | High daily-use value |
-| Vintography | Core. Keep | Just levelled up |
-| My Listings / Inventory | Core. Keep | Central data hub |
-| Trend Radar | Keep | Unique intelligence |
-| Dead Stock Analyser | Keep | Directly saves money |
-| P&L Analytics | Keep | Essential for serious sellers |
+### 4. Enhanced Comparable Items
 
-### Features to Consider Removing or Merging
-| Feature | Issue | Recommendation |
-|---------|-------|----------------|
-| **Portfolio Optimiser** vs **Dead Stock** | Massive overlap. Both analyse your inventory for pricing issues. Portfolio Optimiser does "bulk fix pricing" while Dead Stock does "liquidate stale items" -- these are the same problem. | **Merge** Portfolio Optimiser INTO Dead Stock. Rename the combined page to "Inventory Health" covering both stale item liquidation AND price optimisation in one view. Remove `/portfolio` route. |
-| **Seasonal Calendar** vs **Trend Radar** | Seasonal Calendar shows "when demand peaks" and Trend Radar shows "what's trending now". The calendar is useful but rarely visited because Trend Radar already surfaces seasonal shifts. | **Merge** as a tab within Trend Radar. Add a "Seasonal" tab alongside the main trends view. Remove `/seasonal` as a standalone page. |
-| **Bulk Optimise** | CSV-based batch listing optimisation. Useful for power users but the UX is heavy (upload CSV, parse, process one by one). Low engagement expected. | **Keep but demote** -- remove from the main dashboard grid and Intelligence Tools. Move it under "My Listings" as a secondary action. It's a power-user tool, not a discovery feature. |
-| **Clearance Radar** | Monitors retail clearance pages for flip opportunities. Without actual live scraping connections, this is essentially AI-generated mock data. | **Keep for now** but flag it clearly as "coming soon" if Firecrawl/Lobstr aren't actually connected yet. Don't mislead users. |
-| **Niche Finder** | Identifies underserved categories. Overlaps conceptually with Trend Radar's opportunity scores. | **Merge** as a "Niches" tab within Trend Radar. Three tabs: Trending / Seasonal / Niches. |
-| **Cross-Listings + Platform Connections** | Cross-platform publishing to eBay/Depop. Without real API integrations, these pages show empty states. | **Keep the pages** but only surface them in the sidebar if the user has connected a platform. Hide from the dashboard until real utility exists. |
-
-### Features to Upgrade
-| Feature | Upgrade |
-|---------|---------|
-| **Charity Briefing** | Add a "Snap & Check" feature: take a photo while at the charity shop and get instant brand/value identification via Vintography's AI vision. Link to Vintography's image analysis. |
-| **Relist Scheduler** | Currently manual. Add a one-click "Auto-Relist All Stale" button that queues all 30+ day items. |
+Each comparable item in the list will now show:
+- **Condition** badge (New/Used)
+- **Platform** source if available
+- Better visual distinction between sold items (confirmed prices) and active listings (asking prices)
 
 ---
 
-## Part 3: Technical Implementation Plan
+## Technical Changes
 
-### Files to Modify
+### Edge Function (`supabase/functions/price-check/index.ts`)
 
-1. **`src/pages/Listings.tsx`** -- Add "Enhance Photos" to dropdown menu, add Camera icon import
-2. **`src/pages/OptimizeListing.tsx`** -- Update Journey Banner to include Vintography step
-3. **`src/pages/PriceCheck.tsx`** -- Update Journey Banner to include Vintography step
-4. **`src/pages/Dashboard.tsx`** -- Add Vintography card to dashboard grid, merge sidebar entries
-5. **`src/pages/Vintography.tsx`** -- Accept `image_url` query param
-6. **`src/pages/TrendRadar.tsx`** -- Add Seasonal and Niche tabs (absorb those pages)
-7. **`src/pages/DeadStock.tsx`** -- Rename to "Inventory Health", absorb Portfolio Optimiser logic
-8. **`src/App.tsx`** -- Add redirects from old routes (`/portfolio` -> `/dead-stock`, `/seasonal` -> `/trends`, `/niche-finder` -> `/trends`)
+Update the AI prompt to request the expanded JSON schema:
 
-### Sidebar Cleanup (in Dashboard.tsx)
-Reduce sidebar navigation from 16 items to 12 by:
-- Removing Portfolio Optimiser (merged into Dead Stock / "Inventory Health")
-- Removing Seasonal Calendar (merged into Trend Radar)
-- Removing Niche Finder (merged into Trend Radar)
-- Moving Bulk Optimise out of the top-level nav into the Listings page as a secondary action
+```
+{
+  "recommended_price": number,
+  "confidence_score": 0-100,
+  "price_range_low": number,
+  "price_range_high": number,
+  "item_title": "string",
+  "item_brand": "string",
+  "condition_detected": "new_with_tags | new_without_tags | very_good | good | satisfactory",
+  "buy_price_good": number,       // NEW: great sourcing price
+  "buy_price_max": number,        // NEW: max you should pay
+  "estimated_resale": number,     // NEW: realistic sell price
+  "estimated_days_to_sell": number, // NEW
+  "demand_level": "high | medium | low", // NEW
+  "condition_price_breakdown": [   // NEW
+    {"condition": "New with tags", "avg_price": number, "count": number},
+    {"condition": "Very good", "avg_price": number, "count": number},
+    ...
+  ],
+  "estimated_fees": number,       // NEW: Vinted fees
+  "estimated_shipping": number,   // NEW
+  "net_profit_estimate": number,  // NEW: resale - fees - shipping
+  "comparable_items": [
+    {"title": "...", "price": number, "sold": boolean, "days_listed": number, "condition": "string"}
+  ],
+  "ai_insights": "string",
+  "price_distribution": [...]
+}
+```
 
-### No Database Changes Required
-All changes are frontend reorganisation and navigation updates.
+The AI prompt will instruct the model to:
+- Separate new vs used comparables in its analysis
+- Calculate buy prices assuming 40% target margin and ~5% Vinted fee + ~3-5 GBP shipping
+- Estimate demand level from the ratio of sold items to active listings
+- Provide condition-specific pricing breakdown
 
-### Implementation Order
-1. Vintography query param support + Listings dropdown integration (quick wins)
-2. Journey Banner updates on Price Check + Optimise pages
-3. Dashboard grid update with Vintography card
-4. Sidebar cleanup and route merges
-5. Absorb Seasonal Calendar + Niche Finder into Trend Radar tabs
-6. Absorb Portfolio Optimiser into Dead Stock (renamed "Inventory Health")
-7. Route redirects in App.tsx for backward compatibility
+### Frontend (`src/pages/PriceCheck.tsx`)
 
+1. **Input section**: Replace free-text condition input with a `Select` dropdown using Vinted's condition grades
+2. **Hero price card**: Add "Sell At" label and show the net profit estimate below
+3. **New "Reseller Guide" card**: Three-column layout showing Good Buy / Max Buy / Resale Value with color coding (green/amber/red)
+4. **New "Sell Speed & Demand" card**: Days to sell estimate + demand level badge
+5. **New "Condition Breakdown" card**: Mini table showing average prices per condition grade
+6. **New "Profit Calculator" card**: Shows resale price - fees - shipping = net profit, with an editable "Your cost" input so sellers can plug in what they'd pay
+7. **Updated comparable items**: Add condition badge per item, visual split between sold (confirmed) and active (asking) prices
+
+### Type Updates
+
+Update the `PriceReport` type in `PriceCheck.tsx` to include all new fields.
+
+### No Database Changes Needed
+
+The `price_reports` table already stores `comparable_items` and `price_distribution` as JSONB. The new fields from the AI response will be stored in these existing columns or simply displayed from the edge function response without needing new columns.
+
+---
+
+## Implementation Order
+
+1. Update the edge function AI prompt with the expanded schema
+2. Update the `PriceReport` TypeScript type
+3. Replace condition text input with Select dropdown
+4. Add the Reseller Guide card
+5. Add Sell Speed, Demand, Condition Breakdown, and Profit Calculator cards
+6. Update comparable items display with condition badges
+7. Deploy and test end-to-end
