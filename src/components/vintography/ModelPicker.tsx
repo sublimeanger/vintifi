@@ -1,5 +1,5 @@
+import { forwardRef } from "react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import {
   User, Users, Shirt, Dumbbell, GraduationCap, Baby,
@@ -84,24 +84,26 @@ type Props = {
   onLookChange: (v: string) => void;
   onPoseChange: (v: string) => void;
   onBgChange: (v: string) => void;
-  showLook?: boolean; // hide look for mannequin_shot
+  showLook?: boolean;
 };
 
-export function ModelPicker({ gender, look, pose, bg, onGenderChange, onLookChange, onPoseChange, onBgChange, showLook = true }: Props) {
-  return (
-    <Card className="p-4 space-y-4">
-      <div className="flex items-center gap-2 mb-1">
-        <User className="w-4 h-4 text-primary" />
-        <p className="text-sm font-semibold">Model Configuration</p>
-      </div>
-      <OptionGrid title="Gender" options={genderOptions} value={gender} onChange={onGenderChange} cols={2} />
-      {showLook && (
-        <OptionGrid title="Model Look" options={lookOptions} value={look} onChange={onLookChange} cols={3} />
-      )}
-      {showLook && (
-        <OptionGrid title="Pose" options={poseOptions} value={pose} onChange={onPoseChange} cols={3} />
-      )}
-      <OptionGrid title="Background" options={bgOptions} value={bg} onChange={onBgChange} cols={3} />
-    </Card>
-  );
-}
+export const ModelPicker = forwardRef<HTMLDivElement, Props>(
+  function ModelPicker({ gender, look, pose, bg, onGenderChange, onLookChange, onPoseChange, onBgChange, showLook = true }, ref) {
+    return (
+      <Card ref={ref} className="p-4 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <User className="w-4 h-4 text-primary" />
+          <p className="text-sm font-semibold">Model Configuration</p>
+        </div>
+        <OptionGrid title="Gender" options={genderOptions} value={gender} onChange={onGenderChange} cols={2} />
+        {showLook && (
+          <OptionGrid title="Model Look" options={lookOptions} value={look} onChange={onLookChange} cols={3} />
+        )}
+        {showLook && (
+          <OptionGrid title="Pose" options={poseOptions} value={pose} onChange={onPoseChange} cols={3} />
+        )}
+        <OptionGrid title="Background" options={bgOptions} value={bg} onChange={onBgChange} cols={3} />
+      </Card>
+    );
+  }
+);
