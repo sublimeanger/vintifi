@@ -886,7 +886,11 @@ export default function Listings() {
                                   </Badge>
                                 )}
                                 {!listing.description && listing.health_score == null && listing.status === "active" && (
-                                  <Badge variant="outline" className="text-[10px] border-accent/40 text-accent gap-0.5 py-0">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] border-accent/40 text-accent gap-0.5 py-0 cursor-pointer hover:bg-accent/10 transition-colors"
+                                    onClick={(e) => { e.stopPropagation(); handleOptimiseListing(listing); }}
+                                  >
                                     <Sparkles className="w-2.5 h-2.5" /> Needs optimising
                                   </Badge>
                                 )}
