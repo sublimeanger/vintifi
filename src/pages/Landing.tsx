@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Zap, TrendingUp, BarChart3, Shield, ArrowRight, Sparkles } from "lucide-react";
 import { STRIPE_TIERS, TierKey } from "@/lib/constants";
+import MarketingLayout from "@/components/MarketingLayout";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -25,28 +25,7 @@ export default function Landing() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Nav */}
-      <header className="sticky top-0 z-50 glass">
-        <nav className="container mx-auto flex items-center justify-between py-4 px-4">
-          <Link to="/" className="font-display text-2xl font-extrabold tracking-tight">
-            <span className="text-gradient">Vintifi</span>
-          </Link>
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</a>
-            <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
-              Sign in
-            </Button>
-            <Button size="sm" onClick={() => navigate("/auth?mode=signup")} className="font-semibold">
-              Get Started Free
-            </Button>
-          </div>
-        </nav>
-      </header>
-
+    <MarketingLayout>
       {/* Hero */}
       <section className="container mx-auto px-4 pt-20 pb-32">
         <motion.div
@@ -78,7 +57,7 @@ export default function Landing() {
               Start Free — No Card Required
               <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
-            <Button size="lg" variant="outline" onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="text-base h-12">
+            <Button size="lg" variant="outline" onClick={() => navigate("/how-it-works")} className="text-base h-12">
               See How It Works
             </Button>
           </motion.div>
@@ -128,7 +107,7 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-24 bg-muted/30">
+      <section className="py-24 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">Everything you need to sell smarter</h2>
@@ -159,7 +138,7 @@ export default function Landing() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-24">
+      <section className="py-24">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">Simple, transparent pricing</h2>
@@ -227,14 +206,6 @@ export default function Landing() {
           </Button>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="py-12 border-t border-border">
-        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="font-display font-bold text-lg"><span className="text-gradient">Vintifi</span></p>
-          <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} Vintifi. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
+    </MarketingLayout>
   );
 }
