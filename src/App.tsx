@@ -12,6 +12,7 @@ import HowItWorks from "./pages/marketing/HowItWorks";
 import About from "./pages/marketing/About";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import Welcome from "./pages/Welcome";
 import Dashboard from "./pages/Dashboard";
 import Listings from "./pages/Listings";
 import PriceCheck from "./pages/PriceCheck";
@@ -65,6 +66,7 @@ const App = () => (
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/about" element={<About />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><OnboardingGuard><Dashboard /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/price-check" element={<ProtectedRoute><OnboardingGuard><PriceCheck /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/listings" element={<ProtectedRoute><OnboardingGuard><Listings /></OnboardingGuard></ProtectedRoute>} />

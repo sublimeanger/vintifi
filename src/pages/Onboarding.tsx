@@ -67,7 +67,7 @@ export default function Onboarding() {
         localStorage.removeItem("vintifi_referral_code");
       }
 
-      navigate("/dashboard");
+      navigate("/welcome");
       toast.success("Welcome to Vintifi! 🚀");
     } catch (err: any) {
       toast.error(err.message);

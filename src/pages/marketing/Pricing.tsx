@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -53,9 +54,7 @@ export default function Pricing() {
   const navigate = useNavigate();
   const [annual, setAnnual] = useState(false);
 
-  useEffect(() => {
-    document.title = "Vintifi Pricing — Simple Plans for Every Seller";
-  }, []);
+  usePageMeta("Pricing — Vintifi", "Simple, transparent pricing. Start free, upgrade when you're ready. Plans from £14.99/month.");
 
   const tiers = Object.entries(STRIPE_TIERS) as [TierKey, (typeof STRIPE_TIERS)[TierKey]][];
 

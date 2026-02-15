@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { motion, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -151,9 +152,7 @@ const beforeAfter = {
 export default function HowItWorks() {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    document.title = "How Vintifi Works — From Guesswork to Profit in 3 Steps";
-  }, []);
+  usePageMeta("How It Works — Vintifi", "Paste a URL, get AI pricing in 8 seconds. See how Vintifi transforms your Vinted selling with data-driven intelligence.");
 
   return (
     <MarketingLayout>

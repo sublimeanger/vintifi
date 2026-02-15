@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const trustedBrands = ["Nike", "Zara", "Carhartt WIP", "Levi's", "Adidas", "H&M"
 export default function Landing() {
   const navigate = useNavigate();
   const [annual, setAnnual] = useState(false);
+  usePageMeta("Vintifi — AI-Powered Vinted Selling Intelligence", "Stop guessing, start selling smarter. AI-powered pricing, trends, and listing optimisation for Vinted sellers.");
   return (
     <MarketingLayout>
       {/* Hero */}
