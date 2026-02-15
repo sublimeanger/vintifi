@@ -480,17 +480,22 @@ export default function Dashboard() {
               <SectionHeader>Market Analysis</SectionHeader>
               <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4 -mx-1 px-1">
                 {[
-                  { icon: ArrowRightLeft, label: "Arbitrage Scanner", desc: "Find profitable flips", path: "/arbitrage", tourId: "tour-arbitrage" },
-                  { icon: Radar, label: "Competitor Tracker", desc: "Monitor rivals", path: "/competitors" },
-                  { icon: MapPin, label: "Charity Briefing", desc: "AI sourcing list", path: "/charity-briefing" },
-                  { icon: ShoppingBag, label: "Clearance Radar", desc: "Retail flip opportunities", path: "/clearance-radar" },
+                  { icon: ArrowRightLeft, label: "Arbitrage Scanner", desc: "Find profitable flips", path: "/arbitrage", tourId: "tour-arbitrage", badgeCount: badges["/arbitrage"] || 0 },
+                  { icon: Radar, label: "Competitor Tracker", desc: "Monitor rivals", path: "/competitors", badgeCount: badges["/competitors"] || 0 },
+                  { icon: MapPin, label: "Charity Briefing", desc: "AI sourcing list", path: "/charity-briefing", badgeCount: 0 },
+                  { icon: ShoppingBag, label: "Clearance Radar", desc: "Retail flip opportunities", path: "/clearance-radar", badgeCount: 0 },
                 ].map((item) => (
                   <Card
                     key={item.path}
                     id={(item as any).tourId}
-                    className="min-w-[130px] sm:min-w-0 p-3 sm:p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] transition-all border-border/50 flex-shrink-0"
+                    className="min-w-[130px] sm:min-w-0 p-3 sm:p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] transition-all border-border/50 flex-shrink-0 relative"
                     onClick={() => navigate(item.path)}
                   >
+                    {item.badgeCount > 0 && (
+                      <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-accent-foreground text-[10px] font-bold flex items-center justify-center">
+                        {item.badgeCount}
+                      </span>
+                    )}
                     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2.5 sm:mb-3">
                       <item.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                     </div>
