@@ -32,6 +32,7 @@ import ClearanceRadar from "./pages/ClearanceRadar";
 import NicheFinder from "./pages/NicheFinder";
 import PlatformConnections from "./pages/PlatformConnections";
 import CrossListings from "./pages/CrossListings";
+import Vintography from "./pages/Vintography";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -85,6 +86,7 @@ const App = () => (
             <Route path="/niche-finder" element={<ProtectedRoute><OnboardingGuard><NicheFinder /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/platforms" element={<ProtectedRoute><OnboardingGuard><PlatformConnections /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/cross-listings" element={<ProtectedRoute><OnboardingGuard><CrossListings /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/vintography" element={<ProtectedRoute><OnboardingGuard><Vintography /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

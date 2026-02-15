@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, CreditCard,
   Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target, CalendarDays, MapPin,
-  FileSpreadsheet, Sparkles, Layers, Link2,
+  FileSpreadsheet, Sparkles, Layers, Link2, ImageIcon,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -38,6 +38,12 @@ const navSections = [
       { icon: Zap, label: "Optimise", path: "/optimize" },
       { icon: FileSpreadsheet, label: "Bulk Optimise", path: "/bulk-optimize" },
       { icon: Tag, label: "My Listings", path: "/listings" },
+    ],
+  },
+  {
+    label: "Studio",
+    items: [
+      { icon: ImageIcon, label: "Vintography", path: "/vintography" },
     ],
   },
   {
