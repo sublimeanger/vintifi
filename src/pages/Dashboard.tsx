@@ -506,17 +506,22 @@ export default function Dashboard() {
               <SectionHeader>Inventory Management</SectionHeader>
               <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4 sm:[&>:nth-child(5)]:col-start-1 -mx-1 px-1">
                 {[
-                  { icon: Tag, label: "My Listings", desc: "Track and manage items", path: "/listings", tourId: "tour-listings", color: "text-primary", bg: "bg-primary/10" },
-                  { icon: AlertTriangle, label: "Inventory Health", desc: "Dead stock & pricing fixes", path: "/dead-stock", color: "text-destructive", bg: "bg-destructive/10" },
-                  { icon: Timer, label: "Relist Scheduler", desc: "Auto-schedule relists", path: "/relist", color: "text-primary", bg: "bg-primary/10" },
-                  { icon: PieChart, label: "P&L Analytics", desc: "Revenue, margins & ROI", path: "/analytics", color: "text-success", bg: "bg-success/10" },
+                  { icon: Tag, label: "My Listings", desc: "Track and manage items", path: "/listings", tourId: "tour-listings", color: "text-primary", bg: "bg-primary/10", badgeCount: badges["/listings"] || 0 },
+                  { icon: AlertTriangle, label: "Inventory Health", desc: "Dead stock & pricing fixes", path: "/dead-stock", color: "text-destructive", bg: "bg-destructive/10", badgeCount: badges["/dead-stock"] || 0 },
+                  { icon: Timer, label: "Relist Scheduler", desc: "Auto-schedule relists", path: "/relist", color: "text-primary", bg: "bg-primary/10", badgeCount: badges["/relist"] || 0 },
+                  { icon: PieChart, label: "P&L Analytics", desc: "Revenue, margins & ROI", path: "/analytics", color: "text-success", bg: "bg-success/10", badgeCount: 0 },
                 ].map((item) => (
                   <Card
                     key={item.path + item.label}
                     id={(item as any).tourId}
-                    className="min-w-[130px] sm:min-w-0 p-3 sm:p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] transition-all border-border/50 flex-shrink-0"
+                    className="min-w-[130px] sm:min-w-0 p-3 sm:p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] transition-all border-border/50 flex-shrink-0 relative"
                     onClick={() => navigate(item.path)}
                   >
+                    {item.badgeCount > 0 && (
+                      <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-accent-foreground text-[10px] font-bold flex items-center justify-center">
+                        {item.badgeCount}
+                      </span>
+                    )}
                     <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${item.bg} flex items-center justify-center mb-2.5 sm:mb-3`}>
                       <item.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${item.color}`} />
                     </div>
