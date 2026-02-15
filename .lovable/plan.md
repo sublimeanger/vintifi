@@ -1,87 +1,74 @@
 
-# Annual/Monthly Billing Toggle & Free Trial Implementation
 
-## Overview
-Add annual billing with 20% discount across all paid tiers, and enable a 7-day free trial on Pro/Business/Scale plans (no credit card required for the free tier, but trial on paid plans uses Stripe's built-in trial functionality).
+# Dashboard Page -- World-Class Mobile & Desktop Polish
 
----
+This is Phase 1 of a systematic polish pass across every page. We start with the Dashboard and make it feel genuinely premium on both mobile (390px) and desktop (1920px).
 
-## 1. Create Annual Stripe Prices
+## Issues Identified
 
-Create 3 new annual prices in Stripe (20% discount, billed yearly):
+1. **Guided Tour still fires on mobile** -- the `useEffect` dependency array is missing `isMobile`, so if the hook resolves after the initial render, the tour launches anyway.
+2. **Mobile metric cards feel flat** -- no visual hierarchy, no colour differentiation, values are small for a glanceable dashboard.
+3. **Price Intelligence Engine card is too wordy on mobile** -- takes up precious viewport space with a paragraph of text.
+4. **Quick action cards are cramped on mobile** -- 2-column grid with small text, descriptions get truncated, icons are too small.
+5. **No visual separation between sections** -- everything runs together in one long scroll.
+6. **Mobile header lacks personality** -- plain white bar with just the logo and a hamburger.
+7. **Bottom nav has no active background** -- only a tiny red dot at top, easy to miss.
+8. **Desktop sidebar lacks hover micro-interactions** and the nav sections feel dense.
+9. **Empty states are bland** -- "No price checks yet" with a faded icon doesn't inspire action.
+10. **No pull-to-refresh or scroll indicators** on mobile.
 
-| Tier | Monthly | Annual (per month) | Annual total | Savings |
-|------|---------|-------------------|-------------|---------|
-| Pro | £14.99/mo | £11.99/mo | £143.88/yr | £36 |
-| Business | £34.99/mo | £27.99/mo | £335.88/yr | £84 |
-| Scale | £74.99/mo | £59.99/mo | £719.88/yr | £180 |
+## Plan
 
-These will be created as `recurring: { interval: "year" }` prices on the existing products.
+### 1. Fix Guided Tour mobile bug (GuidedTour.tsx)
+- Add `isMobile` to the `useEffect` dependency array so the check actually works when the hook resolves asynchronously.
 
-## 2. Free Trial Setup
+### 2. Upgrade mobile metric cards (Dashboard.tsx)
+- Give each card a subtle left-border colour matching its icon (primary, success, accent, primary).
+- Increase value font size on mobile from `text-xl` to `text-2xl`.
+- Add a very subtle background tint per card (e.g. `bg-primary/5` for Active Listings).
+- Make the cards tappable -- clicking "Active Listings" goes to `/listings`, "Sold This Week" goes to `/analytics`, etc.
 
-Stripe supports `trial_period_days` on checkout sessions. When creating a checkout session, pass `subscription_data: { trial_period_days: 7 }` so users get 7 days free before being charged. No credit card is still required at checkout (Stripe requires it for trials), but the trial means they won't be charged for the first 7 days.
+### 3. Tighten the Price Intelligence Engine card on mobile
+- Hide the paragraph description on mobile (`hidden sm:block`).
+- Make the input and button slightly larger touch targets on mobile (min h-12).
+- Add a subtle animated gradient border to make it the visual focal point.
 
-The approach:
-- Add `trial_period_days: 7` to the `create-checkout` edge function
-- Only apply trial for first-time subscribers (check if customer has had previous subscriptions)
-- Update webhook to handle `customer.subscription.trial_will_end` event
+### 4. Improve Recent Price Checks empty state
+- Replace the faded icon with a more engaging illustration-style empty state.
+- Add a direct CTA button "Run Your First Price Check" instead of just text.
 
-## 3. Update Constants
+### 5. Redesign Quick Action grid for mobile
+- Switch from 2-column to a scrollable horizontal card row on mobile for each section (swipeable, like app store cards).
+- Each card gets a larger icon (w-8 h-8), bolder title, and the description hidden on mobile to keep cards compact.
+- Add a subtle gradient or coloured icon background circle per card.
+- On desktop, keep the 4-column grid but add hover lift effect (`hover:-translate-y-0.5 hover:shadow-lg`).
 
-**`src/lib/constants.ts`** -- Add annual price IDs to each tier:
+### 6. Add section dividers and better spacing
+- Add subtle section headers with a decorative element (small coloured bar before text).
+- Increase spacing between major dashboard sections on mobile.
 
-```typescript
-pro: {
-  ...existing,
-  annual_price_id: "price_XXXXX",  // created by Stripe tool
-  annual_price: 143.88,            // yearly total
-},
-```
+### 7. Polish the mobile bottom nav (MobileBottomNav.tsx)
+- Add a subtle filled background pill behind the active icon+label for better visibility.
+- Slightly increase icon size from `w-5 h-5` to `w-5.5 h-5.5`.
 
-## 4. Update Edge Function
+### 8. Polish the desktop sidebar
+- Add a subtle scale + background transition on hover for nav items.
+- Add a small coloured dot indicator next to the active item label.
+- Improve the user profile area at the bottom with a subtle gradient background.
 
-**`supabase/functions/create-checkout/index.ts`**:
-- Accept `billing_interval` param ("monthly" | "annual")
-- Select the correct `price_id` based on interval
-- Add `subscription_data: { trial_period_days: 7 }` for first-time subscribers
-- Check if customer already had a subscription to avoid repeat trials
+### 9. Mobile header refinement
+- Add a subtle bottom shadow for depth separation.
+- Ensure the credits badge has better contrast and padding.
 
-## 5. Update Frontend Pages
+## Technical Details
 
-### Landing Page (`src/pages/Landing.tsx`)
-- Add monthly/annual toggle to the pricing section (same pattern as Pricing.tsx already has)
-- Show discounted annual prices when toggled
-- Update CTA text to mention "7-day free trial"
+### Files to modify:
+- `src/pages/Dashboard.tsx` -- Main dashboard layout, metric cards, quick actions, empty states
+- `src/components/GuidedTour.tsx` -- Fix dependency array (line 53: add `isMobile`)
+- `src/components/MobileBottomNav.tsx` -- Active state styling upgrade
 
-### Pricing Page (`src/pages/marketing/Pricing.tsx`)
-- Already has the toggle and visual discount -- just needs to pass the correct annual `price_id` when users click upgrade
-- Update button text: "Start 7-Day Free Trial"
+### No new dependencies needed
+All changes use existing Tailwind classes, Framer Motion (already installed), and Lucide icons.
 
-### Settings Page (`src/pages/SettingsPage.tsx`)
-- Add monthly/annual toggle to the subscription cards
-- Pass correct price_id (monthly or annual) to `create-checkout`
-- Show "7-day free trial" badge on plans if user hasn't trialled before
+### No database or backend changes required.
 
-### Auth Context (`src/contexts/AuthContext.tsx`)
-- No changes needed -- webhook already handles tier assignment
-
-### Webhook (`supabase/functions/stripe-webhook/index.ts`)
-- Already handles subscription creation/updates correctly via product_id mapping
-- Annual subscriptions use the same products, just different prices, so tier detection works unchanged
-
-## 6. Files Modified
-
-| File | Changes |
-|------|---------|
-| `src/lib/constants.ts` | Add `annual_price_id` and `annual_price` to each paid tier |
-| `supabase/functions/create-checkout/index.ts` | Accept `billing_interval`, select correct price, add trial days |
-| `src/pages/Landing.tsx` | Add monthly/annual toggle to pricing section, trial CTA text |
-| `src/pages/marketing/Pricing.tsx` | Wire toggle to pass annual price_id, update button text |
-| `src/pages/SettingsPage.tsx` | Add billing toggle, pass correct price_id |
-
-## 7. Technical Notes
-- Annual prices are separate Stripe Price objects on the same Product, so the webhook `TIER_MAP` (keyed by product_id) works without changes
-- Stripe handles trial expiry automatically -- charges the card after 7 days
-- The 20% discount is baked into the annual price itself, not a coupon
-- No database changes needed -- subscription tier detection is product-based
