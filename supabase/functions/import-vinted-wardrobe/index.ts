@@ -86,44 +86,49 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Phase 1: Scrape wardrobe overview pages
+    // Phase 1: Scrape wardrobe overview with infinite scroll handling
     const allMarkdown: string[] = [];
     let pagesScraped = 0;
 
-    for (let page = 1; page <= maxPages; page++) {
-      const pageUrl = page === 1 ? wardrobeUrl : `${wardrobeUrl}?page=${page}`;
-      console.log(`Scraping page ${page}: ${pageUrl}`);
-
-      const scrapeResponse = await fetch("https://api.firecrawl.dev/v1/scrape", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ url: pageUrl, formats: ["markdown"], waitFor: 3000 }),
-      });
-
-      const scrapeData = await scrapeResponse.json();
-      if (!scrapeResponse.ok || !scrapeData.success) {
-        if (page === 1) {
-          console.error("Firecrawl error on first page:", JSON.stringify(scrapeData));
-          return new Response(JSON.stringify({ success: false, error: "Could not scrape the wardrobe. Make sure your Vinted profile is public." }), {
-            status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        break;
-      }
-
-      const pageMarkdown = scrapeData.data?.markdown || scrapeData.markdown || "";
-      if (!pageMarkdown || pageMarkdown.length < 100) {
-        if (page === 1) {
-          return new Response(JSON.stringify({ success: false, error: "Your wardrobe appears empty or private." }), {
-            status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        break;
-      }
-
-      allMarkdown.push(`--- PAGE ${page} ---\n${pageMarkdown}`);
-      pagesScraped++;
+    // Vinted uses infinite scroll — we use Firecrawl actions to scroll down and load all items
+    const scrollActions = [];
+    // Scroll down multiple times to trigger lazy loading (each scroll loads ~20 items)
+    const scrollCount = Math.min(Math.ceil(importLimit / 20), 15); // cap at 15 scrolls (~300 items)
+    for (let s = 0; s < scrollCount; s++) {
+      scrollActions.push({ type: "scroll", direction: "down", amount: 3000 });
+      scrollActions.push({ type: "wait", milliseconds: 1500 });
     }
+
+    console.log(`Scraping wardrobe with ${scrollCount} scrolls to load items: ${wardrobeUrl}`);
+
+    const scrapeResponse = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: wardrobeUrl,
+        formats: ["markdown"],
+        waitFor: 3000,
+        actions: scrollActions,
+      }),
+    });
+
+    const scrapeData = await scrapeResponse.json();
+    if (!scrapeResponse.ok || !scrapeData.success) {
+      console.error("Firecrawl error:", JSON.stringify(scrapeData));
+      return new Response(JSON.stringify({ success: false, error: "Could not scrape the wardrobe. Make sure your Vinted profile is public." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const pageMarkdown = scrapeData.data?.markdown || scrapeData.markdown || "";
+    if (!pageMarkdown || pageMarkdown.length < 100) {
+      return new Response(JSON.stringify({ success: false, error: "Your wardrobe appears empty or private." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    allMarkdown.push(pageMarkdown);
+    pagesScraped = 1;
 
     const combinedMarkdown = allMarkdown.join("\n\n");
     console.log(`Scraped ${pagesScraped} page(s), ${combinedMarkdown.length} chars. Sending to AI...`);
