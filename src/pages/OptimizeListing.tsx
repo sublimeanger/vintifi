@@ -67,10 +67,10 @@ export default function OptimizeListing() {
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [brand, setBrand] = useState(searchParams.get("brand") || "");
   const [category, setCategory] = useState(searchParams.get("category") || "");
-  const [size, setSize] = useState("");
+  const [size, setSize] = useState(searchParams.get("size") || "");
   const [condition, setCondition] = useState(searchParams.get("condition") || "");
   const [currentTitle, setCurrentTitle] = useState(searchParams.get("title") || "");
-  const [currentDescription, setCurrentDescription] = useState("");
+  const [currentDescription, setCurrentDescription] = useState(searchParams.get("description") || "");
   const [optimizing, setOptimizing] = useState(false);
   const [result, setResult] = useState<OptimiseResult | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
