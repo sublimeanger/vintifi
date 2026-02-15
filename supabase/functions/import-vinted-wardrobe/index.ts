@@ -6,12 +6,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Tier import limits
+// Tier import limits & max pages per tier
 const TIER_LIMITS: Record<string, number> = {
   free: 20,
   pro: 200,
   business: 9999,
   scale: 9999,
+};
+const TIER_MAX_PAGES: Record<string, number> = {
+  free: 1,
+  pro: 3,
+  business: 5,
+  scale: 5,
 };
 
 Deno.serve(async (req) => {
@@ -59,7 +65,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const tier = profile?.subscription_tier || "free";
     const importLimit = TIER_LIMITS[tier] || 20;
-
+    const maxPages = TIER_MAX_PAGES[tier] || 1;
     // Normalise the profile URL to the wardrobe/items page
     let wardrobeUrl = profile_url.trim();
     if (!wardrobeUrl.startsWith("http")) {
@@ -70,7 +76,7 @@ Deno.serve(async (req) => {
       wardrobeUrl = wardrobeUrl.replace(/\/?$/, "/items");
     }
 
-    console.log(`Scraping wardrobe: ${wardrobeUrl} for user ${user.id} (tier: ${tier}, limit: ${importLimit})`);
+    console.log(`Scraping wardrobe: ${wardrobeUrl} for user ${user.id} (tier: ${tier}, limit: ${importLimit}, maxPages: ${maxPages})`);
 
     // Scrape with Firecrawl
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
@@ -81,43 +87,66 @@ Deno.serve(async (req) => {
       });
     }
 
-    const scrapeResponse = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${firecrawlKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url: wardrobeUrl,
-        formats: ["markdown"],
-        waitFor: 3000,
-      }),
-    });
+    // Multi-page scraping: scrape up to maxPages of the wardrobe
+    const allMarkdown: string[] = [];
+    let pagesScraped = 0;
 
-    const scrapeData = await scrapeResponse.json();
-    if (!scrapeResponse.ok || !scrapeData.success) {
-      console.error("Firecrawl error:", JSON.stringify(scrapeData));
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Could not scrape the wardrobe. Make sure your Vinted profile is public.",
+    for (let page = 1; page <= maxPages; page++) {
+      const pageUrl = page === 1 ? wardrobeUrl : `${wardrobeUrl}?page=${page}`;
+      console.log(`Scraping page ${page}: ${pageUrl}`);
+
+      const scrapeResponse = await fetch("https://api.firecrawl.dev/v1/scrape", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${firecrawlKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: pageUrl,
+          formats: ["markdown"],
+          waitFor: 3000,
         }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      });
+
+      const scrapeData = await scrapeResponse.json();
+
+      if (!scrapeResponse.ok || !scrapeData.success) {
+        if (page === 1) {
+          console.error("Firecrawl error on first page:", JSON.stringify(scrapeData));
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Could not scrape the wardrobe. Make sure your Vinted profile is public.",
+            }),
+            { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        // Subsequent pages failing is fine — we've reached the end
+        console.log(`Page ${page} failed or empty, stopping pagination.`);
+        break;
+      }
+
+      const pageMarkdown = scrapeData.data?.markdown || scrapeData.markdown || "";
+      if (!pageMarkdown || pageMarkdown.length < 100) {
+        if (page === 1) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Your wardrobe appears empty or private. Make sure your Vinted profile is public and has active listings.",
+            }),
+            { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        console.log(`Page ${page} too short (${pageMarkdown.length} chars), stopping pagination.`);
+        break;
+      }
+
+      allMarkdown.push(`--- PAGE ${page} ---\n${pageMarkdown}`);
+      pagesScraped++;
     }
 
-    const markdown = scrapeData.data?.markdown || scrapeData.markdown || "";
-    if (!markdown || markdown.length < 100) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Your wardrobe appears empty or private. Make sure your Vinted profile is public and has active listings.",
-        }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Scraped ${markdown.length} chars of markdown. Sending to AI for extraction...`);
+    const combinedMarkdown = allMarkdown.join("\n\n");
+    console.log(`Scraped ${pagesScraped} page(s), ${combinedMarkdown.length} total chars. Sending to AI...`);
 
     // Extract structured data via Lovable AI
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
@@ -153,12 +182,12 @@ Deno.serve(async (req) => {
 - image_url (string or null) — first image URL if available (full URL)
 - vinted_url (string or null) — full URL to the listing (construct from relative paths using base domain: ${baseDomain})
 
-Return ONLY a valid JSON array, nothing else. No markdown fences. Maximum ${importLimit} items.
+Return ONLY a valid JSON array, nothing else. No markdown fences. Maximum ${importLimit} items. Deduplicate items that appear on multiple pages.
 If you can't find any listings, return an empty array [].`,
           },
           {
             role: "user",
-            content: `Extract all Vinted listings from this wardrobe page:\n\n${markdown.substring(0, 30000)}`,
+            content: `Extract all Vinted listings from this wardrobe (${pagesScraped} page(s) scraped):\n\n${combinedMarkdown.substring(0, 60000)}`,
           },
         ],
         temperature: 0.1,
