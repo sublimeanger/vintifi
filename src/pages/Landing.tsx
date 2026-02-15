@@ -34,12 +34,6 @@ export default function Landing() {
           animate="visible"
           variants={{ visible: { transition: { staggerChildren: 0.12 } } }}
         >
-          <motion.div variants={fadeUp} custom={0}>
-            <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm font-medium">
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              AI-Powered Vinted Intelligence
-            </Badge>
-          </motion.div>
           <motion.h1
             variants={fadeUp}
             custom={1}

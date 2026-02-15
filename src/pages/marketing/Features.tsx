@@ -180,11 +180,6 @@ export default function Features() {
         </div>
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
-            <motion.div variants={fadeUp}>
-              <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm font-medium">
-                <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Every Tool You Need
-              </Badge>
-            </motion.div>
             <motion.h1 variants={fadeUp} className="font-display text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6">
               Your Unfair Advantage
               <br />
