@@ -1,44 +1,86 @@
 
 
-# Guided Tooltip Tour on First Dashboard Visit
+# Referral Program
 
 ## Overview
-Add a lightweight, 4-step guided tooltip tour that appears on a user's first dashboard visit. It highlights the key features (Price Check, Listings, Trends, Arbitrage) in sequence with dismiss/next/skip controls. No features are blocked -- purely educational.
+Add a referral system where each user gets a unique referral code. When a new user signs up using that code, both the referrer and referee receive 5 bonus credits. Users can share their code from a new Referral card on the Settings page.
 
-## Tour Steps
-1. **Price Check input bar** -- "Paste any Vinted URL here to get AI-powered pricing intelligence in seconds."
-2. **My Listings quick action card** -- "Track all your active listings, views, favourites, and health scores here."
-3. **Trend Radar quick action card** -- "Discover rising brands and styles before they peak."
-4. **Arbitrage Scanner quick action card** -- "Find profitable buy-low-sell-high opportunities across platforms."
+## Database Changes
 
-## Implementation
+### New table: `referrals`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID (PK) | Auto-generated |
+| referrer_id | UUID (NOT NULL) | The user who shared the code |
+| referee_id | UUID (NOT NULL, UNIQUE) | The user who signed up with the code |
+| referral_code | TEXT (NOT NULL) | The code used |
+| credits_awarded | INTEGER (default 5) | Credits given to each party |
+| created_at | TIMESTAMPTZ | When the referral was redeemed |
 
-### 1. New component: `src/components/GuidedTour.tsx`
-A self-contained tour component using Radix Popover (already installed) for tooltip positioning:
-- Accepts an array of step definitions, each with a `targetId` (DOM element ID), title, and description
-- Renders a popover anchored to the current step's target element
-- Shows step counter ("1 of 4"), Next/Back buttons, and a Skip link
-- Styled using existing Card, Button, and design tokens
-- On completion or skip, sets `localStorage` flag `vintifi_tour_completed` to prevent re-showing
+RLS: Users can view their own referrals (as referrer). Service role can insert/manage.
 
-### 2. Update `src/pages/Dashboard.tsx`
-- Add `id` attributes to 4 target elements:
-  - `id="tour-price-check"` on the Price Intelligence Engine card
-  - `id="tour-listings"` on the My Listings quick action card
-  - `id="tour-trends"` on the Trend Radar quick action card
-  - `id="tour-arbitrage"` on the Arbitrage Scanner quick action card
-- Import and render `<GuidedTour />` conditionally (only when `localStorage` flag is not set and data has loaded)
+### Add `referral_code` column to `profiles`
+A unique 8-character alphanumeric code auto-generated for every user. The `handle_new_user` trigger will be updated to generate this on sign-up using `upper(substr(md5(random()::text), 1, 8))`.
 
-### 3. Tour persistence
-- Uses `localStorage` only -- no database changes needed
-- Key: `vintifi_tour_completed`
-- Checked on mount; if not set, tour starts after a short delay (500ms) to let the dashboard render
+## Backend Changes
 
-### No database or backend changes required.
+### Update trigger: `handle_new_user`
+Add referral code generation when creating the profile row.
+
+### New edge function: `redeem-referral`
+- Called after a new user completes onboarding
+- Accepts `{ referral_code: string }`
+- Validates: code exists, isn't the user's own, user hasn't already redeemed one
+- Creates a `referrals` row
+- Adds 5 credits to both referrer and referee `usage_credits.credits_limit`
+- Returns success/failure
+
+## Frontend Changes
+
+### 1. Auth page (`src/pages/Auth.tsx`)
+- Accept `?ref=CODE` query param and store it in `localStorage` (key: `vintifi_referral_code`)
+- No UI change needed on the auth page itself
+
+### 2. Onboarding page (`src/pages/Onboarding.tsx`)
+- After onboarding completes, check `localStorage` for a stored referral code
+- If found, call the `redeem-referral` edge function
+- Show a toast: "Referral applied! You earned 5 bonus credits"
+- Clear the localStorage key
+
+### 3. Settings page (`src/pages/SettingsPage.tsx`)
+- Add a "Referral Program" card showing:
+  - The user's unique referral code (large, copyable)
+  - A share link: `{origin}/auth?mode=signup&ref=CODE`
+  - Copy button and native share button (via `navigator.share` on mobile)
+  - Count of successful referrals
+  - Total credits earned from referrals
+
+### 4. Dashboard sidebar
+- No changes needed (Settings already linked)
+
+## Technical Details
+
+### Referral code format
+8-character uppercase alphanumeric (e.g., `A3F7B2C1`), generated server-side in the trigger to guarantee uniqueness.
+
+### Credit bonus amount
+5 credits to both referrer and referee (configurable in the edge function).
+
+### Security
+- Edge function uses service role to modify credits (users cannot self-award)
+- Unique constraint on `referee_id` prevents double-redemption
+- Code validation checks prevent self-referral
 
 ## Files to create
-- `src/components/GuidedTour.tsx`
+- `supabase/functions/redeem-referral/index.ts`
 
 ## Files to modify
-- `src/pages/Dashboard.tsx` -- add element IDs and render tour component
+- `src/pages/Auth.tsx` -- capture `ref` query param to localStorage
+- `src/pages/Onboarding.tsx` -- redeem referral after onboarding completion
+- `src/pages/SettingsPage.tsx` -- add Referral Program card with code, share, and stats
+
+## Migration
+- Add `referral_code` column to `profiles`
+- Create `referrals` table with RLS
+- Update `handle_new_user` trigger to generate referral codes
 
