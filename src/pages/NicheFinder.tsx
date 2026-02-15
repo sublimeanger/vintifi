@@ -121,7 +121,7 @@ export default function NicheFinder() {
   return (
     <PageShell
       title="Niche Opportunity Finder"
-      subtitle="Find underserved Vinted niches with high demand and low supply"
+      subtitle="Find underserved niches with high demand & low supply"
       icon={<Target className="w-5 h-5 text-primary" />}
     >
       <UseCaseSpotlight
@@ -134,17 +134,17 @@ export default function NicheFinder() {
       />
 
       {/* Filters */}
-      <Card className="p-6 mb-8">
-        <h2 className="font-display font-bold text-base mb-4 flex items-center gap-2">
+      <Card className="p-4 sm:p-6 mb-6 sm:mb-8">
+        <h2 className="font-display font-bold text-sm sm:text-base mb-3 sm:mb-4 flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-primary" />
           Select Categories to Analyse
         </h2>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-5">
           {CATEGORIES.map((cat) => (
             <label
               key={cat}
-              className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
+              className={`flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-lg border cursor-pointer transition-all active:scale-[0.98] ${
                 selectedCategories.includes(cat)
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/30"
@@ -154,15 +154,15 @@ export default function NicheFinder() {
                 checked={selectedCategories.includes(cat)}
                 onCheckedChange={() => toggleCategory(cat)}
               />
-              <span className="text-sm font-medium">{cat}</span>
+              <span className="text-xs sm:text-sm font-medium">{cat}</span>
             </label>
           ))}
         </div>
 
-        <div className="mb-5">
-          <Label className="text-xs mb-1.5 block">Price Range (optional)</Label>
+        <div className="mb-5 space-y-1.5">
+          <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price Range (optional)</Label>
           <Select value={priceRange} onValueChange={setPriceRange}>
-            <SelectTrigger className="w-full sm:w-64">
+            <SelectTrigger className="w-full sm:w-64 h-11 sm:h-10 text-base sm:text-sm">
               <SelectValue placeholder="All price ranges" />
             </SelectTrigger>
             <SelectContent>
@@ -176,7 +176,7 @@ export default function NicheFinder() {
           </Select>
         </div>
 
-        <Button onClick={handleScan} disabled={loading || selectedCategories.length === 0} className="w-full font-semibold">
+        <Button onClick={handleScan} disabled={loading || selectedCategories.length === 0} className="w-full font-semibold h-12 sm:h-11 active:scale-[0.98] transition-transform">
           {loading ? (
             <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Analysing niches...</>
           ) : (
@@ -190,35 +190,37 @@ export default function NicheFinder() {
 
       {/* Results */}
       {hasSearched && !loading && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
           {niches.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <Card className="p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Niches Found</p>
-                <p className="font-display text-2xl font-bold">{niches.length}</p>
+                <p className="font-display text-xl sm:text-2xl font-bold">{niches.length}</p>
               </Card>
               <Card className="p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Top Score</p>
-                <p className={`font-display text-2xl font-bold ${scoreColor(topScore)}`}>{topScore}</p>
+                <p className={`font-display text-xl sm:text-2xl font-bold ${scoreColor(topScore)}`}>{topScore}</p>
               </Card>
               <Card className="p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Categories</p>
-                <p className="font-display text-2xl font-bold">{selectedCategories.length}</p>
+                <p className="font-display text-xl sm:text-2xl font-bold">{selectedCategories.length}</p>
               </Card>
             </div>
           )}
 
           {niches.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Target className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-              <h3 className="font-display font-bold text-lg mb-2">No strong niches found</h3>
-              <p className="text-sm text-muted-foreground">
+            <Card className="p-8 sm:p-10 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+                <Target className="w-7 h-7 text-muted-foreground/40" />
+              </div>
+              <h3 className="font-display font-bold text-base sm:text-lg mb-2">No strong niches found</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto">
                 Try selecting different categories or adjusting the price range.
               </p>
             </Card>
           ) : (
-            <div className="space-y-4">
-              <h3 className="font-display font-bold text-base flex items-center gap-2">
+            <div className="space-y-3 sm:space-y-4">
+              <h3 className="font-display font-bold text-sm sm:text-base flex items-center gap-2">
                 <Target className="w-4 h-4 text-primary" />
                 {niches.length} Niche Opportunities
               </h3>
@@ -231,14 +233,14 @@ export default function NicheFinder() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
                   >
-                    <Card className="p-5 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between gap-4 mb-3">
+                    <Card className="p-3.5 sm:p-5 hover:shadow-md active:scale-[0.99] transition-all">
+                      <div className="flex items-start justify-between gap-3 sm:gap-4 mb-3">
                         <div className="min-w-0 flex-1">
                           <h4 className="font-display font-bold text-sm">{niche.niche_name}</h4>
                           <Badge variant="outline" className="text-[10px] mt-1">{niche.category}</Badge>
                         </div>
-                        <div className={`rounded-xl px-3 py-2 text-center shrink-0 border ${scoreBg(niche.opportunity_score)}`}>
-                          <p className={`font-display text-lg font-extrabold leading-none ${scoreColor(niche.opportunity_score)}`}>
+                        <div className={`rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 text-center shrink-0 border ${scoreBg(niche.opportunity_score)}`}>
+                          <p className={`font-display text-base sm:text-lg font-extrabold leading-none ${scoreColor(niche.opportunity_score)}`}>
                             {niche.opportunity_score}
                           </p>
                           <p className="text-[9px] text-muted-foreground mt-0.5">score</p>
@@ -246,7 +248,7 @@ export default function NicheFinder() {
                       </div>
 
                       {/* Supply vs Demand bars */}
-                      <div className="grid grid-cols-2 gap-3 mb-3 p-3 rounded-lg bg-muted/50">
+                      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 mb-3 p-2.5 sm:p-3 rounded-lg bg-muted/50">
                         <div>
                           <div className="flex items-center gap-1.5 mb-1">
                             <TrendingUp className="w-3 h-3 text-success" />
@@ -273,25 +275,25 @@ export default function NicheFinder() {
                       <div className="grid grid-cols-3 gap-2 mb-3 text-center">
                         <div>
                           <p className="text-[10px] text-muted-foreground">Avg Price</p>
-                          <p className="font-display font-bold text-sm">{String(niche.avg_price).startsWith("£") ? niche.avg_price : `£${niche.avg_price}`}</p>
+                          <p className="font-display font-bold text-xs sm:text-sm">{String(niche.avg_price).startsWith("£") ? niche.avg_price : `£${niche.avg_price}`}</p>
                         </div>
                         <div>
                           <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-                            <ShoppingBag className="w-2.5 h-2.5" /> Monthly Sales
+                            <ShoppingBag className="w-2.5 h-2.5" /> Sales/mo
                           </p>
-                          <p className="font-display font-bold text-sm">{niche.estimated_monthly_sales}</p>
+                          <p className="font-display font-bold text-xs sm:text-sm">{niche.estimated_monthly_sales}</p>
                         </div>
                         <div>
                           <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-                            <Users className="w-2.5 h-2.5" /> Competitors
+                            <Users className="w-2.5 h-2.5" /> Sellers
                           </p>
-                          <p className="font-display font-bold text-sm">{niche.competition_count}</p>
+                          <p className="font-display font-bold text-xs sm:text-sm">{niche.competition_count}</p>
                         </div>
                       </div>
 
                       {/* Sourcing tips */}
                       {niche.sourcing_tips && (
-                        <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 mb-2">
+                        <div className="p-2.5 sm:p-3 rounded-lg bg-primary/5 border border-primary/10 mb-2">
                           <p className="text-xs flex items-start gap-1.5">
                             <Lightbulb className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
                             <span>{niche.sourcing_tips}</span>
@@ -304,14 +306,14 @@ export default function NicheFinder() {
                       )}
 
                       {/* Action Buttons */}
-                      <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" className="text-xs" onClick={() => navigate(`/price-check?category=${encodeURIComponent(niche.niche_name)}`)}>
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                        <Button variant="outline" size="sm" className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform" onClick={() => navigate(`/price-check?category=${encodeURIComponent(niche.niche_name)}`)}>
                           <Search className="w-3 h-3 mr-1" /> Price Check
                         </Button>
-                        <Button variant="outline" size="sm" className="text-xs" onClick={() => navigate(`/arbitrage?category=${encodeURIComponent(niche.niche_name)}`)}>
+                        <Button variant="outline" size="sm" className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform" onClick={() => navigate(`/arbitrage?category=${encodeURIComponent(niche.niche_name)}`)}>
                           <ArrowRightLeft className="w-3 h-3 mr-1" /> Find Deals
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate("/trends")}>
+                        <Button variant="ghost" size="sm" className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform" onClick={() => navigate("/trends")}>
                           <TrendingUp className="w-3 h-3 mr-1" /> Trends
                         </Button>
                       </div>
@@ -323,7 +325,7 @@ export default function NicheFinder() {
           )}
 
           <div className="flex justify-center pt-4">
-            <Button onClick={() => { setHasSearched(false); setNiches([]); }} variant="outline">
+            <Button onClick={() => { setHasSearched(false); setNiches([]); }} variant="outline" className="active:scale-95 transition-transform">
               New Search
             </Button>
           </div>
