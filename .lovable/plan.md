@@ -1,76 +1,127 @@
 
 
-# Niche Opportunity Finder
+# Use Case Spotlight Component
 
-## What It Does
-Identifies Vinted categories and niches where **buyer demand (search volume/interest) significantly outstrips seller supply (active listings)**, representing high-margin opportunities where sellers can command premium prices. Results are ranked by estimated profit potential and accessibility.
+## Overview
+Add a reusable "Use Case Spotlight" component that appears as a collapsible callout at the top of each feature page. It paints a relatable real-world scenario showing exactly when and why this feature is valuable. Users can dismiss it permanently (stored in localStorage).
 
-## How It Works
-1. User selects categories to analyse (or "All") and optionally filters by price range
-2. Backend edge function uses **Firecrawl** to search Vinted for listing counts and demand signals across categories/niches
-3. **Gemini AI** analyses the scraped data to identify supply/demand gaps, scoring each niche by opportunity strength
-4. Results display as ranked niche cards with actionable sourcing advice
+## New File
 
-## New Files
+### `src/components/UseCaseSpotlight.tsx`
+A reusable component that accepts:
+- `featureKey: string` -- unique key for localStorage dismissal tracking (e.g., "price-check", "arbitrage")
+- `icon: LucideIcon` -- feature-relevant icon
+- `scenario: string` -- the relatable scenario title (e.g., "You just found a vintage Burberry trench at a charity shop...")
+- `description: string` -- 2-3 sentence story explaining the problem
+- `outcome: string` -- how this feature solves it with a concrete result
+- `tip?: string` -- optional pro tip
 
-### 1. Edge Function: `supabase/functions/niche-finder/index.ts`
-- Accepts `{ categories: string[], price_range?: string, limit?: number }`
-- Auth-protected (same pattern as clearance-radar)
-- Searches Vinted via Firecrawl for each selected category -- queries both "active listings" and "sold items" to gauge supply vs demand
-- Sends combined data to Gemini AI with a structured prompt asking it to identify underserved niches
-- AI returns JSON array of niche opportunities with fields: `niche_name`, `category`, `demand_level` (high/medium/low), `supply_level` (high/medium/low), `opportunity_score` (0--100), `avg_price`, `estimated_monthly_sales`, `competition_count`, `sourcing_tips`, `ai_reasoning`
-- Returns max 12 niches ranked by opportunity score
+Renders as:
+- A collapsible Card with a lightbulb icon and "When to use this" header
+- Collapsed by default after first visit, expanded on first visit
+- Subtle gradient border (primary/5) to stand out without being loud
+- "Got it, don't show again" dismiss button that sets `localStorage.setItem(\`spotlight_dismissed_\${featureKey}\`, "true")`
+- Uses Collapsible from Radix (already installed) with smooth Framer Motion animation
+- Compact on mobile, slightly wider on desktop
 
-### 2. Frontend Page: `src/pages/NicheFinder.tsx`
-- PageShell header with Target icon and title "Niche Opportunity Finder"
-- Category multi-select: Womenswear, Menswear, Streetwear, Vintage, Designer, Shoes, Accessories, Kids, Home (checkboxes, same pattern as Clearance Radar retailers)
-- Optional price range selector (Under 10, 10--25, 25--50, 50--100, 100+)
-- "Find Niches" scan button
-- Results: summary stats row (niches found, top opportunity score, avg demand gap) plus niche cards
-- Each niche card shows:
-  - Niche name and category badge
-  - Supply vs Demand visual bar comparison (red for undersupplied, green for demand)
-  - Opportunity score gauge/badge (colour-coded like TrendCard)
-  - Avg price, estimated monthly sales, competition count
-  - AI sourcing tips in plain English
-- Empty state and loading skeletons (reuse ArbitrageCardSkeleton)
-- Mobile-responsive with bottom nav padding
+## Modified Files -- Add Spotlight to Each Feature Page
 
-## Modified Files
+Each page gets a `<UseCaseSpotlight>` placed just below the page header, with tailored scenario content:
 
-### 3. `src/App.tsx`
-- Import NicheFinder page
-- Add route: `/niche-finder` (protected + onboarding guard)
+### `src/pages/PriceCheck.tsx`
+- Scenario: "You found a pair of Dr. Martens 1460s at a car boot sale for GBP8..."
+- Outcome: "Price Check reveals they sell for GBP45-55 on Vinted. You list at GBP49 and sell within 3 days."
 
-### 4. `src/pages/Dashboard.tsx`
-- Add "Niche Finder" nav item under the "Intelligence" section with a Target icon, after Clearance Radar
+### `src/pages/OptimizeListing.tsx`
+- Scenario: "Your listing has been up for 2 weeks with zero interest..."
+- Outcome: "The AI rewrites your title with high-traffic keywords and your views jump 4x overnight."
 
-### 5. `supabase/config.toml`
-- Add `[functions.niche-finder]` with `verify_jwt = false`
+### `src/pages/BulkOptimize.tsx`
+- Scenario: "You just sourced 30 items from a clearance sale and need to list them all tonight..."
+- Outcome: "Upload a CSV and get 30 AI-optimised listings in under a minute. Copy-paste straight to Vinted."
 
-## No Database Changes
-Results are returned directly to the frontend (same ephemeral pattern as Arbitrage Scanner and Clearance Radar).
+### `src/pages/TrendRadar.tsx`
+- Scenario: "You keep seeing Carhartt WIP jackets selling fast but you're not sure if the trend has peaked..."
+- Outcome: "Trend Radar shows demand is up 280% and hasn't peaked yet. You source 5 jackets and sell them all within a week."
+
+### `src/pages/ArbitrageScanner.tsx`
+- Scenario: "You wonder if the North Face puffer on eBay for GBP25 is worth flipping..."
+- Outcome: "Arbitrage Scanner shows the same jacket sells for GBP55-65 on Vinted. That's a GBP30+ profit per flip."
+
+### `src/pages/CompetitorTracker.tsx`
+- Scenario: "A rival seller keeps undercutting your Nike listings and you don't know their strategy..."
+- Outcome: "Competitor Tracker reveals they drop prices every Friday. You adjust your timing and win more sales."
+
+### `src/pages/ClearanceRadar.tsx`
+- Scenario: "ASOS Outlet has a flash sale but you don't know which items actually resell well on Vinted..."
+- Outcome: "Clearance Radar cross-references sale prices vs Vinted resale and highlights 8 items with 50%+ margins."
+
+### `src/pages/NicheFinder.tsx`
+- Scenario: "You want to expand beyond trainers but have no idea which category has the least competition..."
+- Outcome: "Niche Finder reveals vintage homewares have 3x more demand than supply. You pivot and double your margins."
+
+### `src/pages/CharityBriefing.tsx`
+- Scenario: "You're heading to the charity shop on Saturday but always end up buying random stuff that doesn't sell..."
+- Outcome: "Open your Charity Briefing on your phone: a curated list of exactly what's trending, what to pay, and what you'll sell it for."
+
+### `src/pages/SeasonalCalendar.tsx`
+- Scenario: "It's September and your summer dresses aren't shifting. You're stuck with dead stock..."
+- Outcome: "The Seasonal Calendar would have told you to discount summer stock in August and start listing coats in September."
+
+### `src/pages/DeadStock.tsx`
+- Scenario: "You have 40 items that haven't sold in over a month, tying up GBP600 in capital..."
+- Outcome: "Dead Stock Engine suggests a price reduction schedule, 5 bundle pairings, and 3 items to crosslist to Depop."
+
+### `src/pages/RelistScheduler.tsx`
+- Scenario: "You know relisting boosts visibility but you always forget, and when you do it's at the wrong time..."
+- Outcome: "Relist Scheduler queues your stale items for optimal times: womenswear on Sunday evening, menswear on Tuesday morning."
+
+### `src/pages/PortfolioOptimizer.tsx`
+- Scenario: "You have 200 active listings and suspect many are mispriced, but checking each one takes hours..."
+- Outcome: "Portfolio Optimiser scans everything in one click: 12 items overpriced, 3 underpriced, 8 need relisting. One-tap fixes."
+
+### `src/pages/Analytics.tsx`
+- Scenario: "You feel busy but aren't sure if you're actually making money after costs..."
+- Outcome: "P&L Analytics shows your true margin is 34%, trainers are your best category, and vintage dresses have negative ROI."
+
+### `src/pages/Listings.tsx`
+- Scenario: "You have items scattered everywhere and can't remember what you paid for half of them..."
+- Outcome: "My Listings gives you a single view of everything: purchase price, current price, days listed, and health score at a glance."
 
 ## Technical Details
 
-### Edge function structure
-Identical pattern to `clearance-radar/index.ts`:
-- CORS headers, auth verification, Firecrawl search, AI analysis, JSON parsing with fallback
-- Two parallel Firecrawl search batches per category: one for active listings (`site:vinted.co.uk {category}`), one for sold/popular items (`site:vinted.co.uk {category} popular OR sold`)
-- AI prompt instructs Gemini to cross-reference supply counts against demand signals and identify gaps
+### Component structure
+```text
++--------------------------------------------------+
+| [Lightbulb icon] When to use this    [Chevron v]  |
++--------------------------------------------------+
+| [Expanded content when open]                      |
+|                                                   |
+| "You found a pair of Dr. Martens 1460s at a       |
+|  car boot sale for GBP8..."                       |
+|                                                   |
+| Price Check reveals they sell for GBP45-55 on     |
+| Vinted. You list at GBP49 and sell in 3 days.     |
+|                                                   |
+| Pro tip: Check sold items, not just active ones.  |
+|                                                   |
+|              [Got it, don't show again]           |
++--------------------------------------------------+
+```
 
-### AI prompt design
-The prompt instructs the AI to:
-- Analyse listing volume vs engagement signals (favourites, sold velocity) per niche
-- Score each niche 0--100 based on demand-supply gap magnitude
-- Only return niches with opportunity score >= 50
-- Include practical sourcing tips (where to find stock, what to pay)
-- Output structured JSON array
+### State management
+- First visit to any feature page: spotlight is expanded (open)
+- Subsequent visits: spotlight is collapsed but still visible
+- After "Got it, don't show again": spotlight is hidden entirely
+- All state tracked via localStorage with keys like `spotlight_seen_price-check` and `spotlight_dismissed_price-check`
 
-### UI patterns
-- Reuses PageShell, Card, Badge, Button, Checkbox, Slider from shadcn
-- Framer Motion staggered card animations (same as ClearanceRadar)
-- Opportunity score colour coding: 80+ green, 60--79 amber, 50--59 orange
-- Supply/demand comparison shown as a simple two-bar mini chart inside each card
-- Mobile-first responsive layout
+### Styling
+- Light gradient background: `bg-gradient-to-r from-primary/5 to-transparent`
+- Subtle left border accent: `border-l-2 border-primary/30`
+- Scenario title in semibold, description in normal weight, outcome in success green
+- Responsive: full width on mobile, max-w-2xl on desktop
+- Uses existing Collapsible component from Radix
+
+### No backend or database changes required
+Everything is client-side with localStorage persistence.
 
