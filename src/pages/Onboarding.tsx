@@ -53,6 +53,21 @@ export default function Onboarding() {
         .eq("user_id", user.id);
       if (error) throw error;
       await refreshProfile();
+
+      // Redeem referral code if present
+      const refCode = localStorage.getItem("vintifi_referral_code");
+      if (refCode) {
+        try {
+          const { data, error: refErr } = await supabase.functions.invoke("redeem-referral", {
+            body: { referral_code: refCode },
+          });
+          if (!refErr && data?.success) {
+            toast.success("Referral applied! You earned 5 bonus credits 🎉");
+          }
+        } catch {}
+        localStorage.removeItem("vintifi_referral_code");
+      }
+
       navigate("/dashboard");
       toast.success("Welcome to Vintifi! 🚀");
     } catch (err: any) {
