@@ -47,19 +47,31 @@ Deno.serve(async (req) => {
       .from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle();
     const tier = profile?.subscription_tier || "free";
 
-    // --- Tier check: Pro+ required for wardrobe import ---
-    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
-    if ((tierLevel[tier] ?? 0) < 1) {
-      return new Response(
-        JSON.stringify({ success: false, error: "This feature requires a Pro plan. Upgrade to continue." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    // --- End tier check ---
-
     const importLimit = TIER_LIMITS[tier] || 20;
     const maxPages = TIER_MAX_PAGES[tier] || 1;
     const deepLimit = TIER_DEEP_LIMITS[tier] || 5;
+
+    // --- Monthly import limit check ---
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const { count: importedThisMonth } = await supabase
+      .from("listings")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", monthStart.toISOString());
+
+    const usedCount = importedThisMonth ?? 0;
+    const remaining = Math.max(0, importLimit - usedCount);
+
+    if (remaining <= 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: `You've reached your monthly import limit of ${importLimit} listings. Upgrade your plan for more.` }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // --- End monthly limit check ---
 
     let wardrobeUrl = profile_url.trim();
     if (!wardrobeUrl.startsWith("http")) wardrobeUrl = `https://www.${wardrobeUrl}`;
@@ -179,8 +191,8 @@ Return ONLY a valid JSON array. No markdown fences. Maximum ${importLimit} items
       });
     }
 
-    const cappedItems = items.slice(0, importLimit);
-    console.log(`Extracted ${items.length} items, importing ${cappedItems.length}`);
+    const cappedItems = items.slice(0, Math.min(importLimit, remaining));
+    console.log(`Extracted ${items.length} items, importing ${cappedItems.length} (remaining allowance: ${remaining})`);
 
     // Phase 2: Deep import — scrape individual listing pages for descriptions
     let descriptionsFetched = 0;
