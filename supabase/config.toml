@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.redeem-referral]
 verify_jwt = false
+
+[functions.clearance-radar]
+verify_jwt = false
