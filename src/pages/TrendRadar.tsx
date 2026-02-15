@@ -11,7 +11,6 @@ import TrendCard from "@/components/trends/TrendCard";
 import TrendStats from "@/components/trends/TrendStats";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { TrendCardSkeleton } from "@/components/LoadingSkeletons";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type Trend = {
   id: string;
@@ -39,12 +38,12 @@ const categories = [
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));
-  if (hours < 1) return "less than an hour ago";
-  if (hours === 1) return "1 hour ago";
-  if (hours < 24) return `${hours} hours ago`;
+  if (hours < 1) return "just now";
+  if (hours === 1) return "1h ago";
+  if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
-  if (days === 1) return "1 day ago";
-  return `${days} days ago`;
+  if (days === 1) return "1d ago";
+  return `${days}d ago`;
 }
 
 export default function TrendRadar() {
@@ -76,7 +75,6 @@ export default function TrendRadar() {
 
   useEffect(() => { fetchTrends(); }, [user]);
 
-  // Client-side category filtering
   const filteredTrends = selectedCategory === "All"
     ? allTrends
     : allTrends.filter((t) => t.category === selectedCategory);
@@ -100,9 +98,9 @@ export default function TrendRadar() {
       subtitle={subtitleParts.join(" · ")}
       actions={
         lastUpdated ? (
-          <Badge variant="outline" className="text-xs gap-1.5 font-normal">
-            <Clock className="w-3 h-3" />
-            Updated {timeAgo(lastUpdated)}
+          <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 font-normal py-0.5">
+            <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            {timeAgo(lastUpdated)}
           </Badge>
         ) : null
       }
@@ -118,56 +116,58 @@ export default function TrendRadar() {
 
       <TrendStats risingCount={risingCount} peakingCount={peakingCount} decliningCount={decliningCount} avgOpportunity={avgOpportunity} />
 
-      {/* Category Tabs */}
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="mb-6">
-        <TabsList className="w-full justify-start overflow-x-auto h-auto flex-wrap gap-1 bg-transparent p-0">
-          {categories.map((cat) => {
-            const count = cat === "All"
-              ? allTrends.length
-              : allTrends.filter((t) => t.category === cat).length;
-            return (
-              <TabsTrigger
-                key={cat}
-                value={cat}
-                className="text-xs shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-1.5 border border-border data-[state=active]:border-primary gap-1.5"
-              >
-                {cat}
-                {count > 0 && (
-                  <span className="bg-muted data-[state=active]:bg-primary-foreground/20 text-[10px] px-1.5 py-0.5 rounded-full">
-                    {count}
-                  </span>
-                )}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+      {/* Category Chips — scrollable on mobile */}
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide mb-5 sm:mb-6 -mx-1 px-1 pb-1">
+        {categories.map((cat) => {
+          const count = cat === "All"
+            ? allTrends.length
+            : allTrends.filter((t) => t.category === cat).length;
+          const active = selectedCategory === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`shrink-0 px-3 py-2 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium border transition-all active:scale-95 flex items-center gap-1.5 ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover:border-primary/30"
+              }`}
+            >
+              {cat}
+              {count > 0 && (
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                  active ? "bg-primary-foreground/20" : "bg-muted"
+                }`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-        {categories.map((cat) => (
-          <TabsContent key={cat} value={cat} className="mt-4">
-            {loading ? (
-              <TrendCardSkeleton count={4} />
-            ) : filteredTrends.length === 0 ? (
-              <div className="text-center py-16">
-                <BarChart3 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                <h3 className="font-display font-bold text-lg mb-2">No trends found</h3>
-                <p className="text-sm text-muted-foreground">
-                  {allTrends.length === 0
-                    ? "Trends update daily at 6am UK time. Check back soon!"
-                    : `No trends in ${cat} right now. Try another category.`}
-                </p>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-4">
-                <AnimatePresence>
-                  {filteredTrends.map((trend, i) => (
-                    <TrendCard key={trend.id} trend={trend} index={i} />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
+      {/* Trend Grid */}
+      {loading ? (
+        <TrendCardSkeleton count={4} />
+      ) : filteredTrends.length === 0 ? (
+        <div className="text-center py-16">
+          <BarChart3 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+          <h3 className="font-display font-bold text-base sm:text-lg mb-2">No trends found</h3>
+          <p className="text-sm text-muted-foreground">
+            {allTrends.length === 0
+              ? "Trends update daily at 6am UK time. Check back soon!"
+              : `No trends in ${selectedCategory} right now. Try another category.`}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <AnimatePresence>
+            {filteredTrends.map((trend, i) => (
+              <TrendCard key={trend.id} trend={trend} index={i} />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
 
       <MobileBottomNav />
     </PageShell>
