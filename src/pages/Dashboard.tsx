@@ -449,17 +449,22 @@ export default function Dashboard() {
               <SectionHeader>Intelligence Tools</SectionHeader>
               <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4 -mx-1 px-1">
                 {[
-                  { icon: Search, label: "Price Check", desc: "Get instant pricing", path: "/price-check", accent: false },
-                  { icon: Zap, label: "Optimise Listing", desc: "AI-powered listing optimisation", path: "/optimize", accent: false },
-                  { icon: ImageIcon, label: "Vintography", desc: "AI photo studio", path: "/vintography", accent: true },
-                  { icon: TrendingUp, label: "Trend Radar", desc: "Rising brands & styles", path: "/trends", tourId: "tour-trends", accent: false },
+                  { icon: Search, label: "Price Check", desc: "Get instant pricing", path: "/price-check", accent: false, badgeCount: 0 },
+                  { icon: Zap, label: "Optimise Listing", desc: "AI-powered listing optimisation", path: "/optimize", accent: false, badgeCount: badges["/listings"] || 0 },
+                  { icon: ImageIcon, label: "Vintography", desc: "AI photo studio", path: "/vintography", accent: true, badgeCount: 0 },
+                  { icon: TrendingUp, label: "Trend Radar", desc: "Rising brands & styles", path: "/trends", tourId: "tour-trends", accent: false, badgeCount: 0 },
                 ].map((item) => (
                   <Card
                     key={item.path + item.label}
                     id={(item as any).tourId}
-                    className="min-w-[130px] sm:min-w-0 p-3 sm:p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] transition-all border-border/50 flex-shrink-0"
-                    onClick={() => navigate(item.path)}
+                    className="min-w-[130px] sm:min-w-0 p-3 sm:p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] transition-all border-border/50 flex-shrink-0 relative"
+                    onClick={() => navigate(item.badgeCount > 0 ? "/listings?filter=needs_optimising" : item.path)}
                   >
+                    {item.badgeCount > 0 && (
+                      <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-accent-foreground text-[10px] font-bold flex items-center justify-center">
+                        {item.badgeCount}
+                      </span>
+                    )}
                     <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-2.5 sm:mb-3 ${item.accent ? "bg-accent/15" : "bg-primary/10"}`}>
                       <item.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${item.accent ? "text-accent" : "text-primary"}`} />
                     </div>
