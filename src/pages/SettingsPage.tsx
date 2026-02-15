@@ -434,8 +434,8 @@ export default function SettingsPage() {
           )}
         </Card>
 
-        {/* Guided Tour */}
-        <Card className="p-6">
+        {/* Guided Tour - desktop only */}
+        <Card className="p-6 hidden lg:block">
           <div className="flex items-center gap-2 mb-4">
             <RotateCcw className="w-5 h-5 text-primary" />
             <h2 className="font-display font-bold text-lg">Guided Tour</h2>
