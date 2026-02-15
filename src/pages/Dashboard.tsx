@@ -251,13 +251,13 @@ export default function Dashboard() {
                 <Menu className="w-5 h-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0 bg-sidebar text-sidebar-foreground">
-              <SheetHeader className="p-5 border-b border-sidebar-border">
+            <SheetContent side="left" className="w-72 p-0 bg-sidebar text-sidebar-foreground flex flex-col h-full">
+              <SheetHeader className="p-5 border-b border-sidebar-border shrink-0">
                 <SheetTitle className="font-display text-xl font-extrabold text-sidebar-foreground">
                   <span className="text-gradient">Vintifi</span>
                 </SheetTitle>
               </SheetHeader>
-              <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto scrollbar-hide" style={{ maxHeight: 'calc(100vh - 10rem - env(safe-area-inset-bottom))' }}>
+              <nav className="flex-1 min-h-0 px-3 py-4 space-y-4 overflow-y-auto">
                 {navSections.map((section) => (
                   <div key={section.label}>
                     <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">{section.label}</p>
@@ -275,7 +275,7 @@ export default function Dashboard() {
                   </div>
                 ))}
               </nav>
-              <div className="p-4 border-t border-sidebar-border">
+              <div className="p-4 border-t border-sidebar-border shrink-0">
                 <button onClick={() => { signOut(); setSheetOpen(false); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-destructive">
                   <LogOut className="w-4 h-4" /> Sign Out
                 </button>
