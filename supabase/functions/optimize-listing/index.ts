@@ -36,13 +36,40 @@ serve(async (req) => {
             headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
             body: JSON.stringify({
               url: vintedUrl,
-              formats: ["markdown", "links"],
+              formats: ["markdown", "html", "links"],
               onlyMainContent: true,
+              waitFor: 5000,
             }),
           });
           const scrapeData = await scrapeRes.json();
           const markdown = scrapeData.data?.markdown || "";
+          const html = scrapeData.data?.html || "";
           const metadata = scrapeData.data?.metadata || {};
+
+          // Try to extract description from HTML first (most reliable for Vinted)
+          let htmlDescription = "";
+          // Vinted uses itemprop="description" or data-testid with description
+          const descHtmlPatterns = [
+            /itemprop=["']description["'][^>]*>([\s\S]*?)<\//i,
+            /class=["'][^"']*description[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|p|span)/i,
+            /<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i,
+            /<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i,
+          ];
+          for (const pat of descHtmlPatterns) {
+            const m = html.match(pat);
+            if (m?.[1]?.trim() && m[1].trim().length > 15) {
+              // Strip HTML tags from matched content
+              htmlDescription = m[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"').trim();
+              break;
+            }
+          }
+          // Also try og:description from metadata
+          if (!htmlDescription && metadata.ogDescription && metadata.ogDescription.length > 15) {
+            htmlDescription = metadata.ogDescription;
+          }
+          if (!htmlDescription && metadata.description && metadata.description.length > 15) {
+            htmlDescription = metadata.description;
+          }
 
           // Extract image URLs from scraped data
           const scraped_links = scrapeData.data?.links || [];
@@ -110,11 +137,14 @@ serve(async (req) => {
               .trim();
             if (!extractedDescription) extractedDescription = "No description available";
 
+            // Prefer HTML-extracted description over markdown-extracted
+            const finalDescription = htmlDescription || extractedDescription;
+
             return new Response(JSON.stringify({
               photos: imageUrls.slice(0, 4),
               title: metadata.title || titleMatch?.[1] || "",
               brand: brandMatch?.[1]?.trim() || metadata.ogTitle?.split(" ")?.[0] || "",
-              description: extractedDescription,
+              description: finalDescription,
               category: "",
               size: sizeMatch?.[1]?.trim() || "",
               condition: conditionMatch?.[1]?.trim() || "",
