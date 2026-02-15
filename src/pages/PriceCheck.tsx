@@ -12,7 +12,8 @@ import { motion } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import {
-  Search, Loader2, Zap, BarChart3, CheckCircle2,
+  Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
+  ArrowRight, RotateCcw, Sparkles, ExternalLink,
 } from "lucide-react";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PriceReportSkeleton } from "@/components/LoadingSkeletons";
@@ -116,9 +117,15 @@ export default function PriceCheck() {
     return "Low";
   };
 
+  const getConfidenceBg = (score: number) => {
+    if (score >= 80) return "bg-success/10 border-success/20";
+    if (score >= 60) return "bg-accent/10 border-accent/20";
+    return "bg-destructive/10 border-destructive/20";
+  };
+
   return (
     <PageShell
-      title="Price Intelligence Engine"
+      title="Price Intelligence"
       subtitle={credits ? `${credits.credits_limit - credits.price_checks_used} checks remaining` : ""}
       maxWidth="max-w-4xl"
     >
@@ -132,26 +139,41 @@ export default function PriceCheck() {
       />
 
       {/* Input Section */}
-      <Card className="p-4 sm:p-6 mb-6 sm:mb-8">
-        <div className="flex gap-2 mb-4">
-          <Button variant={inputMode === "url" ? "default" : "outline"} size="sm" onClick={() => setInputMode("url")}>
+      <Card className="p-4 sm:p-6 mb-6 sm:mb-8 border-border/50">
+        {/* Mode Toggle */}
+        <div className="flex gap-1.5 mb-5 bg-muted/60 p-1 rounded-lg w-fit">
+          <button
+            onClick={() => setInputMode("url")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              inputMode === "url"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
             Vinted URL
-          </Button>
-          <Button variant={inputMode === "manual" ? "default" : "outline"} size="sm" onClick={() => setInputMode("manual")}>
+          </button>
+          <button
+            onClick={() => setInputMode("manual")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              inputMode === "manual"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
             Manual Entry
-          </Button>
+          </button>
         </div>
 
         {inputMode === "url" ? (
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://www.vinted.co.uk/items/..."
-              className="flex-1"
+              className="flex-1 h-12 text-base sm:text-sm"
               onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
             />
-            <Button onClick={() => handleAnalyze()} disabled={loading} className="font-semibold h-10">
+            <Button onClick={() => handleAnalyze()} disabled={loading} className="font-semibold h-12 px-6 sm:w-auto w-full">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
               Analyse
             </Button>
@@ -159,20 +181,20 @@ export default function PriceCheck() {
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Brand</Label>
-                <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Nike, Zara" />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
+                <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Nike, Zara" className="h-12 text-base sm:text-sm" />
               </div>
-              <div>
-                <Label>Category</Label>
-                <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. T-shirt, Jacket" />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
+                <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. T-shirt, Jacket" className="h-12 text-base sm:text-sm" />
               </div>
             </div>
-            <div>
-              <Label>Condition</Label>
-              <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Good, Very Good, New with tags" />
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
+              <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Good, Very Good, New with tags" className="h-12 text-base sm:text-sm" />
             </div>
-            <Button onClick={() => handleAnalyze()} disabled={loading} className="w-full sm:w-auto font-semibold">
+            <Button onClick={() => handleAnalyze()} disabled={loading} className="w-full sm:w-auto font-semibold h-12 px-6">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
               Get Price Analysis
             </Button>
@@ -181,55 +203,70 @@ export default function PriceCheck() {
       </Card>
 
       {/* Loading State */}
-      {loading && (
-        <PriceReportSkeleton />
-      )}
+      {loading && <PriceReportSkeleton />}
 
       {/* Report */}
       {report && !loading && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
-          {/* Hero Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <Card className="p-4 sm:p-6 border-primary/20 bg-primary/[0.02]">
-              <p className="text-xs sm:text-sm text-muted-foreground mb-1 font-medium">Recommended Price</p>
-              <p className="font-display text-3xl sm:text-4xl font-extrabold text-foreground">
-                £{report.recommended_price.toFixed(2)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Range: £{report.price_range_low.toFixed(2)} – £{report.price_range_high.toFixed(2)}
-              </p>
-            </Card>
-            <Card className="p-4 sm:p-6">
-              <p className="text-xs sm:text-sm text-muted-foreground mb-1 font-medium">Confidence</p>
+          {/* Hero Price Card */}
+          <Card className="p-5 sm:p-8 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1 font-medium flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-primary" />
+              Recommended Price
+            </p>
+            <p className="font-display text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight">
+              £{report.recommended_price.toFixed(2)}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Market range: <span className="font-semibold text-foreground">£{report.price_range_low.toFixed(2)}</span> – <span className="font-semibold text-foreground">£{report.price_range_high.toFixed(2)}</span>
+            </p>
+            {report.item_title && (
+              <p className="text-xs text-muted-foreground mt-3 truncate">{report.item_brand && `${report.item_brand} · `}{report.item_title}</p>
+            )}
+          </Card>
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 gap-3">
+            <Card className={`p-4 ${getConfidenceBg(report.confidence_score)}`}>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 font-medium uppercase tracking-wider">Confidence</p>
               <div className="flex items-baseline gap-2">
-                <p className={`font-display text-3xl sm:text-4xl font-extrabold ${getConfidenceColor(report.confidence_score)}`}>
+                <p className={`font-display text-2xl sm:text-3xl font-extrabold ${getConfidenceColor(report.confidence_score)}`}>
                   {report.confidence_score}%
                 </p>
-                <Badge variant="outline" className={getConfidenceColor(report.confidence_score)}>
+                <Badge variant="outline" className={`${getConfidenceColor(report.confidence_score)} text-[10px] hidden sm:inline-flex`}>
                   {getConfidenceLabel(report.confidence_score)}
                 </Badge>
               </div>
             </Card>
-            <Card className="p-4 sm:p-6">
-              <p className="text-xs sm:text-sm text-muted-foreground mb-1 font-medium">Comparables Found</p>
-              <p className="font-display text-3xl sm:text-4xl font-extrabold">
+            <Card className="p-4 bg-muted/30">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 font-medium uppercase tracking-wider">Comparables</p>
+              <p className="font-display text-2xl sm:text-3xl font-extrabold">
                 {report.comparable_items?.length || 0}
               </p>
+              <p className="text-[10px] text-muted-foreground">items analysed</p>
             </Card>
           </div>
 
           {/* Price Distribution Chart */}
           {report.price_distribution && report.price_distribution.length > 0 && (
             <Card className="p-4 sm:p-6">
-              <h3 className="font-display font-bold text-base sm:text-lg mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-primary" />
+              <h3 className="font-display font-bold text-sm sm:text-lg mb-4 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 Price Distribution
               </h3>
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={report.price_distribution}>
-                  <XAxis dataKey="range" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
+                  <XAxis dataKey="range" tick={{ fontSize: 10 }} interval={0} angle={-30} textAnchor="end" height={50} />
+                  <YAxis tick={{ fontSize: 10 }} width={30} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "1px solid hsl(var(--border))",
+                      background: "hsl(var(--background))",
+                      fontSize: "12px",
+                    }}
+                  />
                   <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                     {report.price_distribution.map((_, i) => (
                       <Cell key={i} fill={`hsl(350, 75%, ${55 + i * 5}%)`} />
@@ -243,29 +280,48 @@ export default function PriceCheck() {
           {/* Comparable Items */}
           {report.comparable_items && report.comparable_items.length > 0 && (
             <Card className="p-4 sm:p-6">
-              <h3 className="font-display font-bold text-base sm:text-lg mb-4">Comparable Items</h3>
-              <div className="space-y-3">
+              <h3 className="font-display font-bold text-sm sm:text-lg mb-4 flex items-center gap-2">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                Comparable Items
+              </h3>
+              <div className="space-y-2">
                 {report.comparable_items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex-1 min-w-0">
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex items-center justify-between p-3 sm:p-4 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors group"
+                  >
+                    <div className="flex-1 min-w-0 mr-3">
                       <p className="text-sm font-medium truncate">{item.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         {item.sold ? (
-                          <Badge variant="outline" className="text-success border-success/30 text-[10px]">
+                          <Badge variant="outline" className="text-success border-success/30 text-[10px] py-0">
                             <CheckCircle2 className="w-3 h-3 mr-1" /> Sold
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-muted-foreground text-[10px]">
-                            Active
-                          </Badge>
+                          <Badge variant="outline" className="text-muted-foreground text-[10px] py-0">Active</Badge>
                         )}
-                        {item.days_listed && (
-                          <span className="text-xs text-muted-foreground">{item.days_listed}d listed</span>
+                        {item.days_listed != null && (
+                          <span className="text-[10px] text-muted-foreground">{item.days_listed}d listed</span>
                         )}
                       </div>
                     </div>
-                    <p className="font-display font-bold text-sm sm:text-lg ml-3 shrink-0">£{item.price.toFixed(2)}</p>
-                  </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <p className="font-display font-bold text-base sm:text-lg">£{item.price.toFixed(2)}</p>
+                      {item.url && (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 text-muted-foreground hover:text-primary" />
+                        </a>
+                      )}
+                    </div>
+                  </motion.div>
                 ))}
               </div>
             </Card>
@@ -273,24 +329,34 @@ export default function PriceCheck() {
 
           {/* AI Insights */}
           {report.ai_insights && (
-            <Card className="p-4 sm:p-6">
-              <h3 className="font-display font-bold text-base sm:text-lg mb-4 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-primary" />
+            <Card className="p-4 sm:p-6 border-primary/10 bg-gradient-to-br from-primary/[0.02] to-transparent">
+              <h3 className="font-display font-bold text-sm sm:text-lg mb-3 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 AI Insights
               </h3>
-              <div className="prose prose-sm max-w-none text-muted-foreground">
-                <p className="leading-relaxed whitespace-pre-wrap">{report.ai_insights}</p>
+              <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {report.ai_insights}
               </div>
             </Card>
           )}
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:justify-center">
-            <Button onClick={() => { setReport(null); setUrl(""); }} variant="outline" className="w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 sm:justify-center pt-2 pb-4">
+            <Button
+              onClick={() => { setReport(null); setUrl(""); setBrand(""); setCategory(""); setCondition(""); }}
+              variant="outline"
+              className="w-full sm:w-auto h-12 sm:h-10"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
               New Analysis
             </Button>
-            <Button onClick={() => navigate("/dashboard")} className="w-full sm:w-auto">
-              Back to Dashboard
+            <Button
+              onClick={() => navigate(`/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}`)}
+              className="w-full sm:w-auto h-12 sm:h-10"
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Optimise This Listing
+              <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
         </motion.div>
