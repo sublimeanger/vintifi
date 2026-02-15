@@ -59,6 +59,33 @@ export const STRIPE_TIERS = {
 
 export type TierKey = keyof typeof STRIPE_TIERS;
 
+export const CREDIT_PACKS = [
+  {
+    credits: 10,
+    price: 2.99,
+    price_id: "price_1T0t9m4qASjubvn3EZeqG8Sh",
+    product_id: "prod_TyqrAktXCAAqXl",
+    label: "10 Credits",
+    popular: false,
+  },
+  {
+    credits: 25,
+    price: 5.99,
+    price_id: "price_1T0t9n4qASjubvn3Akt5hBIZ",
+    product_id: "prod_Tyqr7S9IGVN5Aa",
+    label: "25 Credits",
+    popular: true,
+  },
+  {
+    credits: 50,
+    price: 9.99,
+    price_id: "price_1T0t9o4qASjubvn3Betm5xoU",
+    product_id: "prod_TyqrLZZTTXPoMt",
+    label: "50 Credits",
+    popular: false,
+  },
+] as const;
+
 export const SELLING_CATEGORIES = [
   "Womenswear",
   "Menswear",

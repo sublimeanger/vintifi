@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, User, CreditCard, Loader2, Check, Mail, Send, Globe, RotateCcw } from "lucide-react";
-import { STRIPE_TIERS, TierKey, TIMEZONES } from "@/lib/constants";
+import { ArrowLeft, User, CreditCard, Loader2, Check, Mail, Send, Globe, RotateCcw, Zap } from "lucide-react";
+import { STRIPE_TIERS, TierKey, TIMEZONES, CREDIT_PACKS } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function SettingsPage() {
@@ -29,6 +29,7 @@ export default function SettingsPage() {
     (profile as any)?.timezone || "Europe/London"
   );
   const [timezoneSaving, setTimezoneSaving] = useState(false);
+  const [creditPackLoading, setCreditPackLoading] = useState<string | null>(null);
 
   const currentTier = (profile?.subscription_tier || "free") as TierKey;
 
@@ -77,6 +78,21 @@ export default function SettingsPage() {
       toast.error(err.message || "Failed to open billing portal");
     } finally {
       setPortalLoading(false);
+    }
+  };
+
+  const handleBuyCredits = async (priceId: string) => {
+    setCreditPackLoading(priceId);
+    try {
+      const { data, error } = await supabase.functions.invoke("buy-credits", {
+        body: { price_id: priceId },
+      });
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to start checkout");
+    } finally {
+      setCreditPackLoading(null);
     }
   };
 
@@ -203,6 +219,51 @@ export default function SettingsPage() {
                 </Card>
               );
             })}
+          </div>
+        </Card>
+
+        {/* Credit Packs */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-5 h-5 text-primary" />
+            <h2 className="font-display font-bold text-lg">Credit Packs</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Need more price checks or listing optimisations? Buy a top-up pack — credits are added instantly.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {CREDIT_PACKS.map((pack) => (
+              <Card
+                key={pack.price_id}
+                className={`p-4 relative ${pack.popular ? "border-primary ring-1 ring-primary" : ""}`}
+              >
+                {pack.popular && (
+                  <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px]">
+                    Best Value
+                  </Badge>
+                )}
+                <h3 className="font-display font-bold text-center">{pack.label}</h3>
+                <p className="font-display text-2xl font-bold text-center mt-1">
+                  £{pack.price}
+                </p>
+                <p className="text-xs text-muted-foreground text-center mt-0.5">
+                  £{(pack.price / pack.credits).toFixed(2)}/credit
+                </p>
+                <Button
+                  className="w-full mt-4"
+                  size="sm"
+                  variant={pack.popular ? "default" : "outline"}
+                  disabled={creditPackLoading === pack.price_id}
+                  onClick={() => handleBuyCredits(pack.price_id)}
+                >
+                  {creditPackLoading === pack.price_id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Buy Now"
+                  )}
+                </Button>
+              </Card>
+            ))}
           </div>
         </Card>
 
