@@ -93,10 +93,11 @@ Deno.serve(async (req) => {
     // Vinted uses infinite scroll — we use Firecrawl actions to scroll down and load all items
     const scrollActions = [];
     // Scroll down multiple times to trigger lazy loading (each scroll loads ~20 items)
-    const scrollCount = Math.min(Math.ceil(importLimit / 20), 15); // cap at 15 scrolls (~300 items)
+    // Keep scrolls modest to avoid Firecrawl timeout (default 30s)
+    const scrollCount = Math.min(Math.ceil(importLimit / 20), 8); // cap at 8 scrolls (~160 items)
     for (let s = 0; s < scrollCount; s++) {
-      scrollActions.push({ type: "scroll", direction: "down", amount: 3000 });
-      scrollActions.push({ type: "wait", milliseconds: 1500 });
+      scrollActions.push({ type: "scroll", direction: "down", amount: 2000 });
+      scrollActions.push({ type: "wait", milliseconds: 800 });
     }
 
     console.log(`Scraping wardrobe with ${scrollCount} scrolls to load items: ${wardrobeUrl}`);
@@ -107,7 +108,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         url: wardrobeUrl,
         formats: ["markdown"],
-        waitFor: 3000,
+        waitFor: 2000,
+        timeout: 60000,
         actions: scrollActions,
       }),
     });
