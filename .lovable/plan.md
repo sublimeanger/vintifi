@@ -1,86 +1,79 @@
 
-
-# Referral Program
+# Retail Clearance Radar
 
 ## Overview
-Add a referral system where each user gets a unique referral code. When a new user signs up using that code, both the referrer and referee receive 5 bonus credits. Users can share their code from a new Referral card on the Settings page.
+A new feature page that monitors major UK retail clearance/sale pages (ASOS Outlet, End Clothing, TK Maxx online, etc.) and cross-references sale prices against Vinted resale values. When a clearance item has strong Vinted demand and a margin above the user's configured threshold (default: 40%), it surfaces as a sourcing alert.
 
-## Database Changes
+## How It Works
+The user selects one or more retail sources and optionally filters by brand/category. The backend edge function uses Firecrawl to scrape clearance pages, then searches Vinted for comparable items, and finally passes both datasets to AI to identify profitable flip opportunities with margin calculations.
 
-### New table: `referrals`
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID (PK) | Auto-generated |
-| referrer_id | UUID (NOT NULL) | The user who shared the code |
-| referee_id | UUID (NOT NULL, UNIQUE) | The user who signed up with the code |
-| referral_code | TEXT (NOT NULL) | The code used |
-| credits_awarded | INTEGER (default 5) | Credits given to each party |
-| created_at | TIMESTAMPTZ | When the referral was redeemed |
+## New Files
 
-RLS: Users can view their own referrals (as referrer). Service role can insert/manage.
+### 1. Edge function: `supabase/functions/clearance-radar/index.ts`
+- Accepts `{ retailers: string[], brand?: string, category?: string, min_margin?: number }`
+- Auth-protected (validates user token)
+- For each selected retailer, uses Firecrawl search to find clearance items (e.g., `site:asos.com/outlet {brand} {category}`)
+- Searches Vinted via Firecrawl for comparable items to establish resale baseline
+- Sends combined data to AI (Lovable gateway, gemini-2.5-flash) with a structured prompt
+- AI returns JSON array of opportunities: retail source, item title, sale price, estimated Vinted resale price, profit, margin, buy URL, reasoning
+- Returns results to frontend
 
-### Add `referral_code` column to `profiles`
-A unique 8-character alphanumeric code auto-generated for every user. The `handle_new_user` trigger will be updated to generate this on sign-up using `upper(substr(md5(random()::text), 1, 8))`.
+### 2. Frontend page: `src/pages/ClearanceRadar.tsx`
+- Header with back button and page title ("Retail Clearance Radar")
+- Retailer selector: checkboxes for ASOS Outlet, End Clothing, TK Maxx, Nike Clearance, Adidas Outlet, ZARA Sale (multi-select)
+- Optional brand and category text inputs
+- Minimum margin slider (10%--80%, default 40%)
+- "Scan Clearance" button triggers the edge function
+- Results display: summary stats (opportunities found, total potential profit, avg margin) plus card list
+- Each card shows: item title, retailer badge, sale price vs Vinted resale price comparison, profit badge, AI reasoning, and "Buy Now" external link
+- Empty state and loading skeleton following existing patterns (similar to ArbitrageScanner)
 
-## Backend Changes
+## Modified Files
 
-### Update trigger: `handle_new_user`
-Add referral code generation when creating the profile row.
+### 3. `src/App.tsx`
+- Import `ClearanceRadar` page
+- Add route: `/clearance-radar`
 
-### New edge function: `redeem-referral`
-- Called after a new user completes onboarding
-- Accepts `{ referral_code: string }`
-- Validates: code exists, isn't the user's own, user hasn't already redeemed one
-- Creates a `referrals` row
-- Adds 5 credits to both referrer and referee `usage_credits.credits_limit`
-- Returns success/failure
+### 4. `src/pages/Dashboard.tsx`
+- Add "Clearance Radar" nav item to the sidebar under the Tools or Sourcing section (alongside Arbitrage Scanner and Charity Briefing)
 
-## Frontend Changes
+### 5. `supabase/config.toml`
+- Add `[functions.clearance-radar]` with `verify_jwt = false`
 
-### 1. Auth page (`src/pages/Auth.tsx`)
-- Accept `?ref=CODE` query param and store it in `localStorage` (key: `vintifi_referral_code`)
-- No UI change needed on the auth page itself
+## No Database Changes Required
+Results are returned directly to the frontend (same pattern as Arbitrage Scanner). No new tables needed -- if desired later, opportunities can be stored in the existing `arbitrage_opportunities` table with a `source_platform` value like "ASOS Outlet".
 
-### 2. Onboarding page (`src/pages/Onboarding.tsx`)
-- After onboarding completes, check `localStorage` for a stored referral code
-- If found, call the `redeem-referral` edge function
-- Show a toast: "Referral applied! You earned 5 bonus credits"
-- Clear the localStorage key
-
-### 3. Settings page (`src/pages/SettingsPage.tsx`)
-- Add a "Referral Program" card showing:
-  - The user's unique referral code (large, copyable)
-  - A share link: `{origin}/auth?mode=signup&ref=CODE`
-  - Copy button and native share button (via `navigator.share` on mobile)
-  - Count of successful referrals
-  - Total credits earned from referrals
-
-### 4. Dashboard sidebar
-- No changes needed (Settings already linked)
+## Supported Retailers
+| Retailer | Firecrawl Search Target |
+|----------|------------------------|
+| ASOS Outlet | `site:asos.com sale OR outlet` |
+| End Clothing | `site:endclothing.com sale` |
+| TK Maxx | `site:tkmaxx.com` |
+| Nike Clearance | `site:nike.com sale` |
+| Adidas Outlet | `site:adidas.co.uk outlet OR sale` |
+| ZARA Sale | `site:zara.com sale` |
 
 ## Technical Details
 
-### Referral code format
-8-character uppercase alphanumeric (e.g., `A3F7B2C1`), generated server-side in the trigger to guarantee uniqueness.
+### Edge function structure
+Follows the exact same pattern as `arbitrage-scan/index.ts`:
+- CORS headers
+- Auth verification via Supabase anon key + user client
+- Firecrawl search calls (parallel per retailer + Vinted baseline)
+- AI prompt requesting structured JSON output
+- JSON parsing with fallback error handling
+- Returns `{ opportunities, retailers_searched, total_found }`
 
-### Credit bonus amount
-5 credits to both referrer and referee (configurable in the edge function).
+### AI prompt design
+The prompt instructs the AI to:
+- Compare clearance prices against Vinted resale estimates
+- Only return items above the minimum margin threshold
+- Include buy URLs from search results
+- Return max 10 opportunities ranked by margin
+- Output fields: `retailer, item_title, item_url, sale_price, vinted_resale_price, estimated_profit, profit_margin, brand, category, ai_notes`
 
-### Security
-- Edge function uses service role to modify credits (users cannot self-award)
-- Unique constraint on `referee_id` prevents double-redemption
-- Code validation checks prevent self-referral
-
-## Files to create
-- `supabase/functions/redeem-referral/index.ts`
-
-## Files to modify
-- `src/pages/Auth.tsx` -- capture `ref` query param to localStorage
-- `src/pages/Onboarding.tsx` -- redeem referral after onboarding completion
-- `src/pages/SettingsPage.tsx` -- add Referral Program card with code, share, and stats
-
-## Migration
-- Add `referral_code` column to `profiles`
-- Create `referrals` table with RLS
-- Update `handle_new_user` trigger to generate referral codes
-
+### UI patterns
+- Reuses existing design language: `Card`, `Badge`, `Button`, `Slider`, `Input` from shadcn
+- Framer Motion animations matching ArbitrageScanner
+- Retailer badges with colour coding (similar to platform badges in Arbitrage)
+- Mobile-responsive with bottom nav padding
