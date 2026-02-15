@@ -8,11 +8,13 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   Link2, Unlink, Loader2, ExternalLink, CheckCircle2,
-  Clock, AlertTriangle, ShoppingBag, Store, Sparkles,
+  Clock, AlertTriangle, ShoppingBag, Store, Sparkles, ShieldCheck,
 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { VintedProModal } from "@/components/VintedProModal";
+import { FEATURE_FLAGS } from "@/lib/constants";
 
 type PlatformConnection = {
   id: string;
@@ -39,10 +41,12 @@ const PLATFORMS = [
     name: "Vinted Pro",
     icon: Store,
     description: "Publish directly to Vinted via the Pro Integrations API. Requires a Vinted Pro business account.",
-    status: "coming_soon" as const,
+    status: (FEATURE_FLAGS.VINTED_PRO_ENABLED ? "available" : "coming_soon") as "available" | "coming_soon",
     color: "border-teal-500/20 bg-teal-500/[0.03]",
-    badgeColor: "bg-accent/10 text-accent border-accent/20",
-    badgeLabel: "Coming Soon",
+    badgeColor: FEATURE_FLAGS.VINTED_PRO_ENABLED
+      ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+      : "bg-accent/10 text-accent border-accent/20",
+    badgeLabel: FEATURE_FLAGS.VINTED_PRO_ENABLED ? "Beta" : "Coming Soon",
   },
   {
     key: "depop",
@@ -62,6 +66,8 @@ export default function PlatformConnections() {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [vintedProModalOpen, setVintedProModalOpen] = useState(false);
+  const [testingConnection, setTestingConnection] = useState<string | null>(null);
 
   const fetchConnections = async () => {
     if (!user) return;
@@ -87,6 +93,10 @@ export default function PlatformConnections() {
     connections.find((c) => c.platform === platform);
 
   const handleConnect = async (platform: string) => {
+    if (platform === "vinted_pro" && FEATURE_FLAGS.VINTED_PRO_ENABLED) {
+      setVintedProModalOpen(true);
+      return;
+    }
     if (platform !== "ebay") {
       toast.info("This platform integration is coming soon!");
       return;
@@ -129,6 +139,26 @@ export default function PlatformConnections() {
     }
   };
 
+  const handleTestConnection = async (platform: string) => {
+    setTestingConnection(platform);
+    try {
+      const { data, error } = await supabase.functions.invoke("connect-vinted-pro", {
+        body: { action: "test_connection" },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success("Connection is healthy!");
+      } else {
+        toast.error(data?.error || "Connection test failed");
+      }
+      fetchConnections();
+    } catch (err: any) {
+      toast.error(err.message || "Test failed");
+    } finally {
+      setTestingConnection(null);
+    }
+  };
+
   const isTokenExpired = (expiresAt: string | null) => {
     if (!expiresAt) return false;
     return new Date(expiresAt) < new Date();
@@ -155,6 +185,7 @@ export default function PlatformConnections() {
         {PLATFORMS.map((platform, i) => {
           const conn = getConnection(platform.key);
           const isConnected = conn && conn.status === "active";
+          const hasError = conn && conn.status === "error";
           const expired = conn && isTokenExpired(conn.token_expires_at);
           const Icon = platform.icon;
 
@@ -179,13 +210,17 @@ export default function PlatformConnections() {
                           ? expired
                             ? "bg-destructive/10 text-destructive border-destructive/20"
                             : "bg-success/10 text-success border-success/20"
-                          : platform.badgeColor
+                          : hasError
+                            ? "bg-destructive/10 text-destructive border-destructive/20"
+                            : platform.badgeColor
                       }`}>
                         {isConnected
                           ? expired
                             ? "Token Expired"
                             : "Connected"
-                          : platform.badgeLabel}
+                          : hasError
+                            ? "Error"
+                            : platform.badgeLabel}
                       </Badge>
                     </div>
 
@@ -193,7 +228,7 @@ export default function PlatformConnections() {
                       {platform.description}
                     </p>
 
-                    {isConnected && (
+                    {(isConnected || hasError) && conn && (
                       <div className="flex items-center gap-3 mb-3 text-[10px] sm:text-xs text-muted-foreground">
                         {conn.platform_username && (
                           <span className="flex items-center gap-1">
@@ -211,13 +246,19 @@ export default function PlatformConnections() {
                             Needs re-auth
                           </span>
                         )}
+                        {hasError && (
+                          <span className="flex items-center gap-1 text-destructive">
+                            <AlertTriangle className="w-3 h-3" />
+                            Credentials invalid
+                          </span>
+                        )}
                       </div>
                     )}
 
                     <div className="flex items-center gap-2">
-                      {isConnected ? (
+                      {isConnected || hasError ? (
                         <>
-                          {expired && (
+                          {(expired || hasError) && (
                             <Button
                               size="sm"
                               className="h-8 sm:h-9 text-xs active:scale-95 transition-transform"
@@ -230,6 +271,22 @@ export default function PlatformConnections() {
                                 <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
                               )}
                               Re-authorise
+                            </Button>
+                          )}
+                          {platform.key === "vinted_pro" && isConnected && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 sm:h-9 text-xs active:scale-95 transition-transform"
+                              onClick={() => handleTestConnection(platform.key)}
+                              disabled={testingConnection === platform.key}
+                            >
+                              {testingConnection === platform.key ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                              ) : (
+                                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                              )}
+                              Test Connection
                             </Button>
                           )}
                           <Button
@@ -298,6 +355,12 @@ export default function PlatformConnections() {
           </ul>
         </Card>
       </motion.div>
+
+      <VintedProModal
+        open={vintedProModalOpen}
+        onOpenChange={setVintedProModalOpen}
+        onConnected={fetchConnections}
+      />
 
       <MobileBottomNav />
     </PageShell>
