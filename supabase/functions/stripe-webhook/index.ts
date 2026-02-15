@@ -8,6 +8,12 @@ const TIER_MAP: Record<string, { tier: string; credits: number }> = {
   "prod_TyltldO5OcP5cE": { tier: "scale", credits: 999 },
 };
 
+const CREDIT_PACK_MAP: Record<string, number> = {
+  "prod_TyqrAktXCAAqXl": 10,
+  "prod_Tyqr7S9IGVN5Aa": 25,
+  "prod_TyqrLZZTTXPoMt": 50,
+};
+
 serve(async (req) => {
   const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
     apiVersion: "2025-08-27.basil",
@@ -44,6 +50,37 @@ serve(async (req) => {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+
+        // Handle one-time credit pack purchase
+        if (session.mode === "payment" && session.metadata?.type === "credit_pack") {
+          const userId = session.metadata.user_id;
+          if (userId) {
+            // Get the line items to determine which credit pack
+            const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+            const productId = lineItems.data[0]?.price?.product as string;
+            const creditsToAdd = CREDIT_PACK_MAP[productId] || 0;
+
+            if (creditsToAdd > 0) {
+              // Increment the user's credits_limit
+              const { data: currentCredits } = await supabase
+                .from("usage_credits")
+                .select("credits_limit")
+                .eq("user_id", userId)
+                .maybeSingle();
+
+              const newLimit = (currentCredits?.credits_limit || 5) + creditsToAdd;
+              await supabase
+                .from("usage_credits")
+                .update({ credits_limit: newLimit })
+                .eq("user_id", userId);
+
+              console.log(`[STRIPE-WEBHOOK] User ${userId} purchased ${creditsToAdd} credits. New limit: ${newLimit}`);
+            }
+          }
+          break;
+        }
+
+        // Handle subscription checkout
         if (session.mode === "subscription" && session.customer_email) {
           const { data: users } = await supabase.auth.admin.listUsers();
           const user = users.users.find((u) => u.email === session.customer_email);
