@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Target, Loader2, Zap, TrendingUp, TrendingDown,
-  BarChart3, ShoppingBag, Users, Lightbulb,
+  BarChart3, ShoppingBag, Users, Lightbulb, Search, ArrowRightLeft,
 } from "lucide-react";
 import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -67,6 +68,7 @@ function levelBar(level: "high" | "medium" | "low") {
 }
 
 export default function NicheFinder() {
+  const navigate = useNavigate();
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -298,8 +300,21 @@ export default function NicheFinder() {
                       )}
 
                       {niche.ai_reasoning && (
-                        <p className="text-xs text-muted-foreground leading-relaxed">{niche.ai_reasoning}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-3">{niche.ai_reasoning}</p>
                       )}
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" className="text-xs" onClick={() => navigate(`/price-check?category=${encodeURIComponent(niche.niche_name)}`)}>
+                          <Search className="w-3 h-3 mr-1" /> Price Check
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-xs" onClick={() => navigate(`/arbitrage?category=${encodeURIComponent(niche.niche_name)}`)}>
+                          <ArrowRightLeft className="w-3 h-3 mr-1" /> Find Deals
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate("/trends")}>
+                          <TrendingUp className="w-3 h-3 mr-1" /> Trends
+                        </Button>
+                      </div>
                     </Card>
                   </motion.div>
                 ))}

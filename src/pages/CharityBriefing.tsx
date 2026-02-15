@@ -8,8 +8,9 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, RefreshCw, ShoppingBag, TrendingUp, Star,
-  PoundSterling, Lightbulb, Loader2, MapPin, ChevronDown, ChevronUp,
+  PoundSterling, Lightbulb, Loader2, MapPin, ChevronDown, ChevronUp, Search,
 } from "lucide-react";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { BriefingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
@@ -190,6 +191,14 @@ export default function CharityBriefing() {
                                   <Lightbulb className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
                                   <p className="text-xs text-foreground/80">{item.tip}</p>
                                 </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs mt-2 w-full"
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/price-check?brand=${encodeURIComponent(item.brand)}&category=${encodeURIComponent(item.category)}`); }}
+                                >
+                                  <Search className="w-3 h-3 mr-1" /> Price Check {item.brand}
+                                </Button>
                               </div>
                             </motion.div>
                           )}
@@ -221,6 +230,7 @@ export default function CharityBriefing() {
           </AnimatePresence>
         )}
       </div>
+      <MobileBottomNav />
     </div>
   );
 }

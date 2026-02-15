@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -60,14 +60,15 @@ const LANGUAGES = [
 
 export default function OptimizeListing() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, session, refreshCredits } = useAuth();
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
-  const [brand, setBrand] = useState("");
-  const [category, setCategory] = useState("");
+  const [brand, setBrand] = useState(searchParams.get("brand") || "");
+  const [category, setCategory] = useState(searchParams.get("category") || "");
   const [size, setSize] = useState("");
-  const [condition, setCondition] = useState("");
-  const [currentTitle, setCurrentTitle] = useState("");
+  const [condition, setCondition] = useState(searchParams.get("condition") || "");
+  const [currentTitle, setCurrentTitle] = useState(searchParams.get("title") || "");
   const [currentDescription, setCurrentDescription] = useState("");
   const [optimizing, setOptimizing] = useState(false);
   const [result, setResult] = useState<OptimiseResult | null>(null);

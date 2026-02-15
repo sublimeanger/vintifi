@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -373,6 +374,23 @@ export default function DeadStock() {
                             Estimated ~{rec.estimated_days_to_sell} days to sell after taking action
                           </p>
                         )}
+
+                        {/* Action Links */}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {rec.listing_id && rec.action === "price_reduction" && rec.suggested_price != null && (
+                            <Button size="sm" variant="outline" className="text-xs h-7" onClick={(e) => { e.stopPropagation(); handleApplyPrice(rec.listing_id!, rec.suggested_price!); }}>
+                              Apply £{rec.suggested_price.toFixed(0)}
+                            </Button>
+                          )}
+                          {rec.action === "relist" && (
+                            <Button size="sm" variant="outline" className="text-xs h-7" onClick={(e) => { e.stopPropagation(); navigate("/relist"); }}>
+                              <RefreshCw className="w-3 h-3 mr-1" /> Relist Scheduler
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="text-xs h-7" onClick={(e) => { e.stopPropagation(); navigate(`/price-check?brand=${encodeURIComponent(rec.listing_title.split(" ")[0])}`); }}>
+                            Price Check
+                          </Button>
+                        </div>
                       </motion.div>
                     )}
                   </CardContent>
@@ -382,6 +400,7 @@ export default function DeadStock() {
           })}
         </AnimatePresence>
       </div>
+      <MobileBottomNav />
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3, Search, ArrowRightLeft } from "lucide-react";
 
 type Trend = {
   id: string;
@@ -46,6 +48,7 @@ function getOpportunityBg(score: number | null) {
 }
 
 export default function TrendCard({ trend, index }: { trend: Trend; index: number }) {
+  const navigate = useNavigate();
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -105,8 +108,28 @@ export default function TrendCard({ trend, index }: { trend: Trend; index: numbe
           </p>
         )}
 
+        {/* Actions */}
+        <div className="flex gap-2 pt-2 border-t border-border mt-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs flex-1"
+            onClick={() => navigate(`/price-check?brand=${encodeURIComponent(trend.brand_or_item)}&category=${encodeURIComponent(trend.category)}`)}
+          >
+            <Search className="w-3 h-3 mr-1" /> Price Check
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs flex-1"
+            onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(trend.brand_or_item)}`)}
+          >
+            <ArrowRightLeft className="w-3 h-3 mr-1" /> Find Deals
+          </Button>
+        </div>
+
         {/* Footer */}
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-border mt-auto">
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 mt-1">
           {trend.estimated_peak_date && (
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />

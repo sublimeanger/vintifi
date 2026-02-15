@@ -28,7 +28,7 @@ import {
   ArrowLeft, Plus, Search, Loader2, Package, Heart, Eye, Upload,
   TrendingUp, TrendingDown, Minus, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
-  PoundSterling, Calendar, Check, X, Pencil,
+  PoundSterling, Calendar, Check, X, Pencil, Sparkles,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -183,8 +183,21 @@ export default function Listings() {
     if (listing.vinted_url) {
       navigate(`/price-check?url=${encodeURIComponent(listing.vinted_url)}`);
     } else {
-      navigate(`/price-check`);
+      const params = new URLSearchParams();
+      if (listing.brand) params.set("brand", listing.brand);
+      if (listing.category) params.set("category", listing.category);
+      if (listing.condition) params.set("condition", listing.condition);
+      navigate(`/price-check?${params.toString()}`);
     }
+  };
+
+  const handleOptimiseListing = (listing: Listing) => {
+    const params = new URLSearchParams();
+    if (listing.title) params.set("title", listing.title);
+    if (listing.brand) params.set("brand", listing.brand);
+    if (listing.category) params.set("category", listing.category);
+    if (listing.condition) params.set("condition", listing.condition);
+    navigate(`/optimize?${params.toString()}`);
   };
 
   const startEdit = (id: string, field: string, currentValue: string | number | null) => {
@@ -571,6 +584,9 @@ export default function Listings() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handlePriceCheck(listing)}>
                                   <Zap className="w-4 h-4 mr-2" /> Run Price Check
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOptimiseListing(listing)}>
+                                  <Sparkles className="w-4 h-4 mr-2" /> Optimise Listing
                                 </DropdownMenuItem>
                                 {listing.vinted_url && (
                                   <DropdownMenuItem onClick={() => window.open(listing.vinted_url!, "_blank")}>

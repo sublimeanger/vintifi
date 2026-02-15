@@ -43,13 +43,18 @@ export default function PriceCheck() {
   const navigate = useNavigate();
   const { user, credits, refreshCredits } = useAuth();
 
+  const paramBrand = searchParams.get("brand") || "";
+  const paramCategory = searchParams.get("category") || "";
+  const paramCondition = searchParams.get("condition") || "";
+  const hasManualParams = !!(paramBrand || paramCategory || paramCondition);
+
   const [url, setUrl] = useState(searchParams.get("url") || "");
-  const [brand, setBrand] = useState("");
-  const [category, setCategory] = useState("");
-  const [condition, setCondition] = useState("");
+  const [brand, setBrand] = useState(paramBrand);
+  const [category, setCategory] = useState(paramCategory);
+  const [condition, setCondition] = useState(paramCondition);
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<PriceReport | null>(null);
-  const [inputMode, setInputMode] = useState<"url" | "manual">("url");
+  const [inputMode, setInputMode] = useState<"url" | "manual">(hasManualParams ? "manual" : "url");
 
   useEffect(() => {
     const urlParam = searchParams.get("url");

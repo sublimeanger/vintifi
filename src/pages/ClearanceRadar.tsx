@@ -12,8 +12,9 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Search, Loader2, Zap, ExternalLink,
-  TrendingUp, ShoppingBag, BarChart3, ShoppingCart,
+  TrendingUp, ShoppingBag, BarChart3, ShoppingCart, Sparkles,
 } from "lucide-react";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
@@ -286,13 +287,31 @@ export default function ClearanceRadar() {
                           <p className="text-xs text-muted-foreground leading-relaxed mb-3">{opp.ai_notes}</p>
                         )}
 
-                        {opp.item_url && (
-                          <a href={opp.item_url} target="_blank" rel="noopener noreferrer">
-                            <Button variant="outline" size="sm" className="text-xs">
-                              <ExternalLink className="w-3 h-3 mr-1" /> Buy Now
-                            </Button>
-                          </a>
-                        )}
+                        <div className="flex flex-wrap gap-2">
+                          {opp.item_url && (
+                            <a href={opp.item_url} target="_blank" rel="noopener noreferrer">
+                              <Button variant="outline" size="sm" className="text-xs">
+                                <ExternalLink className="w-3 h-3 mr-1" /> Buy Now
+                              </Button>
+                            </a>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => navigate(`/optimize?brand=${encodeURIComponent(opp.brand || "")}&category=${encodeURIComponent(opp.category || "")}`)}
+                          >
+                            <Sparkles className="w-3 h-3 mr-1" /> Create Listing
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => navigate(`/price-check?brand=${encodeURIComponent(opp.brand || "")}&category=${encodeURIComponent(opp.category || "")}`)}
+                          >
+                            <Search className="w-3 h-3 mr-1" /> Price Check
+                          </Button>
+                        </div>
                       </Card>
                     </motion.div>
                   ))}
@@ -308,6 +327,7 @@ export default function ClearanceRadar() {
           </motion.div>
         )}
       </div>
+      <MobileBottomNav />
     </div>
   );
 }
