@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { HealthScoreMini } from "@/components/HealthScoreGauge";
+import { PublishModal } from "@/components/PublishModal";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,7 +29,7 @@ import {
   Plus, Search, Loader2, Package, Heart, Eye, Upload,
   TrendingUp, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
-  PoundSterling, Calendar, Check, X, Pencil, Sparkles,
+  PoundSterling, Calendar, Check, X, Pencil, Sparkles, Send,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -101,6 +102,7 @@ export default function Listings() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [publishListing, setPublishListing] = useState<Listing | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editField, setEditField] = useState<string | null>(null);
@@ -610,6 +612,9 @@ export default function Listings() {
                               <DropdownMenuItem onClick={() => handleOptimiseListing(listing)}>
                                 <Sparkles className="w-4 h-4 mr-2" /> Optimise Listing
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setPublishListing(listing)}>
+                                <Send className="w-4 h-4 mr-2" /> Publish to Platforms
+                              </DropdownMenuItem>
                               {listing.vinted_url && (
                                 <DropdownMenuItem onClick={() => window.open(listing.vinted_url!, "_blank")}>
                                   <ExternalLink className="w-4 h-4 mr-2" /> View on Vinted
@@ -727,6 +732,12 @@ export default function Listings() {
           </AnimatePresence>
         </div>
       )}
+
+      <PublishModal
+        open={!!publishListing}
+        onOpenChange={(open) => !open && setPublishListing(null)}
+        listing={publishListing}
+      />
 
       <MobileBottomNav />
     </PageShell>
