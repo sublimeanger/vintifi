@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,26 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Not authenticated");
+
+    // --- Tier check: Business+ required for multi-language ---
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userErr } = await anonClient.auth.getUser(token);
+    if (userErr || !user) throw new Error("Not authenticated");
+
+    const { data: profile } = await supabase
+      .from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle();
+    const tier = profile?.subscription_tier || "free";
+    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    if ((tierLevel[tier] ?? 0) < 2) {
+      return new Response(
+        JSON.stringify({ error: "This feature requires a Business plan. Upgrade to continue." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // --- End tier check ---
 
     const { title, description, tags, languages } = await req.json();
 

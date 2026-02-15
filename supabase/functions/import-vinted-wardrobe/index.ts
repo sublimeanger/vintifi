@@ -46,6 +46,17 @@ Deno.serve(async (req) => {
     const { data: profile } = await supabase
       .from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle();
     const tier = profile?.subscription_tier || "free";
+
+    // --- Tier check: Pro+ required for wardrobe import ---
+    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    if ((tierLevel[tier] ?? 0) < 1) {
+      return new Response(
+        JSON.stringify({ success: false, error: "This feature requires a Pro plan. Upgrade to continue." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // --- End tier check ---
+
     const importLimit = TIER_LIMITS[tier] || 20;
     const maxPages = TIER_MAX_PAGES[tier] || 1;
     const deepLimit = TIER_DEEP_LIMITS[tier] || 5;
