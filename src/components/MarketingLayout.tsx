@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowUp, Menu, X } from "lucide-react";
+import { ArrowRight, ArrowUp, LayoutDashboard, Menu, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navLinks = [
   { to: "/", label: "Home" },
@@ -31,6 +32,7 @@ const stats = [
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -78,12 +80,20 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             ))}
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="hidden sm:inline-flex">
-              Sign in
-            </Button>
-            <Button size="sm" onClick={() => navigate("/auth?mode=signup")} className="font-semibold">
-              Get Started Free
-            </Button>
+            {user ? (
+              <Button size="sm" onClick={() => navigate("/dashboard")} className="font-semibold">
+                <LayoutDashboard className="w-4 h-4 mr-1.5" /> Dashboard
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="hidden sm:inline-flex">
+                  Sign in
+                </Button>
+                <Button size="sm" onClick={() => navigate("/auth?mode=signup")} className="font-semibold">
+                  Get Started Free
+                </Button>
+              </>
+            )}
             {/* Mobile hamburger */}
             <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setMenuOpen(!menuOpen)}>
               {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -114,11 +124,20 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                     {link.label}
                   </Link>
                 ))}
-                <div className="pt-2 border-t border-border mt-2">
-                  <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="w-full justify-start">
-                    Sign in
-                  </Button>
-                </div>
+                {!user && (
+                  <div className="pt-2 border-t border-border mt-2">
+                    <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="w-full justify-start">
+                      Sign in
+                    </Button>
+                  </div>
+                )}
+                {user && (
+                  <div className="pt-2 border-t border-border mt-2">
+                    <Button size="sm" onClick={() => navigate("/dashboard")} className="w-full justify-start font-semibold">
+                      <LayoutDashboard className="w-4 h-4 mr-1.5" /> Go to Dashboard
+                    </Button>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -188,9 +207,15 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <div>
               <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-secondary-foreground/50">Get Started</h4>
               <p className="text-sm text-secondary-foreground/70 mb-4">Join thousands of sellers already using Vintifi.</p>
-              <Button size="sm" onClick={() => navigate("/auth?mode=signup")} className="font-semibold">
-                Start Free <ArrowRight className="ml-1.5 w-3.5 h-3.5" />
-              </Button>
+              {user ? (
+                <Button size="sm" onClick={() => navigate("/dashboard")} className="font-semibold">
+                  Go to Dashboard <ArrowRight className="ml-1.5 w-3.5 h-3.5" />
+                </Button>
+              ) : (
+                <Button size="sm" onClick={() => navigate("/auth?mode=signup")} className="font-semibold">
+                  Start Free <ArrowRight className="ml-1.5 w-3.5 h-3.5" />
+                </Button>
+              )}
             </div>
           </div>
 
