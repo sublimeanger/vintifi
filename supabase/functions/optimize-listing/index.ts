@@ -94,8 +94,10 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
 }`,
     });
 
-    // Add photo URLs as image content
+    // Add photo URLs as image content — use vision-capable model when photos present
+    let hasPhotos = false;
     if (photoUrls && photoUrls.length > 0) {
+      hasPhotos = true;
       for (const photoUrl of photoUrls.slice(0, 4)) {
         userContent.push({
           type: "image_url",
@@ -111,7 +113,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: hasPhotos ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: "You are a Vinted listing optimisation expert. Always respond with valid JSON only. You specialise in creating listings that rank high in Vinted search and convert browsers into buyers." },
           { role: "user", content: userContent },
@@ -129,14 +131,30 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
 
     const aiData = await aiRes.json();
     let content = aiData.choices?.[0]?.message?.content || "";
-    content = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    content = content.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
 
+    // Robust JSON extraction
     let result;
     try {
       result = JSON.parse(content);
     } catch {
-      console.error("Failed to parse AI response:", content);
-      throw new Error("AI returned invalid response");
+      // Try to find JSON boundaries
+      const jsonStart = content.search(/[\{\[]/);
+      const jsonEnd = content.lastIndexOf(jsonStart !== -1 && content[jsonStart] === '[' ? ']' : '}');
+      if (jsonStart !== -1 && jsonEnd > jsonStart) {
+        let cleaned = content.substring(jsonStart, jsonEnd + 1)
+          .replace(/,\s*}/g, "}").replace(/,\s*]/g, "]")
+          .replace(/[\x00-\x1F\x7F]/g, "");
+        try {
+          result = JSON.parse(cleaned);
+        } catch {
+          console.error("Failed to parse AI response after cleanup:", content.substring(0, 200));
+          throw new Error("AI returned invalid response — please try again");
+        }
+      } else {
+        console.error("No JSON found in AI response:", content.substring(0, 200));
+        throw new Error("AI returned invalid response — please try again");
+      }
     }
 
     // Increment optimisation usage
