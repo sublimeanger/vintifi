@@ -1,78 +1,66 @@
 
 
-# Fix Price Check -> Inventory Flow: Use User's Input, Not AI's
+# Fix Vinted Wardrobe Import: Reliable URL-Only Strategy
 
-## The Problem
+## Problem
 
-When you type "jaeger mens blazer" and hit Save to Inventory, the system currently saves the **AI-generated item title** from comparable listings (e.g., "Jaeger Double-Breasted Wool Blazer Navy Size 42R") instead of your actual search term. This breaks the workflow because:
+The current hybrid approach has three compounding failures:
+- Firecrawl only captures ~20 items from a 185-item wardrobe (no infinite scroll)
+- Recommendation/similar item URLs pollute results
+- AI extraction returns 0 usable items, forcing unreliable URL-slug fallback
 
-1. You're doing research, not listing a specific item yet
-2. The AI title comes from *other people's listings*, not your item
-3. You want to add YOUR description to inventory, then use the AI Optimiser later to build out the full listing
+## Proposed Solution: Scroll + Strict URL Filtering (No AI Extraction)
 
-## The Fix
+Eliminate the AI extraction phase entirely. Instead, use a deterministic approach:
 
-### 1. Save to Inventory uses YOUR input, not the AI's
+1. **Phase 1 - Discover URLs with scrolling**: Use Firecrawl `/scrape` with `formats: ["links"]` AND `actions` (scroll down repeatedly) to load more items via infinite scroll
+2. **Phase 2 - Strict URL filtering**: Only keep URLs matching the exact pattern `/{domain}/items/{id}-{slug}` that appear in the page's main content area. Discard any URL that also appears in recommendation sections
+3. **Phase 3 - Deep scrape each item individually**: For each validated URL, scrape the individual listing page to get accurate title, price, brand, image, and description. No AI guessing from slugs
+4. **Remove AI extraction phase entirely**: The AI-based bulk extraction from markdown is the source of unreliability. Delete it
 
-Change the "Save to Inventory" button (line 536-546 in `PriceCheck.tsx`) so it:
-- Uses the **user's typed search query** (`brand`, `category`, raw text) as the listing title
-- Stores the AI `recommended_price` as the guideline sale price
-- Stores `buy_price_good` and `buy_price_max` as reference data
-- Does NOT overwrite with `report.item_title` or `report.item_brand`
+## Key Changes
 
-**Before:**
-```
-title: report.item_title || `${report.item_brand || brand} ${category}`.trim()
-brand: report.item_brand || brand
-```
+### Edge Function (`supabase/functions/import-vinted-wardrobe/index.ts`)
 
-**After:**
-```
-title: `${brand} ${category}`.trim() || "Untitled"
-brand: brand || null
-```
+**Phase 1 - Scrolling link discovery:**
+- Add Firecrawl `actions` parameter with scroll-down actions (up to 10 scrolls with 1000ms waits)
+- Use `formats: ["links"]` to get all URLs after full page render
+- Filter for `/items/` pattern on the same domain only
 
-The user's raw input is the source of truth. The AI analysis is intelligence, not identity.
+**Phase 2 - Remove AI extraction entirely:**
+- Delete the Lovable AI gateway call for bulk extraction
+- Instead, create basic items directly from URL slugs as placeholder data
 
-### 2. Show what will be saved (confirmation clarity)
+**Phase 3 - Deep scrape all items (not just some):**
+- Scrape each individual listing page via Firecrawl for accurate data
+- Process in parallel batches of 5
+- Extract title, price, brand, image from the individual page markdown using a lightweight AI call
+- This is the only AI call, and it operates on a single known-good page
 
-Add a small preview line above the Save button showing exactly what will be added:
-> Adding to inventory: **"jaeger mens blazer"** at guideline price **£45**
+**Phase 4 - Upsert (unchanged)**
 
-This removes ambiguity so the user knows their input is preserved.
+### Welcome Page (`src/pages/Welcome.tsx`)
+- No changes needed -- it already handles the import response correctly
 
-### 3. Store buy price data alongside the listing
+## Technical Details
 
-When saving to inventory, also store the `buy_price_max` as `purchase_price` (if the user hasn't set one) so they have a reference for what they paid or should pay. The `recommended_price` stays as the guideline sell price.
+- Scroll actions: 10 scrolls x `{ type: "scroll", direction: "down", amount: 2000 }` with 1000ms waits = ~15s render time
+- Timeout: 45000ms for Phase 1 scrape
+- Deep scrape batch: 5 concurrent, with 30s timeout each
+- Total Firecrawl credits per import: ~1 (scroll scrape) + N (deep scrapes) where N = number of items found
+- For 185 items on Scale tier: ~186 Firecrawl credits per full import
+- For Free tier (20 item cap): ~21 credits
 
-### 4. Pass user's input (not AI's) to the Optimise flow
+## Why This Works
 
-The "Optimise This Listing" button and Journey Banner currently pass `report.item_title` to the optimiser. Change these to pass the user's original search terms instead, so the optimiser starts from the user's description and builds it out.
+- **No recommendation noise**: Individual item pages only contain that item's data
+- **No AI hallucination**: No bulk extraction from messy markdown
+- **Accurate data**: Title, price, brand come directly from each listing page
+- **Scrolling captures all items**: Up to ~200 items loaded via infinite scroll
 
-## Technical Changes
+## Risk
 
-### File: `src/pages/PriceCheck.tsx`
+- Higher Firecrawl credit usage (1 credit per item instead of 1-2 total)
+- Longer import time for large wardrobes (~3-5 minutes for 185 items)
+- Edge function timeout could be an issue for very large wardrobes (may need to cap deep scrape to first 50 items, with remaining items getting slug-based titles)
 
-1. **Line 536-546** -- Change the insert to use user input:
-   - `title`: `\`${brand} ${category}\`.trim() || url || "Untitled"`
-   - `brand`: `brand || null` (user's input only)
-   - `purchase_price`: `report.buy_price_max || null` (sourcing reference)
-   - `recommended_price`: `report.recommended_price`
-   - `condition`: `condition || null`
-
-2. **Line 533-555** -- Add a preview line above the Save button showing what will be saved
-
-3. **Lines 557, 587, 592** -- Update the Optimise navigation and Journey Banner to pass user's `brand`/`category` instead of `report.item_title`/`report.item_brand`
-
-### No other files need changing
-
-The listings table already has `purchase_price`, `recommended_price`, `title`, `brand` columns. No database changes needed.
-
-## Result
-
-The flow becomes:
-1. Type "jaeger mens blazer" into Price Check
-2. Get full market intelligence (prices, demand, comparables)
-3. Click "Save to Inventory" -- saves as "jaeger mens blazer" with guideline price £45
-4. Later, open from Listings and click "Optimise" -- AI builds out a proper title and description from your rough input
-5. The listing evolves from rough note to polished, SEO-optimised content through the natural workflow
