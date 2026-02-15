@@ -261,7 +261,7 @@ export default function NicheFinder() {
                       <div className="grid grid-cols-3 gap-2 mb-3 text-center">
                         <div>
                           <p className="text-[10px] text-muted-foreground">Avg Price</p>
-                          <p className="font-display font-bold text-sm">£{niche.avg_price}</p>
+                          <p className="font-display font-bold text-sm">{String(niche.avg_price).startsWith("£") ? niche.avg_price : `£${niche.avg_price}`}</p>
                         </div>
                         <div>
                           <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
