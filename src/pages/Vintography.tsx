@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { FeatureGate } from "@/components/FeatureGate";
@@ -44,6 +44,7 @@ const bgStyles = [
 export default function Vintography() {
   const { user, credits, refreshCredits } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Core state
@@ -73,6 +74,18 @@ export default function Vintography() {
   // Credits
   const vintographyUsed = (credits as any)?.vintography_used ?? 0;
   const creditsLimit = credits?.credits_limit ?? 5;
+
+  // Accept image_url query param
+  useEffect(() => {
+    const imageUrl = searchParams.get("image_url");
+    if (imageUrl && !originalUrl) {
+      setOriginalUrl(imageUrl);
+      setProcessedUrl(null);
+      setVariations([]);
+      setCurrentVariation(0);
+      setBatchItems([]);
+    }
+  }, [searchParams]);
 
   // Fetch gallery
   useEffect(() => {

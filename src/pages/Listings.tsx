@@ -32,7 +32,7 @@ import {
   TrendingUp, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
   PoundSterling, Calendar, Check, X, Pencil, Sparkles, Send,
-  ChevronDown, Tag, Ruler, ShieldCheck,
+  ChevronDown, Tag, Ruler, ShieldCheck, Camera,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -903,6 +903,15 @@ export default function Listings() {
                                   <DropdownMenuItem onClick={() => handleOptimiseListing(listing)}>
                                     <Sparkles className="w-4 h-4 mr-2" /> Optimise Listing
                                   </DropdownMenuItem>
+                                  {listing.image_url ? (
+                                    <DropdownMenuItem onClick={() => navigate(`/vintography?image_url=${encodeURIComponent(listing.image_url!)}`)}>
+                                      <Camera className="w-4 h-4 mr-2" /> Enhance Photos
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => navigate("/vintography")}>
+                                      <Camera className="w-4 h-4 mr-2 text-muted-foreground" /> Add & Enhance Photo
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem onClick={() => setPublishListing(listing)}>
                                     <Send className="w-4 h-4 mr-2" /> Publish to Platforms
                                   </DropdownMenuItem>

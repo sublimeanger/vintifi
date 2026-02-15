@@ -14,7 +14,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
   ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag, Eye,
-  ArrowRightLeft, MapPin,
+  ArrowRightLeft, MapPin, Camera,
 } from "lucide-react";
 import { JourneyBanner } from "@/components/JourneyBanner";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -399,6 +399,7 @@ export default function PriceCheck() {
             steps={[
               { label: "Price Check", path: "/price-check", icon: Search, completed: true },
               { label: "Optimise", path: `/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`, icon: Sparkles },
+              { label: "Enhance Photos", path: "/vintography", icon: Camera },
               { label: "Inventory", path: "/listings", icon: ShoppingBag },
             ]}
             nextLabel="Optimise This Listing"

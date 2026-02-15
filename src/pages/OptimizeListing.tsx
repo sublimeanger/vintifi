@@ -627,12 +627,13 @@ export default function OptimizeListing() {
                 title="Listing Lifecycle"
                 steps={[
                   { label: "Optimise", path: "/optimize", icon: Sparkles, completed: true },
+                  { label: "Enhance Photos", path: "/vintography", icon: Camera },
                   { label: "Price Check", path: `/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}`, icon: Search },
                   { label: "Inventory", path: "/listings", icon: ShoppingBag },
                 ]}
-                nextLabel="Price Check This Item"
-                nextPath={`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}`}
-                nextIcon={Search}
+                nextLabel="Enhance Photos"
+                nextPath="/vintography"
+                nextIcon={Camera}
               />
             </motion.div>
           )}

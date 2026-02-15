@@ -113,8 +113,8 @@ export default function DeadStock() {
 
   return (
     <PageShell
-      title="Dead Stock Liquidation"
-      subtitle="AI recommendations to move stale inventory"
+      title="Inventory Health"
+      subtitle="Dead stock liquidation & pricing optimisation"
       icon={<AlertTriangle className="w-5 h-5 text-destructive" />}
       maxWidth="max-w-4xl"
     >
