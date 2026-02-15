@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { motion, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -65,9 +66,7 @@ const stats = [
 export default function About() {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    document.title = "About Vintifi — Built by Sellers, for Sellers";
-  }, []);
+  usePageMeta("About — Vintifi", "Built for Vinted sellers who want to stop guessing and start earning more. Learn about the team behind Vintifi.");
 
   return (
     <MarketingLayout>

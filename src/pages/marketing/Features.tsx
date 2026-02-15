@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -165,9 +166,7 @@ const features = [
 export default function Features() {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    document.title = "Vintifi Features — AI-Powered Vinted Selling Intelligence";
-  }, []);
+  usePageMeta("Features — Vintifi", "Price intelligence, AI listings, trend radar, and arbitrage scanning. Everything you need to sell smarter on Vinted.");
 
   return (
     <MarketingLayout>
