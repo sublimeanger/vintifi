@@ -15,6 +15,7 @@ import {
   Users, Search, AlertCircle, ExternalLink, Radar,
 } from "lucide-react";
 import { CompetitorCardSkeleton } from "@/components/LoadingSkeletons";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 type Competitor = {
   id: string;
@@ -191,6 +192,14 @@ export default function CompetitorTracker() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <UseCaseSpotlight
+          featureKey="competitor-tracker"
+          icon={Radar}
+          scenario="A rival seller keeps undercutting your Nike listings and you don't know their strategy..."
+          description="Without competitor intelligence, you're always reacting instead of anticipating market moves."
+          outcome="Competitor Tracker reveals they drop prices every Friday. You adjust your timing and win more sales."
+          tip="Track search queries as well as usernames to monitor entire niches."
+        />
         {loading ? (
           <CompetitorCardSkeleton count={3} />
         ) : (

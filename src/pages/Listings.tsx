@@ -31,6 +31,7 @@ import {
   PoundSterling, Calendar, Check, X, Pencil,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -354,6 +355,14 @@ export default function Listings() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <UseCaseSpotlight
+          featureKey="listings"
+          icon={Package}
+          scenario="You have items scattered everywhere and can't remember what you paid for half of them..."
+          description="Without a central inventory, you can't track margins, spot dead stock, or know your true portfolio value."
+          outcome="My Listings gives you a single view of everything: purchase price, current price, days listed, and health score at a glance."
+          tip="Add purchase prices when creating listings — it unlocks profit tracking across the whole app."
+        />
         {/* Stats Bar */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[

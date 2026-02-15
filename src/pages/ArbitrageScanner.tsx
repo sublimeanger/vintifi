@@ -15,6 +15,7 @@ import {
   TrendingUp, PoundSterling, ShoppingBag, BarChart3, ArrowRightLeft,
 } from "lucide-react";
 import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 type Opportunity = {
   source_platform: string;
@@ -114,6 +115,14 @@ export default function ArbitrageScanner() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <UseCaseSpotlight
+          featureKey="arbitrage-scanner"
+          icon={ArrowRightLeft}
+          scenario="You wonder if the North Face puffer on eBay for £25 is worth flipping..."
+          description="Manually checking Vinted prices for every eBay or Depop find is slow and you might miss the best deals."
+          outcome="Arbitrage Scanner shows the same jacket sells for £55–65 on Vinted. That's a £30+ profit per flip."
+          tip="Set your minimum margin to 40%+ to filter for only the most profitable opportunities."
+        />
         {/* Search Form */}
         <Card className="p-6 mb-8">
           <h2 className="font-display font-bold text-base mb-4 flex items-center gap-2">

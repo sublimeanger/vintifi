@@ -9,6 +9,7 @@ import {
   ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Flame, Snowflake,
   Sun, Leaf, TrendingUp, TrendingDown, Minus, Info,
 } from "lucide-react";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -270,6 +271,15 @@ export default function SeasonalCalendar() {
               </p>
             </div>
           </div>
+
+          <UseCaseSpotlight
+            featureKey="seasonal-calendar"
+            icon={CalendarDays}
+            scenario="It's September and your summer dresses aren't shifting. You're stuck with dead stock..."
+            description="Seasonal demand shifts are predictable — but only if you plan ahead."
+            outcome="The Seasonal Calendar would have told you to discount summer stock in August and start listing coats in September."
+            tip="Plan your sourcing 1 month ahead of each season's demand peak."
+          />
 
           {/* Month Selector */}
           <Card className="p-4 mb-6">

@@ -11,6 +11,7 @@ import {
   PoundSterling, Lightbulb, Loader2, MapPin, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { BriefingCardSkeleton } from "@/components/LoadingSkeletons";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 type BriefingItem = {
   brand: string;
@@ -78,6 +79,14 @@ export default function CharityBriefing() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 pb-8 pt-4">
+        <UseCaseSpotlight
+          featureKey="charity-briefing"
+          icon={MapPin}
+          scenario="You're heading to the charity shop on Saturday but always end up buying random stuff that doesn't sell..."
+          description="Without a game plan, you waste time and money on items with no resale demand."
+          outcome="Open your Charity Briefing on your phone: a curated list of exactly what's trending, what to pay, and what you'll sell it for."
+          tip="Generate a fresh briefing each time you go — trends change weekly."
+        />
         {!briefing && !loading && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-12">
             <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
