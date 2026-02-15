@@ -1,92 +1,164 @@
 
 
-# World-Class Marketing Pages
+# Visual Upgrade & Full-System Polish
 
-## Overview
-Create 4 new public marketing pages with unique SEO-friendly routes, plus a shared reusable marketing layout (header/footer). Each page will be a standalone, richly designed marketing experience using Framer Motion animations, the existing design system, and compelling storytelling.
+## Scope
+This is a major visual overhaul across two domains: (1) all marketing/public pages and (2) the entire app dashboard and feature pages. Every change targets both desktop and mobile viewports.
 
-## New Files
+---
 
-### 1. `src/components/MarketingLayout.tsx` -- Shared Layout
-A reusable wrapper providing the marketing header (with nav links to all marketing pages) and a rich footer with link columns, social proof stats, and legal links. Used by all marketing pages including the existing Landing page.
+## Part 1: Marketing Pages Visual Upgrade
 
-**Header nav links:** Home, Features, Pricing, How It Works
-**Footer:** 4-column layout with product links, company links, legal links, and a newsletter-style CTA. Includes social proof counters ("10,000+ sellers", "500K+ price checks").
+### 1.1 Landing Page (`src/pages/Landing.tsx`)
+- Add animated gradient mesh background to hero (like Features page has, but more prominent with animated blob movement via CSS keyframes)
+- Add a glowing border effect on the mock UI preview card (subtle animated gradient border)
+- Increase hero spacing on mobile -- more generous padding top/bottom
+- Add logo/brand trust badges row below the hero ("As seen on..." or "Trusted by sellers from Zara, Nike, Carhartt WIP..." with small brand text)
+- Feature cards: add hover lift animation with subtle gradient border reveal on hover
+- Pricing section: add the monthly/annual toggle (like the dedicated pricing page) and highlight the popular tier more prominently
+- CTA section: add animated gradient background instead of flat `bg-secondary`
+- Mobile: ensure CTA buttons are full-width and have more breathing room
+- Mobile: reduce hero font size slightly for better text wrapping
 
-### 2. `src/pages/marketing/Features.tsx` -- Route: `/features`
-A deep-dive features page showcasing every Vintifi capability. Design:
+### 1.2 Features Page (`src/pages/marketing/Features.tsx`)
+- Add a CTA button in the hero ("Explore Features" that smooth-scrolls to first feature)
+- Add animated floating decorative elements (small dots/circles) in the hero background
+- Feature mock UI cards: add a subtle floating/hover animation (gentle translateY oscillation)
+- Add numbered step indicators connecting the feature chapters (1-5 with a subtle vertical progress line)
+- Stat callout boxes: make more prominent with a left accent border and slightly larger stat text
+- Bottom CTA: add floating animated particles/sparkle effect
+- Mobile: ensure mock UI cards stack cleanly below text with proper spacing
+- Mobile: reduce feature headline font sizes for better readability
 
-- **Hero**: Large headline "Your Unfair Advantage on Vinted" with animated gradient background mesh
-- **Feature Showcase**: 5 major feature "chapters", each as a full-width alternating section (image-left/text-right, then reversed). Each chapter includes:
-  - Icon + feature name badge
-  - Bold headline + 2-paragraph description
-  - A mock UI card showing the feature in action (styled like the landing page's browser mockup)
-  - A "mini stat" callout (e.g., "Sellers using Price Check earn 32% more")
-- **Features covered**: Price Intelligence, AI Listing Optimiser, Trend Radar, Arbitrage Scanner, Smart Inventory
-- **Bottom CTA**: "Ready to level up?" with gradient background
+### 1.3 Pricing Page (`src/pages/marketing/Pricing.tsx`)
+- Add a subtle animated gradient background to the hero section
+- Pricing cards: add hover elevation with shadow growth animation
+- "Most Popular" tier: add animated pulsing glow border effect
+- Comparison table: add sticky header row so tier names stay visible when scrolling
+- FAQ section: add subtle left border accent to the active/open accordion item
+- Mobile pricing cards: add swipeable carousel behavior hint (subtle horizontal scroll indicator)
+- Add a "Trusted by 10,000+ sellers" social proof bar between pricing cards and comparison table
 
-### 3. `src/pages/marketing/Pricing.tsx` -- Route: `/pricing`
-A dedicated pricing page with more detail than the landing page section. Design:
+### 1.4 How It Works Page (`src/pages/marketing/HowItWorks.tsx`)
+- Add pulsing dot animations on the connecting vertical line between steps
+- Step number boxes: add gradient background fill instead of flat primary/10
+- Mock UI elements: add subtle typing/scanning animation on step 2 ("Scanning market..." with animated dots)
+- Before/After cards: add a more dramatic visual split with an animated divider between them
+- Testimonial cards: add subtle quote mark watermark in background, photo placeholder avatars (initials-based)
+- Mobile: ensure testimonial cards stack vertically with proper spacing
 
-- **Hero**: "Simple pricing, serious results" with toggle for monthly/annual (annual shows 20% discount badge)
-- **Pricing cards**: Same 4 tiers from constants but with expanded feature lists and comparison checkmarks
-- **Feature comparison table**: Full-width responsive table with all features as rows and tiers as columns, with check/cross icons
-- **FAQ accordion**: 8 common pricing questions using Radix Accordion with smooth animations
-- **Social proof bar**: "Trusted by 10,000+ Vinted sellers across 18 countries"
-- **Bottom CTA**: Money-back guarantee badge + "Start Free" button
+### 1.5 About Page (`src/pages/marketing/About.tsx`)
+- Mission quote: add large decorative quotation marks and a subtle left/right border accent
+- Pain point cards: add animated count-up for the stat numbers (they currently just show static text)
+- Solution flow: add animated connecting arrows between the 3 cards (currently the arrow positioning is broken)
+- Values cards: add icon background glow effect on hover
+- Add a "Join us" or team placeholder section with illustrated values
+- Mobile: ensure the solution flow stacks properly with downward arrows between cards
 
-### 4. `src/pages/marketing/HowItWorks.tsx` -- Route: `/how-it-works`
-A step-by-step walkthrough page. Design:
+### 1.6 MarketingLayout (`src/components/MarketingLayout.tsx`)
+- Add mobile hamburger menu (currently nav links are hidden on mobile with no fallback)
+- Add scroll-based header background transition (transparent at top, solid glass on scroll)
+- Footer: add subtle hover effects on footer links
+- Add "Back to top" scroll button that appears after scrolling past the fold
+- Mobile: add a sticky mobile CTA bar at bottom on landing page
 
-- **Hero**: "From guesswork to profit in 3 steps"
-- **3-Step Journey**: Large numbered steps with connecting vertical line/dots:
-  1. "Paste a URL or describe your item" -- with mock input UI
-  2. "AI analyses the market in seconds" -- with animated scanning/loading visual
-  3. "Get your optimal price + insights" -- with mock results card
-- **Before/After section**: Split comparison showing "Without Vintifi" (red-tinted, messy) vs "With Vintifi" (green-tinted, organised) selling stats
-- **Testimonial-style cards**: 3 fictional seller stories with avatar, name, results ("Sarah increased her monthly profit by 47%")
-- **Video placeholder**: A styled 16:9 container with play button overlay (placeholder for future demo video)
-- **Bottom CTA**
+---
 
-### 5. `src/pages/marketing/About.tsx` -- Route: `/about`
-A brand story and mission page. Design:
+## Part 2: Dashboard & App Pages Polish
 
-- **Hero**: "Built by sellers, for sellers" with a large typographic treatment
-- **Mission statement**: Large pull-quote style text about democratising reselling intelligence
-- **The Problem section**: 3 pain-point cards with icons and stats ("73% of Vinted sellers underprice their items")
-- **The Solution section**: How Vintifi's tech stack works in plain English (no jargon), presented as an elegant flow diagram using styled divs
-- **Stats bar**: Animated counter section ("500K+ prices analysed", "18 countries", "8 second average analysis time")
-- **Team/Values section**: 3 value cards (Data-Driven, Seller-First, Beautifully Simple) with large icons
+### 2.1 Dashboard (`src/pages/Dashboard.tsx`)
+- Metric cards: add subtle gradient accent on the left edge based on metric type
+- Price Check CTA card: add animated glow pulse on the border to draw attention
+- Quick action cards: add icon background circles with color tinting matching their section
+- Recent reports empty state: add a more engaging illustration/visual
+- Desktop sidebar: add active state indicator (left border accent on current page)
+- Desktop sidebar: add hover transition effects on nav items
+- Mobile header: clean up spacing, ensure credits badge is properly centered
+- Mobile: ensure quick action grids are properly 2-column with consistent card heights
+- Mobile: add safe-area padding for bottom nav to avoid content overlap
 
-## Modified Files
+### 2.2 PageShell (`src/components/PageShell.tsx`)
+- Add subtle page entrance animation (fade in from bottom)
+- Ensure consistent max-width and padding across all breakpoints
+- Mobile: ensure back button and title don't overflow on small screens
 
-### `src/App.tsx`
-- Import the 4 new marketing pages
-- Add 4 new public routes: `/features`, `/pricing`, `/how-it-works`, `/about`
+### 2.3 Price Check (`src/pages/PriceCheck.tsx`)
+- Input card: add focus ring animation on the URL input
+- Report hero metrics: add subtle background gradient per card
+- Price distribution chart: improve chart colors and add proper axis labels
+- Comparable items: add alternating row shading for readability
+- Mobile: ensure chart is properly sized and scrollable if needed
+- Mobile: full-width action buttons with proper spacing
 
-### `src/pages/Landing.tsx`
-- Wrap content in the new `MarketingLayout` component
-- Update nav links to point to new routes instead of anchor links
-- Remove the inline header/footer (now provided by MarketingLayout)
+### 2.4 Listings (`src/pages/Listings.tsx`)
+- Stats bar cards: add colored left accent borders
+- Listing cards: improve the traffic light health indicators with ring backgrounds
+- Profit indicator: add color-coded up/down arrows
+- Search/filter bar: improve with proper input group styling
+- Mobile: ensure listing cards don't overflow and text truncates properly
+- Mobile: make filter dropdowns full-width in a collapsible filter panel
 
-## Technical Details
+### 2.5 MobileBottomNav (`src/components/MobileBottomNav.tsx`)
+- Add active indicator dot or pill background behind active tab
+- Add subtle backdrop blur effect
+- Ensure safe-area-inset-bottom padding for notched devices
+- Add subtle haptic-style scale animation on tap
 
-### SEO
-- Each page sets `document.title` via a `useEffect` on mount (e.g., "Vintifi Features -- AI-Powered Vinted Selling Intelligence")
-- Semantic HTML: proper `<section>`, `<article>`, `<h1>`/`<h2>` hierarchy per page
-- Only one `<h1>` per page
+### 2.6 Settings Page (`src/pages/SettingsPage.tsx`)
+- Add section dividers with subtle headings
+- Card sections: add consistent spacing and visual hierarchy
+- Mobile: ensure all form inputs are properly sized for touch targets
 
-### Animations
-- All sections use Framer Motion `whileInView` with `viewport={{ once: true }}` for scroll-triggered entrance
-- Staggered children animations for card grids
-- Counter animations for stats (count up from 0 on scroll into view)
-- Subtle parallax on hero sections via `useScroll` + `useTransform`
+### 2.7 Auth Page (`src/pages/Auth.tsx`)
+- Add split-layout on desktop (brand/testimonial on left, form on right)
+- Add subtle background pattern or gradient
+- Improve form card styling with more generous padding
+- Mobile: full-width form with centered layout
 
-### Responsive
-- All pages mobile-first with Tailwind breakpoints
-- Feature comparison table converts to stacked cards on mobile
-- Hero text scales from `text-4xl` to `text-7xl` across breakpoints
+### 2.8 All Feature Pages (Arbitrage, Trends, Optimize, etc.)
+- Ensure consistent use of PageShell with proper back navigation
+- Add MobileBottomNav to any pages missing it
+- Ensure loading skeletons display properly on mobile
+- Ensure all cards have consistent border-radius and shadow treatment
 
-### No backend changes needed
-All pages are static marketing content -- no database, no auth, no edge functions.
+---
+
+## Part 3: Global CSS & Design Tokens
+
+### 3.1 `src/index.css`
+- Add new utility classes: `gradient-border` for animated gradient borders, `float-animation` for subtle floating elements
+- Add smooth scroll behavior to html element
+- Improve focus-visible styles for accessibility
+
+### 3.2 `tailwind.config.ts`
+- Add new keyframe animations: `float`, `glow-pulse`, `gradient-shift`
+- Add corresponding animation utilities
+
+---
+
+## Technical Approach
+- All changes are frontend-only (no backend/database changes)
+- Use existing Framer Motion library for animations
+- Use existing Tailwind classes + new utilities where needed
+- Maintain existing component patterns and file structure
+- Changes will be made file-by-file, prioritizing the marketing pages first, then the dashboard/app pages
+- Focus on CSS/Tailwind improvements and Framer Motion enhancements -- no new dependencies needed
+
+## Files Modified (estimated 15-18 files)
+- `src/index.css` -- new utility classes and animations
+- `tailwind.config.ts` -- new keyframes
+- `src/components/MarketingLayout.tsx` -- mobile menu, scroll header
+- `src/pages/Landing.tsx` -- hero upgrade, visual enhancements
+- `src/pages/marketing/Features.tsx` -- animations, visual polish
+- `src/pages/marketing/Pricing.tsx` -- hover effects, social proof
+- `src/pages/marketing/HowItWorks.tsx` -- step animations, visual polish
+- `src/pages/marketing/About.tsx` -- animated elements, flow fix
+- `src/pages/Dashboard.tsx` -- sidebar active state, card polish
+- `src/pages/PriceCheck.tsx` -- report visual polish
+- `src/pages/Listings.tsx` -- card polish, mobile fixes
+- `src/pages/Auth.tsx` -- split layout, visual upgrade
+- `src/components/MobileBottomNav.tsx` -- active indicator, blur
+- `src/components/PageShell.tsx` -- entrance animation
+- `src/pages/SettingsPage.tsx` -- layout polish
+- Various feature pages -- consistency pass
 
