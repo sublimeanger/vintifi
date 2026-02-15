@@ -135,6 +135,8 @@ export default function Listings() {
   const [newUrl, setNewUrl] = useState("");
 
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const tier = profile?.subscription_tier || "free";
   const listingLimit = LISTING_LIMITS[tier] || 20;
@@ -210,7 +212,39 @@ export default function Listings() {
     } else {
       toast.success("Listing removed");
       setListings((prev) => prev.filter((l) => l.id !== id));
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredListings.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredListings.map((l) => l.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase.from("listings").delete().in("id", ids);
+    if (error) {
+      toast.error("Failed to delete listings");
+    } else {
+      toast.success(`${ids.length} listing${ids.length > 1 ? "s" : ""} deleted`);
+      setListings((prev) => prev.filter((l) => !selectedIds.has(l.id)));
+      setSelectedIds(new Set());
+    }
+    setBulkDeleting(false);
   };
 
   const handlePriceCheck = (listing: Listing) => {
@@ -820,6 +854,31 @@ export default function Listings() {
         </motion.div>
       ) : (
         <div className="space-y-2 sm:space-y-3">
+          {/* Bulk Action Bar */}
+          {filteredListings.length > 0 && (
+            <div className="flex items-center gap-3 px-3 py-2 rounded-lg border border-border bg-muted/30">
+              <Checkbox
+                checked={selectedIds.size === filteredListings.length && filteredListings.length > 0}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Select all"
+              />
+              <span className="text-xs text-muted-foreground font-medium">
+                {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+              </span>
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="ml-auto h-7 text-xs font-semibold gap-1.5"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  Delete {selectedIds.size}
+                </Button>
+              )}
+            </div>
+          )}
           <AnimatePresence>
             {filteredListings.map((listing, i) => {
               const daysListed = getDaysListed(listing.created_at);
@@ -847,8 +906,16 @@ export default function Listings() {
                         toggleExpand(listing.id);
                       }}
                     >
-                      <div className="flex items-start gap-2.5 sm:gap-3">
-                        {/* Image */}
+                        <div className="flex items-start gap-2.5 sm:gap-3">
+                         {/* Selection checkbox */}
+                         <div className="pt-1 shrink-0" onClick={e => e.stopPropagation()}>
+                           <Checkbox
+                             checked={selectedIds.has(listing.id)}
+                             onCheckedChange={() => toggleSelect(listing.id)}
+                             aria-label={`Select ${listing.title}`}
+                           />
+                         </div>
+                         {/* Image */}
                         <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
                           {listing.image_url ? (
                             <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
