@@ -93,6 +93,20 @@ Deno.serve(async (req) => {
     }
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    // --- Tier check: Business+ required for Vinted Pro connection ---
+    const { data: profile } = await adminClient
+      .from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle();
+    const tier = profile?.subscription_tier || "free";
+    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    if ((tierLevel[tier] ?? 0) < 2) {
+      return new Response(
+        JSON.stringify({ error: "This feature requires a Business plan. Upgrade to continue." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // --- End tier check ---
+
     const { action, access_key, signing_key } = await req.json();
 
     if (action === "validate_and_save") {
