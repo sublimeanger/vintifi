@@ -12,8 +12,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, Loader2, Eye, Trash2, RefreshCw,
   TrendingUp, TrendingDown, Minus, Bell, BellOff,
-  Users, Search, AlertCircle, ExternalLink, Radar,
+  Users, Search, AlertCircle, ExternalLink, Radar, BarChart3,
 } from "lucide-react";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CompetitorCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
@@ -316,6 +317,24 @@ export default function CompetitorTracker() {
                               : "Never scanned"}
                           </p>
                           <div className="flex gap-1.5">
+                            {comp.category && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs h-7"
+                                onClick={() => navigate(`/price-check?category=${encodeURIComponent(comp.category!)}`)}
+                              >
+                                <Search className="w-3 h-3 mr-1" /> Price Check
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() => navigate("/trends")}
+                            >
+                              <BarChart3 className="w-3 h-3 mr-1" /> Trends
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -406,6 +425,7 @@ export default function CompetitorTracker() {
           </div>
         )}
       </div>
+      <MobileBottomNav />
     </div>
   );
 }

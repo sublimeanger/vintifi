@@ -709,7 +709,7 @@ export default function ArbitrageScanner() {
                                   variant="ghost"
                                   size="sm"
                                   className="text-xs text-primary"
-                                  onClick={() => navigate(`/optimize-listing?brand=${encodeURIComponent(opp.brand || "")}&title=${encodeURIComponent(opp.suggested_listing_title || opp.source_title)}`)}
+                                  onClick={() => navigate(`/optimize?brand=${encodeURIComponent(opp.brand || "")}&category=${encodeURIComponent(opp.category || "")}&title=${encodeURIComponent(opp.suggested_listing_title || opp.source_title)}`)}
                                 >
                                   <Sparkles className="w-3 h-3 mr-1" />
                                   Create Listing

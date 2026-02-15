@@ -7,8 +7,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Flame, Snowflake,
-  Sun, Leaf, TrendingUp, TrendingDown, Minus, Info,
+  Sun, Leaf, TrendingUp, TrendingDown, Minus, Info, Search, MapPin,
 } from "lucide-react";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 const MONTHS = [
@@ -566,6 +567,24 @@ export default function SeasonalCalendar() {
                   </div>
                 </Card>
 
+                {/* Action Links */}
+                <div className="flex gap-3 mt-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => navigate(`/price-check?category=${encodeURIComponent(selectedCatData.category)}`)}
+                  >
+                    <Search className="w-4 h-4 mr-2" /> Check Prices
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => navigate("/charity-briefing")}
+                  >
+                    <MapPin className="w-4 h-4 mr-2" /> Source Now
+                  </Button>
+                </div>
+
                 {/* Category selector */}
                 <div className="mt-6">
                   <h4 className="text-xs text-muted-foreground font-medium mb-2">Explore other categories</h4>
@@ -591,6 +610,7 @@ export default function SeasonalCalendar() {
           </AnimatePresence>
         </div>
       </main>
+      <MobileBottomNav />
     </div>
   );
 }
