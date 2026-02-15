@@ -433,7 +433,7 @@ export default function ArbitrageScanner() {
             </Collapsible>
 
             <div className="flex gap-2">
-              <Button onClick={handleScan} disabled={loading} className="flex-1 font-semibold h-12 sm:h-10">
+              <Button onClick={handleScan} disabled={loading} className="flex-1 font-semibold h-12 sm:h-10 active:scale-95 transition-transform">
                 {loading ? (
                   <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {scanningPlatform || "Scanning..."}</>
                 ) : (
@@ -441,7 +441,7 @@ export default function ArbitrageScanner() {
                 )}
               </Button>
               {(brand || category) && (
-                <Button variant="outline" size="icon" onClick={saveSearch} title="Save this search" className="h-12 sm:h-10 w-12 sm:w-10 shrink-0">
+                <Button variant="outline" size="icon" onClick={saveSearch} title="Save this search" className="h-12 sm:h-10 w-12 sm:w-10 shrink-0 active:scale-95 transition-transform">
                   <BookmarkPlus className="w-4 h-4" />
                 </Button>
               )}
@@ -518,13 +518,15 @@ export default function ArbitrageScanner() {
 
               {/* Opportunity Cards */}
               {sortedOpps.length === 0 && opportunities.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <ShoppingBag className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                  <h3 className="font-display font-bold text-base sm:text-lg mb-2">No opportunities found</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
+                <Card className="p-8 sm:p-10 text-center">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+                    <ShoppingBag className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/40" />
+                  </div>
+                  <h3 className="font-display font-bold text-sm sm:text-lg mb-1.5">No opportunities found</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-4">
                     No items matched your criteria with ≥{minMargin}% margin.
                   </p>
-                  <Button onClick={() => setMinMargin(Math.max(10, minMargin - 10))} variant="outline" className="h-10">
+                  <Button onClick={() => setMinMargin(Math.max(10, minMargin - 10))} variant="outline" className="h-10 active:scale-95 transition-transform">
                     Lower margin to {Math.max(10, minMargin - 10)}% and retry
                   </Button>
                 </Card>
@@ -549,7 +551,7 @@ export default function ArbitrageScanner() {
                           transition={{ delay: i * 0.04 }}
                         >
                           <Card
-                            className="p-4 sm:p-5 hover:shadow-md active:shadow-sm transition-all overflow-hidden"
+                            className="p-3.5 sm:p-5 hover:shadow-md active:scale-[0.99] transition-all overflow-hidden"
                             style={{ borderLeft: `3px solid ${getPlatformBorderColor(opp.source_platform)}` }}
                           >
                             {/* Header */}
@@ -661,24 +663,24 @@ export default function ArbitrageScanner() {
                             </AnimatePresence>
 
                             {/* Actions */}
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
                               {opp.source_url && (
                                 <a href={opp.source_url} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-none">
-                                  <Button variant="outline" size="sm" className="text-xs w-full sm:w-auto h-9">
+                                  <Button variant="outline" size="sm" className="text-[10px] sm:text-xs w-full sm:w-auto h-9 active:scale-95 transition-transform">
                                     <ExternalLink className="w-3 h-3 mr-1" />
                                     View Source
                                   </Button>
                                 </a>
                               )}
                               {opp.suggested_listing_title && (
-                                <Button variant="outline" size="sm" className="text-xs h-9" onClick={() => copyTitle(opp.suggested_listing_title!)}>
+                                <Button variant="outline" size="sm" className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform" onClick={() => copyTitle(opp.suggested_listing_title!)}>
                                   <Copy className="w-3 h-3 mr-1" /> Copy Title
                                 </Button>
                               )}
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-xs text-primary h-9"
+                                className="text-[10px] sm:text-xs text-primary h-9 active:scale-95 transition-transform"
                                 onClick={() => navigate(`/optimize?brand=${encodeURIComponent(opp.brand || "")}&category=${encodeURIComponent(opp.category || "")}&title=${encodeURIComponent(opp.suggested_listing_title || opp.source_title)}`)}
                               >
                                 <Sparkles className="w-3 h-3 mr-1" /> Create Listing
@@ -711,10 +713,12 @@ export default function ArbitrageScanner() {
           {historyLoading ? (
             <ArbitrageCardSkeleton count={3} />
           ) : historyOpps.length === 0 ? (
-            <Card className="p-8 text-center">
-              <History className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-              <h3 className="font-display font-bold text-base sm:text-lg mb-2">No past finds yet</h3>
-              <p className="text-sm text-muted-foreground">Run your first scan to start building history.</p>
+            <Card className="p-8 sm:p-10 text-center">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+                <History className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/40" />
+              </div>
+              <h3 className="font-display font-bold text-sm sm:text-lg mb-1.5">No past finds yet</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">Run your first scan to start building history.</p>
             </Card>
           ) : (
             <div className="space-y-2 sm:space-y-3">
