@@ -79,12 +79,12 @@ serve(async (req) => {
       });
     }
 
-    // Auth user
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    // Auth user — extract token and verify
+    const token = authHeader.replace("Bearer ", "");
+    const adminForAuth = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: { user }, error: authError } = await adminForAuth.auth.getUser(token);
     if (authError || !user) {
+      console.error("Auth error:", authError?.message);
       return new Response(JSON.stringify({ error: "Invalid auth" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
