@@ -114,11 +114,7 @@ export default function Listings() {
   const [adding, setAdding] = useState(false);
   const [publishListing, setPublishListing] = useState<Listing | null>(null);
 
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importUrl, setImportUrl] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [deepImport, setDeepImport] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+   
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -315,108 +311,7 @@ export default function Listings() {
     setNewUrl("");
   };
 
-  const handleImportWardrobe = async () => {
-    if (!importUrl.trim()) {
-      toast.error("Please enter your Vinted profile URL");
-      return;
-    }
-    if (!session?.access_token) {
-      toast.error("Please sign in to import listings");
-      return;
-    }
-
-    setImporting(true);
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-vinted-wardrobe`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ profile_url: importUrl.trim(), deep_import: deepImport }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        toast.error(data.error || "Import failed");
-        return;
-      }
-
-      const parts: string[] = [];
-      if (data.imported > 0) parts.push(`${data.imported} imported`);
-      if (data.updated > 0) parts.push(`${data.updated} updated`);
-      if (data.descriptions_fetched > 0) parts.push(`${data.descriptions_fetched} descriptions fetched`);
-      toast.success(`${parts.join(", ")} from Vinted!`);
-      setImportDialogOpen(false);
-      setImportUrl("");
-      setDeepImport(false);
-      fetchListings();
-    } catch (err) {
-      console.error("Import error:", err);
-      toast.error("Failed to import. Please try again.");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const getVintedProfileUrl = (): string | null => {
-    for (const l of listings) {
-      if (l.vinted_url && l.vinted_url.includes("/member/")) {
-        try {
-          const url = new URL(l.vinted_url);
-          const memberMatch = url.pathname.match(/\/member\/[^/]+/);
-          if (memberMatch) {
-            return `${url.origin}${memberMatch[0]}`;
-          }
-        } catch { /* ignore */ }
-      }
-    }
-    return null;
-  };
-
-  const hasImportedListings = listings.some((l) => l.vinted_url?.includes("/member/"));
-
-  const handleSyncListings = async () => {
-    const profileUrl = getVintedProfileUrl();
-    if (!profileUrl || !session?.access_token) return;
-
-    setSyncing(true);
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-vinted-wardrobe`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ profile_url: profileUrl }),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        toast.error(data.error || "Sync failed");
-        return;
-      }
-
-      const parts: string[] = [];
-      if (data.imported > 0) parts.push(`${data.imported} new`);
-      if (data.updated > 0) parts.push(`${data.updated} updated`);
-      if (parts.length === 0) parts.push("Everything up to date");
-      toast.success(`Sync complete: ${parts.join(", ")}`);
-      fetchListings();
-    } catch (err) {
-      console.error("Sync error:", err);
-      toast.error("Sync failed. Please try again.");
-    } finally {
-      setSyncing(false);
-    }
-  };
+   
 
   const toggleExpand = (id: string) => {
     setExpandedId(prev => prev === id ? null : id);
@@ -478,101 +373,7 @@ export default function Listings() {
 
   const headerActions = (
     <div className="flex items-center gap-2">
-      {hasImportedListings && (
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSyncListings}
-            disabled={syncing}
-            className="font-semibold hidden sm:flex h-9"
-          >
-            {syncing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
-            Sync
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleSyncListings}
-            disabled={syncing}
-            className="sm:hidden h-10 w-10"
-          >
-            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          </Button>
-        </>
-      )}
-      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="font-semibold hidden sm:flex h-9">
-            <Download className="w-3.5 h-3.5 mr-1.5" /> Import
-          </Button>
-        </DialogTrigger>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="icon" className="sm:hidden h-10 w-10">
-            <Download className="w-4 h-4" />
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-display">Import from Vinted</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">
-              Paste your Vinted profile URL to automatically import all your active listings.
-            </p>
-            <div className="space-y-1.5">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Vinted Profile URL
-              </Label>
-              <Input
-                value={importUrl}
-                onChange={(e) => setImportUrl(e.target.value)}
-                placeholder="e.g. vinted.co.uk/member/12345678-username"
-                className="h-11 sm:h-10 text-base sm:text-sm"
-                disabled={importing}
-              />
-            </div>
-            <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
-              <Checkbox
-                id="deep-import"
-                checked={deepImport}
-                onCheckedChange={(checked) => setDeepImport(checked === true)}
-                disabled={importing}
-              />
-              <div className="space-y-1">
-                <label htmlFor="deep-import" className="text-sm font-medium leading-none cursor-pointer">
-                  Import with descriptions
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Scrapes each listing page individually to capture full descriptions, views, and favourites. Takes longer but gives you richer data.
-                </p>
-              </div>
-            </div>
-            {importing && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  {deepImport
-                    ? "Scraping wardrobe and individual listings… This may take 30-60 seconds."
-                    : "Scraping your wardrobe and extracting listings… This may take 10-20 seconds."}
-                </p>
-              </div>
-            )}
-            <Button
-              onClick={handleImportWardrobe}
-              disabled={importing || !importUrl.trim()}
-              className="w-full font-semibold h-12 sm:h-10 active:scale-95 transition-transform"
-            >
-              {importing ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Download className="w-4 h-4 mr-2" />
-              )}
-              {importing ? "Importing…" : "Import Listings"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      
       <Button variant="outline" size="sm" onClick={() => navigate("/bulk-optimize")} className="font-semibold hidden sm:flex h-9">
         <Upload className="w-3.5 h-3.5 mr-1.5" /> Bulk
       </Button>
