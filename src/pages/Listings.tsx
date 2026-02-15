@@ -107,6 +107,7 @@ export default function Listings() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editField, setEditField] = useState<string | null>(null);
@@ -296,6 +297,63 @@ export default function Listings() {
     }
   };
 
+  // Extract the Vinted profile URL from existing imported listings
+  const getVintedProfileUrl = (): string | null => {
+    for (const l of listings) {
+      if (l.vinted_url && l.vinted_url.includes("/member/")) {
+        try {
+          const url = new URL(l.vinted_url);
+          // Extract member path: /member/12345-username
+          const memberMatch = url.pathname.match(/\/member\/[^/]+/);
+          if (memberMatch) {
+            return `${url.origin}${memberMatch[0]}`;
+          }
+        } catch { /* ignore */ }
+      }
+    }
+    return null;
+  };
+
+  const hasImportedListings = listings.some((l) => l.vinted_url?.includes("/member/"));
+
+  const handleSyncListings = async () => {
+    const profileUrl = getVintedProfileUrl();
+    if (!profileUrl || !session?.access_token) return;
+
+    setSyncing(true);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-vinted-wardrobe`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ profile_url: profileUrl }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        toast.error(data.error || "Sync failed");
+        return;
+      }
+
+      const parts: string[] = [];
+      if (data.imported > 0) parts.push(`${data.imported} new`);
+      if (data.updated > 0) parts.push(`${data.updated} updated`);
+      if (parts.length === 0) parts.push("Everything up to date");
+      toast.success(`Sync complete: ${parts.join(", ")}`);
+      fetchListings();
+    } catch (err) {
+      console.error("Sync error:", err);
+      toast.error("Sync failed. Please try again.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const filteredListings = listings.filter((l) => {
     const matchesSearch =
       !searchQuery ||
@@ -342,6 +400,29 @@ export default function Listings() {
 
   const headerActions = (
     <div className="flex items-center gap-2">
+      {hasImportedListings && (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncListings}
+            disabled={syncing}
+            className="font-semibold hidden sm:flex h-9"
+          >
+            {syncing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
+            Sync
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleSyncListings}
+            disabled={syncing}
+            className="sm:hidden h-10 w-10"
+          >
+            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          </Button>
+        </>
+      )}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogTrigger asChild>
           <Button variant="outline" size="sm" className="font-semibold hidden sm:flex h-9">
