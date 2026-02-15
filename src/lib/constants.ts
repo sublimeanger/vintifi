@@ -117,6 +117,10 @@ export const DEFAULT_LOBSTR_SQUID_IDS = [
   "2a6c83edef674d04a168760fe2f0d607",
 ] as const;
 
+export const FEATURE_FLAGS = {
+  VINTED_PRO_ENABLED: false,
+} as const;
+
 export const TIMEZONES = [
   { value: "Europe/London", label: "🇬🇧 London (GMT/BST)" },
   { value: "Europe/Paris", label: "🇫🇷 Paris (CET/CEST)" },
