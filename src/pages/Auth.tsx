@@ -7,19 +7,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2, Mail, ArrowRight, Zap, TrendingUp, Shield } from "lucide-react";
+
+const testimonialQuotes = [
+  { quote: "Vintifi paid for itself in the first week. My pricing accuracy went from guesswork to 87%.", name: "Sarah K.", role: "Full-Time Reseller" },
+  { quote: "I save 4+ hours a week on research alone. The AI listings practically write themselves.", name: "Marcus T.", role: "Side Hustler" },
+];
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const defaultMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
 
-  // Capture referral code from URL
   useEffect(() => {
     const ref = searchParams.get("ref");
     if (ref) {
       localStorage.setItem("vintifi_referral_code", ref.toUpperCase());
     }
   }, [searchParams]);
+
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,7 +47,6 @@ export default function Auth() {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
@@ -78,14 +82,6 @@ export default function Auth() {
     }
   };
 
-  const handleGoogleAuth = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/onboarding` },
-    });
-    if (error) toast.error(error.message);
-  };
-
   if (magicLinkSent) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -102,54 +98,110 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <h1 className="font-display text-2xl font-extrabold tracking-tight">
+    <div className="min-h-screen flex bg-background relative overflow-hidden">
+      {/* Gradient background */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-accent/5 blur-[100px]" />
+      </div>
+
+      {/* Left brand panel — desktop only */}
+      <div className="hidden lg:flex flex-col justify-between w-[45%] bg-secondary text-secondary-foreground p-12 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-primary/10 blur-[100px]" />
+        </div>
+        <div className="relative z-10">
+          <h1 className="font-display text-3xl font-extrabold mb-2">
             <span className="text-gradient">Vintifi</span>
           </h1>
-          <p className="text-muted-foreground mt-2">
-            {mode === "signup" ? "Create your account" : "Welcome back"}
-          </p>
+          <p className="text-secondary-foreground/60 text-sm">AI-Powered Vinted Intelligence</p>
         </div>
 
-        <form onSubmit={handleEmailAuth} className="space-y-4">
-          {mode === "signup" && (
+        <div className="relative z-10 space-y-6">
+          <div className="space-y-4">
+            {[
+              { icon: Zap, text: "AI-powered pricing in under 8 seconds" },
+              { icon: TrendingUp, text: "Catch trends before they peak" },
+              { icon: Shield, text: "Data-driven decisions, not guesswork" },
+            ].map((item) => (
+              <div key={item.text} className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <item.icon className="w-4 h-4 text-primary" />
+                </div>
+                <span className="text-sm text-secondary-foreground/80">{item.text}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-secondary-foreground/10 pt-6">
+            <p className="text-sm text-secondary-foreground/60 italic mb-3">
+              "{testimonialQuotes[0].quote}"
+            </p>
+            <p className="text-xs text-secondary-foreground/40">
+              — {testimonialQuotes[0].name}, {testimonialQuotes[0].role}
+            </p>
+          </div>
+        </div>
+
+        <div className="relative z-10">
+          <p className="text-xs text-secondary-foreground/30">© {new Date().getFullYear()} Vintifi</p>
+        </div>
+      </div>
+
+      {/* Right form panel */}
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <Card className="w-full max-w-md p-6 sm:p-8 shadow-xl border-border/50">
+          <div className="text-center mb-8">
+            <h1 className="font-display text-2xl font-extrabold tracking-tight lg:hidden">
+              <span className="text-gradient">Vintifi</span>
+            </h1>
+            <h2 className="font-display text-xl sm:text-2xl font-bold mt-2 lg:mt-0">
+              {mode === "signup" ? "Create your account" : "Welcome back"}
+            </h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              {mode === "signup" ? "Start selling smarter in under 90 seconds" : "Sign in to your dashboard"}
+            </p>
+          </div>
+
+          <form onSubmit={handleEmailAuth} className="space-y-4">
+            {mode === "signup" && (
+              <div>
+                <Label htmlFor="name">Full Name</Label>
+                <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required className="h-11" />
+              </div>
+            )}
             <div>
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="h-11" />
             </div>
-          )}
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
-          </div>
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" minLength={6} required />
-          </div>
-          <Button type="submit" className="w-full font-semibold" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {mode === "signup" ? "Create Account" : "Sign In"}
-          </Button>
-        </form>
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" minLength={6} required className="h-11" />
+            </div>
+            <Button type="submit" className="w-full font-semibold h-11 shadow-lg shadow-primary/20" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {mode === "signup" ? "Create Account" : "Sign In"}
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </form>
 
-        <div className="mt-4 space-y-3">
-          <Button variant="outline" className="w-full" onClick={handleMagicLink} disabled={loading}>
-            <Mail className="mr-2 h-4 w-4" />
-            Sign in with Magic Link
-          </Button>
-        </div>
+          <div className="mt-4 space-y-3">
+            <Button variant="outline" className="w-full h-11" onClick={handleMagicLink} disabled={loading}>
+              <Mail className="mr-2 h-4 w-4" />
+              Sign in with Magic Link
+            </Button>
+          </div>
 
-        <div className="mt-6 text-center">
-          <button
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-          >
-            {mode === "signup" ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
-          </button>
-        </div>
-      </Card>
+          <div className="mt-6 text-center">
+            <button
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
+            >
+              {mode === "signup" ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
+            </button>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
