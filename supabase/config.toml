@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.vintography]
 verify_jwt = false
+
+[functions.import-wardrobe]
+verify_jwt = false
