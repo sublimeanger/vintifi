@@ -1,122 +1,160 @@
 
 
-# Full Cohesion Audit and World-Class Flow Roadmap
+# Vintography: AI Photo Studio for Vinted Sellers
 
-## Current State: Feature Map
+## Is It Worth Building?
 
-Vintifi has 18 feature pages built. Here's an honest assessment of how they connect -- and where they don't.
+**Short answer: Yes, absolutely.** Here's why:
 
----
+### The Problem
+Photos are the #1 factor in Vinted sales conversion. Yet most sellers use cluttered backgrounds, poor lighting, and flat-lay shots that make items look cheap. Professional sellers on Depop and eBay use clean white backgrounds and model shots — Vinted sellers don't have access to these tools affordably.
 
-## COHESION SCORECARD
+### Market Validation
+- **Photoroom** (background removal app) has 150M+ downloads and charges $9.99/month — proving massive demand for this exact use case
+- **Vinted's own advice** repeatedly emphasises clean, well-lit photos as the top tip for selling faster
+- Sellers report 20-40% faster sales with clean background photos vs cluttered bedroom shots
+- "Virtual try-on" and "on-model" features are the hottest trend in e-commerce AI right now
 
-| Area | Score | Verdict |
-|---|---|---|
-| Welcome/Onboarding flow | 8/10 | Strong. Import then price check is excellent. |
-| Dashboard as command centre | 6/10 | Shows metrics and recent checks, but doesn't surface intelligence from other features. |
-| Listing to Action flow | 7/10 | Listings link to Price Check and Optimise well via URL params. |
-| Intelligence cross-linking | 5/10 | Trend cards link to Price Check and Arbitrage. But results from those tools don't link back or forward. |
-| Report to Action conversion | 3/10 | Major gap. Price Check results have "Optimise This Listing" but no "Save to Inventory", "Track Competitor", or "Set Price Alert". |
-| Inventory to Intelligence loop | 4/10 | Dead Stock and Portfolio Optimiser read from listings. But their recommendations don't flow into the Relist Scheduler or cross-reference Trends. |
-| Sourcing pipeline | 3/10 | Charity Briefing, Clearance Radar, Arbitrage, and Niche Finder all output opportunities -- but none feed into a unified "Sourcing Queue" or link to each other. |
-| Mobile cohesion | 6/10 | Bottom nav only shows 5 pages. 13 features are buried in the hamburger menu. |
-| Empty states | 5/10 | Most have them, but they don't guide users to the right next action. |
+### Strategic Value for VintEdge
+- Creates a **sticky daily-use feature** (sellers photograph items constantly)
+- Natural **upsell moment** — free tier gets basic background removal, paid tiers get model placement
+- Completes the listing workflow: Price Check -> Vintography -> Optimise Listing -> Publish
+- **Differentiator** — no Vinted-specific tool offers this today
 
----
+### Cost Reality Check
+- Lovable AI already includes **google/gemini-2.5-flash-image** and **google/gemini-3-pro-image-preview** for image generation — no additional API keys needed
+- Background removal via AI image editing is included in the existing Lovable AI quota
+- Storage already set up (`listing-photos` bucket with RLS policies)
+- Estimated cost per edit: fractions of a penny via Gemini models
 
-## IDENTIFIED HOLES (Priority Order)
-
-### 1. Dead-End Reports (Critical)
-Every AI-powered tool (Price Check, Arbitrage, Clearance Radar, Niche Finder, Charity Briefing) generates a report that the user reads... and then what? There's no "next step" wiring.
-
-**What's missing:**
-- Price Check result has no "Save to My Listings" button (only Optimise has this)
-- Arbitrage finds have no "Add to Sourcing List" or "Track This Deal"
-- Clearance Radar finds don't link to "Check Vinted Price" for validation
-- Niche Finder links to Price Check and Arbitrage (good!) but not to Charity Briefing or Seasonal Calendar
-- Charity Briefing items have a "Check Price" button but no "Add to Shopping List"
-
-### 2. No Contextual Suggestions on Dashboard (High)
-The dashboard shows 4 metrics and recent price checks. It should be the intelligence hub showing:
-- "3 items need relisting" (link to Relist Scheduler)
-- "5 dead stock items detected" (link to Dead Stock)
-- "Nike trending +280%" (link to Trends)
-- "Portfolio health: 72/100" (link to Portfolio Optimiser)
-
-### 3. Feature Discovery is Broken (High)
-18 features across 5 sidebar sections. A new user has no idea what "Dead Stock Liquidation" or "Niche Finder" does without clicking into each one. Progressive disclosure was specced but never built -- every feature is visible from day one.
-
-### 4. No Unified Action Queue (Medium)
-Dead Stock says "relist these 5 items". Portfolio Optimiser says "reduce price on 12 items". Relist Scheduler generates schedules. But none of these talk to each other. A user has to mentally track which items need what action across 3 different pages.
-
-### 5. Seasonal Calendar is Static (Medium)
-It's hardcoded data, not connected to actual trend data. It should cross-reference real Trend Radar data to show "This month: Carhartt is hot (Trend Radar confirms +280%)".
-
-### 6. Cross-Platform Pages Feel Orphaned (Low-Medium)
-Cross-Listings and Platform Connections exist but aren't referenced from Listings, Dead Stock, or Arbitrage results.
+**Verdict: High value, low incremental cost, strong differentiation. Build it.**
 
 ---
 
-## PROPOSED ROADMAP: 4 Sprints
+## What Vintography Will Do
 
-### Sprint 1: "Close the Loops" (Highest Impact)
-**Goal:** Every AI report ends with clear next-step CTAs that feed data forward.
+### Core Features
 
-| Change | Details |
-|---|---|
-| Price Check: Add "Save to Inventory" CTA | After getting a report, one click saves the item to listings with the recommended price pre-filled. |
-| Price Check: Add "Track This Brand" CTA | Links to Competitor Tracker with brand pre-filled. |
-| Arbitrage/Clearance results: Add "Check Vinted Price" | Each deal card gets a button that opens Price Check with brand+category pre-filled. |
-| Clearance/Arbitrage results: Add "Save to Sourcing List" | Creates a listing in "watchlist" status for tracking. |
-| Dead Stock recommendations: Wire "Relist" action | "Relist" button creates an entry in the Relist Scheduler directly, not just navigates to the page. |
-| Portfolio Optimiser "Apply" actions: Batch mode | "Apply All Suggestions" button to bulk-update prices instead of one at a time. |
+| Feature | Description | Tier |
+|---------|-------------|------|
+| **Background Removal** | Remove cluttered backgrounds, replace with clean white/gradient | Free (3/mo) |
+| **Smart Backgrounds** | AI-generated contextual backgrounds (e.g., wooden floor for vintage, studio for designer) | Pro |
+| **Virtual Model** | Place garment on an AI-generated model (select gender, pose, body type) | Business |
+| **Photo Enhancement** | Auto-adjust lighting, contrast, sharpness for professional look | Free (3/mo) |
+| **Batch Processing** | Process multiple photos at once for bulk listings | Business |
+| **Vinted-Ready Export** | Crop to Vinted's preferred aspect ratio, optimise file size | All tiers |
 
-### Sprint 2: "Intelligent Dashboard" (High Impact)
-**Goal:** Dashboard becomes a true command centre that surfaces actionable intelligence from every module.
+### User Flow
 
-| Change | Details |
-|---|---|
-| Smart Action Cards | Add a section below metrics: "Your Attention Needed" with cards like "5 stale items (30+ days)", "Portfolio health: 68/100", "3 trends match your inventory". Each links to the relevant tool. |
-| Trending Brands Strip | Horizontal scrollable strip showing top 5 rising trends with opportunity scores. Tap to see trend detail. |
-| Quick Actions Grid | Replace the single Price Check bar with a 2x2 grid: Price Check, Import/Sync, Optimise Listing, View Trends. More discoverable entry points. |
-| Recent Activity Feed | Combine recent price checks, recent imports, and recent sales into a unified timeline. |
-
-### Sprint 3: "Guided Journeys" (Medium Impact)
-**Goal:** Connect features into logical workflows so users don't have to figure out the order themselves.
-
-| Change | Details |
-|---|---|
-| Sourcing Journey | Charity Briefing results show "Check Price" which goes to Price Check. Price Check results show "Source This Item" which goes to Arbitrage with brand pre-filled. Creates a loop: Briefing -> Price Check -> Arbitrage -> Add to Inventory. |
-| Listing Lifecycle Journey | New listing -> Optimise -> Price Check -> Publish. At each stage, the next step CTA is prominent. After optimising, show "Now check the price" button. After price checking an existing listing, show "Update your listing price" one-click action. |
-| Inventory Health Journey | Dashboard "Attention Needed" card -> Dead Stock/Portfolio Optimiser -> Apply fixes -> Relist Scheduler. Each step naturally leads to the next. |
-| Empty State CTAs | Every empty state page should guide to the most logical entry point. Empty Listings? "Import from Vinted". Empty Analytics? "Mark some items as sold". Empty Relist Scheduler? "Run Portfolio Optimiser first". |
-
-### Sprint 4: "Polish and Progressive Disclosure" (Refinement)
-**Goal:** Make the 18-feature platform feel simple, not overwhelming.
-
-| Change | Details |
-|---|---|
-| Feature unlock notifications | Show a toast when a user "unlocks" access to a new feature through usage (e.g. after 5 price checks: "You've unlocked the Arbitrage Scanner!"). |
-| Sidebar grouping with badges | Show count badges on sidebar items: "Dead Stock (5)", "Relist (3 due today)". Makes the sidebar actionable, not just navigational. |
-| "For You" dashboard tab | Personalised suggestions based on user's inventory, selling categories, and usage patterns. |
-| Seasonal Calendar: wire to real data | Cross-reference Trend Radar data with the static seasonal calendar to add "live" confirmation badges. |
+```text
+Upload/Import Photo(s)
+        |
+        v
+  Choose Enhancement
+  [Remove BG] [Smart BG] [Model Shot] [Enhance]
+        |
+        v
+  AI Processing (3-8 seconds)
+        |
+        v
+  Before/After Preview (swipe slider)
+        |
+        v
+  [Download] [Use in Listing Optimiser] [Save to Gallery]
+```
 
 ---
 
-## Technical Approach
+## Technical Implementation Plan
 
-All changes are frontend-only (no new edge functions or database tables needed for Sprints 1-3). The key pattern is:
+### 1. New Edge Function: `vintography`
 
-1. **URL parameter passing** -- already used between Listings, Price Check, and Optimise. Extend this pattern to all cross-feature links.
-2. **Supabase mutations** -- "Save to Inventory" from Price Check just inserts into the `listings` table (already done in OptimizeListing's `handleSaveAsListing`).
-3. **Dashboard queries** -- fetch counts from `listings` (stale items, portfolio health) and `trends` (top rising) to populate the intelligence cards.
-4. **No new tables** -- sourcing list items use the existing `listings` table with a new `status` value like "watchlist".
+Creates a new backend function that:
+- Accepts the original photo URL (from `listing-photos` bucket or remote URL)
+- Accepts the operation type: `remove_bg`, `smart_bg`, `model_shot`, `enhance`
+- Accepts optional parameters (background style, model gender/pose)
+- Calls **Lovable AI** with `google/gemini-2.5-flash-image` (or `gemini-3-pro-image-preview` for model shots)
+- Uploads the result to a new `vintography` storage bucket
+- Returns the processed image URL
+- Deducts a credit from the user's usage
+
+### 2. New Storage Bucket: `vintography`
+
+- Public bucket for processed images
+- Same RLS pattern as `listing-photos` (users can only write to their own folder)
+
+### 3. New Database Table: `vintography_jobs`
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| id | UUID (PK) | Job ID |
+| user_id | UUID (FK) | Owner |
+| original_url | TEXT | Source image |
+| processed_url | TEXT | Result image |
+| operation | TEXT | remove_bg / smart_bg / model_shot / enhance |
+| parameters | JSONB | Background style, model config, etc. |
+| status | TEXT | processing / completed / failed |
+| created_at | TIMESTAMPTZ | Timestamp |
+
+### 4. New Page: `/vintography`
+
+- Photo upload area (drag-and-drop + camera on mobile)
+- Operation selector (4 cards: Remove BG, Smart BG, Model Shot, Enhance)
+- Before/After comparison slider
+- Gallery of previous edits
+- "Use in Listing" button that navigates to Optimise Listing with the processed photo
+- Mobile-first design with large touch targets
+- UseCaseSpotlight component for empty state
+
+### 5. Feature Gating
+
+- Add `vintography` to `useFeatureGate` hook
+- Free tier: 3 basic edits/month (remove_bg + enhance only)
+- Pro tier: 15 edits/month (all operations)
+- Business/Scale: 50+ edits/month (all operations + batch)
+
+### 6. Navigation Integration
+
+- Add "Vintography" to sidebar under a new "Studio" group
+- Add to mobile bottom nav
+- Add Journey Banner connection: Optimise Listing -> "Enhance your photos first?" -> Vintography
+
+### 7. Credit Tracking
+
+- Add `vintography_used` column to `usage_credits` table
+- Track per-operation usage
 
 ---
 
-## Recommended Order
+## Implementation Sequence
 
-Sprint 1 first -- it immediately makes every existing feature more valuable by connecting outputs to inputs. Sprint 2 next -- it makes the dashboard the hub everything radiates from. Sprint 3 follows naturally. Sprint 4 is polish.
+| Step | What | Files Affected |
+|------|------|---------------|
+| 1 | Create `vintography` storage bucket + `vintography_jobs` table | New migration |
+| 2 | Add `vintography_used` to `usage_credits` | Migration |
+| 3 | Create `vintography` edge function | `supabase/functions/vintography/index.ts` |
+| 4 | Add feature gate config | `src/hooks/useFeatureGate.ts` |
+| 5 | Build Vintography page with upload, operation cards, before/after slider | `src/pages/Vintography.tsx` |
+| 6 | Add route + sidebar nav item | `src/App.tsx`, `src/pages/Dashboard.tsx` |
+| 7 | Add Journey Banner links from Optimise Listing | `src/pages/OptimizeListing.tsx` |
+| 8 | Update config.toml | `supabase/config.toml` |
 
-Estimated scope: Sprint 1 is ~4-5 messages. Sprint 2 is ~3-4 messages. Sprint 3 is ~3 messages. Sprint 4 is ~2-3 messages.
+---
+
+## Key Technical Decisions
+
+- **Gemini Flash Image** for background removal and enhancement (fast, cheap)
+- **Gemini 3 Pro Image Preview** for model shots (higher quality needed for realistic body rendering)
+- All processing server-side via edge function (keeps API keys secure, consistent results)
+- Processed images stored in dedicated bucket (not mixed with originals)
+- Before/After slider using CSS `clip-path` (no additional dependencies)
+
+## Risks and Mitigations
+
+| Risk | Mitigation |
+|------|-----------|
+| AI model produces unrealistic model shots | Use specific prompts with clothing-on-mannequin as fallback; let users regenerate |
+| Large images slow down processing | Resize to max 1500px before sending to AI; show skeleton loader |
+| Users abuse free tier | Rate limit at edge function level; track in database |
+| Gemini rate limits | Queue system with retry; show "processing" status |
 
