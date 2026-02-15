@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,13 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, Upload, Loader2, Sparkles, Copy, Check, Save,
-  ImagePlus, X, AlertCircle, Camera, Globe, Languages,
+  Loader2, Sparkles, Copy, Check, Save,
+  ImagePlus, X, Camera, Globe, Languages, ArrowRight,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HealthScoreGauge } from "@/components/HealthScoreGauge";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
-import { Sparkles as SparklesIcon } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 type HealthScore = {
   overall: number;
@@ -106,7 +107,6 @@ export default function OptimizeListing() {
     setResult(null);
 
     try {
-      // Upload photos to storage and get public URLs
       const photoUrls: string[] = [];
       for (const photo of photos) {
         const ext = photo.name.split(".").pop();
@@ -209,353 +209,336 @@ export default function OptimizeListing() {
     }
   };
 
-
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
-      <header className="border-b border-border glass sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="font-display font-bold text-lg">AI Listing Optimiser</h1>
-            <p className="text-xs text-muted-foreground">Upload photos and get AI-optimised listings</p>
-          </div>
-        </div>
-      </header>
+    <PageShell
+      title="AI Listing Optimiser"
+      subtitle="Upload photos · Get AI-optimised listings"
+      maxWidth="max-w-6xl"
+    >
+      <UseCaseSpotlight
+        featureKey="optimize-listing"
+        icon={Sparkles}
+        scenario="Your listing has been up for 2 weeks with zero interest..."
+        description="The title is generic, the description is thin, and you're invisible in Vinted's search results."
+        outcome="The AI rewrites your title with high-traffic keywords and your views jump 4x overnight."
+        tip="Upload photos too — the AI can detect brand, condition, and suggest the perfect category."
+      />
 
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
-        <UseCaseSpotlight
-          featureKey="optimize-listing"
-          icon={SparklesIcon}
-          scenario="Your listing has been up for 2 weeks with zero interest..."
-          description="The title is generic, the description is thin, and you're invisible in Vinted's search results."
-          outcome="The AI rewrites your title with high-traffic keywords and your views jump 4x overnight."
-          tip="Upload photos too — the AI can detect brand, condition, and suggest the perfect category."
-        />
-        <div className={`grid gap-6 ${result ? "lg:grid-cols-2" : "max-w-2xl mx-auto"}`}>
-          {/* Input Panel */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="p-6">
-              <h2 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
-                <Camera className="w-5 h-5 text-primary" />
-                Your Item
-              </h2>
+      <div className={`grid gap-5 sm:gap-6 ${result ? "lg:grid-cols-2" : "max-w-2xl mx-auto"}`}>
+        {/* Input Panel */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="p-4 sm:p-6 border-border/50">
+            <h2 className="font-display font-bold text-base sm:text-lg mb-4 flex items-center gap-2">
+              <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              Your Item
+            </h2>
 
-              {/* Photo Upload */}
-              <div className="mb-6">
-                <Label className="mb-2 block">Photos (up to 4)</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {photoPreviewUrls.map((url, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-border bg-muted">
-                      <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => removePhoto(i)}
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
+            {/* Photo Upload */}
+            <div className="mb-5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                Photos (up to 4)
+              </Label>
+              <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                {photoPreviewUrls.map((url, i) => (
+                  <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-border bg-muted">
+                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => removePhoto(i)}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center active:scale-90 transition-transform"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {photos.length < 4 && (
+                  <label className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 active:border-primary flex flex-col items-center justify-center cursor-pointer transition-colors bg-muted/30">
+                    <ImagePlus className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground mb-0.5" />
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Add</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Item Details */}
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Title</Label>
+                <Input value={currentTitle} onChange={(e) => setCurrentTitle(e.target.value)} placeholder="e.g. Nike trainers size 9" className="h-11 sm:h-10 text-base sm:text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Description</Label>
+                <Textarea value={currentDescription} onChange={(e) => setCurrentDescription(e.target.value)} placeholder="Paste your existing listing description..." rows={3} className="text-base sm:text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
+                  <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Nike" className="h-11 sm:h-10 text-base sm:text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
+                  <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Trainers" className="h-11 sm:h-10 text-base sm:text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
+                  <Input value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. UK 9" className="h-11 sm:h-10 text-base sm:text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
+                  <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Very Good" className="h-11 sm:h-10 text-base sm:text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <Button onClick={handleOptimize} disabled={optimizing} className="w-full mt-5 font-semibold h-12 sm:h-11">
+              {optimizing ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Analysing with AI...</>
+              ) : (
+                <><Sparkles className="w-4 h-4 mr-2" /> Optimise Listing</>
+              )}
+            </Button>
+          </Card>
+        </motion.div>
+
+        {/* Results Panel */}
+        <AnimatePresence>
+          {result && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+              {/* Health Score */}
+              <Card className="p-4 sm:p-6 border-primary/10 bg-gradient-to-br from-primary/[0.03] to-transparent">
+                <h2 className="font-display font-bold text-base sm:text-lg mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  Listing Health
+                </h2>
+                <div className="flex justify-center">
+                  <HealthScoreGauge score={result.health_score} size="lg" />
+                </div>
+              </Card>
+
+              {/* Optimised Title */}
+              <Card className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Optimised Title</Label>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => copyToClipboard(result.optimised_title, "title")}>
+                    {copiedField === "title" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                    {copiedField === "title" ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+                <div className="p-3 rounded-xl bg-success/5 border border-success/20">
+                  <p className="text-sm font-medium">{result.optimised_title}</p>
+                </div>
+                {currentTitle && (
+                  <div className="mt-2 p-3 rounded-xl bg-muted/50 border border-border">
+                    <p className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider font-semibold">Original</p>
+                    <p className="text-sm text-muted-foreground line-through">{currentTitle}</p>
+                  </div>
+                )}
+              </Card>
+
+              {/* Optimised Description */}
+              <Card className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Optimised Description</Label>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => copyToClipboard(result.optimised_description, "description")}>
+                    {copiedField === "description" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                    {copiedField === "description" ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+                <div className="p-3 rounded-xl bg-success/5 border border-success/20 max-h-60 overflow-y-auto">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{result.optimised_description}</p>
+                </div>
+              </Card>
+
+              {/* Tags */}
+              <Card className="p-4 sm:p-6">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Suggested Tags</Label>
+                <div className="flex flex-wrap gap-2">
+                  {result.suggested_tags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground active:scale-95 transition-all py-1.5 px-3 text-xs"
+                      onClick={() => copyToClipboard(tag, `tag-${tag}`)}
+                    >
+                      {tag}
+                      {copiedField === `tag-${tag}` ? <Check className="w-3 h-3 ml-1.5" /> : <Copy className="w-3 h-3 ml-1.5 opacity-50" />}
+                    </Badge>
                   ))}
-                  {photos.length < 4 && (
-                    <label className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center cursor-pointer transition-colors bg-muted/30">
-                      <ImagePlus className="w-6 h-6 text-muted-foreground mb-1" />
-                      <span className="text-[10px] text-muted-foreground">Add Photo</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handlePhotoUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
                 </div>
-              </div>
+              </Card>
 
-              {/* Item Details */}
-              <div className="space-y-3">
-                <div>
-                  <Label>Current Title (optional)</Label>
-                  <Input value={currentTitle} onChange={(e) => setCurrentTitle(e.target.value)} placeholder="e.g. Nike trainers size 9" />
-                </div>
-                <div>
-                  <Label>Current Description (optional)</Label>
-                  <Textarea value={currentDescription} onChange={(e) => setCurrentDescription(e.target.value)} placeholder="Paste your existing listing description..." rows={3} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Brand</Label>
-                    <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Nike" />
-                  </div>
-                  <div>
-                    <Label>Category</Label>
-                    <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Trainers" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Size</Label>
-                    <Input value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. UK 9" />
-                  </div>
-                  <div>
-                    <Label>Condition</Label>
-                    <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Very Good" />
-                  </div>
-                </div>
-              </div>
-
-              <Button onClick={handleOptimize} disabled={optimizing} className="w-full mt-6 font-semibold">
-                {optimizing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Analysing with AI...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Optimise Listing
-                  </>
-                )}
-              </Button>
-            </Card>
-          </motion.div>
-
-          {/* Results Panel */}
-          <AnimatePresence>
-            {result && (
-              <motion.div initial={{ opacity: 0, x: 0 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                {/* Health Score */}
-                <Card className="p-6">
-                  <h2 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    Listing Health Score
-                  </h2>
-                  <div className="flex justify-center mb-2">
-                    <HealthScoreGauge score={result.health_score} size="lg" />
-                  </div>
-                </Card>
-
-                {/* Optimised Title */}
-                <Card className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="font-display font-bold">Optimised Title</Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(result.optimised_title, "title")}
-                    >
-                      {copiedField === "title" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                      {copiedField === "title" ? "Copied" : "Copy"}
-                    </Button>
-                  </div>
-                  <div className="p-3 rounded-lg bg-success/5 border border-success/20">
-                    <p className="text-sm font-medium">{result.optimised_title}</p>
-                  </div>
-                  {currentTitle && (
-                    <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border">
-                      <p className="text-xs text-muted-foreground mb-1">Original:</p>
-                      <p className="text-sm text-muted-foreground line-through">{currentTitle}</p>
-                    </div>
-                  )}
-                </Card>
-
-                {/* Optimised Description */}
-                <Card className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="font-display font-bold">Optimised Description</Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(result.optimised_description, "description")}
-                    >
-                      {copiedField === "description" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                      {copiedField === "description" ? "Copied" : "Copy"}
-                    </Button>
-                  </div>
-                  <div className="p-3 rounded-lg bg-success/5 border border-success/20">
-                    <p className="text-sm whitespace-pre-wrap">{result.optimised_description}</p>
-                  </div>
-                </Card>
-
-                {/* Tags */}
-                <Card className="p-6">
-                  <Label className="font-display font-bold mb-3 block">Suggested Tags</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {result.suggested_tags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                        onClick={() => copyToClipboard(tag, `tag-${tag}`)}
+              {/* Improvements & Style */}
+              {result.improvements.length > 0 && (
+                <Card className="p-4 sm:p-6">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Improvements Made</Label>
+                  <ul className="space-y-2">
+                    {result.improvements.map((imp, i) => (
+                      <motion.li
+                        key={i}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="flex items-start gap-2.5 text-sm"
                       >
-                        {tag}
-                        {copiedField === `tag-${tag}` ? <Check className="w-3 h-3 ml-1" /> : <Copy className="w-3 h-3 ml-1" />}
-                      </Badge>
+                        <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                        <span>{imp}</span>
+                      </motion.li>
                     ))}
-                  </div>
-                </Card>
-
-                {/* Improvements & Style */}
-                {result.improvements.length > 0 && (
-                  <Card className="p-6">
-                    <Label className="font-display font-bold mb-3 block">Improvements Made</Label>
-                    <ul className="space-y-1.5">
-                      {result.improvements.map((imp, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
-                          <span>{imp}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    {result.style_notes && (
-                      <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                        <p className="text-xs font-medium text-primary mb-1">Style Notes</p>
-                        <p className="text-sm">{result.style_notes}</p>
-                      </div>
-                    )}
-                  </Card>
-                )}
-
-                {/* Multi-Language Translation */}
-                <Card className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-display font-bold text-lg flex items-center gap-2">
-                      <Globe className="w-5 h-5 text-primary" />
-                      Multi-Language Listings
-                    </h2>
-                    <Button
-                      onClick={handleTranslate}
-                      disabled={translating}
-                      size="sm"
-                      variant={translations ? "outline" : "default"}
-                    >
-                      {translating ? (
-                        <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Translating...</>
-                      ) : translations ? (
-                        <><Languages className="w-3 h-3 mr-1" /> Retranslate</>
-                      ) : (
-                        <><Languages className="w-3 h-3 mr-1" /> Translate to 4 Languages</>
-                      )}
-                    </Button>
-                  </div>
-
-                  {!translations && !translating && (
-                    <p className="text-sm text-muted-foreground">
-                      Expand your reach across Vinted's 18+ European markets. Translate your optimised listing into French, German, Dutch, and Spanish with one click.
-                    </p>
-                  )}
-
-                  {translating && (
-                    <div className="text-center py-8">
-                      <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
-                      <p className="text-sm text-muted-foreground">Translating into French, German, Dutch &amp; Spanish...</p>
+                  </ul>
+                  {result.style_notes && (
+                    <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                      <p className="text-[10px] font-semibold text-primary mb-1 uppercase tracking-wider">Style Notes</p>
+                      <p className="text-sm leading-relaxed">{result.style_notes}</p>
                     </div>
                   )}
-
-                  {translations && !translating && (
-                    <Tabs value={activeTransLang} onValueChange={setActiveTransLang}>
-                      <TabsList className="w-full grid grid-cols-4 mb-4 overflow-x-auto">
-                        {LANGUAGES.map((lang) => (
-                          <TabsTrigger key={lang.code} value={lang.code} className="text-xs">
-                            {lang.label}
-                          </TabsTrigger>
-                        ))}
-                      </TabsList>
-
-                      {LANGUAGES.map((lang) => {
-                        const t = translations[lang.code];
-                        if (!t) return null;
-                        return (
-                          <TabsContent key={lang.code} value={lang.code} className="space-y-3">
-                            {/* Translated Title */}
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <Label className="text-xs font-semibold">Title ({lang.short})</Label>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 text-xs"
-                                  onClick={() => copyToClipboard(t.title, `trans-title-${lang.code}`)}
-                                >
-                                  {copiedField === `trans-title-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                                  {copiedField === `trans-title-${lang.code}` ? "Copied" : "Copy"}
-                                </Button>
-                              </div>
-                              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                                <p className="text-sm font-medium">{t.title}</p>
-                              </div>
-                            </div>
-
-                            {/* Translated Description */}
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <Label className="text-xs font-semibold">Description ({lang.short})</Label>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 text-xs"
-                                  onClick={() => copyToClipboard(t.description, `trans-desc-${lang.code}`)}
-                                >
-                                  {copiedField === `trans-desc-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                                  {copiedField === `trans-desc-${lang.code}` ? "Copied" : "Copy"}
-                                </Button>
-                              </div>
-                              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 max-h-48 overflow-y-auto">
-                                <p className="text-sm whitespace-pre-wrap">{t.description}</p>
-                              </div>
-                            </div>
-
-                            {/* Translated Tags */}
-                            {t.tags?.length > 0 && (
-                              <div>
-                                <Label className="text-xs font-semibold mb-2 block">Tags ({lang.short})</Label>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {t.tags.map((tag) => (
-                                    <Badge
-                                      key={tag}
-                                      variant="secondary"
-                                      className="text-[10px] cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                                      onClick={() => copyToClipboard(tag, `trans-tag-${lang.code}-${tag}`)}
-                                    >
-                                      {tag}
-                                      {copiedField === `trans-tag-${lang.code}-${tag}` ? <Check className="w-2.5 h-2.5 ml-1" /> : <Copy className="w-2.5 h-2.5 ml-1" />}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Copy All */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full text-xs"
-                              onClick={() => copyToClipboard(
-                                `${t.title}\n\n${t.description}\n\nTags: ${t.tags?.join(", ") || ""}`,
-                                `trans-all-${lang.code}`
-                              )}
-                            >
-                              {copiedField === `trans-all-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                              Copy Full {lang.label} Listing
-                            </Button>
-                          </TabsContent>
-                        );
-                      })}
-                    </Tabs>
-                  )}
                 </Card>
+              )}
 
-                {/* Save Button */}
-                <Button onClick={handleSaveAsListing} disabled={saving} className="w-full font-semibold" size="lg">
+              {/* Multi-Language Translation */}
+              <Card className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4 gap-2">
+                  <h2 className="font-display font-bold text-sm sm:text-lg flex items-center gap-2 min-w-0">
+                    <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+                    <span className="truncate">Multi-Language</span>
+                  </h2>
+                  <Button
+                    onClick={handleTranslate}
+                    disabled={translating}
+                    size="sm"
+                    variant={translations ? "outline" : "default"}
+                    className="shrink-0 h-9"
+                  >
+                    {translating ? (
+                      <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Translating</>
+                    ) : translations ? (
+                      <><Languages className="w-3 h-3 mr-1" /> Redo</>
+                    ) : (
+                      <><Languages className="w-3 h-3 mr-1" /> Translate</>
+                    )}
+                  </Button>
+                </div>
+
+                {!translations && !translating && (
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Expand your reach across Vinted's 18+ European markets. Translate into French, German, Dutch & Spanish with one click.
+                  </p>
+                )}
+
+                {translating && (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">Translating into 4 languages...</p>
+                  </div>
+                )}
+
+                {translations && !translating && (
+                  <Tabs value={activeTransLang} onValueChange={setActiveTransLang}>
+                    <TabsList className="w-full grid grid-cols-4 mb-4">
+                      {LANGUAGES.map((lang) => (
+                        <TabsTrigger key={lang.code} value={lang.code} className="text-[10px] sm:text-xs px-1">
+                          {lang.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+
+                    {LANGUAGES.map((lang) => {
+                      const t = translations[lang.code];
+                      if (!t) return null;
+                      return (
+                        <TabsContent key={lang.code} value={lang.code} className="space-y-3">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Title ({lang.short})</Label>
+                              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyToClipboard(t.title, `trans-title-${lang.code}`)}>
+                                {copiedField === `trans-title-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                {copiedField === `trans-title-${lang.code}` ? "Copied" : "Copy"}
+                              </Button>
+                            </div>
+                            <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
+                              <p className="text-sm font-medium">{t.title}</p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Description ({lang.short})</Label>
+                              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyToClipboard(t.description, `trans-desc-${lang.code}`)}>
+                                {copiedField === `trans-desc-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                {copiedField === `trans-desc-${lang.code}` ? "Copied" : "Copy"}
+                              </Button>
+                            </div>
+                            <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 max-h-48 overflow-y-auto">
+                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{t.description}</p>
+                            </div>
+                          </div>
+
+                          {t.tags?.length > 0 && (
+                            <div>
+                              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Tags ({lang.short})</Label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {t.tags.map((tag) => (
+                                  <Badge
+                                    key={tag}
+                                    variant="secondary"
+                                    className="text-[10px] cursor-pointer hover:bg-primary hover:text-primary-foreground active:scale-95 transition-all py-1 px-2"
+                                    onClick={() => copyToClipboard(tag, `trans-tag-${lang.code}-${tag}`)}
+                                  >
+                                    {tag}
+                                    {copiedField === `trans-tag-${lang.code}-${tag}` ? <Check className="w-2.5 h-2.5 ml-1" /> : <Copy className="w-2.5 h-2.5 ml-1 opacity-50" />}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs h-10"
+                            onClick={() => copyToClipboard(
+                              `${t.title}\n\n${t.description}\n\nTags: ${t.tags?.join(", ") || ""}`,
+                              `trans-all-${lang.code}`
+                            )}
+                          >
+                            {copiedField === `trans-all-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                            Copy Full {lang.short} Listing
+                          </Button>
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                )}
+              </Card>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pb-4">
+                <Button
+                  onClick={() => navigate(`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}&condition=${encodeURIComponent(result.detected_condition || condition)}`)}
+                  variant="outline"
+                  className="w-full sm:w-auto h-12 sm:h-10"
+                >
+                  Price Check This Item
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+                <Button onClick={handleSaveAsListing} disabled={saving} className="w-full sm:w-auto font-semibold h-12 sm:h-10">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                   Save to My Listings
                 </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+
+      <MobileBottomNav />
+    </PageShell>
   );
 }
