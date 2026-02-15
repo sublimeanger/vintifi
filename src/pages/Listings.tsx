@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { HealthScoreMini } from "@/components/HealthScoreGauge";
 import { PublishModal } from "@/components/PublishModal";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -104,11 +104,12 @@ const IMPORT_LIMITS: Record<string, number> = { free: 20, pro: 200, business: 99
 
 export default function Listings() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, session, profile } = useAuth();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("filter") || "all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [publishListing, setPublishListing] = useState<Listing | null>(null);
