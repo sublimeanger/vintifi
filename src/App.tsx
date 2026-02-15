@@ -23,6 +23,7 @@ import SeasonalCalendar from "./pages/SeasonalCalendar";
 import CharityBriefing from "./pages/CharityBriefing";
 import BulkOptimize from "./pages/BulkOptimize";
 import ClearanceRadar from "./pages/ClearanceRadar";
+import NicheFinder from "./pages/NicheFinder";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,7 @@ const App = () => (
             <Route path="/charity-briefing" element={<ProtectedRoute><OnboardingGuard><CharityBriefing /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/bulk-optimize" element={<ProtectedRoute><OnboardingGuard><BulkOptimize /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/clearance-radar" element={<ProtectedRoute><OnboardingGuard><ClearanceRadar /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/niche-finder" element={<ProtectedRoute><OnboardingGuard><NicheFinder /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

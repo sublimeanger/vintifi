@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.clearance-radar]
 verify_jwt = false
+
+[functions.niche-finder]
+verify_jwt = false
