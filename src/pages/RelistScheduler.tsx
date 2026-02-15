@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, RefreshCw, Loader2, Calendar, Clock, TrendingDown,
+  RefreshCw, Loader2, Calendar, Clock, TrendingDown,
   Package, Zap, CheckCircle2, XCircle, ArrowRightLeft, Layers,
   Timer, Trash2,
 } from "lucide-react";
@@ -52,7 +52,6 @@ export default function RelistScheduler() {
     if (!user) return;
     setLoading(true);
 
-    // Fetch schedules
     const { data: schData, error } = await supabase
       .from("relist_schedules" as any)
       .select("*")
@@ -65,7 +64,6 @@ export default function RelistScheduler() {
       return;
     }
 
-    // Fetch listing details for each schedule
     const listingIds = [...new Set((schData as any[])?.map((s: any) => s.listing_id) || [])];
     let listingsMap: Record<string, any> = {};
     if (listingIds.length) {
@@ -88,7 +86,6 @@ export default function RelistScheduler() {
 
     setSchedules(enriched);
 
-    // Count active listings
     const { count } = await supabase
       .from("listings")
       .select("id", { count: "exact", head: true })
@@ -160,178 +157,166 @@ export default function RelistScheduler() {
   const completedSchedules = schedules.filter(s => s.status !== "pending");
 
   const nextRelist = pendingSchedules.length > 0 ? pendingSchedules[0] : null;
-  const totalSavings = pendingSchedules.reduce((sum, s) => {
-    if (s.new_price && s.listing_current_price) {
-      return sum + (s.listing_current_price - s.new_price);
-    }
-    return sum;
-  }, 0);
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
-      <header className="border-b border-border glass sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="font-display font-bold text-lg">Relist Scheduler</h1>
-            <p className="text-xs text-muted-foreground">
-              {pendingSchedules.length} scheduled · {activeCount} active listings
-            </p>
+    <PageShell
+      title="Relist Scheduler"
+      subtitle={`${pendingSchedules.length} scheduled · ${activeCount} active listings`}
+      icon={<Timer className="w-5 h-5 text-primary" />}
+      maxWidth="max-w-4xl"
+      actions={
+        <Button onClick={handleGenerate} disabled={generating} className="font-semibold active:scale-95 transition-transform" size="sm">
+          {generating ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Zap className="w-4 h-4 mr-1.5" />}
+          <span className="hidden sm:inline">{generating ? "Analysing..." : "Generate Schedule"}</span>
+          <span className="sm:hidden">{generating ? "..." : "Generate"}</span>
+        </Button>
+      }
+    >
+      <UseCaseSpotlight
+        featureKey="relist-scheduler"
+        icon={Timer}
+        scenario="You know relisting boosts visibility but you always forget, and when you do it's at the wrong time..."
+        description="Vinted's algorithm favours fresh listings, but manually tracking optimal relist times is impossible at scale."
+        outcome="Relist Scheduler queues your stale items for optimal times: womenswear on Sunday evening, menswear on Tuesday morning."
+        tip="Let AI generate the schedule — it analyses your categories to pick the best time slots."
+      />
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-5 sm:mb-6">
+        {[
+          { icon: Calendar, label: "Pending", value: pendingSchedules.length.toString(), color: "text-primary" },
+          { icon: Package, label: "Active Listings", value: activeCount.toString(), color: "text-success" },
+          { icon: TrendingDown, label: "Price Adjusts", value: pendingSchedules.filter(s => s.new_price).length.toString(), color: "text-accent" },
+          { icon: Clock, label: "Next Relist", value: nextRelist ? new Date(nextRelist.scheduled_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—", color: "text-muted-foreground" },
+        ].map((m, i) => (
+          <motion.div key={m.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <Card className="p-3 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                <m.icon className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${m.color}`} />
+                <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">{m.label}</span>
+              </div>
+              <p className="font-display text-lg sm:text-xl font-bold">{m.value}</p>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Pending Schedules */}
+      <h3 className="font-display font-bold text-sm sm:text-lg mb-2.5 sm:mb-3 flex items-center gap-2">
+        <Timer className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+        Upcoming Relists
+      </h3>
+
+      {loading ? (
+        <ScheduleCardSkeleton count={4} />
+      ) : pendingSchedules.length === 0 ? (
+        <Card className="p-8 sm:p-10 text-center mb-6 sm:mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+            <Calendar className="w-7 h-7 text-muted-foreground/40" />
           </div>
-          <Button onClick={handleGenerate} disabled={generating} className="font-semibold" size="sm">
+          <h4 className="font-display font-bold text-base sm:text-lg mb-1">No schedules yet</h4>
+          <p className="text-xs sm:text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
+            Click "Generate Schedule" to let AI analyse your listings and create optimal relist timing
+          </p>
+          <Button onClick={handleGenerate} disabled={generating} className="active:scale-95 transition-transform h-11 sm:h-10">
             {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
-            {generating ? "Analysing..." : <><span className="hidden sm:inline">Generate Schedule</span><span className="sm:hidden">Generate</span></>}
+            Generate Schedule
           </Button>
-        </div>
-      </header>
+        </Card>
+      ) : (
+        <div className="space-y-2.5 sm:space-y-3 mb-6 sm:mb-8">
+          <AnimatePresence>
+            {pendingSchedules.map((s, i) => {
+              const config = strategyConfig[s.strategy] || strategyConfig.optimal_timing;
+              const StratIcon = config.icon;
+              const scheduledDate = new Date(s.scheduled_at);
+              const isOverdue = scheduledDate < new Date();
 
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <UseCaseSpotlight
-          featureKey="relist-scheduler"
-          icon={Timer}
-          scenario="You know relisting boosts visibility but you always forget, and when you do it's at the wrong time..."
-          description="Vinted's algorithm favours fresh listings, but manually tracking optimal relist times is impossible at scale."
-          outcome="Relist Scheduler queues your stale items for optimal times: womenswear on Sunday evening, menswear on Tuesday morning."
-          tip="Let AI generate the schedule — it analyses your categories to pick the best time slots."
-        />
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          {[
-            { icon: Calendar, label: "Pending Relists", value: pendingSchedules.length.toString(), color: "text-primary" },
-            { icon: Package, label: "Active Listings", value: activeCount.toString(), color: "text-success" },
-            { icon: TrendingDown, label: "Price Adjustments", value: pendingSchedules.filter(s => s.new_price).length.toString(), color: "text-accent" },
-            { icon: Clock, label: "Next Relist", value: nextRelist ? new Date(nextRelist.scheduled_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—", color: "text-muted-foreground" },
-          ].map((m, i) => (
-            <motion.div key={m.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-              <Card className="p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <m.icon className={`w-3.5 h-3.5 ${m.color}`} />
-                  <span className="text-xs text-muted-foreground font-medium">{m.label}</span>
-                </div>
-                <p className="font-display text-xl font-bold">{m.value}</p>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Pending Schedules */}
-        <h3 className="font-display font-bold text-lg mb-3 flex items-center gap-2">
-          <Timer className="w-5 h-5 text-primary" />
-          Upcoming Relists
-        </h3>
-
-        {loading ? (
-          <ScheduleCardSkeleton count={4} />
-        ) : pendingSchedules.length === 0 ? (
-          <Card className="p-8 text-center mb-8">
-            <Calendar className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-            <h4 className="font-display font-bold mb-1">No schedules yet</h4>
-            <p className="text-sm text-muted-foreground mb-4">
-              Click "Generate Schedule" to let AI analyse your listings and create optimal relist timing
-            </p>
-            <Button onClick={handleGenerate} disabled={generating}>
-              {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
-              Generate Schedule
-            </Button>
-          </Card>
-        ) : (
-          <div className="space-y-3 mb-8">
-            <AnimatePresence>
-              {pendingSchedules.map((s, i) => {
-                const config = strategyConfig[s.strategy] || strategyConfig.optimal_timing;
-                const StratIcon = config.icon;
-                const scheduledDate = new Date(s.scheduled_at);
-                const isOverdue = scheduledDate < new Date();
-
-                return (
-                  <motion.div
-                    key={s.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ delay: i * 0.03 }}
-                  >
-                    <Card className={`p-4 ${isOverdue ? "border-accent/40" : ""}`}>
-                      <div className="flex items-start gap-3">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${config.color}`}>
-                          <StratIcon className="w-4 h-4" />
+              return (
+                <motion.div
+                  key={s.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ delay: i * 0.03 }}
+                >
+                  <Card className={`p-3.5 sm:p-4 active:scale-[0.99] transition-all ${isOverdue ? "border-accent/40" : ""}`}>
+                    <div className="flex items-start gap-2.5 sm:gap-3">
+                      <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shrink-0 ${config.color}`}>
+                        <StratIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5">
+                          <p className="text-xs sm:text-sm font-semibold truncate">{s.listing_title}</p>
+                          {s.listing_brand && (
+                            <Badge variant="outline" className="text-[10px] shrink-0 px-1.5 py-0">{s.listing_brand}</Badge>
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <p className="text-sm font-semibold truncate">{s.listing_title}</p>
-                            {s.listing_brand && (
-                              <Badge variant="outline" className="text-[10px] shrink-0">{s.listing_brand}</Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-2">{s.ai_reason}</p>
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <Badge variant="outline" className={`text-[10px] ${config.color}`}>
-                              {config.label}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {scheduledDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-                              {" "}
-                              {scheduledDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                        {s.ai_reason && (
+                          <p className="text-[10px] sm:text-xs text-muted-foreground mb-1.5 sm:mb-2 line-clamp-2">{s.ai_reason}</p>
+                        )}
+                        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${config.color}`}>
+                            {config.label}
+                          </Badge>
+                          <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {scheduledDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+                            {" "}
+                            {scheduledDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {isOverdue && (
+                            <Badge className="text-[10px] px-1.5 py-0 bg-accent/10 text-accent border-accent/30">Overdue</Badge>
+                          )}
+                          {s.new_price != null && s.listing_current_price != null && (
+                            <span className="text-[10px] sm:text-xs font-medium">
+                              £{s.listing_current_price.toFixed(0)} → <span className="text-primary font-bold">£{s.new_price.toFixed(0)}</span>
+                              {s.price_adjustment_percent != null && (
+                                <span className="text-muted-foreground ml-1">({s.price_adjustment_percent > 0 ? "+" : ""}{s.price_adjustment_percent.toFixed(0)}%)</span>
+                              )}
                             </span>
-                            {isOverdue && (
-                              <Badge className="text-[10px] bg-accent/10 text-accent border-accent/30">Overdue</Badge>
-                            )}
-                            {s.new_price != null && s.listing_current_price != null && (
-                              <span className="text-xs font-medium">
-                                £{s.listing_current_price.toFixed(0)} → <span className="text-primary font-bold">£{s.new_price.toFixed(0)}</span>
-                                {s.price_adjustment_percent != null && (
-                                  <span className="text-muted-foreground ml-1">({s.price_adjustment_percent > 0 ? "+" : ""}{s.price_adjustment_percent.toFixed(0)}%)</span>
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-1 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleCancel(s.id)}>
-                            <XCircle className="w-4 h-4" />
-                          </Button>
+                          )}
                         </div>
                       </div>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
-        )}
-
-        {/* Completed / Cancelled */}
-        {completedSchedules.length > 0 && (
-          <>
-            <h3 className="font-display font-bold text-lg mb-3 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
-              History
-            </h3>
-            <div className="space-y-2">
-              {completedSchedules.slice(0, 10).map((s) => (
-                <Card key={s.id} className="p-3 opacity-60">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{s.listing_title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {s.status === "cancelled" ? "Cancelled" : "Executed"} ·{" "}
-                        {new Date(s.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                      </p>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive active:scale-95 transition-transform" onClick={() => handleCancel(s.id)}>
+                        <XCircle className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => handleDelete(s.id)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Completed / Cancelled */}
+      {completedSchedules.length > 0 && (
+        <>
+          <h3 className="font-display font-bold text-sm sm:text-lg mb-2.5 sm:mb-3 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+            History
+          </h3>
+          <div className="space-y-1.5 sm:space-y-2">
+            {completedSchedules.slice(0, 10).map((s) => (
+              <Card key={s.id} className="p-2.5 sm:p-3 opacity-60">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium truncate">{s.listing_title}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      {s.status === "cancelled" ? "Cancelled" : "Executed"} ·{" "}
+                      {new Date(s.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </p>
                   </div>
-                </Card>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-      <MobileBottomNav />
-    </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground active:scale-95 transition-transform" onClick={() => handleDelete(s.id)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+    </PageShell>
   );
 }
