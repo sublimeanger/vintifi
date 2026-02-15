@@ -1,117 +1,86 @@
 
 
-# Competitor Limits, Trend Limits & Server-Side Tier Checks
+# Two-Step Welcome Flow: Wardrobe Import + Guided Price Check
 
-## 1. Competitor Count Limits per Tier
+After onboarding, instead of dumping users on an empty dashboard, we guide them through two high-value actions that populate their account and demonstrate intelligence.
 
-The Competitor Tracker page currently allows unlimited competitor tracking for all users. This adds tier-based limits.
-
-**Limits:**
-- Free: 0 (entire page is gated by FeatureGate as Pro+)
-- Pro: 3 competitors
-- Business: 15 competitors
-- Scale: 50 competitors
-
-**Implementation:**
-- In `CompetitorTracker.tsx`, read the user's tier from `useAuth()` and compute the max allowed count
-- When the user clicks "Add", check `competitors.length >= maxAllowed` and show the UpgradeModal instead of the add form
-- Show a usage indicator: "Tracking 2 of 3 competitors" near the header
-- The "Add" button becomes disabled with tooltip text when at limit
-
-**Server-side:** The `competitor-scan` edge function already requires auth. Add a tier check there too -- look up the user's `subscription_tier` from profiles and reject if they exceed their limit.
-
-## 2. Free Users See Only 5 Trends
-
-Currently, TrendRadar wraps everything in `FeatureGate feature="trend_radar_full"` which completely blocks free users behind a blur. The spec says free users should see the **top 5 trends** as a teaser.
-
-**Implementation:**
-- Remove the `FeatureGate` wrapper from TrendRadar entirely
-- Instead, after filtering trends, if the user is on the free tier, slice to only the first 5 (sorted by opportunity_score descending)
-- Show an inline upgrade banner after the 5th trend card: "See all X trends with a Pro plan"
-- Stats bar still shows full data so free users can see there's more value behind the upgrade
-- The `fetch-trends` edge function returns all trends regardless -- the limiting happens client-side for simplicity and to keep the teaser stats accurate
-
-## 3. Server-Side Tier Checks on All Edge Functions
-
-Currently only `price-check` and `optimize-listing` have server-side credit/tier checks. The remaining edge functions have auth (user must be logged in) but no tier validation. A technically savvy user could call these APIs directly and bypass the client-side FeatureGate.
-
-**Approach:** Create a shared helper pattern (repeated in each function since edge functions can't share imports) that:
-1. Looks up the user's `subscription_tier` from the `profiles` table
-2. Compares against the required tier for that function
-3. Returns a 403 with a clear error message if insufficient
-
-**Edge functions to update (8 total):**
-
-| Edge Function | Required Tier |
-|---|---|
-| `arbitrage-scan` | business |
-| `niche-finder` | pro |
-| `competitor-scan` | pro |
-| `dead-stock-analyze` | pro |
-| `clearance-radar` | business |
-| `charity-briefing` | pro |
-| `relist-scheduler` | pro |
-| `portfolio-optimizer` | pro |
-
-**The tier check block added to each function** (after the existing auth check):
+## Flow Overview
 
 ```text
-1. Fetch profile: SELECT subscription_tier FROM profiles WHERE user_id = <userId>
-2. Define tier order: free=0, pro=1, business=2, scale=3
-3. If user's tier level < required tier level:
-   Return 403 { error: "This feature requires a <Required> plan. Upgrade to continue." }
+Onboarding Complete
+        |
+        v
+  /welcome (new page)
+  Step 1: "Import Your Vinted Wardrobe"
+  - Paste your Vinted profile URL
+  - One-click import with progress feedback
+  - Shows count of items imported
+        |
+        v
+  Step 2: "Try a Price Check"
+  - Shows 3 of the just-imported items as cards
+  - "Check the price on this one" CTA per card
+  - Or "Skip to Dashboard" link
+        |
+        v
+  /price-check?url=... (existing page)
+  or /dashboard (if skipped)
 ```
 
-Functions that already use the service role client (`arbitrage-scan`, `competitor-scan`, `clearance-radar`, `niche-finder`) will use it for the profile lookup. Functions that use raw REST calls (`dead-stock-analyze`, `relist-scheduler`, `portfolio-optimizer`) will use the same REST pattern. `charity-briefing` already has a service client.
+## What Gets Built
+
+### 1. New Welcome Page (`src/pages/Welcome.tsx`)
+
+A standalone full-screen page (no sidebar/nav) with two sequential steps inside a single card, similar to the Onboarding page style.
+
+**Step 1 -- Import Wardrobe:**
+- Headline: "Let's fill your shop with data"
+- Subtext: "Paste your Vinted profile URL and we'll import your listings in seconds"
+- URL input field (auto-focused) + "Import" button
+- Shows a progress state while importing (reuses the existing `import-vinted-wardrobe` edge function)
+- On success: displays "X items imported!" with a celebratory animation, then auto-advances to Step 2
+- "Skip" link at the bottom for users who want to add items manually later
+
+**Step 2 -- Guided Price Check:**
+- Headline: "See what your items are really worth"
+- Subtext: "Pick any item below for a free AI price check"
+- Shows up to 3 imported items as small cards (image, title, brand, price)
+- Each card has a "Check Price" button that navigates to `/price-check?url=...`
+- "Go to Dashboard" link at the bottom
+
+If import was skipped (no items), Step 2 shows the manual price check input instead (paste any Vinted URL).
+
+### 2. Route Registration (`src/App.tsx`)
+
+Add `/welcome` as a protected route (no OnboardingGuard needed since onboarding just completed).
+
+### 3. Onboarding Redirect (`src/pages/Onboarding.tsx`)
+
+Change `navigate("/dashboard")` to `navigate("/welcome")` in `handleFinish`.
+
+### 4. SEO Hook (`src/hooks/usePageMeta.ts`) -- Bonus
+
+Since we're touching multiple pages, also add the lightweight meta hook and apply it to the 5 marketing pages as discussed previously.
 
 ## Technical Details
 
-### Files Modified
+- **No new edge functions.** The Welcome page calls the existing `import-vinted-wardrobe` function directly (same fetch pattern as `Listings.tsx`).
+- **No new database tables.** We read from the `listings` table after import to show the item cards.
+- **Skippable.** Both steps have skip links. If a user navigates to `/welcome` after already having items, Step 1 shows a "You already have X items" state and lets them proceed directly.
+- **One-time.** After visiting `/welcome`, subsequent logins go to `/dashboard` as normal (the `OnboardingGuard` handles this via the `onboarding_completed` flag which is already set).
+- **Mobile-friendly.** Same responsive patterns as the Onboarding page (full-screen centered card, touch-friendly targets).
 
-| File | Change |
-|---|---|
-| `src/pages/CompetitorTracker.tsx` | Add tier-based competitor limit, usage counter, UpgradeModal trigger at limit |
-| `src/pages/TrendRadar.tsx` | Remove FeatureGate wrapper, add client-side 5-trend limit for free users with upgrade banner |
-| `supabase/functions/arbitrage-scan/index.ts` | Add tier check (business+) after auth |
-| `supabase/functions/niche-finder/index.ts` | Add tier check (pro+) after auth |
-| `supabase/functions/competitor-scan/index.ts` | Add tier check (pro+) + competitor count limit after auth |
-| `supabase/functions/dead-stock-analyze/index.ts` | Add tier check (pro+) after auth |
-| `supabase/functions/clearance-radar/index.ts` | Add tier check (business+) after auth |
-| `supabase/functions/charity-briefing/index.ts` | Add tier check (pro+) after auth |
-| `supabase/functions/relist-scheduler/index.ts` | Add tier check (pro+) after auth |
-| `supabase/functions/portfolio-optimizer/index.ts` | Add tier check (pro+) after auth |
+## Files
 
-### Competitor Limit UX
-
-```text
-+------------------------------------------+
-| Tracked Competitors (2 of 3)   [+ Add]   |
-+------------------------------------------+
-
-When at limit (3 of 3):
-+------------------------------------------+
-| Tracked Competitors (3 of 3)  [+ Add]    |
-+------------------------------------------+
-Clicking Add opens UpgradeModal:
-"You've reached your competitor tracking limit (3).
- Upgrade to Business for 15 or Scale for 50."
-```
-
-### Trend Radar Free User UX
-
-```text
-[Stats bar - shows full counts]
-[Category chips]
-
-[Trend Card 1]
-[Trend Card 2]
-[Trend Card 3]
-[Trend Card 4]
-[Trend Card 5]
-
-+------------------------------------------+
-| See all 80 trends with a Pro plan        |
-| [Upgrade Now]                             |
-+------------------------------------------+
-```
+| File | Action | Purpose |
+|---|---|---|
+| `src/pages/Welcome.tsx` | Create | Two-step welcome flow page |
+| `src/hooks/usePageMeta.ts` | Create | Lightweight document.title + meta description hook |
+| `src/App.tsx` | Modify | Add `/welcome` route |
+| `src/pages/Onboarding.tsx` | Modify | Redirect to `/welcome` instead of `/dashboard` |
+| `src/pages/Landing.tsx` | Modify | Add usePageMeta call |
+| `src/pages/marketing/Features.tsx` | Modify | Add usePageMeta call |
+| `src/pages/marketing/Pricing.tsx` | Modify | Add usePageMeta call |
+| `src/pages/marketing/HowItWorks.tsx` | Modify | Add usePageMeta call |
+| `src/pages/marketing/About.tsx` | Modify | Add usePageMeta call |
 
