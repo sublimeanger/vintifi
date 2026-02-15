@@ -20,6 +20,7 @@ import SettingsPage from "./pages/SettingsPage";
 import OptimizeListing from "./pages/OptimizeListing";
 import TrendRadar from "./pages/TrendRadar";
 import ArbitrageScanner from "./pages/ArbitrageScanner";
+import { Navigate as Nav } from "react-router-dom";
 import CompetitorTracker from "./pages/CompetitorTracker";
 import DeadStock from "./pages/DeadStock";
 import Analytics from "./pages/Analytics";
@@ -88,6 +89,10 @@ const App = () => (
             <Route path="/cross-listings" element={<ProtectedRoute><OnboardingGuard><CrossListings /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/vintography" element={<ProtectedRoute><OnboardingGuard><Vintography /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
+            {/* Redirects for merged routes */}
+            <Route path="/portfolio" element={<Navigate to="/dead-stock" replace />} />
+            <Route path="/seasonal" element={<Navigate to="/trends" replace />} />
+            <Route path="/niche-finder" element={<Navigate to="/trends" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

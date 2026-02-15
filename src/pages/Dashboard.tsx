@@ -19,8 +19,8 @@ import {
 import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, CreditCard,
-  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target, CalendarDays, MapPin,
-  FileSpreadsheet, Sparkles, Layers, Link2, ImageIcon,
+  Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, MapPin,
+  Sparkles, Layers, Link2, ImageIcon,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -36,7 +36,6 @@ const navSections = [
       { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
       { icon: Search, label: "Price Check", path: "/price-check" },
       { icon: Zap, label: "Optimise", path: "/optimize" },
-      { icon: FileSpreadsheet, label: "Bulk Optimise", path: "/bulk-optimize" },
       { icon: Tag, label: "My Listings", path: "/listings" },
     ],
   },
@@ -52,18 +51,15 @@ const navSections = [
       { icon: TrendingUp, label: "Trends", path: "/trends" },
       { icon: ArrowRightLeft, label: "Arbitrage", path: "/arbitrage" },
       { icon: Radar, label: "Competitors", path: "/competitors" },
-      { icon: CalendarDays, label: "Seasonal Calendar", path: "/seasonal" },
       { icon: MapPin, label: "Charity Briefing", path: "/charity-briefing" },
       { icon: ShoppingBag, label: "Clearance Radar", path: "/clearance-radar" },
-      { icon: Target, label: "Niche Finder", path: "/niche-finder" },
     ],
   },
   {
     label: "Inventory",
     items: [
-      { icon: AlertTriangle, label: "Dead Stock", path: "/dead-stock" },
+      { icon: AlertTriangle, label: "Inventory Health", path: "/dead-stock" },
       { icon: Timer, label: "Relist Scheduler", path: "/relist" },
-      { icon: Target, label: "Portfolio Optimiser", path: "/portfolio" },
       { icon: PieChart, label: "P&L Analytics", path: "/analytics" },
     ],
   },
@@ -455,7 +451,7 @@ export default function Dashboard() {
                 {[
                   { icon: Search, label: "Price Check", desc: "Get instant pricing", path: "/price-check", accent: false },
                   { icon: Zap, label: "Optimise Listing", desc: "AI-powered listing optimisation", path: "/optimize", accent: false },
-                  { icon: FileSpreadsheet, label: "Bulk Optimise", desc: "CSV batch AI listings", path: "/bulk-optimize", accent: true },
+                  { icon: ImageIcon, label: "Vintography", desc: "AI photo studio", path: "/vintography", accent: true },
                   { icon: TrendingUp, label: "Trend Radar", desc: "Rising brands & styles", path: "/trends", tourId: "tour-trends", accent: false },
                 ].map((item) => (
                   <Card
@@ -481,8 +477,8 @@ export default function Dashboard() {
                 {[
                   { icon: ArrowRightLeft, label: "Arbitrage Scanner", desc: "Find profitable flips", path: "/arbitrage", tourId: "tour-arbitrage" },
                   { icon: Radar, label: "Competitor Tracker", desc: "Monitor rivals", path: "/competitors" },
-                  { icon: CalendarDays, label: "Seasonal Calendar", desc: "Demand peaks by category", path: "/seasonal" },
                   { icon: MapPin, label: "Charity Briefing", desc: "AI sourcing list", path: "/charity-briefing" },
+                  { icon: ShoppingBag, label: "Clearance Radar", desc: "Retail flip opportunities", path: "/clearance-radar" },
                 ].map((item) => (
                   <Card
                     key={item.path}
@@ -506,9 +502,8 @@ export default function Dashboard() {
               <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4 sm:[&>:nth-child(5)]:col-start-1 -mx-1 px-1">
                 {[
                   { icon: Tag, label: "My Listings", desc: "Track and manage items", path: "/listings", tourId: "tour-listings", color: "text-primary", bg: "bg-primary/10" },
-                  { icon: AlertTriangle, label: "Dead Stock", desc: "Liquidate stale inventory", path: "/dead-stock", color: "text-destructive", bg: "bg-destructive/10" },
+                  { icon: AlertTriangle, label: "Inventory Health", desc: "Dead stock & pricing fixes", path: "/dead-stock", color: "text-destructive", bg: "bg-destructive/10" },
                   { icon: Timer, label: "Relist Scheduler", desc: "Auto-schedule relists", path: "/relist", color: "text-primary", bg: "bg-primary/10" },
-                  { icon: Target, label: "Portfolio Optimiser", desc: "Bulk-fix pricing", path: "/portfolio", color: "text-primary", bg: "bg-primary/10" },
                   { icon: PieChart, label: "P&L Analytics", desc: "Revenue, margins & ROI", path: "/analytics", color: "text-success", bg: "bg-success/10" },
                 ].map((item) => (
                   <Card
