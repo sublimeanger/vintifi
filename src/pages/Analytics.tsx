@@ -19,6 +19,7 @@ import {
   BarChart3, ShoppingBag, Package, Percent, Target, RefreshCw,
 } from "lucide-react";
 import { KpiGridSkeleton, ChartSkeleton } from "@/components/LoadingSkeletons";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -250,6 +251,14 @@ export default function Analytics() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-6xl">
+        <UseCaseSpotlight
+          featureKey="analytics"
+          icon={BarChart3}
+          scenario="You feel busy but aren't sure if you're actually making money after costs..."
+          description="Without tracking purchase prices, fees, and sell-through rates, you could be working hard for negative returns."
+          outcome="P&L Analytics shows your true margin is 34%, trainers are your best category, and vintage dresses have negative ROI."
+          tip="Make sure to enter purchase prices on your listings — that's what powers the profit calculations."
+        />
         {loading ? (
           <div className="space-y-6">
             <KpiGridSkeleton count={8} />

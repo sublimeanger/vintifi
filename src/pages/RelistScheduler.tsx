@@ -13,6 +13,7 @@ import {
   Timer, Trash2,
 } from "lucide-react";
 import { ScheduleCardSkeleton } from "@/components/LoadingSkeletons";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 type Schedule = {
   id: string;
@@ -186,6 +187,14 @@ export default function RelistScheduler() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <UseCaseSpotlight
+          featureKey="relist-scheduler"
+          icon={Timer}
+          scenario="You know relisting boosts visibility but you always forget, and when you do it's at the wrong time..."
+          description="Vinted's algorithm favours fresh listings, but manually tracking optimal relist times is impossible at scale."
+          outcome="Relist Scheduler queues your stale items for optimal times: womenswear on Sunday evening, menswear on Tuesday morning."
+          tip="Let AI generate the schedule — it analyses your categories to pick the best time slots."
+        />
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[

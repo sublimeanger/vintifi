@@ -13,6 +13,7 @@ import {
   Layers, ExternalLink, RefreshCw, Trash2, Calendar, PoundSterling,
   ArrowRightLeft, BarChart3, Lightbulb, Target,
 } from "lucide-react";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 type Recommendation = {
   listing_index: number;
@@ -125,6 +126,14 @@ export default function DeadStock() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <UseCaseSpotlight
+          featureKey="dead-stock"
+          icon={AlertTriangle}
+          scenario="You have 40 items that haven't sold in over a month, tying up £600 in capital..."
+          description="Dead stock silently eats your profits. Without a plan, those items just sit there depreciating."
+          outcome="Dead Stock Engine suggests a price reduction schedule, 5 bundle pairings, and 3 items to crosslist to Depop."
+          tip="Run this monthly — even profitable sellers accumulate dead stock over time."
+        />
         {/* Config & Run */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="mb-6">

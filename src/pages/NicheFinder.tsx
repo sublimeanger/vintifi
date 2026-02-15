@@ -20,6 +20,7 @@ import {
   BarChart3, ShoppingBag, Users, Lightbulb,
 } from "lucide-react";
 import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 const CATEGORIES = [
   "Womenswear", "Menswear", "Streetwear", "Vintage",
@@ -121,6 +122,15 @@ export default function NicheFinder() {
       subtitle="Find underserved Vinted niches with high demand and low supply"
       icon={<Target className="w-5 h-5 text-primary" />}
     >
+      <UseCaseSpotlight
+        featureKey="niche-finder"
+        icon={Target}
+        scenario="You want to expand beyond trainers but have no idea which category has the least competition..."
+        description="Picking a new niche without data means months of trial and error with dead stock risk."
+        outcome="Niche Finder reveals vintage homewares have 3x more demand than supply. You pivot and double your margins."
+        tip="Look for niches with high demand but low supply — that's where pricing power lives."
+      />
+
       {/* Filters */}
       <Card className="p-6 mb-8">
         <h2 className="font-display font-bold text-base mb-4 flex items-center gap-2">

@@ -15,6 +15,7 @@ import {
   TrendingUp, ShoppingBag, BarChart3, ShoppingCart,
 } from "lucide-react";
 import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 const RETAILERS = [
   { id: "ASOS Outlet", label: "ASOS Outlet", color: "bg-[hsl(200,70%,50%)]/10 text-[hsl(200,70%,50%)] border-[hsl(200,70%,50%)]/20" },
@@ -124,6 +125,14 @@ export default function ClearanceRadar() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <UseCaseSpotlight
+          featureKey="clearance-radar"
+          icon={ShoppingCart}
+          scenario="ASOS Outlet has a flash sale but you don't know which items actually resell well on Vinted..."
+          description="Buying clearance blindly means half your stock never sells. You need data to pick winners."
+          outcome="Clearance Radar cross-references sale prices vs Vinted resale and highlights 8 items with 50%+ margins."
+          tip="Check multiple retailers at once to find the best cross-platform opportunities."
+        />
         {/* Search Form */}
         <Card className="p-6 mb-8">
           <h2 className="font-display font-bold text-base mb-4 flex items-center gap-2">

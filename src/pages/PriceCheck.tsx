@@ -14,6 +14,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2,
 } from "lucide-react";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PriceReportSkeleton } from "@/components/LoadingSkeletons";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -116,6 +117,15 @@ export default function PriceCheck() {
       subtitle={credits ? `${credits.credits_limit - credits.price_checks_used} checks remaining` : ""}
       maxWidth="max-w-4xl"
     >
+      <UseCaseSpotlight
+        featureKey="price-check"
+        icon={Search}
+        scenario="You found a pair of Dr. Martens 1460s at a car boot sale for £8..."
+        description="But you have no idea what they're actually worth on Vinted. Price too high and it'll sit for weeks. Too low and you're leaving money on the table."
+        outcome="Price Check reveals they sell for £45–55 on Vinted. You list at £49 and sell within 3 days."
+        tip="Check sold items, not just active listings — sold prices show what buyers actually pay."
+      />
+
       {/* Input Section */}
       <Card className="p-4 sm:p-6 mb-6 sm:mb-8">
         <div className="flex gap-2 mb-4">

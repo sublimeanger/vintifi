@@ -17,6 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
 } from "@/components/ui/table";
@@ -362,6 +363,14 @@ export default function BulkOptimize() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <UseCaseSpotlight
+          featureKey="bulk-optimize"
+          icon={FileSpreadsheet}
+          scenario="You just sourced 30 items from a clearance sale and need to list them all tonight..."
+          description="Writing 30 individual optimised listings manually would take hours. You need speed without sacrificing quality."
+          outcome="Upload a CSV and get 30 AI-optimised listings in under a minute. Copy-paste straight to Vinted."
+          tip="Use the downloadable template to make sure your CSV has the right columns."
+        />
         {/* Upload Zone */}
         {phase === "upload" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>

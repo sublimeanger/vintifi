@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HealthScoreGauge } from "@/components/HealthScoreGauge";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { Sparkles as SparklesIcon } from "lucide-react";
 
 type HealthScore = {
   overall: number;
@@ -222,6 +224,14 @@ export default function OptimizeListing() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-6xl">
+        <UseCaseSpotlight
+          featureKey="optimize-listing"
+          icon={SparklesIcon}
+          scenario="Your listing has been up for 2 weeks with zero interest..."
+          description="The title is generic, the description is thin, and you're invisible in Vinted's search results."
+          outcome="The AI rewrites your title with high-traffic keywords and your views jump 4x overnight."
+          tip="Upload photos too — the AI can detect brand, condition, and suggest the perfect category."
+        />
         <div className={`grid gap-6 ${result ? "lg:grid-cols-2" : "max-w-2xl mx-auto"}`}>
           {/* Input Panel */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>

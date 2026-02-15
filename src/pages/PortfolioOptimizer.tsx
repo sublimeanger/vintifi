@@ -13,6 +13,7 @@ import {
   AlertTriangle, CheckCircle2, DollarSign, Target, ArrowUpRight,
   ArrowDownRight, Layers, BarChart3, Filter,
 } from "lucide-react";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 type ListingInfo = {
   title: string;
@@ -150,6 +151,14 @@ export default function PortfolioOptimizer() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <UseCaseSpotlight
+          featureKey="portfolio-optimizer"
+          icon={Target}
+          scenario="You have 200 active listings and suspect many are mispriced, but checking each one takes hours..."
+          description="Mispriced listings cost you money in two ways: overpriced items don't sell, underpriced items leave profit on the table."
+          outcome="Portfolio Optimiser scans everything in one click: 12 items overpriced, 3 underpriced, 8 need relisting. One-tap fixes."
+          tip="Run this weekly to keep your portfolio in top shape."
+        />
         {/* Summary Cards */}
         {summary ? (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>

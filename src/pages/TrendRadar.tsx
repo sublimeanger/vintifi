@@ -9,6 +9,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Flame, BarChart3, Clock } from "lucide-react";
 import TrendCard from "@/components/trends/TrendCard";
 import TrendStats from "@/components/trends/TrendStats";
+import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { TrendCardSkeleton } from "@/components/LoadingSkeletons";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -106,6 +107,15 @@ export default function TrendRadar() {
         ) : null
       }
     >
+      <UseCaseSpotlight
+        featureKey="trend-radar"
+        icon={Flame}
+        scenario="You keep seeing Carhartt WIP jackets selling fast but you're not sure if the trend has peaked..."
+        description="Without data, you might source stock right as demand falls — leaving you with unsold inventory."
+        outcome="Trend Radar shows demand is up 280% and hasn't peaked yet. You source 5 jackets and sell them all within a week."
+        tip="Check the 'Rising' tab for early opportunities before everyone else catches on."
+      />
+
       <TrendStats risingCount={risingCount} peakingCount={peakingCount} decliningCount={decliningCount} avgOpportunity={avgOpportunity} />
 
       {/* Category Tabs */}
