@@ -1,116 +1,78 @@
 
 
-# Price Intelligence Engine Upgrade
+# Fix Price Check -> Inventory Flow: Use User's Input, Not AI's
 
-## What Changes
+## The Problem
 
-### 1. Condition-Aware Pricing (New vs Used Differentiation)
+When you type "jaeger mens blazer" and hit Save to Inventory, the system currently saves the **AI-generated item title** from comparable listings (e.g., "Jaeger Double-Breasted Wool Blazer Navy Size 42R") instead of your actual search term. This breaks the workflow because:
 
-The current system treats condition as a free-text field with no real impact on the analysis. The upgrade adds:
+1. You're doing research, not listing a specific item yet
+2. The AI title comes from *other people's listings*, not your item
+3. You want to add YOUR description to inventory, then use the AI Optimiser later to build out the full listing
 
-- **Structured condition selector** replacing the free-text input: dropdown with Vinted's actual condition grades (New with tags, New without tags, Very good, Good, Satisfactory)
-- **Condition-segmented results** from the AI: the report will show separate pricing for "New" vs "Used" conditions so sellers can see the price gap
-- The AI prompt will be updated to explicitly separate new/used comparables and flag condition-based price differences in insights
+## The Fix
 
-### 2. Reseller Price Guide (Buy At / Sell At)
+### 1. Save to Inventory uses YOUR input, not the AI's
 
-Add a new **"Reseller Guide"** card to the report with three key data points:
+Change the "Save to Inventory" button (line 536-546 in `PriceCheck.tsx`) so it:
+- Uses the **user's typed search query** (`brand`, `category`, raw text) as the listing title
+- Stores the AI `recommended_price` as the guideline sale price
+- Stores `buy_price_good` and `buy_price_max` as reference data
+- Does NOT overwrite with `report.item_title` or `report.item_brand`
 
-- **Good Buy Price** -- the price at which this is a great deal to source (below market, high margin)
-- **Max Buy Price** -- the absolute most you should pay and still make profit after Vinted fees + shipping
-- **Estimated Resale Value** -- what you can realistically sell it for on Vinted
+**Before:**
+```
+title: report.item_title || `${report.item_brand || brand} ${category}`.trim()
+brand: report.item_brand || brand
+```
 
-The AI will calculate these factoring in:
-- ~5% Vinted buyer protection fee
-- Estimated shipping cost (based on category/weight)
-- A target minimum margin (default 40%)
+**After:**
+```
+title: `${brand} ${category}`.trim() || "Untitled"
+brand: brand || null
+```
 
-### 3. Richer Data in the Report
+The user's raw input is the source of truth. The AI analysis is intelligence, not identity.
 
-Add these new sections to the report UI:
+### 2. Show what will be saved (confirmation clarity)
 
-- **Sell Speed Indicator** -- "Estimated days to sell" at the recommended price, based on comparable sell-through data
-- **Demand Signal** -- High/Medium/Low demand indicator based on search volume vs supply ratio
-- **Condition Price Breakdown** -- a mini table showing avg price by condition grade
-- **Fee Calculator** -- shows the net profit after Vinted fees and estimated shipping
+Add a small preview line above the Save button showing exactly what will be added:
+> Adding to inventory: **"jaeger mens blazer"** at guideline price **£45**
 
-### 4. Enhanced Comparable Items
+This removes ambiguity so the user knows their input is preserved.
 
-Each comparable item in the list will now show:
-- **Condition** badge (New/Used)
-- **Platform** source if available
-- Better visual distinction between sold items (confirmed prices) and active listings (asking prices)
+### 3. Store buy price data alongside the listing
 
----
+When saving to inventory, also store the `buy_price_max` as `purchase_price` (if the user hasn't set one) so they have a reference for what they paid or should pay. The `recommended_price` stays as the guideline sell price.
+
+### 4. Pass user's input (not AI's) to the Optimise flow
+
+The "Optimise This Listing" button and Journey Banner currently pass `report.item_title` to the optimiser. Change these to pass the user's original search terms instead, so the optimiser starts from the user's description and builds it out.
 
 ## Technical Changes
 
-### Edge Function (`supabase/functions/price-check/index.ts`)
+### File: `src/pages/PriceCheck.tsx`
 
-Update the AI prompt to request the expanded JSON schema:
+1. **Line 536-546** -- Change the insert to use user input:
+   - `title`: `\`${brand} ${category}\`.trim() || url || "Untitled"`
+   - `brand`: `brand || null` (user's input only)
+   - `purchase_price`: `report.buy_price_max || null` (sourcing reference)
+   - `recommended_price`: `report.recommended_price`
+   - `condition`: `condition || null`
 
-```
-{
-  "recommended_price": number,
-  "confidence_score": 0-100,
-  "price_range_low": number,
-  "price_range_high": number,
-  "item_title": "string",
-  "item_brand": "string",
-  "condition_detected": "new_with_tags | new_without_tags | very_good | good | satisfactory",
-  "buy_price_good": number,       // NEW: great sourcing price
-  "buy_price_max": number,        // NEW: max you should pay
-  "estimated_resale": number,     // NEW: realistic sell price
-  "estimated_days_to_sell": number, // NEW
-  "demand_level": "high | medium | low", // NEW
-  "condition_price_breakdown": [   // NEW
-    {"condition": "New with tags", "avg_price": number, "count": number},
-    {"condition": "Very good", "avg_price": number, "count": number},
-    ...
-  ],
-  "estimated_fees": number,       // NEW: Vinted fees
-  "estimated_shipping": number,   // NEW
-  "net_profit_estimate": number,  // NEW: resale - fees - shipping
-  "comparable_items": [
-    {"title": "...", "price": number, "sold": boolean, "days_listed": number, "condition": "string"}
-  ],
-  "ai_insights": "string",
-  "price_distribution": [...]
-}
-```
+2. **Line 533-555** -- Add a preview line above the Save button showing what will be saved
 
-The AI prompt will instruct the model to:
-- Separate new vs used comparables in its analysis
-- Calculate buy prices assuming 40% target margin and ~5% Vinted fee + ~3-5 GBP shipping
-- Estimate demand level from the ratio of sold items to active listings
-- Provide condition-specific pricing breakdown
+3. **Lines 557, 587, 592** -- Update the Optimise navigation and Journey Banner to pass user's `brand`/`category` instead of `report.item_title`/`report.item_brand`
 
-### Frontend (`src/pages/PriceCheck.tsx`)
+### No other files need changing
 
-1. **Input section**: Replace free-text condition input with a `Select` dropdown using Vinted's condition grades
-2. **Hero price card**: Add "Sell At" label and show the net profit estimate below
-3. **New "Reseller Guide" card**: Three-column layout showing Good Buy / Max Buy / Resale Value with color coding (green/amber/red)
-4. **New "Sell Speed & Demand" card**: Days to sell estimate + demand level badge
-5. **New "Condition Breakdown" card**: Mini table showing average prices per condition grade
-6. **New "Profit Calculator" card**: Shows resale price - fees - shipping = net profit, with an editable "Your cost" input so sellers can plug in what they'd pay
-7. **Updated comparable items**: Add condition badge per item, visual split between sold (confirmed) and active (asking) prices
+The listings table already has `purchase_price`, `recommended_price`, `title`, `brand` columns. No database changes needed.
 
-### Type Updates
+## Result
 
-Update the `PriceReport` type in `PriceCheck.tsx` to include all new fields.
-
-### No Database Changes Needed
-
-The `price_reports` table already stores `comparable_items` and `price_distribution` as JSONB. The new fields from the AI response will be stored in these existing columns or simply displayed from the edge function response without needing new columns.
-
----
-
-## Implementation Order
-
-1. Update the edge function AI prompt with the expanded schema
-2. Update the `PriceReport` TypeScript type
-3. Replace condition text input with Select dropdown
-4. Add the Reseller Guide card
-5. Add Sell Speed, Demand, Condition Breakdown, and Profit Calculator cards
-6. Update comparable items display with condition badges
-7. Deploy and test end-to-end
+The flow becomes:
+1. Type "jaeger mens blazer" into Price Check
+2. Get full market intelligence (prices, demand, comparables)
+3. Click "Save to Inventory" -- saves as "jaeger mens blazer" with guideline price £45
+4. Later, open from Listings and click "Optimise" -- AI builds out a proper title and description from your rough input
+5. The listing evolves from rough note to polished, SEO-optimised content through the natural workflow
