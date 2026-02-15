@@ -1,150 +1,117 @@
 
 
-# Account Upgrade + Sitewide Plan Enforcement
+# Competitor Limits, Trend Limits & Server-Side Tier Checks
 
-## Part 1: Upgrade jamiemckaye@gmail.com
+## 1. Competitor Count Limits per Tier
 
-Direct database update to set your account (user_id: `88bd3c36-b270-4512-9748-2e07cdd2512d`) to:
-- `profiles.subscription_tier` = `"scale"`
-- `usage_credits.credits_limit` = `999999`
+The Competitor Tracker page currently allows unlimited competitor tracking for all users. This adds tier-based limits.
 
-This matches how the admin account (laurentwilleypiano@gmail.com) is configured.
+**Limits:**
+- Free: 0 (entire page is gated by FeatureGate as Pro+)
+- Pro: 3 competitors
+- Business: 15 competitors
+- Scale: 50 competitors
 
----
+**Implementation:**
+- In `CompetitorTracker.tsx`, read the user's tier from `useAuth()` and compute the max allowed count
+- When the user clicks "Add", check `competitors.length >= maxAllowed` and show the UpgradeModal instead of the add form
+- Show a usage indicator: "Tracking 2 of 3 competitors" near the header
+- The "Add" button becomes disabled with tooltip text when at limit
 
-## Part 2: Sitewide Enforcement Audit
+**Server-side:** The `competitor-scan` edge function already requires auth. Add a tier check there too -- look up the user's `subscription_tier` from profiles and reject if they exceed their limit.
 
-### Current State -- What IS enforced
+## 2. Free Users See Only 5 Trends
 
-| Location | Enforcement | Details |
-|----------|------------|---------|
-| `price-check` edge function | Server-side credit check | Blocks if `price_checks_used >= credits_limit` |
-| `optimize-listing` edge function | Server-side credit check | Blocks if `optimizations_used >= 60% of credits_limit` |
-| `import-vinted-wardrobe` edge function | Tier-based limits | Import limit, max pages, deep scrape limit all gated by tier |
-| `PriceCheck.tsx` | Client-side credit check | Toast error if credits exhausted |
-| `Dashboard.tsx` | Credit display | Shows remaining checks, low-credit warning |
-| `SettingsPage.tsx` | Credit display | Shows usage bar |
+Currently, TrendRadar wraps everything in `FeatureGate feature="trend_radar_full"` which completely blocks free users behind a blur. The spec says free users should see the **top 5 trends** as a teaser.
 
-### Gaps Found -- What is NOT enforced
+**Implementation:**
+- Remove the `FeatureGate` wrapper from TrendRadar entirely
+- Instead, after filtering trends, if the user is on the free tier, slice to only the first 5 (sorted by opportunity_score descending)
+- Show an inline upgrade banner after the 5th trend card: "See all X trends with a Pro plan"
+- Stats bar still shows full data so free users can see there's more value behind the upgrade
+- The `fetch-trends` edge function returns all trends regardless -- the limiting happens client-side for simplicity and to keep the teaser stats accurate
 
-| Feature Page | Problem |
-|-------------|---------|
-| **ArbitrageScanner.tsx** | No tier gate. Free users can use it freely. Spec says Business+ only. No credit check. |
-| **OptimizeListing.tsx** | No client-side credit check before calling the edge function. User sees a generic error. |
-| **BulkOptimize.tsx** | No tier gate. Should be Business+ per spec. No per-item credit deduction. |
-| **NicheFinder.tsx** | No tier gate or credit check. |
-| **CompetitorTracker.tsx** | No tier gate. Spec says Pro+ with limits (3/15/50 competitors by tier). |
-| **TrendRadar.tsx** | No tier gate. Free users should see top 5 only per spec. |
-| **DeadStock.tsx** | No tier gate. |
-| **ClearanceRadar.tsx** | No tier gate. Should be Business+ per spec. |
-| **SeasonalCalendar.tsx** | No tier gate. |
-| **RelistScheduler.tsx** | No tier gate. |
-| **CrossListings.tsx** | No tier gate. |
-| **PortfolioOptimizer.tsx** | No tier gate. |
-| **CharityBriefing.tsx** | No tier gate. |
+## 3. Server-Side Tier Checks on All Edge Functions
 
-### No Upgrade Modal Exists
+Currently only `price-check` and `optimize-listing` have server-side credit/tier checks. The remaining edge functions have auth (user must be logged in) but no tier validation. A technically savvy user could call these APIs directly and bypass the client-side FeatureGate.
 
-There is currently **no reusable upgrade modal component** anywhere in the codebase. When users hit limits, they get a toast error with text like "Upgrade your plan for more" but no actionable path to actually upgrade. Users would need to manually navigate to Settings to find pricing.
+**Approach:** Create a shared helper pattern (repeated in each function since edge functions can't share imports) that:
+1. Looks up the user's `subscription_tier` from the `profiles` table
+2. Compares against the required tier for that function
+3. Returns a 403 with a clear error message if insufficient
 
----
+**Edge functions to update (8 total):**
 
-## Part 3: Implementation Plan
+| Edge Function | Required Tier |
+|---|---|
+| `arbitrage-scan` | business |
+| `niche-finder` | pro |
+| `competitor-scan` | pro |
+| `dead-stock-analyze` | pro |
+| `clearance-radar` | business |
+| `charity-briefing` | pro |
+| `relist-scheduler` | pro |
+| `portfolio-optimizer` | pro |
 
-### Step 1: Upgrade your account
-Run SQL to update `profiles` and `usage_credits` for your user.
-
-### Step 2: Create `UpgradeModal` component
-A reusable modal component (`src/components/UpgradeModal.tsx`) that:
-- Accepts a `feature` prop describing what triggered it (e.g., "Arbitrage Scanner requires a Business plan")
-- Shows the user's current tier vs. required tier
-- Displays the relevant plan cards with pricing
-- Has "Upgrade Now" button that calls `create-checkout` edge function
-- Has "Buy Credits" option for credit-based limits
-- Closes gracefully if dismissed
-- Adapts for mobile (sheet/drawer style)
-
-### Step 3: Create `useFeatureGate` hook
-A reusable hook (`src/hooks/useFeatureGate.ts`) that centralises all tier/credit checks:
+**The tier check block added to each function** (after the existing auth check):
 
 ```text
-useFeatureGate(feature: string) => {
-  allowed: boolean,
-  reason: string | null,
-  showUpgrade: () => void,   // opens the UpgradeModal
-  creditsRemaining: number,
-  tierRequired: string
-}
+1. Fetch profile: SELECT subscription_tier FROM profiles WHERE user_id = <userId>
+2. Define tier order: free=0, pro=1, business=2, scale=3
+3. If user's tier level < required tier level:
+   Return 403 { error: "This feature requires a <Required> plan. Upgrade to continue." }
 ```
 
-Feature gate configuration:
+Functions that already use the service role client (`arbitrage-scan`, `competitor-scan`, `clearance-radar`, `niche-finder`) will use it for the profile lookup. Functions that use raw REST calls (`dead-stock-analyze`, `relist-scheduler`, `portfolio-optimizer`) will use the same REST pattern. `charity-briefing` already has a service client.
 
-| Feature | Min Tier | Uses Credits | Credit Type |
-|---------|----------|-------------|-------------|
-| price_check | free | Yes | price_checks |
-| optimize_listing | pro | Yes | optimizations |
-| bulk_optimize | business | Yes | optimizations |
-| arbitrage_scanner | business | No | -- |
-| niche_finder | pro | No | -- |
-| competitor_tracker | pro | No | -- |
-| trend_radar_full | pro | No | -- |
-| dead_stock | pro | No | -- |
-| clearance_radar | business | No | -- |
-| seasonal_calendar | pro | No | -- |
-| relist_scheduler | pro | No | -- |
-| cross_listings | business | No | -- |
-| portfolio_optimizer | pro | No | -- |
-| charity_briefing | pro | No | -- |
+## Technical Details
 
-### Step 4: Add gate checks to every feature page
+### Files Modified
 
-Each gated page gets a simple check at the top of its main action handler. If `allowed` is false, `showUpgrade()` is called instead of proceeding. Pages also show a banner at the top for tier-locked features:
+| File | Change |
+|---|---|
+| `src/pages/CompetitorTracker.tsx` | Add tier-based competitor limit, usage counter, UpgradeModal trigger at limit |
+| `src/pages/TrendRadar.tsx` | Remove FeatureGate wrapper, add client-side 5-trend limit for free users with upgrade banner |
+| `supabase/functions/arbitrage-scan/index.ts` | Add tier check (business+) after auth |
+| `supabase/functions/niche-finder/index.ts` | Add tier check (pro+) after auth |
+| `supabase/functions/competitor-scan/index.ts` | Add tier check (pro+) + competitor count limit after auth |
+| `supabase/functions/dead-stock-analyze/index.ts` | Add tier check (pro+) after auth |
+| `supabase/functions/clearance-radar/index.ts` | Add tier check (business+) after auth |
+| `supabase/functions/charity-briefing/index.ts` | Add tier check (pro+) after auth |
+| `supabase/functions/relist-scheduler/index.ts` | Add tier check (pro+) after auth |
+| `supabase/functions/portfolio-optimizer/index.ts` | Add tier check (pro+) after auth |
+
+### Competitor Limit UX
 
 ```text
-"This feature requires a Pro plan. You're on Free."
-[Upgrade Now] [Buy Credits]
++------------------------------------------+
+| Tracked Competitors (2 of 3)   [+ Add]   |
++------------------------------------------+
+
+When at limit (3 of 3):
++------------------------------------------+
+| Tracked Competitors (3 of 3)  [+ Add]    |
++------------------------------------------+
+Clicking Add opens UpgradeModal:
+"You've reached your competitor tracking limit (3).
+ Upgrade to Business for 15 or Scale for 50."
 ```
 
-Pages affected (13 pages total):
-- ArbitrageScanner.tsx
-- OptimizeListing.tsx
-- BulkOptimize.tsx
-- NicheFinder.tsx
-- CompetitorTracker.tsx
-- TrendRadar.tsx (limit free users to top 5 trends)
-- DeadStock.tsx
-- ClearanceRadar.tsx
-- SeasonalCalendar.tsx
-- RelistScheduler.tsx
-- CrossListings.tsx
-- PortfolioOptimizer.tsx
-- CharityBriefing.tsx
+### Trend Radar Free User UX
 
-### Step 5: Improve credit exhaustion UX
+```text
+[Stats bar - shows full counts]
+[Category chips]
 
-Update `PriceCheck.tsx` and `OptimizeListing.tsx` to show the UpgradeModal (not just a toast) when credits are exhausted. The modal provides a direct path to upgrade or buy credit packs.
+[Trend Card 1]
+[Trend Card 2]
+[Trend Card 3]
+[Trend Card 4]
+[Trend Card 5]
 
----
-
-## Files Created/Modified
-
-| File | Action |
-|------|--------|
-| `src/components/UpgradeModal.tsx` | **New** -- Reusable upgrade/buy credits modal |
-| `src/hooks/useFeatureGate.ts` | **New** -- Centralized feature gating hook |
-| `src/pages/ArbitrageScanner.tsx` | Add gate check |
-| `src/pages/OptimizeListing.tsx` | Add gate check + upgrade modal on credit exhaustion |
-| `src/pages/BulkOptimize.tsx` | Add gate check |
-| `src/pages/NicheFinder.tsx` | Add gate check |
-| `src/pages/CompetitorTracker.tsx` | Add gate check |
-| `src/pages/TrendRadar.tsx` | Add gate check (free = top 5 only) |
-| `src/pages/DeadStock.tsx` | Add gate check |
-| `src/pages/ClearanceRadar.tsx` | Add gate check |
-| `src/pages/SeasonalCalendar.tsx` | Add gate check |
-| `src/pages/RelistScheduler.tsx` | Add gate check |
-| `src/pages/CrossListings.tsx` | Add gate check |
-| `src/pages/PortfolioOptimizer.tsx` | Add gate check |
-| `src/pages/CharityBriefing.tsx` | Add gate check |
-| `src/pages/PriceCheck.tsx` | Replace toast with upgrade modal |
-| Database migration | Upgrade jamiemckaye account |
++------------------------------------------+
+| See all 80 trends with a Pro plan        |
+| [Upgrade Now]                             |
++------------------------------------------+
+```
 
