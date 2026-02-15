@@ -10,10 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, Plus, Loader2, Eye, Trash2, RefreshCw,
+  Plus, Loader2, Eye, Trash2, RefreshCw,
   TrendingUp, TrendingDown, Minus, Bell, BellOff,
-  Users, Search, AlertCircle, ExternalLink, Radar, BarChart3,
+  Users, Search, BarChart3, Radar,
 } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CompetitorCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -171,28 +172,13 @@ export default function CompetitorTracker() {
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
-      <header className="border-b border-border glass sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="font-display font-bold text-lg flex items-center gap-2">
-              <Radar className="w-5 h-5 text-primary" />
-              Competitor Tracker
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Monitor competitors and get alerts on price changes
-            </p>
-          </div>
-          {unreadCount > 0 && (
-            <Badge className="bg-primary text-primary-foreground">{unreadCount} new</Badge>
-          )}
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
+    <PageShell
+      title="Competitor Tracker"
+      subtitle="Monitor competitors and get alerts on price changes"
+      icon={<Radar className="w-5 h-5 text-primary" />}
+      maxWidth="max-w-5xl"
+      actions={unreadCount > 0 ? <Badge className="bg-primary text-primary-foreground">{unreadCount} new</Badge> : undefined}
+    >
         <UseCaseSpotlight
           featureKey="competitor-tracker"
           icon={Radar}
@@ -212,9 +198,9 @@ export default function CompetitorTracker() {
                   <Users className="w-4 h-4 text-primary" />
                   Tracked Competitors ({competitors.length})
                 </h2>
-                <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>
+                <Button size="sm" onClick={() => setShowAddForm(!showAddForm)} className="active:scale-95 transition-transform">
                   <Plus className="w-3 h-3 mr-1" />
-                  Add Competitor
+                  Add
                 </Button>
               </div>
 
@@ -222,33 +208,33 @@ export default function CompetitorTracker() {
               <AnimatePresence>
                 {showAddForm && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                    <Card className="p-5">
+                    <Card className="p-4 sm:p-5">
                       <h3 className="font-display font-bold text-sm mb-3">Track a new competitor or niche</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <Label className="text-xs">Name *</Label>
-                          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. VintageVibes_UK or 'Nike Air Max niche'" />
+                      <div className="space-y-2.5 sm:space-y-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Name *</Label>
+                          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. VintageVibes_UK" className="h-11 sm:h-10 text-base sm:text-sm" />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs">Vinted Username (optional)</Label>
-                            <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="e.g. seller123" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vinted Username</Label>
+                            <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="e.g. seller123" className="h-11 sm:h-10 text-base sm:text-sm" />
                           </div>
-                          <div>
-                            <Label className="text-xs">Search Query (optional)</Label>
-                            <Input value={newQuery} onChange={(e) => setNewQuery(e.target.value)} placeholder="e.g. vintage Levi's 501" />
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Search Query</Label>
+                            <Input value={newQuery} onChange={(e) => setNewQuery(e.target.value)} placeholder="e.g. vintage Levi's 501" className="h-11 sm:h-10 text-base sm:text-sm" />
                           </div>
                         </div>
-                        <div>
-                          <Label className="text-xs">Category (optional)</Label>
-                          <Input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="e.g. Menswear, Trainers" />
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
+                          <Input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="e.g. Menswear, Trainers" className="h-11 sm:h-10 text-base sm:text-sm" />
                         </div>
                         <div className="flex gap-2">
-                          <Button onClick={handleAdd} disabled={adding} size="sm" className="flex-1">
+                          <Button onClick={handleAdd} disabled={adding} size="sm" className="flex-1 h-11 sm:h-9 active:scale-95 transition-transform">
                             {adding ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
                             Add & Start Tracking
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)}>Cancel</Button>
+                          <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)} className="h-11 sm:h-9">Cancel</Button>
                         </div>
                       </div>
                     </Card>
@@ -258,13 +244,15 @@ export default function CompetitorTracker() {
 
               {/* Competitor Cards */}
               {competitors.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                  <h3 className="font-display font-bold text-lg mb-2">No competitors tracked yet</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Add a Vinted seller or search query to start monitoring prices and get alerts.
+                <Card className="p-8 sm:p-10 text-center">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/40" />
+                  </div>
+                  <h3 className="font-display font-bold text-sm sm:text-lg mb-1.5">No competitors tracked yet</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+                    Add a Vinted seller or search query to start monitoring.
                   </p>
-                  <Button onClick={() => setShowAddForm(true)} size="sm">
+                  <Button onClick={() => setShowAddForm(true)} size="sm" className="active:scale-95 transition-transform">
                     <Plus className="w-3 h-3 mr-1" /> Add Your First Competitor
                   </Button>
                 </Card>
@@ -272,7 +260,7 @@ export default function CompetitorTracker() {
                 <div className="space-y-3">
                   {competitors.map((comp) => (
                     <motion.div key={comp.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}>
-                      <Card className="p-5 hover:shadow-md transition-shadow">
+                      <Card className="p-3.5 sm:p-5 hover:shadow-md active:scale-[0.99] transition-all">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -316,12 +304,12 @@ export default function CompetitorTracker() {
                               ? `Last scanned ${new Date(comp.last_scanned_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
                               : "Never scanned"}
                           </p>
-                          <div className="flex gap-1.5">
+                          <div className="flex gap-1 sm:gap-1.5 flex-wrap">
                             {comp.category && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-xs h-7"
+                                className="text-[10px] sm:text-xs h-7 active:scale-95 transition-transform"
                                 onClick={() => navigate(`/price-check?category=${encodeURIComponent(comp.category!)}`)}
                               >
                                 <Search className="w-3 h-3 mr-1" /> Price Check
@@ -330,7 +318,7 @@ export default function CompetitorTracker() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-xs h-7"
+                              className="text-[10px] sm:text-xs h-7 active:scale-95 transition-transform"
                               onClick={() => navigate("/trends")}
                             >
                               <BarChart3 className="w-3 h-3 mr-1" /> Trends
@@ -338,20 +326,20 @@ export default function CompetitorTracker() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-xs h-7"
+                              className="text-[10px] sm:text-xs h-7 active:scale-95 transition-transform"
                               onClick={() => handleScan(comp)}
                               disabled={scanningId === comp.id}
                             >
                               {scanningId === comp.id ? (
                                 <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Scanning...</>
                               ) : (
-                                <><RefreshCw className="w-3 h-3 mr-1" /> Scan Now</>
+                                <><RefreshCw className="w-3 h-3 mr-1" /> Scan</>
                               )}
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-xs h-7 text-destructive hover:text-destructive"
+                              className="text-[10px] sm:text-xs h-7 text-destructive hover:text-destructive active:scale-95 transition-transform"
                               onClick={() => handleDelete(comp.id)}
                             >
                               <Trash2 className="w-3 h-3" />
@@ -373,10 +361,12 @@ export default function CompetitorTracker() {
               </h2>
 
               {alerts.length === 0 ? (
-                <Card className="p-6 text-center">
-                  <BellOff className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">
-                    No alerts yet. Scan a competitor to generate intelligence alerts.
+                <Card className="p-6 sm:p-8 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-3">
+                    <BellOff className="w-6 h-6 text-muted-foreground/40" />
+                  </div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    No alerts yet. Scan a competitor to generate intelligence.
                   </p>
                 </Card>
               ) : (
@@ -386,7 +376,7 @@ export default function CompetitorTracker() {
                     return (
                       <motion.div key={alert.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                         <Card
-                          className={`p-4 cursor-pointer transition-all ${
+                          className={`p-3.5 sm:p-4 cursor-pointer active:scale-[0.99] transition-all relative ${
                             alert.is_read ? "opacity-60" : "border-primary/20 shadow-sm"
                           }`}
                           onClick={() => handleMarkRead(alert.id)}
@@ -424,8 +414,6 @@ export default function CompetitorTracker() {
             </div>
           </div>
         )}
-      </div>
-      <MobileBottomNav />
-    </div>
+    </PageShell>
   );
 }
