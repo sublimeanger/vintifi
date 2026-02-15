@@ -15,6 +15,8 @@ export const STRIPE_TIERS = {
     name: "Pro",
     price: 14.99,
     price_id: "price_1T0oLn4qASjubvn31XA0DUoy",
+    annual_price_id: "price_1T10rz4qASjubvn3tES0mti8",
+    annual_price: 143.88,
     product_id: "prod_TyltIvYWdZReZo",
     credits: 25,
     features: [
@@ -29,6 +31,8 @@ export const STRIPE_TIERS = {
     name: "Business",
     price: 34.99,
     price_id: "price_1T0oLo4qASjubvn3p0Zo36i8",
+    annual_price_id: "price_1T10s44qASjubvn3kt39xUKL",
+    annual_price: 335.88,
     product_id: "prod_TyltCrUUsbuddE",
     credits: 100,
     features: [
@@ -44,6 +48,8 @@ export const STRIPE_TIERS = {
     name: "Scale",
     price: 74.99,
     price_id: "price_1T0oLq4qASjubvn3Wf0QP5W1",
+    annual_price_id: "price_1T10s54qASjubvn3W05YiURG",
+    annual_price: 719.88,
     product_id: "prod_TyltldO5OcP5cE",
     credits: 999,
     features: [

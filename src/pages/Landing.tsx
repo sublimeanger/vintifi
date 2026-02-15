@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Check, Zap, TrendingUp, BarChart3, Shield, ArrowRight, Sparkles } from "lucide-react";
 import { STRIPE_TIERS, TierKey } from "@/lib/constants";
 import MarketingLayout from "@/components/MarketingLayout";
@@ -25,7 +27,7 @@ const trustedBrands = ["Nike", "Zara", "Carhartt WIP", "Levi's", "Adidas", "H&M"
 
 export default function Landing() {
   const navigate = useNavigate();
-
+  const [annual, setAnnual] = useState(false);
   return (
     <MarketingLayout>
       {/* Hero */}
@@ -163,11 +165,20 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-4">Simple, transparent pricing</h2>
-            <p className="text-muted-foreground text-base sm:text-lg">Start free. Upgrade when you're ready.</p>
+            <p className="text-muted-foreground text-base sm:text-lg mb-6">Start free. Upgrade when you're ready. All paid plans include a 7-day free trial.</p>
+            <div className="flex items-center justify-center gap-3">
+              <span className={`text-sm font-medium ${!annual ? "text-foreground" : "text-muted-foreground"}`}>Monthly</span>
+              <Switch checked={annual} onCheckedChange={setAnnual} />
+              <span className={`text-sm font-medium ${annual ? "text-foreground" : "text-muted-foreground"}`}>Annual</span>
+              {annual && (
+                <Badge className="bg-success text-success-foreground ml-1">Save 20%</Badge>
+              )}
+            </div>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-6xl mx-auto">
             {(Object.entries(STRIPE_TIERS) as [TierKey, typeof STRIPE_TIERS[TierKey]][]).map(([key, tier], i) => {
               const isPopular = key === "pro";
+              const displayPrice = annual && tier.price > 0 ? (tier.price * 0.8).toFixed(2) : tier.price;
               return (
                 <motion.div
                   key={key}
@@ -186,10 +197,13 @@ export default function Landing() {
                       <h3 className="font-display font-bold text-lg">{tier.name}</h3>
                       <div className="mt-3">
                         <span className="font-display text-3xl sm:text-4xl font-extrabold">
-                          {tier.price === 0 ? "Free" : `£${tier.price}`}
+                          {tier.price === 0 ? "Free" : `£${displayPrice}`}
                         </span>
                         {tier.price > 0 && <span className="text-muted-foreground text-sm">/month</span>}
                       </div>
+                      {annual && tier.price > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1 line-through">£{tier.price}/mo</p>
+                      )}
                     </div>
                     <ul className="space-y-3 mb-8 flex-1">
                       {tier.features.map((f) => (
@@ -204,7 +218,7 @@ export default function Landing() {
                       className="w-full font-semibold"
                       onClick={() => navigate("/auth?mode=signup")}
                     >
-                      {tier.price === 0 ? "Get Started" : "Start Free Trial"}
+                      {tier.price === 0 ? "Get Started" : "Start 7-Day Free Trial"}
                     </Button>
                   </Card>
                 </motion.div>
