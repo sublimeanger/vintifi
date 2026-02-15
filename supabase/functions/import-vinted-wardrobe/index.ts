@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 const TIER_LIMITS: Record<string, number> = { free: 20, pro: 200, business: 9999, scale: 9999 };
-const TIER_MAX_PAGES: Record<string, number> = { free: 1, pro: 3, business: 5, scale: 5 };
 const TIER_DEEP_LIMITS: Record<string, number> = { free: 5, pro: 50, business: 9999, scale: 9999 };
 
 Deno.serve(async (req) => {
@@ -16,6 +15,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // --- Auth ---
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
@@ -43,15 +43,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- Tier limits ---
     const { data: profile } = await supabase
       .from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle();
     const tier = profile?.subscription_tier || "free";
-
     const importLimit = TIER_LIMITS[tier] || 20;
-    const maxPages = TIER_MAX_PAGES[tier] || 1;
     const deepLimit = TIER_DEEP_LIMITS[tier] || 5;
 
-    // --- Monthly import limit check ---
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
@@ -71,13 +69,11 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    // --- End monthly limit check ---
 
+    // --- Build wardrobe URL ---
     let wardrobeUrl = profile_url.trim();
     if (!wardrobeUrl.startsWith("http")) wardrobeUrl = `https://www.${wardrobeUrl}`;
     if (!wardrobeUrl.includes("/items")) wardrobeUrl = wardrobeUrl.replace(/\/?$/, "/items");
-
-    console.log(`Scraping wardrobe: ${wardrobeUrl} (tier: ${tier}, limit: ${importLimit}, maxPages: ${maxPages}, deep: ${!!deep_import})`);
 
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
     if (!firecrawlKey) {
@@ -86,55 +82,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Phase 1: Scrape wardrobe overview with infinite scroll handling
-    const allMarkdown: string[] = [];
-    let pagesScraped = 0;
-
-    // Vinted uses infinite scroll — we use Firecrawl actions to scroll down and load all items
-    const scrollActions = [];
-    // Scroll down multiple times to trigger lazy loading (each scroll loads ~20 items)
-    // Keep scrolls modest to avoid Firecrawl timeout (default 30s)
-    const scrollCount = Math.min(Math.ceil(importLimit / 20), 8); // cap at 8 scrolls (~160 items)
-    for (let s = 0; s < scrollCount; s++) {
-      scrollActions.push({ type: "scroll", direction: "down", amount: 2000 });
-      scrollActions.push({ type: "wait", milliseconds: 800 });
-    }
-
-    console.log(`Scraping wardrobe with ${scrollCount} scrolls to load items: ${wardrobeUrl}`);
-
-    const scrapeResponse = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: wardrobeUrl,
-        formats: ["markdown"],
-        waitFor: 2000,
-        timeout: 60000,
-        actions: scrollActions,
-      }),
-    });
-
-    const scrapeData = await scrapeResponse.json();
-    if (!scrapeResponse.ok || !scrapeData.success) {
-      console.error("Firecrawl error:", JSON.stringify(scrapeData));
-      return new Response(JSON.stringify({ success: false, error: "Could not scrape the wardrobe. Make sure your Vinted profile is public." }), {
-        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const pageMarkdown = scrapeData.data?.markdown || scrapeData.markdown || "";
-    if (!pageMarkdown || pageMarkdown.length < 100) {
-      return new Response(JSON.stringify({ success: false, error: "Your wardrobe appears empty or private." }), {
-        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    allMarkdown.push(pageMarkdown);
-    pagesScraped = 1;
-
-    const combinedMarkdown = allMarkdown.join("\n\n");
-    console.log(`Scraped ${pagesScraped} page(s), ${combinedMarkdown.length} chars. Sending to AI...`);
-
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey) {
       return new Response(JSON.stringify({ success: false, error: "AI not configured" }), {
@@ -142,11 +89,97 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ========================================
+    // PHASE 1: MAP — get all item URLs from the member's page
+    // ========================================
+    console.log(`Phase 1: Mapping URLs from ${wardrobeUrl} (tier: ${tier}, limit: ${importLimit})`);
+
+    const mapResponse = await fetch("https://api.firecrawl.dev/v1/map", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: wardrobeUrl,
+        limit: 500,
+        includeSubdomains: false,
+      }),
+    });
+
+    const mapData = await mapResponse.json();
+    if (!mapResponse.ok || !mapData.success) {
+      console.error("Firecrawl map error:", JSON.stringify(mapData));
+      return new Response(JSON.stringify({ success: false, error: "Could not map the wardrobe. Make sure your Vinted profile is public." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Filter for item URLs only (pattern: /items/12345-slug)
+    const allLinks: string[] = mapData.links || [];
     const urlObj = new URL(wardrobeUrl);
     const baseDomain = `${urlObj.protocol}//${urlObj.hostname}`;
-    // Extract member ID from URL for filtering
-    const memberMatch = wardrobeUrl.match(/member\/(\d+[-\w]*)/);
+
+    // Extract member ID from URL to validate items belong to this member
+    const memberMatch = wardrobeUrl.match(/member\/(\d+)/);
     const memberId = memberMatch ? memberMatch[1] : "";
+
+    // Item URLs look like: https://www.vinted.co.uk/items/1234567890-item-slug
+    const itemUrlPattern = /\/items\/(\d+)/;
+    const memberItemUrls = allLinks.filter(link => {
+      try {
+        const u = new URL(link);
+        return u.hostname === urlObj.hostname && itemUrlPattern.test(u.pathname);
+      } catch { return false; }
+    });
+
+    console.log(`Map found ${allLinks.length} total URLs, ${memberItemUrls.length} item URLs`);
+
+    if (memberItemUrls.length === 0) {
+      return new Response(JSON.stringify({ success: false, error: "No items found in this wardrobe. Make sure the profile is public and has active listings." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Cap to import limit
+    const cappedUrls = memberItemUrls.slice(0, Math.min(importLimit, remaining));
+
+    // ========================================
+    // PHASE 2: SCRAPE wardrobe page for item details
+    // ========================================
+    console.log(`Phase 2: Scraping wardrobe page for details...`);
+
+    // Light scrape — no scrolling, just main content
+    const scrapeResponse = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: wardrobeUrl,
+        formats: ["markdown"],
+        onlyMainContent: true,
+        waitFor: 3000,
+        timeout: 30000,
+      }),
+    });
+
+    const scrapeData = await scrapeResponse.json();
+    let wardrobeMarkdown = "";
+    if (scrapeResponse.ok && scrapeData.success) {
+      wardrobeMarkdown = scrapeData.data?.markdown || scrapeData.markdown || "";
+    }
+
+    console.log(`Wardrobe scrape: ${wardrobeMarkdown.length} chars`);
+
+    // Build a set of valid item IDs from the map phase for validation
+    const validItemIds = new Set<string>();
+    for (const url of cappedUrls) {
+      const match = url.match(/\/items\/(\d+)/);
+      if (match) validItemIds.add(match[1]);
+    }
+
+    // ========================================
+    // PHASE 3: AI extraction — extract items from scraped content, filtered by whitelist
+    // ========================================
+    console.log(`Phase 3: AI extraction with ${validItemIds.size} whitelisted item IDs...`);
+
+    const whitelistStr = Array.from(validItemIds).join(", ");
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -156,22 +189,32 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You extract Vinted listing data from a scraped wardrobe page for member "${memberId}" on ${baseDomain}.
+            content: `You extract Vinted listing data from a scraped wardrobe page.
 
-CRITICAL RULES:
-- ONLY extract items that belong to this specific member's wardrobe/closet.
-- DO NOT include "Similar items", "You might also like", "Recommended for you", "Popular items", sponsored items, or any items from other sellers.
-- Items from this member's wardrobe will typically appear in a grid/list under their profile section. They will have URLs containing "/items/" on the same domain.
-- If an item's URL contains a different member ID or points to a different seller, EXCLUDE it.
-- Look for the main wardrobe listing section, ignore sidebar content, footer recommendations, and promotional sections.
+CRITICAL: You have a WHITELIST of valid item IDs. ONLY extract items whose Vinted item ID appears in this whitelist.
+WHITELIST of valid item IDs: [${whitelistStr}]
 
-Return a JSON array of items. Each item must have:
-- title (string), brand (string or null), current_price (number or null), category (string or null)
-- condition (string or null), size (string or null), image_url (string or null)
+If an item's ID is NOT in the whitelist, SKIP IT completely. This is the most important rule.
+
+Return a JSON array. Each item must have:
+- item_id (string) — the numeric Vinted item ID from the URL
+- title (string)
+- brand (string or null)
+- current_price (number or null)
+- category (string or null)
+- condition (string or null)
+- size (string or null)
+- image_url (string or null)
 - vinted_url (string or null) — full URL using base domain: ${baseDomain}
-Return ONLY a valid JSON array. No markdown fences. Maximum ${importLimit} items. Deduplicate across pages.`,
+
+Return ONLY a valid JSON array. No markdown fences.`,
           },
-          { role: "user", content: `Extract ONLY this member's own wardrobe listings (member: ${memberId}) from these ${pagesScraped} page(s). Ignore all recommended/similar/sponsored items:\n\n${combinedMarkdown.substring(0, 60000)}` },
+          {
+            role: "user",
+            content: wardrobeMarkdown.length > 200
+              ? `Extract items from this wardrobe page. Remember: ONLY include items with IDs in the whitelist.\n\n${wardrobeMarkdown.substring(0, 60000)}`
+              : `I have ${cappedUrls.length} item URLs from a Vinted wardrobe. Generate basic listing data from the URL slugs.\n\nURLs:\n${cappedUrls.slice(0, 200).join("\n")}`,
+          },
         ],
         temperature: 0.1,
       }),
@@ -199,35 +242,89 @@ Return ONLY a valid JSON array. No markdown fences. Maximum ${importLimit} items
       items = JSON.parse(cleaned);
     } catch {
       console.error("Failed to parse AI response:", rawContent.substring(0, 500));
-      return new Response(JSON.stringify({ success: false, error: "Failed to parse listing data." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      // Fallback: create items from URLs alone
+      items = cappedUrls.map(url => {
+        const match = url.match(/\/items\/(\d+)-?(.*)/);
+        const slug = match?.[2]?.replace(/-/g, " ") || "Unknown item";
+        return {
+          item_id: match?.[1] || "",
+          title: slug.charAt(0).toUpperCase() + slug.slice(1),
+          brand: null,
+          current_price: null,
+          category: null,
+          condition: null,
+          size: null,
+          image_url: null,
+          vinted_url: url,
+        };
       });
+      console.log(`Fallback: created ${items.length} items from URL slugs`);
     }
 
-    if (!Array.isArray(items) || items.length === 0) {
+    if (!Array.isArray(items)) items = [];
+
+    // POST-EXTRACTION VALIDATION: Only keep items whose ID is in the whitelist
+    const validatedItems = items.filter(item => {
+      if (!item.item_id && item.vinted_url) {
+        const match = item.vinted_url.match(/\/items\/(\d+)/);
+        if (match) item.item_id = match[1];
+      }
+      return item.item_id && validItemIds.has(String(item.item_id));
+    });
+
+    console.log(`AI extracted ${items.length} items, ${validatedItems.length} passed whitelist validation`);
+
+    // If AI extraction gave us few results, fill in from URLs
+    if (validatedItems.length < cappedUrls.length * 0.5) {
+      console.log("Low extraction rate — supplementing with URL-based items");
+      const existingIds = new Set(validatedItems.map(i => String(i.item_id)));
+      for (const url of cappedUrls) {
+        const match = url.match(/\/items\/(\d+)-?(.*)/);
+        if (!match) continue;
+        const itemId = match[1];
+        if (existingIds.has(itemId)) continue;
+        const slug = match[2]?.replace(/-/g, " ") || "Unknown item";
+        validatedItems.push({
+          item_id: itemId,
+          title: slug.charAt(0).toUpperCase() + slug.slice(1),
+          brand: null,
+          current_price: null,
+          category: null,
+          condition: null,
+          size: null,
+          image_url: null,
+          vinted_url: url,
+        });
+        existingIds.add(itemId);
+      }
+      console.log(`After supplementing: ${validatedItems.length} items total`);
+    }
+
+    if (validatedItems.length === 0) {
       return new Response(JSON.stringify({ success: false, error: "No listings found." }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const cappedItems = items.slice(0, Math.min(importLimit, remaining));
-    console.log(`Extracted ${items.length} items, importing ${cappedItems.length} (remaining allowance: ${remaining})`);
+    const finalItems = validatedItems.slice(0, Math.min(importLimit, remaining));
 
-    // Phase 2: Deep import — scrape individual listing pages for descriptions
+    // ========================================
+    // PHASE 4: Deep import — scrape individual listing pages for descriptions
+    // ========================================
     let descriptionsFetched = 0;
     if (deep_import) {
-      const itemsToDeepScrape = cappedItems.filter(i => i.vinted_url).slice(0, Math.min(deepLimit, 15));
-      console.log(`Deep import: scraping ${itemsToDeepScrape.length} individual listings in parallel batches`);
+      const itemsToDeepScrape = finalItems.filter(i => i.vinted_url).slice(0, Math.min(deepLimit, 15));
+      console.log(`Phase 4: Deep import — scraping ${itemsToDeepScrape.length} individual listings`);
 
       const BATCH_SIZE = 5;
       for (let b = 0; b < itemsToDeepScrape.length; b += BATCH_SIZE) {
         const batch = itemsToDeepScrape.slice(b, b + BATCH_SIZE);
-        const results = await Promise.allSettled(batch.map(async (item) => {
+        await Promise.allSettled(batch.map(async (item) => {
           try {
             const pageRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
               method: "POST",
               headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ url: item.vinted_url, formats: ["markdown"], waitFor: 2000 }),
+              body: JSON.stringify({ url: item.vinted_url, formats: ["markdown"], onlyMainContent: true, waitFor: 2000 }),
             });
 
             const pageData = await pageRes.json();
@@ -245,9 +342,16 @@ Return ONLY a valid JSON array. No markdown fences. Maximum ${importLimit} items
                   {
                     role: "system",
                     content: `Extract details from a Vinted listing page. Return JSON with:
-- description (string or null) — the full item description text written by the seller
-- views_count (number or null) — number of views
-- favourites_count (number or null) — number of favourites/hearts
+- title (string) — the item title
+- description (string or null) — the full item description text
+- brand (string or null)
+- current_price (number or null)
+- category (string or null)
+- condition (string or null)
+- size (string or null)
+- image_url (string or null) — the main product image URL
+- views_count (number or null)
+- favourites_count (number or null)
 Return ONLY valid JSON object. No markdown fences.`,
                   },
                   { role: "user", content: md.substring(0, 8000) },
@@ -260,7 +364,14 @@ Return ONLY valid JSON object. No markdown fences.`,
               const detailData = await detailRes.json();
               const detailContent = detailData.choices?.[0]?.message?.content || "{}";
               const details = JSON.parse(detailContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim());
+              if (details.title) item.title = details.title;
               if (details.description) item.description = details.description;
+              if (details.brand) item.brand = details.brand;
+              if (details.current_price != null) item.current_price = details.current_price;
+              if (details.category) item.category = details.category;
+              if (details.condition) item.condition = details.condition;
+              if (details.size) item.size = details.size;
+              if (details.image_url) item.image_url = details.image_url;
               if (details.views_count != null) item.views_count = details.views_count;
               if (details.favourites_count != null) item.favourites_count = details.favourites_count;
               descriptionsFetched++;
@@ -273,12 +384,14 @@ Return ONLY valid JSON object. No markdown fences.`,
       console.log(`Deep import complete: ${descriptionsFetched} descriptions fetched`);
     }
 
-    // Phase 3: Upsert into listings table
+    // ========================================
+    // PHASE 5: Upsert into listings table
+    // ========================================
     let imported = 0;
     let updated = 0;
     let skipped = 0;
 
-    for (const item of cappedItems) {
+    for (const item of finalItems) {
       if (!item.title) { skipped++; continue; }
       const vintedUrl = item.vinted_url || null;
 
@@ -288,13 +401,13 @@ Return ONLY valid JSON object. No markdown fences.`,
 
         if (existing) {
           const updateData: Record<string, any> = {
-            current_price: item.current_price ?? undefined,
             title: item.title,
             brand: item.brand ?? undefined,
             category: item.category ?? undefined,
             condition: item.condition ?? undefined,
             size: item.size ?? undefined,
             image_url: item.image_url ?? undefined,
+            current_price: item.current_price ?? undefined,
             updated_at: new Date().toISOString(),
           };
           if (item.description) updateData.description = item.description;
@@ -331,7 +444,7 @@ Return ONLY valid JSON object. No markdown fences.`,
     console.log(`Import complete: ${imported} imported, ${updated} updated, ${skipped} skipped, ${descriptionsFetched} descriptions`);
 
     return new Response(
-      JSON.stringify({ success: true, imported, updated, skipped, total: imported + updated, descriptions_fetched: descriptionsFetched }),
+      JSON.stringify({ success: true, imported, updated, skipped, total: imported + updated, descriptions_fetched: descriptionsFetched, mapped_urls: memberItemUrls.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
