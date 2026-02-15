@@ -22,6 +22,7 @@ import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
 } from "@/components/ui/table";
+import { FeatureGate } from "@/components/FeatureGate";
 
 const CSV_TEMPLATE = `title,brand,category,size,condition,description,purchase_price
 "Nike Air Max 90",Nike,Trainers,UK 9,Very Good,"Original Nike trainers, barely worn",25
@@ -364,6 +365,7 @@ export default function BulkOptimize() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <FeatureGate feature="bulk_optimize">
         <UseCaseSpotlight
           featureKey="bulk-optimize"
           icon={FileSpreadsheet}
@@ -610,6 +612,7 @@ export default function BulkOptimize() {
             </Card>
           </motion.div>
         )}
+        </FeatureGate>
       </div>
       <MobileBottomNav />
     </div>

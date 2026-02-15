@@ -23,6 +23,7 @@ import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { FeatureGate } from "@/components/FeatureGate";
 
 type Opportunity = {
   source_platform: string;
@@ -283,6 +284,7 @@ export default function ArbitrageScanner() {
       icon={<ArrowRightLeft className="w-5 h-5 text-primary" />}
       maxWidth="max-w-4xl"
     >
+      <FeatureGate feature="arbitrage_scanner">
       <UseCaseSpotlight
         featureKey="arbitrage-scanner"
         icon={ArrowRightLeft}
@@ -761,6 +763,7 @@ export default function ArbitrageScanner() {
       </Tabs>
 
       <MobileBottomNav />
+      </FeatureGate>
     </PageShell>
   );
 }

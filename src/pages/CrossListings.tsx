@@ -17,6 +17,7 @@ import {
 import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { FeatureGate } from "@/components/FeatureGate";
 
 type CrossListing = {
   id: string;
@@ -166,6 +167,7 @@ export default function CrossListings() {
       }
       maxWidth="max-w-5xl"
     >
+      <FeatureGate feature="cross_listings">
       <UseCaseSpotlight
         featureKey="cross-listings"
         icon={Layers}
@@ -341,6 +343,7 @@ export default function CrossListings() {
       )}
 
       <MobileBottomNav />
+      </FeatureGate>
     </PageShell>
   );
 }

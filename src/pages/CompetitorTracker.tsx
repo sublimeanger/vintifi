@@ -18,6 +18,7 @@ import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CompetitorCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { FeatureGate } from "@/components/FeatureGate";
 
 type Competitor = {
   id: string;
@@ -179,6 +180,7 @@ export default function CompetitorTracker() {
       maxWidth="max-w-5xl"
       actions={unreadCount > 0 ? <Badge className="bg-primary text-primary-foreground">{unreadCount} new</Badge> : undefined}
     >
+        <FeatureGate feature="competitor_tracker">
         <UseCaseSpotlight
           featureKey="competitor-tracker"
           icon={Radar}
@@ -414,6 +416,7 @@ export default function CompetitorTracker() {
             </div>
           </div>
         )}
+        </FeatureGate>
     </PageShell>
   );
 }

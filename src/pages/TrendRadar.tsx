@@ -11,6 +11,7 @@ import TrendCard from "@/components/trends/TrendCard";
 import TrendStats from "@/components/trends/TrendStats";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { TrendCardSkeleton } from "@/components/LoadingSkeletons";
+import { FeatureGate } from "@/components/FeatureGate";
 
 type Trend = {
   id: string;
@@ -105,6 +106,7 @@ export default function TrendRadar() {
         ) : null
       }
     >
+      <FeatureGate feature="trend_radar_full">
       <UseCaseSpotlight
         featureKey="trend-radar"
         icon={Flame}
@@ -172,6 +174,7 @@ export default function TrendRadar() {
       )}
 
       <MobileBottomNav />
+      </FeatureGate>
     </PageShell>
   );
 }

@@ -13,6 +13,7 @@ import {
 import { PageShell } from "@/components/PageShell";
 import { BriefingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { FeatureGate } from "@/components/FeatureGate";
 
 type BriefingItem = {
   brand: string;
@@ -73,6 +74,7 @@ export default function CharityBriefing() {
         ) : undefined
       }
     >
+      <FeatureGate feature="charity_briefing">
       <UseCaseSpotlight
         featureKey="charity-briefing"
         icon={MapPin}
@@ -223,6 +225,7 @@ export default function CharityBriefing() {
           </motion.div>
         </AnimatePresence>
       )}
+      </FeatureGate>
     </PageShell>
   );
 }

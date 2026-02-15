@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,8 @@ import { PriceReportSkeleton } from "@/components/LoadingSkeletons";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { UpgradeModal } from "@/components/UpgradeModal";
 
 type PriceReport = {
   recommended_price: number;
@@ -43,6 +45,7 @@ export default function PriceCheck() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, credits, refreshCredits } = useAuth();
+  const gate = useFeatureGate("price_check");
 
   const paramBrand = searchParams.get("brand") || "";
   const paramCategory = searchParams.get("category") || "";
@@ -75,7 +78,7 @@ export default function PriceCheck() {
     }
 
     if (credits && credits.price_checks_used >= credits.credits_limit) {
-      toast.error("You've used all your price checks this month. Upgrade to get more!");
+      gate.showUpgrade();
       return;
     }
 
@@ -352,6 +355,13 @@ export default function PriceCheck() {
       )}
 
       <MobileBottomNav />
+      <UpgradeModal
+        open={gate.upgradeOpen}
+        onClose={gate.hideUpgrade}
+        reason={gate.reason}
+        tierRequired={gate.tierRequired}
+        showCredits
+      />
     </PageShell>
   );
 }

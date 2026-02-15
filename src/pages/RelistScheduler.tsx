@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ScheduleCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { FeatureGate } from "@/components/FeatureGate";
 
 type Schedule = {
   id: string;
@@ -172,6 +173,7 @@ export default function RelistScheduler() {
         </Button>
       }
     >
+      <FeatureGate feature="relist_scheduler">
       <UseCaseSpotlight
         featureKey="relist-scheduler"
         icon={Timer}
@@ -317,6 +319,7 @@ export default function RelistScheduler() {
           </div>
         </>
       )}
+      </FeatureGate>
     </PageShell>
   );
 }
