@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.sync-platform-status]
 verify_jwt = false
+
+[functions.vintography]
+verify_jwt = false

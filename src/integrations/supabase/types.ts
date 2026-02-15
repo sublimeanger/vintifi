@@ -752,6 +752,7 @@ export type Database = {
           price_checks_used: number
           updated_at: string
           user_id: string
+          vintography_used: number
         }
         Insert: {
           created_at?: string
@@ -763,6 +764,7 @@ export type Database = {
           price_checks_used?: number
           updated_at?: string
           user_id: string
+          vintography_used?: number
         }
         Update: {
           created_at?: string
@@ -772,6 +774,46 @@ export type Database = {
           period_end?: string
           period_start?: string
           price_checks_used?: number
+          updated_at?: string
+          user_id?: string
+          vintography_used?: number
+        }
+        Relationships: []
+      }
+      vintography_jobs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          operation: string
+          original_url: string
+          parameters: Json | null
+          processed_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          operation?: string
+          original_url: string
+          parameters?: Json | null
+          processed_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          operation?: string
+          original_url?: string
+          parameters?: Json | null
+          processed_url?: string | null
+          status?: string
           updated_at?: string
           user_id?: string
         }

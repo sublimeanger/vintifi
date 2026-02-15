@@ -15,7 +15,8 @@ export type FeatureKey =
   | "relist_scheduler"
   | "cross_listings"
   | "portfolio_optimizer"
-  | "charity_briefing";
+  | "charity_briefing"
+  | "vintography";
 
 type TierLevel = "free" | "pro" | "business" | "scale";
 
@@ -48,6 +49,7 @@ const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
   cross_listings: { minTier: "business", usesCredits: false, label: "Cross-Listings" },
   portfolio_optimizer: { minTier: "pro", usesCredits: false, label: "Portfolio Optimiser" },
   charity_briefing: { minTier: "pro", usesCredits: false, label: "Charity Briefing" },
+  vintography: { minTier: "free", usesCredits: true, creditType: "price_checks", label: "Vintography" },
 };
 
 export function useFeatureGate(feature: FeatureKey) {
