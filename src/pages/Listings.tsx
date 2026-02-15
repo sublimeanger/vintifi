@@ -26,7 +26,7 @@ import {
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus, Search, Loader2, Package, Heart, Eye, Upload,
+  Plus, Search, Loader2, Package, Heart, Eye, Upload, Download,
   TrendingUp, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
   PoundSterling, Calendar, Check, X, Pencil, Sparkles, Send,
@@ -95,7 +95,7 @@ function getProfit(listing: Listing): number | null {
 
 export default function Listings() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,6 +103,10 @@ export default function Listings() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [publishListing, setPublishListing] = useState<Listing | null>(null);
+
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editField, setEditField] = useState<string | null>(null);
@@ -246,6 +250,52 @@ export default function Listings() {
     setNewUrl("");
   };
 
+  const handleImportWardrobe = async () => {
+    if (!importUrl.trim()) {
+      toast.error("Please enter your Vinted profile URL");
+      return;
+    }
+    if (!session?.access_token) {
+      toast.error("Please sign in to import listings");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-vinted-wardrobe`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ profile_url: importUrl.trim() }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        toast.error(data.error || "Import failed");
+        return;
+      }
+
+      const parts: string[] = [];
+      if (data.imported > 0) parts.push(`${data.imported} imported`);
+      if (data.updated > 0) parts.push(`${data.updated} updated`);
+      toast.success(`${parts.join(", ")} from Vinted!`);
+      setImportDialogOpen(false);
+      setImportUrl("");
+      fetchListings();
+    } catch (err) {
+      console.error("Import error:", err);
+      toast.error("Failed to import. Please try again.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredListings = listings.filter((l) => {
     const matchesSearch =
       !searchQuery ||
@@ -292,6 +342,60 @@ export default function Listings() {
 
   const headerActions = (
     <div className="flex items-center gap-2">
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="font-semibold hidden sm:flex h-9">
+            <Download className="w-3.5 h-3.5 mr-1.5" /> Import
+          </Button>
+        </DialogTrigger>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon" className="sm:hidden h-10 w-10">
+            <Download className="w-4 h-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Import from Vinted</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Paste your Vinted profile URL to automatically import all your active listings.
+            </p>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Vinted Profile URL
+              </Label>
+              <Input
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                placeholder="e.g. vinted.co.uk/member/12345678-username"
+                className="h-11 sm:h-10 text-base sm:text-sm"
+                disabled={importing}
+              />
+            </div>
+            {importing && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Scraping your wardrobe and extracting listings… This may take 10-20 seconds.
+                </p>
+              </div>
+            )}
+            <Button
+              onClick={handleImportWardrobe}
+              disabled={importing || !importUrl.trim()}
+              className="w-full font-semibold h-12 sm:h-10 active:scale-95 transition-transform"
+            >
+              {importing ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              {importing ? "Importing…" : "Import Listings"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Button variant="outline" size="sm" onClick={() => navigate("/bulk-optimize")} className="font-semibold hidden sm:flex h-9">
         <Upload className="w-3.5 h-3.5 mr-1.5" /> Bulk
       </Button>
