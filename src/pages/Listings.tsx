@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -30,6 +32,7 @@ import {
   TrendingUp, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
   PoundSterling, Calendar, Check, X, Pencil, Sparkles, Send,
+  ChevronDown, Tag, Ruler, ShieldCheck,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -45,6 +48,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 type Listing = {
   id: string;
   title: string;
+  description: string | null;
   brand: string | null;
   category: string | null;
   size: string | null;
@@ -107,7 +111,10 @@ export default function Listings() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [deepImport, setDeepImport] = useState(false);
   const [syncing, setSyncing] = useState(false);
+
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editField, setEditField] = useState<string | null>(null);
@@ -200,8 +207,10 @@ export default function Listings() {
   const handleOptimiseListing = (listing: Listing) => {
     const params = new URLSearchParams();
     if (listing.title) params.set("title", listing.title);
+    if (listing.description) params.set("description", listing.description);
     if (listing.brand) params.set("brand", listing.brand);
     if (listing.category) params.set("category", listing.category);
+    if (listing.size) params.set("size", listing.size);
     if (listing.condition) params.set("condition", listing.condition);
     navigate(`/optimize?${params.toString()}`);
   };
@@ -271,7 +280,7 @@ export default function Listings() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ profile_url: importUrl.trim() }),
+          body: JSON.stringify({ profile_url: importUrl.trim(), deep_import: deepImport }),
         }
       );
 
@@ -285,9 +294,11 @@ export default function Listings() {
       const parts: string[] = [];
       if (data.imported > 0) parts.push(`${data.imported} imported`);
       if (data.updated > 0) parts.push(`${data.updated} updated`);
+      if (data.descriptions_fetched > 0) parts.push(`${data.descriptions_fetched} descriptions fetched`);
       toast.success(`${parts.join(", ")} from Vinted!`);
       setImportDialogOpen(false);
       setImportUrl("");
+      setDeepImport(false);
       fetchListings();
     } catch (err) {
       console.error("Import error:", err);
@@ -297,13 +308,11 @@ export default function Listings() {
     }
   };
 
-  // Extract the Vinted profile URL from existing imported listings
   const getVintedProfileUrl = (): string | null => {
     for (const l of listings) {
       if (l.vinted_url && l.vinted_url.includes("/member/")) {
         try {
           const url = new URL(l.vinted_url);
-          // Extract member path: /member/12345-username
           const memberMatch = url.pathname.match(/\/member\/[^/]+/);
           if (memberMatch) {
             return `${url.origin}${memberMatch[0]}`;
@@ -352,6 +361,10 @@ export default function Listings() {
     } finally {
       setSyncing(false);
     }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedId(prev => prev === id ? null : id);
   };
 
   const filteredListings = listings.filter((l) => {
@@ -454,11 +467,29 @@ export default function Listings() {
                 disabled={importing}
               />
             </div>
+            <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
+              <Checkbox
+                id="deep-import"
+                checked={deepImport}
+                onCheckedChange={(checked) => setDeepImport(checked === true)}
+                disabled={importing}
+              />
+              <div className="space-y-1">
+                <label htmlFor="deep-import" className="text-sm font-medium leading-none cursor-pointer">
+                  Import with descriptions
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Scrapes each listing page individually to capture full descriptions, views, and favourites. Takes longer but gives you richer data.
+                </p>
+              </div>
+            </div>
             {importing && (
               <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  Scraping your wardrobe and extracting listings… This may take 10-20 seconds.
+                  {deepImport
+                    ? "Scraping wardrobe and individual listings… This may take 30-60 seconds."
+                    : "Scraping your wardrobe and extracting listings… This may take 10-20 seconds."}
                 </p>
               </div>
             )}
@@ -721,6 +752,7 @@ export default function Listings() {
               const isDeadStock = listing.status === "active" && daysListed >= 30;
               const health = getHealthIndicator(listing.health_score);
               const profit = getProfit(listing);
+              const isExpanded = expandedId === listing.id;
 
               return (
                 <motion.div
@@ -730,186 +762,302 @@ export default function Listings() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ delay: i * 0.03 }}
                 >
-                  <Card className={`p-3 sm:p-4 hover:shadow-md active:scale-[0.99] transition-all ${isDeadStock ? "border-destructive/30 bg-destructive/[0.01]" : ""}`}>
-                    <div className="flex items-start gap-2.5 sm:gap-3">
-                      {/* Image */}
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
-                        {listing.image_url ? (
-                          <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
-                        ) : (
-                          <Package className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground/40" />
-                        )}
-                        <div className={`absolute -top-1 -right-1 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full ${health.color} ring-2 ${health.ring}`} />
-                      </div>
+                  <Card className={`overflow-hidden transition-all ${isDeadStock ? "border-destructive/30 bg-destructive/[0.01]" : ""} ${isExpanded ? "ring-1 ring-primary/20 shadow-md" : "hover:shadow-md"}`}>
+                    {/* Collapsed row — clickable */}
+                    <div
+                      className="p-3 sm:p-4 cursor-pointer active:bg-muted/30 transition-colors"
+                      onClick={(e) => {
+                        // Don't toggle if clicking interactive elements
+                        const target = e.target as HTMLElement;
+                        if (target.closest("button, input, select, [role='menuitem'], [data-radix-collection-item]")) return;
+                        toggleExpand(listing.id);
+                      }}
+                    >
+                      <div className="flex items-start gap-2.5 sm:gap-3">
+                        {/* Image */}
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
+                          {listing.image_url ? (
+                            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
+                          ) : (
+                            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground/40" />
+                          )}
+                          <div className={`absolute -top-1 -right-1 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full ${health.color} ring-2 ${health.ring}`} />
+                        </div>
 
-                      {/* Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3 className="font-display font-bold text-sm leading-snug line-clamp-1 sm:line-clamp-2">{listing.title}</h3>
-                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                              <Badge variant="outline" className={`text-[10px] capitalize py-0 ${statusColors[listing.status] || ""}`}>
-                                {editingId === listing.id && editField === "status" ? (
-                                  <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                                    <Select value={editValue} onValueChange={(v) => { setEditValue(v); }}>
-                                      <SelectTrigger className="h-5 text-[10px] w-20 border-0 p-0 shadow-none">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="bg-popover">
-                                        {["active", "sold", "reserved", "inactive"].map(s => (
-                                          <SelectItem key={s} value={s} className="text-xs capitalize">{s}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => saveEdit(listing.id)}>
-                                      <Check className="w-3 h-3 text-success" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-4 w-4" onClick={cancelEdit}>
-                                      <X className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <span className="cursor-pointer" onClick={() => startEdit(listing.id, "status", listing.status)} title="Tap to change status">
-                                    {listing.status}
-                                  </span>
-                                )}
-                              </Badge>
-                              {listing.brand && <span className="text-[10px] sm:text-xs text-muted-foreground">{listing.brand}</span>}
-                              {listing.category && <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">· {listing.category}</span>}
-                              {isDeadStock && (
-                                <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive gap-0.5 py-0">
-                                  <AlertTriangle className="w-2.5 h-2.5" /> Dead
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3 className="font-display font-bold text-sm leading-snug line-clamp-1 sm:line-clamp-2">{listing.title}</h3>
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <Badge variant="outline" className={`text-[10px] capitalize py-0 ${statusColors[listing.status] || ""}`}>
+                                  {editingId === listing.id && editField === "status" ? (
+                                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                      <Select value={editValue} onValueChange={(v) => { setEditValue(v); }}>
+                                        <SelectTrigger className="h-5 text-[10px] w-20 border-0 p-0 shadow-none">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-popover">
+                                          {["active", "sold", "reserved", "inactive"].map(s => (
+                                            <SelectItem key={s} value={s} className="text-xs capitalize">{s}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => saveEdit(listing.id)}>
+                                        <Check className="w-3 h-3 text-success" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-4 w-4" onClick={cancelEdit}>
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <span className="cursor-pointer" onClick={() => startEdit(listing.id, "status", listing.status)} title="Tap to change status">
+                                      {listing.status}
+                                    </span>
+                                  )}
                                 </Badge>
-                              )}
+                                {listing.brand && <span className="text-[10px] sm:text-xs text-muted-foreground">{listing.brand}</span>}
+                                {listing.category && <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">· {listing.category}</span>}
+                                {isDeadStock && (
+                                  <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive gap-0.5 py-0">
+                                    <AlertTriangle className="w-2.5 h-2.5" /> Dead
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-8 sm:w-8 shrink-0">
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="bg-popover">
+                                  <DropdownMenuItem onClick={() => handlePriceCheck(listing)}>
+                                    <Zap className="w-4 h-4 mr-2" /> Run Price Check
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleOptimiseListing(listing)}>
+                                    <Sparkles className="w-4 h-4 mr-2" /> Optimise Listing
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setPublishListing(listing)}>
+                                    <Send className="w-4 h-4 mr-2" /> Publish to Platforms
+                                  </DropdownMenuItem>
+                                  {listing.vinted_url && (
+                                    <DropdownMenuItem onClick={() => window.open(listing.vinted_url!, "_blank")}>
+                                      <ExternalLink className="w-4 h-4 mr-2" /> View on Vinted
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteListing(listing.id)}>
+                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
 
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-8 sm:w-8 shrink-0">
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-popover">
-                              <DropdownMenuItem onClick={() => handlePriceCheck(listing)}>
-                                <Zap className="w-4 h-4 mr-2" /> Run Price Check
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleOptimiseListing(listing)}>
-                                <Sparkles className="w-4 h-4 mr-2" /> Optimise Listing
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setPublishListing(listing)}>
-                                <Send className="w-4 h-4 mr-2" /> Publish to Platforms
-                              </DropdownMenuItem>
-                              {listing.vinted_url && (
-                                <DropdownMenuItem onClick={() => window.open(listing.vinted_url!, "_blank")}>
-                                  <ExternalLink className="w-4 h-4 mr-2" /> View on Vinted
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteListing(listing.id)}>
-                                <Trash2 className="w-4 h-4 mr-2" /> Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                          {/* Metrics Row */}
+                          <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2.5 flex-wrap">
+                            {listing.current_price != null && (
+                              <span className="font-display font-bold text-sm">
+                                £{listing.current_price.toFixed(2)}
+                              </span>
+                            )}
 
-                        {/* Metrics Row */}
-                        <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2.5 flex-wrap">
-                          {listing.current_price != null && (
-                            <span className="font-display font-bold text-sm">
-                              £{listing.current_price.toFixed(2)}
+                            {editingId === listing.id && editField === "purchase_price" ? (
+                              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                <span className="text-[10px] text-muted-foreground">Cost:</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  className="h-7 w-20 text-xs px-1.5"
+                                  autoFocus
+                                  onKeyDown={e => { if (e.key === "Enter") saveEdit(listing.id); if (e.key === "Escape") cancelEdit(); }}
+                                />
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => saveEdit(listing.id)}>
+                                  <Check className="w-3 h-3 text-success" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={cancelEdit}>
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span
+                                className="text-[10px] sm:text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group flex items-center gap-1"
+                                onClick={(e) => { e.stopPropagation(); startEdit(listing.id, "purchase_price", listing.purchase_price); }}
+                                title="Tap to edit cost"
+                              >
+                                Cost: £{listing.purchase_price != null ? listing.purchase_price.toFixed(2) : "—"}
+                                <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </span>
+                            )}
+
+                            {editingId === listing.id && editField === "sale_price" ? (
+                              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                <span className="text-[10px] text-muted-foreground">Sale:</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  className="h-7 w-20 text-xs px-1.5"
+                                  autoFocus
+                                  onKeyDown={e => { if (e.key === "Enter") saveEdit(listing.id); if (e.key === "Escape") cancelEdit(); }}
+                                />
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => saveEdit(listing.id)}>
+                                  <Check className="w-3 h-3 text-success" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={cancelEdit}>
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span
+                                className="text-[10px] sm:text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group flex items-center gap-1"
+                                onClick={(e) => { e.stopPropagation(); startEdit(listing.id, "sale_price", listing.sale_price); }}
+                                title="Tap to edit sale price"
+                              >
+                                Sale: £{listing.sale_price != null ? listing.sale_price.toFixed(2) : "—"}
+                                <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </span>
+                            )}
+
+                            {profit !== null && (
+                              <span className={`text-[10px] sm:text-xs font-semibold ${profit >= 0 ? "text-success" : "text-destructive"}`}>
+                                {profit >= 0 ? "+" : ""}£{profit.toFixed(2)}
+                              </span>
+                            )}
+
+                            <HealthScoreMini score={listing.health_score} />
+
+                            <span className={`text-[10px] sm:text-xs flex items-center gap-0.5 ${isDeadStock ? "text-destructive" : "text-muted-foreground"}`}>
+                              <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                              {daysListed}d
                             </span>
-                          )}
 
-                          {editingId === listing.id && editField === "purchase_price" ? (
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] text-muted-foreground">Cost:</span>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={editValue}
-                                onChange={e => setEditValue(e.target.value)}
-                                className="h-7 w-20 text-xs px-1.5"
-                                autoFocus
-                                onKeyDown={e => { if (e.key === "Enter") saveEdit(listing.id); if (e.key === "Escape") cancelEdit(); }}
-                              />
-                              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => saveEdit(listing.id)}>
-                                <Check className="w-3 h-3 text-success" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={cancelEdit}>
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <span
-                              className="text-[10px] sm:text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group flex items-center gap-1"
-                              onClick={() => startEdit(listing.id, "purchase_price", listing.purchase_price)}
-                              title="Tap to edit cost"
-                            >
-                              Cost: £{listing.purchase_price != null ? listing.purchase_price.toFixed(2) : "—"}
-                              <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </span>
-                          )}
-
-                          {editingId === listing.id && editField === "sale_price" ? (
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] text-muted-foreground">Sale:</span>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={editValue}
-                                onChange={e => setEditValue(e.target.value)}
-                                className="h-7 w-20 text-xs px-1.5"
-                                autoFocus
-                                onKeyDown={e => { if (e.key === "Enter") saveEdit(listing.id); if (e.key === "Escape") cancelEdit(); }}
-                              />
-                              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => saveEdit(listing.id)}>
-                                <Check className="w-3 h-3 text-success" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={cancelEdit}>
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <span
-                              className="text-[10px] sm:text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group flex items-center gap-1"
-                              onClick={() => startEdit(listing.id, "sale_price", listing.sale_price)}
-                              title="Tap to edit sale price"
-                            >
-                              Sale: £{listing.sale_price != null ? listing.sale_price.toFixed(2) : "—"}
-                              <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </span>
-                          )}
-
-                          {profit !== null && (
-                            <span className={`text-[10px] sm:text-xs font-semibold ${profit >= 0 ? "text-success" : "text-destructive"}`}>
-                              {profit >= 0 ? "+" : ""}£{profit.toFixed(2)}
-                            </span>
-                          )}
-
-                          <HealthScoreMini score={listing.health_score} />
-
-                          <span className={`text-[10px] sm:text-xs flex items-center gap-0.5 ${isDeadStock ? "text-destructive" : "text-muted-foreground"}`}>
-                            <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                            {daysListed}d
-                          </span>
-
-                          {(listing.views_count || listing.favourites_count) ? (
-                            <div className="flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground">
-                              {listing.views_count != null && listing.views_count > 0 && (
-                                <span className="flex items-center gap-0.5">
-                                  <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {listing.views_count}
-                                </span>
-                              )}
-                              {listing.favourites_count != null && listing.favourites_count > 0 && (
-                                <span className="flex items-center gap-0.5">
-                                  <Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {listing.favourites_count}
-                                </span>
-                              )}
-                            </div>
-                          ) : null}
+                            {(listing.views_count || listing.favourites_count) ? (
+                              <div className="flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                                {listing.views_count != null && listing.views_count > 0 && (
+                                  <span className="flex items-center gap-0.5">
+                                    <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {listing.views_count}
+                                  </span>
+                                )}
+                                {listing.favourites_count != null && listing.favourites_count > 0 && (
+                                  <span className="flex items-center gap-0.5">
+                                    <Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {listing.favourites_count}
+                                  </span>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    {/* Expanded Detail Panel */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="border-t border-border px-3 sm:px-4 py-4 space-y-4 bg-muted/20">
+                            {/* Image + Description row */}
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              {listing.image_url && (
+                                <div className="w-full sm:w-40 h-40 sm:h-40 rounded-xl overflow-hidden bg-muted shrink-0">
+                                  <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Description</h4>
+                                {listing.description ? (
+                                  <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                                    {listing.description}
+                                  </p>
+                                ) : (
+                                  <div className="p-3 rounded-lg border border-dashed border-border bg-muted/30 text-center">
+                                    <p className="text-sm text-muted-foreground mb-2">No description yet</p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-xs font-semibold"
+                                      onClick={() => handleOptimiseListing(listing)}
+                                    >
+                                      <Sparkles className="w-3 h-3 mr-1.5" /> Generate with AI
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Metadata grid */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                              {listing.size && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Ruler className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Size:</span>
+                                  <span className="font-medium">{listing.size}</span>
+                                </div>
+                              )}
+                              {listing.condition && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Condition:</span>
+                                  <span className="font-medium">{listing.condition}</span>
+                                </div>
+                              )}
+                              {listing.brand && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Brand:</span>
+                                  <span className="font-medium">{listing.brand}</span>
+                                </div>
+                              )}
+                              {listing.category && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Package className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Category:</span>
+                                  <span className="font-medium">{listing.category}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Health Score bar */}
+                            {listing.health_score != null && (
+                              <div>
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Health Score</span>
+                                  <span className={`text-sm font-bold ${health.textColor}`}>{listing.health_score}%</span>
+                                </div>
+                                <Progress value={listing.health_score} className="h-2" />
+                              </div>
+                            )}
+
+                            {/* Action buttons */}
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              <Button size="sm" variant="outline" className="text-xs font-semibold h-9" onClick={() => handlePriceCheck(listing)}>
+                                <Zap className="w-3 h-3 mr-1.5" /> Price Check
+                              </Button>
+                              <Button size="sm" variant="outline" className="text-xs font-semibold h-9" onClick={() => handleOptimiseListing(listing)}>
+                                <Sparkles className="w-3 h-3 mr-1.5" /> Optimise
+                              </Button>
+                              {listing.vinted_url && (
+                                <Button size="sm" variant="outline" className="text-xs font-semibold h-9" onClick={() => window.open(listing.vinted_url!, "_blank")}>
+                                  <ExternalLink className="w-3 h-3 mr-1.5" /> View on Vinted
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </Card>
                 </motion.div>
               );
