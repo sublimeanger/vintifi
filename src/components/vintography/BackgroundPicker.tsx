@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Paintbrush } from "lucide-react";
 import { motion } from "framer-motion";
@@ -24,35 +25,37 @@ type Props = {
   onChange: (v: string) => void;
 };
 
-export function BackgroundPicker({ value, onChange }: Props) {
-  return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Paintbrush className="w-4 h-4 text-primary" />
-        <p className="text-sm font-semibold">Background Scene</p>
-      </div>
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-        {bgOptions.map((opt) => {
-          const selected = value === opt.value;
-          return (
-            <motion.button
-              key={opt.value}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => onChange(opt.value)}
-              className={`flex flex-col items-center gap-1.5 rounded-xl p-2 border transition-all ${
-                selected
-                  ? "border-primary ring-1 ring-primary/30 bg-primary/[0.04]"
-                  : "border-border hover:border-primary/20"
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${opt.color} border border-border/50`} />
-              <span className={`text-[10px] font-medium leading-tight ${selected ? "text-primary" : "text-foreground"}`}>
-                {opt.label}
-              </span>
-            </motion.button>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
+export const BackgroundPicker = forwardRef<HTMLDivElement, Props>(
+  function BackgroundPicker({ value, onChange }, ref) {
+    return (
+      <Card ref={ref} className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Paintbrush className="w-4 h-4 text-primary" />
+          <p className="text-sm font-semibold">Background Scene</p>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+          {bgOptions.map((opt) => {
+            const selected = value === opt.value;
+            return (
+              <motion.button
+                key={opt.value}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => onChange(opt.value)}
+                className={`flex flex-col items-center gap-1.5 rounded-xl p-2 border transition-all ${
+                  selected
+                    ? "border-primary ring-1 ring-primary/30 bg-primary/[0.04]"
+                    : "border-border hover:border-primary/20"
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${opt.color} border border-border/50`} />
+                <span className={`text-[10px] font-medium leading-tight ${selected ? "text-primary" : "text-foreground"}`}>
+                  {opt.label}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </Card>
+    );
+  }
+);

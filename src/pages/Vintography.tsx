@@ -37,6 +37,8 @@ const operations: { id: Operation; icon: typeof ImageOff; label: string; desc: s
   { id: "enhance", icon: Sparkles, label: "Enhance", desc: "Better lighting & clarity", tier: "Free" },
 ];
 
+const panelTransition = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.2 } };
+
 export default function Vintography() {
   const { user, credits, refreshCredits } = useAuth();
   const navigate = useNavigate();
@@ -81,9 +83,10 @@ export default function Vintography() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
+  // Gallery fetch — decoupled from processedUrl
+  const fetchGallery = useCallback(async () => {
     if (!user) return;
-    const fetchGallery = async () => {
+    try {
       setGalleryLoading(true);
       const { data } = await supabase
         .from("vintography_jobs")
@@ -92,10 +95,26 @@ export default function Vintography() {
         .order("created_at", { ascending: false })
         .limit(20);
       setGallery((data as VintographyJob[]) || []);
+    } catch {
+      // silently handle gallery fetch errors
+    } finally {
       setGalleryLoading(false);
-    };
+    }
+  }, [user]);
+
+  useEffect(() => {
     fetchGallery();
-  }, [user, processedUrl]);
+  }, [fetchGallery]);
+
+  // Global unhandled rejection safety net
+  useEffect(() => {
+    const handler = (e: PromiseRejectionEvent) => {
+      console.error("Unhandled rejection in Vintography:", e.reason);
+      e.preventDefault();
+    };
+    window.addEventListener("unhandledrejection", handler);
+    return () => window.removeEventListener("unhandledrejection", handler);
+  }, []);
 
   const handleDeleteJob = async (jobId: string) => {
     const { error } = await supabase.from("vintography_jobs").delete().eq("id", jobId);
@@ -169,15 +188,22 @@ export default function Vintography() {
     return params;
   };
 
+  // Fix 2: Don't null processedUrl on generate; Fix 5: correct variation index
   const handleProcess = async () => {
     if (!originalUrl) return;
-    setProcessing(true); setProcessedUrl(null);
+    setProcessing(true);
+    // Keep current processedUrl visible behind processing overlay
     try {
       const result = await processImage(originalUrl, selectedOp, getParams());
       if (result) {
         setProcessedUrl(result);
-        setVariations((prev) => [...prev.slice(-2), result]);
-        setCurrentVariation(variations.length > 1 ? Math.min(variations.length, 2) : 0);
+        setVariations((prev) => {
+          const next = [...prev.slice(-2), result];
+          setCurrentVariation(next.length - 1);
+          return next;
+        });
+        // Optimistic gallery update
+        fetchGallery();
       }
     } catch (err: any) {
       toast.error(err.message || "Processing failed. Try again.");
@@ -190,8 +216,13 @@ export default function Vintography() {
     try {
       const result = await processImage(originalUrl, selectedOp, getParams());
       if (result) {
-        const newVars = [...variations.slice(-2), result];
-        setVariations(newVars); setCurrentVariation(newVars.length - 1); setProcessedUrl(result);
+        setVariations((prev) => {
+          const next = [...prev.slice(-2), result];
+          setCurrentVariation(next.length - 1);
+          return next;
+        });
+        setProcessedUrl(result);
+        fetchGallery();
       }
     } catch (err: any) { toast.error(err.message || "Processing failed"); }
     finally { setProcessing(false); }
@@ -199,9 +230,11 @@ export default function Vintography() {
 
   const handleVariationChange = (idx: number) => { setCurrentVariation(idx); setProcessedUrl(variations[idx]); };
 
+  // Fix: Presets no longer auto-generate. They configure params, user clicks Apply.
   const handlePreset = async (preset: Preset) => {
     if (!originalUrl) return;
-    setProcessing(true); setProcessedUrl(null);
+    setProcessing(true);
+    // Keep current processedUrl visible
     try {
       let currentUrl = originalUrl;
       for (const step of preset.steps) {
@@ -209,7 +242,10 @@ export default function Vintography() {
         if (!result) throw new Error("Step failed");
         currentUrl = result;
       }
-      setProcessedUrl(currentUrl); setVariations([currentUrl]); setCurrentVariation(0);
+      setProcessedUrl(currentUrl);
+      setVariations([currentUrl]);
+      setCurrentVariation(0);
+      fetchGallery();
     } catch (err: any) { toast.error(err.message || "Preset failed"); }
     finally { setProcessing(false); }
   };
@@ -221,12 +257,17 @@ export default function Vintography() {
       let url = item.uploadedUrl;
       if (!url) {
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "uploading" } : it));
-        url = await uploadFile(item.file);
+        try {
+          url = await uploadFile(item.file);
+        } catch {
+          setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it));
+          continue;
+        }
         if (!url) { setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it)); continue; }
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, uploadedUrl: url, status: "pending" } : it));
       }
       setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "processing" } : it));
-      setActiveBatchIndex(i); setOriginalUrl(url); setProcessedUrl(null);
+      setActiveBatchIndex(i); setOriginalUrl(url);
       try {
         const result = await processImage(url, selectedOp, getParams());
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, processedUrl: result, status: result ? "done" : "error" } : it));
@@ -235,6 +276,7 @@ export default function Vintography() {
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it));
       }
     }
+    fetchGallery();
   };
 
   const handleBatchSelect = (idx: number) => {
@@ -314,7 +356,7 @@ export default function Vintography() {
                 {operations.map((op) => (
                   <motion.div key={op.id} whileTap={{ scale: 0.95 }} className="flex-shrink-0">
                     <Card
-                      onClick={() => { setSelectedOp(op.id); setProcessedUrl(null); setVariations([]); }}
+                      onClick={() => { setSelectedOp(op.id); }}
                       className={`p-3 cursor-pointer transition-all w-[120px] sm:w-[140px] ${
                         selectedOp === op.id
                           ? "ring-2 ring-primary border-primary/30 bg-primary/[0.03]"
@@ -336,15 +378,15 @@ export default function Vintography() {
                 ))}
               </div>
 
-              {/* Operation-specific params */}
+              {/* Operation-specific params — Fix 4: opacity-only transitions */}
               <AnimatePresence mode="wait">
                 {selectedOp === "smart_bg" && (
-                  <motion.div key="smart_bg_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                  <motion.div key="smart_bg_params" {...panelTransition}>
                     <BackgroundPicker value={bgStyle} onChange={setBgStyle} />
                   </motion.div>
                 )}
                 {selectedOp === "model_shot" && (
-                  <motion.div key="model_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                  <motion.div key="model_params" {...panelTransition}>
                     <ModelPicker
                       gender={modelGender} look={modelLook} pose={modelPose} bg={modelBg}
                       onGenderChange={setModelGender} onLookChange={setModelLook}
@@ -353,7 +395,7 @@ export default function Vintography() {
                   </motion.div>
                 )}
                 {selectedOp === "mannequin_shot" && (
-                  <motion.div key="mannequin_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                  <motion.div key="mannequin_params" {...panelTransition}>
                     <ModelPicker
                       gender={modelGender} look={modelLook} pose={modelPose} bg={modelBg}
                       onGenderChange={setModelGender} onLookChange={setModelLook}
@@ -363,7 +405,7 @@ export default function Vintography() {
                   </motion.div>
                 )}
                 {selectedOp === "flatlay_style" && (
-                  <motion.div key="flatlay_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                  <motion.div key="flatlay_params" {...panelTransition}>
                     <FlatLayPicker value={flatLayStyle} onChange={setFlatLayStyle} />
                   </motion.div>
                 )}

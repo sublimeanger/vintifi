@@ -16,17 +16,14 @@ type Props = {
 
 type ViewMode = "overlay" | "side-by-side";
 
-// ── Utility: distance between two touch points ─────────────────────
 function touchDist(a: React.Touch, b: React.Touch) {
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
 
-// ── Utility: midpoint between two touch points ─────────────────────
 function touchMid(a: React.Touch, b: React.Touch) {
   return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
 }
 
-// ── Utility: clamp pan so image stays visible ──────────────────────
 function clampPan(px: number, py: number, zoom: number, rect: DOMRect | null) {
   if (!rect || zoom <= 1) return { x: 0, y: 0 };
   const maxX = (rect.width * (zoom - 1)) / 2;
@@ -42,6 +39,8 @@ const MAX_ZOOM = 5;
 const ZOOM_STEP_WHEEL = 0.08;
 const ZOOM_STEP_BUTTON = 0.5;
 const LERP_SPEED = 0.18;
+const SNAP_THRESHOLD_ZOOM = 0.005;
+const SNAP_THRESHOLD_PAN = 0.5;
 const DOUBLE_TAP_ZOOM = 2.5;
 
 export function ComparisonView({
@@ -51,13 +50,15 @@ export function ComparisonView({
   const [viewMode, setViewMode] = useState<ViewMode>("overlay");
 
   // Visual (rendered) zoom/pan – animated via rAF
-  const [displayZoom, setDisplayZoom] = useState(1);
-  const [displayPan, setDisplayPan] = useState({ x: 0, y: 0 });
+  const displayZoomRef = useRef(1);
+  const displayPanRef = useRef({ x: 0, y: 0 });
+  const [, forceRender] = useState(0);
 
-  // Target zoom/pan – instantly set by interactions, display lerps toward these
+  // Target zoom/pan
   const targetZoom = useRef(1);
   const targetPan = useRef({ x: 0, y: 0 });
   const rafId = useRef(0);
+  const animating = useRef(false);
 
   // Interaction refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,29 +76,51 @@ export function ComparisonView({
   // Double-click/tap
   const lastTapTime = useRef(0);
 
-  // Overlay swipe (single finger at 1x in overlay mode)
+  // Overlay swipe
   const overlaySwipeActive = useRef(false);
 
-  // ── Animation loop ───────────────────────────────────────────────
+  // ── Smart animation loop: only runs when needed ─────────────────
   const animate = useCallback(() => {
-    setDisplayZoom((prev) => {
-      const diff = targetZoom.current - prev;
-      if (Math.abs(diff) < 0.005) return targetZoom.current;
-      return prev + diff * LERP_SPEED;
-    });
-    setDisplayPan((prev) => {
-      const dx = targetPan.current.x - prev.x;
-      const dy = targetPan.current.y - prev.y;
-      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return targetPan.current;
-      return { x: prev.x + dx * LERP_SPEED, y: prev.y + dy * LERP_SPEED };
-    });
+    const tz = targetZoom.current;
+    const tp = targetPan.current;
+    const dz = displayZoomRef.current;
+    const dp = displayPanRef.current;
+
+    const diffZ = tz - dz;
+    const diffX = tp.x - dp.x;
+    const diffY = tp.y - dp.y;
+
+    const zoomDone = Math.abs(diffZ) < SNAP_THRESHOLD_ZOOM;
+    const panDone = Math.abs(diffX) < SNAP_THRESHOLD_PAN && Math.abs(diffY) < SNAP_THRESHOLD_PAN;
+
+    if (zoomDone && panDone) {
+      // Snap to target and stop
+      displayZoomRef.current = tz;
+      displayPanRef.current = tp;
+      forceRender((c) => c + 1);
+      animating.current = false;
+      return;
+    }
+
+    displayZoomRef.current = zoomDone ? tz : dz + diffZ * LERP_SPEED;
+    displayPanRef.current = {
+      x: panDone ? tp.x : dp.x + diffX * LERP_SPEED,
+      y: panDone ? tp.y : dp.y + diffY * LERP_SPEED,
+    };
+
+    forceRender((c) => c + 1);
     rafId.current = requestAnimationFrame(animate);
   }, []);
 
-  useEffect(() => {
+  const startAnimation = useCallback(() => {
+    if (animating.current) return;
+    animating.current = true;
     rafId.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafId.current);
   }, [animate]);
+
+  useEffect(() => {
+    return () => cancelAnimationFrame(rafId.current);
+  }, []);
 
   // ── Helpers ──────────────────────────────────────────────────────
   const getRect = () => containerRef.current?.getBoundingClientRect() ?? null;
@@ -107,13 +130,12 @@ export function ComparisonView({
     const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
 
     if (clamped <= 1) {
-      // Reset everything
       targetZoom.current = 1;
       targetPan.current = { x: 0, y: 0 };
+      startAnimation();
       return;
     }
 
-    // Zoom toward cursor/pinch point
     if (rect && cursorX !== undefined && cursorY !== undefined) {
       const cx = cursorX - rect.left - rect.width / 2;
       const cy = cursorY - rect.top - rect.height / 2;
@@ -127,12 +149,14 @@ export function ComparisonView({
     }
 
     targetZoom.current = clamped;
-  }, []);
+    startAnimation();
+  }, [startAnimation]);
 
   const resetZoom = useCallback(() => {
     targetZoom.current = 1;
     targetPan.current = { x: 0, y: 0 };
-  }, []);
+    startAnimation();
+  }, [startAnimation]);
 
   // ── Mouse: pan ───────────────────────────────────────────────────
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -154,7 +178,8 @@ export function ComparisonView({
       targetZoom.current,
       rect
     );
-  }, []);
+    startAnimation();
+  }, [startAnimation]);
 
   const handleMouseUp = useCallback(() => {
     isPanning.current = false;
@@ -182,10 +207,9 @@ export function ComparisonView({
     }
   }, [setTargetZoom, resetZoom]);
 
-  // ── Touch: pinch-to-zoom + pan + overlay swipe ───────────────────
+  // ── Touch ────────────────────────────────────────────────────────
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
-      // Pinch start
       overlaySwipeActive.current = false;
       isTouchPanning.current = false;
       lastTouchDist.current = touchDist(e.touches[0], e.touches[1]);
@@ -194,27 +218,21 @@ export function ComparisonView({
     }
 
     if (e.touches.length === 1) {
-      // Double-tap detection
       const now = Date.now();
       if (now - lastTapTime.current < 300) {
         const t = e.touches[0];
-        if (targetZoom.current > 1.1) {
-          resetZoom();
-        } else {
-          setTargetZoom(DOUBLE_TAP_ZOOM, t.clientX, t.clientY);
-        }
+        if (targetZoom.current > 1.1) resetZoom();
+        else setTargetZoom(DOUBLE_TAP_ZOOM, t.clientX, t.clientY);
         lastTapTime.current = 0;
         return;
       }
       lastTapTime.current = now;
 
-      // If overlay mode at 1x, start overlay swipe
       if (viewMode === "overlay" && processedUrl && targetZoom.current <= 1) {
         overlaySwipeActive.current = true;
         return;
       }
 
-      // Otherwise start pan (if zoomed)
       if (targetZoom.current > 1) {
         isTouchPanning.current = true;
         touchPanStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -225,7 +243,6 @@ export function ComparisonView({
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
-      // Pinch zoom
       const dist = touchDist(e.touches[0], e.touches[1]);
       const mid = touchMid(e.touches[0], e.touches[1]);
       const scale = dist / lastTouchDist.current;
@@ -236,7 +253,6 @@ export function ComparisonView({
     }
 
     if (e.touches.length === 1) {
-      // Overlay swipe
       if (overlaySwipeActive.current && containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         const pct = Math.max(0, Math.min(100, ((e.touches[0].clientX - rect.left) / rect.width) * 100));
@@ -244,7 +260,6 @@ export function ComparisonView({
         return;
       }
 
-      // Touch pan
       if (isTouchPanning.current) {
         const dx = e.touches[0].clientX - touchPanStart.current.x;
         const dy = e.touches[0].clientY - touchPanStart.current.y;
@@ -255,9 +270,10 @@ export function ComparisonView({
           targetZoom.current,
           rect
         );
+        startAnimation();
       }
     }
-  }, [setTargetZoom]);
+  }, [setTargetZoom, startAnimation]);
 
   const handleTouchEnd = useCallback(() => {
     lastTouchDist.current = 0;
@@ -267,12 +283,14 @@ export function ComparisonView({
 
   const showVariationNav = variations.length > 1;
   const clipPercent = sliderValue[0];
+  const displayZoom = displayZoomRef.current;
+  const displayPan = displayPanRef.current;
   const isZoomed = displayZoom > 1.01;
 
   const transformStyle = {
     transform: `scale(${displayZoom}) translate(${displayPan.x / displayZoom}px, ${displayPan.y / displayZoom}px)`,
     transformOrigin: "center",
-    willChange: "transform" as const,
+    willChange: isZoomed ? "transform" as const : "auto" as const,
   };
 
   return (
