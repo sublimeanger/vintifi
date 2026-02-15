@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, User, CreditCard, Loader2, Check, Mail, Send, Globe } from "lucide-react";
+import { ArrowLeft, User, CreditCard, Loader2, Check, Mail, Send, Globe, RotateCcw } from "lucide-react";
 import { STRIPE_TIERS, TierKey, TIMEZONES } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -265,6 +265,27 @@ export default function SettingsPage() {
           >
             {sendingDigest ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
             Send Test Digest Now
+          </Button>
+        </Card>
+
+        {/* Guided Tour */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <RotateCcw className="w-5 h-5 text-primary" />
+            <h2 className="font-display font-bold text-lg">Guided Tour</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Replay the onboarding tour to revisit key features on the dashboard.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              localStorage.removeItem("vintifi_tour_completed");
+              toast.success("Tour reset! Head to the dashboard to start it.");
+              navigate("/dashboard");
+            }}
+          >
+            <RotateCcw className="w-4 h-4 mr-2" /> Restart Tour
           </Button>
         </Card>
 
