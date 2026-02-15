@@ -217,7 +217,7 @@ export default function Dashboard() {
                   return (
                     <button
                       key={item.label + item.path}
-                      onClick={() => navigate(item.path)}
+                      onClick={() => navigate(badges[item.path] && item.path === "/listings" ? "/listings?filter=needs_optimising" : item.path)}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                         isActive
                           ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
@@ -286,7 +286,7 @@ export default function Dashboard() {
                         return (
                           <button
                             key={item.label + item.path}
-                            onClick={() => { navigate(item.path); setSheetOpen(false); }}
+                            onClick={() => { navigate(badges[item.path] && item.path === "/listings" ? "/listings?filter=needs_optimising" : item.path); setSheetOpen(false); }}
                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors active:scale-[0.98] ${
                               isActive
                                 ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
