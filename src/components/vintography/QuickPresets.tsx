@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Zap, ShoppingBag, Crown, Palmtree } from "lucide-react";
+import { Zap, ShoppingBag, Crown, Palmtree, Ghost, Layers } from "lucide-react";
 
 export type Preset = {
   id: string;
@@ -40,7 +40,30 @@ export const presets: Preset[] = [
     desc: "Model shot + Enhance",
     icon: Crown,
     steps: [
-      { operation: "model_shot", parameters: { gender: "female", pose: "standing" } },
+      { operation: "model_shot", parameters: { gender: "female", pose: "standing_front", model_look: "classic", model_bg: "studio" } },
+      { operation: "enhance" },
+    ],
+    tier: "Business",
+  },
+  {
+    id: "ghost_to_clean",
+    label: "Ghost to Clean",
+    desc: "Ghost Mannequin + Remove BG",
+    icon: Ghost,
+    steps: [
+      { operation: "ghost_mannequin" },
+      { operation: "remove_bg" },
+    ],
+    tier: "Pro",
+  },
+  {
+    id: "full_studio",
+    label: "Full Studio",
+    desc: "Remove BG + Smart BG + Enhance",
+    icon: Layers,
+    steps: [
+      { operation: "remove_bg" },
+      { operation: "smart_bg", parameters: { bg_style: "studio" } },
       { operation: "enhance" },
     ],
     tier: "Business",
@@ -58,14 +81,14 @@ export function QuickPresets({ onSelect, disabled }: Props) {
       <div className="flex items-center gap-2 mb-2">
         <Zap className="w-4 h-4 text-accent" />
         <p className="text-sm font-semibold">Quick Presets</p>
-        <Badge variant="secondary" className="text-[9px]">2-in-1</Badge>
+        <Badge variant="secondary" className="text-[9px]">Multi-step</Badge>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {presets.map((p) => (
           <Card
             key={p.id}
             onClick={() => !disabled && onSelect(p)}
-            className={`p-3 cursor-pointer transition-all active:scale-[0.97] hover:border-accent/40 ${disabled ? "opacity-50 pointer-events-none" : ""}`}
+            className={`p-3 cursor-pointer transition-all active:scale-[0.97] hover:border-accent/40 flex-shrink-0 w-[140px] ${disabled ? "opacity-50 pointer-events-none" : ""}`}
           >
             <div className="flex items-start justify-between mb-1.5">
               <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">

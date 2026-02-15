@@ -8,37 +8,33 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
   Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock, RefreshCw,
-  ChevronLeft,
+  ChevronLeft, Ghost, LayoutGrid, Box,
 } from "lucide-react";
 
-// Refactored components
 import { CreditBar } from "@/components/vintography/CreditBar";
 import { ComparisonView } from "@/components/vintography/ComparisonView";
 import { GalleryCard, type VintographyJob } from "@/components/vintography/GalleryCard";
 import { QuickPresets, type Preset } from "@/components/vintography/QuickPresets";
 import { BatchStrip, type BatchItem } from "@/components/vintography/BatchStrip";
+import { ModelPicker } from "@/components/vintography/ModelPicker";
+import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
+import { FlatLayPicker } from "@/components/vintography/FlatLayPicker";
 
-type Operation = "remove_bg" | "smart_bg" | "model_shot" | "enhance";
+type Operation = "remove_bg" | "smart_bg" | "model_shot" | "mannequin_shot" | "ghost_mannequin" | "flatlay_style" | "enhance";
 
 const operations: { id: Operation; icon: typeof ImageOff; label: string; desc: string; tier: string }[] = [
-  { id: "remove_bg", icon: ImageOff, label: "Remove Background", desc: "Clean white background", tier: "Free" },
-  { id: "smart_bg", icon: Paintbrush, label: "Smart Background", desc: "AI-generated scene", tier: "Pro" },
-  { id: "model_shot", icon: UserIcon, label: "Virtual Model", desc: "Garment on a model", tier: "Business" },
-  { id: "enhance", icon: Sparkles, label: "Enhance Photo", desc: "Better lighting & clarity", tier: "Free" },
-];
-
-const bgStyles = [
-  { value: "studio", label: "Studio" },
-  { value: "wooden_floor", label: "Wooden Floor" },
-  { value: "outdoor", label: "Outdoor" },
-  { value: "marble", label: "Marble" },
-  { value: "vintage", label: "Vintage" },
+  { id: "remove_bg", icon: ImageOff, label: "Remove BG", desc: "Clean white background", tier: "Free" },
+  { id: "smart_bg", icon: Paintbrush, label: "Smart BG", desc: "AI-generated scene", tier: "Pro" },
+  { id: "model_shot", icon: UserIcon, label: "Virtual Model", desc: "Garment on a model", tier: "Pro" },
+  { id: "mannequin_shot", icon: Box, label: "Mannequin", desc: "Display on mannequin", tier: "Pro" },
+  { id: "ghost_mannequin", icon: Ghost, label: "Ghost Mannequin", desc: "Invisible mannequin effect", tier: "Pro" },
+  { id: "flatlay_style", icon: LayoutGrid, label: "Flat-Lay", desc: "Styled flat-lay photo", tier: "Free" },
+  { id: "enhance", icon: Sparkles, label: "Enhance", desc: "Better lighting & clarity", tier: "Free" },
 ];
 
 export default function Vintography() {
@@ -47,13 +43,11 @@ export default function Vintography() {
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Core state
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [selectedOp, setSelectedOp] = useState<Operation>("remove_bg");
   const [processing, setProcessing] = useState(false);
 
-  // Variations / undo stack (up to 3)
   const [variations, setVariations] = useState<string[]>([]);
   const [currentVariation, setCurrentVariation] = useState(0);
 
@@ -61,21 +55,21 @@ export default function Vintography() {
   const [bgStyle, setBgStyle] = useState("studio");
   // Model shot params
   const [modelGender, setModelGender] = useState("female");
-  const [modelPose, setModelPose] = useState("standing");
+  const [modelPose, setModelPose] = useState("standing_front");
+  const [modelLook, setModelLook] = useState("classic");
+  const [modelBg, setModelBg] = useState("studio");
+  // Flat-lay params
+  const [flatLayStyle, setFlatLayStyle] = useState("minimal");
 
-  // Gallery
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
 
-  // Batch queue
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
   const [activeBatchIndex, setActiveBatchIndex] = useState(0);
 
-  // Credits
   const vintographyUsed = (credits as any)?.vintography_used ?? 0;
   const creditsLimit = credits?.credits_limit ?? 5;
 
-  // Accept image_url query param
   useEffect(() => {
     const imageUrl = searchParams.get("image_url");
     if (imageUrl && !originalUrl) {
@@ -87,7 +81,6 @@ export default function Vintography() {
     }
   }, [searchParams]);
 
-  // Fetch gallery
   useEffect(() => {
     if (!user) return;
     const fetchGallery = async () => {
@@ -113,17 +106,13 @@ export default function Vintography() {
 
   const opLabel = (op: string) => operations.find((o) => o.id === op)?.label || op;
 
-  // File upload
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!user) return null;
     if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return null; }
     if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return null; }
-
     const ext = file.name.split(".").pop() || "jpg";
     const path = `${user.id}/vintography-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
-    const { error } = await supabase.storage.from("listing-photos").upload(path, file, {
-      contentType: file.type, upsert: true,
-    });
+    const { error } = await supabase.storage.from("listing-photos").upload(path, file, { contentType: file.type, upsert: true });
     if (error) { toast.error("Failed to upload image"); return null; }
     const { data: pub } = supabase.storage.from("listing-photos").getPublicUrl(path);
     return pub.publicUrl;
@@ -131,36 +120,20 @@ export default function Vintography() {
 
   const handleFileSelect = useCallback(async (files: FileList | File[]) => {
     if (!user) return;
-    const fileArr = Array.from(files).slice(0, 10); // Max 10
-
+    const fileArr = Array.from(files).slice(0, 10);
     if (fileArr.length === 1) {
-      // Single file mode
       const url = await uploadFile(fileArr[0]);
-      if (url) {
-        setOriginalUrl(url);
-        setProcessedUrl(null);
-        setVariations([]);
-        setCurrentVariation(0);
-        setBatchItems([]);
-      }
+      if (url) { setOriginalUrl(url); setProcessedUrl(null); setVariations([]); setCurrentVariation(0); setBatchItems([]); }
     } else {
-      // Batch mode
       const items: BatchItem[] = fileArr.map((f) => ({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        file: f,
-        previewUrl: URL.createObjectURL(f),
-        uploadedUrl: null,
-        processedUrl: null,
-        status: "pending" as const,
+        file: f, previewUrl: URL.createObjectURL(f), uploadedUrl: null, processedUrl: null, status: "pending" as const,
       }));
       setBatchItems(items);
       setActiveBatchIndex(0);
-      // Upload first item and set as active
       const url = await uploadFile(fileArr[0]);
       if (url) {
-        setOriginalUrl(url);
-        setProcessedUrl(null);
-        setVariations([]);
+        setOriginalUrl(url); setProcessedUrl(null); setVariations([]);
         setBatchItems((prev) => prev.map((it, i) => i === 0 ? { ...it, uploadedUrl: url, status: "pending" } : it));
       }
     }
@@ -171,7 +144,6 @@ export default function Vintography() {
     if (e.dataTransfer.files.length > 0) handleFileSelect(e.dataTransfer.files);
   }, [handleFileSelect]);
 
-  // Process single image
   const processImage = async (imageUrl: string, operation: string, params: Record<string, string> = {}): Promise<string | null> => {
     const { data, error } = await supabase.functions.invoke("vintography", {
       body: { image_url: imageUrl, operation, parameters: params },
@@ -186,31 +158,32 @@ export default function Vintography() {
   const getParams = (): Record<string, string> => {
     const params: Record<string, string> = {};
     if (selectedOp === "smart_bg") params.bg_style = bgStyle;
-    if (selectedOp === "model_shot") { params.gender = modelGender; params.pose = modelPose; }
+    if (selectedOp === "model_shot") {
+      params.gender = modelGender; params.pose = modelPose;
+      params.model_look = modelLook; params.model_bg = modelBg;
+    }
+    if (selectedOp === "mannequin_shot") {
+      params.gender = modelGender; params.model_bg = modelBg;
+    }
+    if (selectedOp === "flatlay_style") params.flatlay_style = flatLayStyle;
     return params;
   };
 
   const handleProcess = async () => {
     if (!originalUrl) return;
-    setProcessing(true);
-    setProcessedUrl(null);
-
+    setProcessing(true); setProcessedUrl(null);
     try {
       const result = await processImage(originalUrl, selectedOp, getParams());
       if (result) {
         setProcessedUrl(result);
-        setVariations((prev) => [...prev.slice(-2), result]); // keep last 3
+        setVariations((prev) => [...prev.slice(-2), result]);
         setCurrentVariation(variations.length > 1 ? Math.min(variations.length, 2) : 0);
       }
     } catch (err: any) {
-      console.error(err);
       toast.error(err.message || "Processing failed. Try again.");
-    } finally {
-      setProcessing(false);
-    }
+    } finally { setProcessing(false); }
   };
 
-  // Try Again — re-run same operation for variation
   const handleTryAgain = async () => {
     if (!originalUrl) return;
     setProcessing(true);
@@ -218,28 +191,17 @@ export default function Vintography() {
       const result = await processImage(originalUrl, selectedOp, getParams());
       if (result) {
         const newVars = [...variations.slice(-2), result];
-        setVariations(newVars);
-        setCurrentVariation(newVars.length - 1);
-        setProcessedUrl(result);
+        setVariations(newVars); setCurrentVariation(newVars.length - 1); setProcessedUrl(result);
       }
-    } catch (err: any) {
-      toast.error(err.message || "Processing failed");
-    } finally {
-      setProcessing(false);
-    }
+    } catch (err: any) { toast.error(err.message || "Processing failed"); }
+    finally { setProcessing(false); }
   };
 
-  // Navigate variations
-  const handleVariationChange = (idx: number) => {
-    setCurrentVariation(idx);
-    setProcessedUrl(variations[idx]);
-  };
+  const handleVariationChange = (idx: number) => { setCurrentVariation(idx); setProcessedUrl(variations[idx]); };
 
-  // Quick Preset handler
   const handlePreset = async (preset: Preset) => {
     if (!originalUrl) return;
-    setProcessing(true);
-    setProcessedUrl(null);
+    setProcessing(true); setProcessedUrl(null);
     try {
       let currentUrl = originalUrl;
       for (const step of preset.steps) {
@@ -247,37 +209,24 @@ export default function Vintography() {
         if (!result) throw new Error("Step failed");
         currentUrl = result;
       }
-      setProcessedUrl(currentUrl);
-      setVariations([currentUrl]);
-      setCurrentVariation(0);
-    } catch (err: any) {
-      toast.error(err.message || "Preset failed");
-    } finally {
-      setProcessing(false);
-    }
+      setProcessedUrl(currentUrl); setVariations([currentUrl]); setCurrentVariation(0);
+    } catch (err: any) { toast.error(err.message || "Preset failed"); }
+    finally { setProcessing(false); }
   };
 
-  // Batch: process all
   const handleBatchProcessAll = async () => {
     if (batchItems.length <= 1) return;
     for (let i = 0; i < batchItems.length; i++) {
       const item = batchItems[i];
-      // Upload if needed
       let url = item.uploadedUrl;
       if (!url) {
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "uploading" } : it));
         url = await uploadFile(item.file);
-        if (!url) {
-          setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it));
-          continue;
-        }
+        if (!url) { setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it)); continue; }
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, uploadedUrl: url, status: "pending" } : it));
       }
-      // Process
       setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "processing" } : it));
-      setActiveBatchIndex(i);
-      setOriginalUrl(url);
-      setProcessedUrl(null);
+      setActiveBatchIndex(i); setOriginalUrl(url); setProcessedUrl(null);
       try {
         const result = await processImage(url, selectedOp, getParams());
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, processedUrl: result, status: result ? "done" : "error" } : it));
@@ -306,14 +255,9 @@ export default function Vintography() {
     for (const item of batchItems) {
       if (!item.processedUrl) continue;
       try {
-        const res = await fetch(item.processedUrl);
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `vintography-${item.id}.png`;
-        a.click();
-        URL.revokeObjectURL(url);
+        const res = await fetch(item.processedUrl); const blob = await res.blob();
+        const url = URL.createObjectURL(blob); const a = document.createElement("a");
+        a.href = url; a.download = `vintography-${item.id}.png`; a.click(); URL.revokeObjectURL(url);
       } catch { /* skip */ }
     }
   };
@@ -321,14 +265,9 @@ export default function Vintography() {
   const handleDownload = async () => {
     if (!processedUrl) return;
     try {
-      const res = await fetch(processedUrl);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `vintography-${Date.now()}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const res = await fetch(processedUrl); const blob = await res.blob();
+      const url = URL.createObjectURL(blob); const a = document.createElement("a");
+      a.href = url; a.download = `vintography-${Date.now()}.png`; a.click(); URL.revokeObjectURL(url);
     } catch { toast.error("Download failed"); }
   };
 
@@ -336,10 +275,8 @@ export default function Vintography() {
     <PageShell title="Vintography" subtitle="AI-powered photo studio for your listings">
       <FeatureGate feature="vintography">
         <div className="space-y-4 sm:space-y-6">
-          {/* Credit Usage Bar */}
           <CreditBar used={vintographyUsed} limit={creditsLimit} />
 
-          {/* Upload Area */}
           {!originalUrl ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <Card
@@ -354,61 +291,48 @@ export default function Vintography() {
                   </div>
                   <div>
                     <p className="font-display font-bold text-base sm:text-lg">Drop your photos here</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      or tap to upload · JPG, PNG, WebP · Max 10MB · Up to 10 photos
-                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">or tap to upload · JPG, PNG, WebP · Max 10MB · Up to 10 photos</p>
                   </div>
                   <Button size="sm" className="active:scale-95 transition-transform">
                     <Camera className="w-4 h-4 mr-1.5" /> Choose Photos
                   </Button>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
+                <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
                   onChange={(e) => { if (e.target.files?.length) handleFileSelect(e.target.files); }}
                 />
               </Card>
             </motion.div>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 sm:space-y-6">
-              {/* Batch Strip */}
-              <BatchStrip
-                items={batchItems}
-                activeIndex={activeBatchIndex}
-                onSelect={handleBatchSelect}
-                onRemove={handleBatchRemove}
-                onDownloadAll={handleDownloadAll}
-              />
+              <BatchStrip items={batchItems} activeIndex={activeBatchIndex} onSelect={handleBatchSelect}
+                onRemove={handleBatchRemove} onDownloadAll={handleDownloadAll} />
 
-              {/* Quick Presets */}
               <QuickPresets onSelect={handlePreset} disabled={processing} />
 
-              {/* Operation Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+              {/* Operations — horizontal scroll strip */}
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 {operations.map((op) => (
-                  <Card
-                    key={op.id}
-                    onClick={() => { setSelectedOp(op.id); setProcessedUrl(null); setVariations([]); }}
-                    className={`p-3 sm:p-4 cursor-pointer transition-all active:scale-[0.97] ${
-                      selectedOp === op.id
-                        ? "ring-2 ring-primary border-primary/30 bg-primary/[0.03]"
-                        : "hover:border-primary/20"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                        selectedOp === op.id ? "bg-primary/15" : "bg-muted"
-                      }`}>
-                        <op.icon className={`w-4 h-4 ${selectedOp === op.id ? "text-primary" : "text-muted-foreground"}`} />
+                  <motion.div key={op.id} whileTap={{ scale: 0.95 }} className="flex-shrink-0">
+                    <Card
+                      onClick={() => { setSelectedOp(op.id); setProcessedUrl(null); setVariations([]); }}
+                      className={`p-3 cursor-pointer transition-all w-[120px] sm:w-[140px] ${
+                        selectedOp === op.id
+                          ? "ring-2 ring-primary border-primary/30 bg-primary/[0.03]"
+                          : "hover:border-primary/20"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                          selectedOp === op.id ? "bg-primary/15" : "bg-muted"
+                        }`}>
+                          <op.icon className={`w-4 h-4 ${selectedOp === op.id ? "text-primary" : "text-muted-foreground"}`} />
+                        </div>
+                        <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{op.tier}</Badge>
                       </div>
-                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{op.tier}</Badge>
-                    </div>
-                    <p className="font-semibold text-xs sm:text-sm">{op.label}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">{op.desc}</p>
-                  </Card>
+                      <p className="font-semibold text-xs">{op.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{op.desc}</p>
+                    </Card>
+                  </motion.div>
                 ))}
               </div>
 
@@ -416,73 +340,50 @@ export default function Vintography() {
               <AnimatePresence mode="wait">
                 {selectedOp === "smart_bg" && (
                   <motion.div key="smart_bg_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                    <Card className="p-4">
-                      <p className="text-sm font-semibold mb-2">Background Style</p>
-                      <Select value={bgStyle} onValueChange={setBgStyle}>
-                        <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {bgStyles.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Card>
+                    <BackgroundPicker value={bgStyle} onChange={setBgStyle} />
                   </motion.div>
                 )}
                 {selectedOp === "model_shot" && (
                   <motion.div key="model_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                    <Card className="p-4 flex flex-col sm:flex-row gap-3">
-                      <div>
-                        <p className="text-sm font-semibold mb-2">Gender</p>
-                        <Select value={modelGender} onValueChange={setModelGender}>
-                          <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="male">Male</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold mb-2">Pose</p>
-                        <Select value={modelPose} onValueChange={setModelPose}>
-                          <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="standing">Standing</SelectItem>
-                            <SelectItem value="walking">Walking</SelectItem>
-                            <SelectItem value="casual">Casual</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </Card>
+                    <ModelPicker
+                      gender={modelGender} look={modelLook} pose={modelPose} bg={modelBg}
+                      onGenderChange={setModelGender} onLookChange={setModelLook}
+                      onPoseChange={setModelPose} onBgChange={setModelBg}
+                    />
+                  </motion.div>
+                )}
+                {selectedOp === "mannequin_shot" && (
+                  <motion.div key="mannequin_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                    <ModelPicker
+                      gender={modelGender} look={modelLook} pose={modelPose} bg={modelBg}
+                      onGenderChange={setModelGender} onLookChange={setModelLook}
+                      onPoseChange={setModelPose} onBgChange={setModelBg}
+                      showLook={false}
+                    />
+                  </motion.div>
+                )}
+                {selectedOp === "flatlay_style" && (
+                  <motion.div key="flatlay_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                    <FlatLayPicker value={flatLayStyle} onChange={setFlatLayStyle} />
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Comparison View */}
-              <ComparisonView
-                originalUrl={originalUrl}
-                processedUrl={processedUrl}
-                processing={processing}
-                variations={variations}
-                currentVariation={currentVariation}
-                onVariationChange={handleVariationChange}
-              />
+              <ComparisonView originalUrl={originalUrl} processedUrl={processedUrl} processing={processing}
+                variations={variations} currentVariation={currentVariation} onVariationChange={handleVariationChange} />
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-2">
                 {batchItems.length > 1 ? (
-                  <Button
-                    onClick={handleBatchProcessAll}
-                    disabled={processing}
-                    className="flex-1 h-12 sm:h-10 font-semibold active:scale-95 transition-transform"
-                  >
+                  <Button onClick={handleBatchProcessAll} disabled={processing}
+                    className="flex-1 h-12 sm:h-10 font-semibold active:scale-95 transition-transform">
                     {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
                     {processing ? "Processing batch…" : `Process All ${batchItems.length} Photos`}
                   </Button>
                 ) : (
-                  <Button
-                    onClick={handleProcess}
-                    disabled={processing}
-                    className="flex-1 h-12 sm:h-10 font-semibold active:scale-95 transition-transform"
-                  >
+                  <Button onClick={handleProcess} disabled={processing}
+                    className="flex-1 h-12 sm:h-10 font-semibold active:scale-95 transition-transform">
                     {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
                     {processing ? "Processing…" : `Apply ${opLabel(selectedOp)}`}
                   </Button>
@@ -494,22 +395,12 @@ export default function Vintography() {
                     </Button>
                     {variations.length > 1 && (
                       <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          disabled={currentVariation === 0}
-                          onClick={() => handleVariationChange(currentVariation - 1)}
-                          className="h-12 sm:h-10 w-10"
-                        >
+                        <Button variant="outline" size="icon" disabled={currentVariation === 0}
+                          onClick={() => handleVariationChange(currentVariation - 1)} className="h-12 sm:h-10 w-10">
                           <ChevronLeft className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          disabled={currentVariation === variations.length - 1}
-                          onClick={() => handleVariationChange(currentVariation + 1)}
-                          className="h-12 sm:h-10 w-10"
-                        >
+                        <Button variant="outline" size="icon" disabled={currentVariation === variations.length - 1}
+                          onClick={() => handleVariationChange(currentVariation + 1)} className="h-12 sm:h-10 w-10">
                           <ChevronRight className="w-4 h-4" />
                         </Button>
                       </div>
@@ -517,20 +408,14 @@ export default function Vintography() {
                     <Button variant="outline" onClick={handleDownload} className="h-12 sm:h-10 active:scale-95 transition-transform">
                       <Download className="w-4 h-4 mr-2" /> Download
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => navigate(`/optimize?photo=${encodeURIComponent(processedUrl)}`)}
-                      className="h-12 sm:h-10 active:scale-95 transition-transform"
-                    >
+                    <Button variant="outline" onClick={() => navigate(`/optimize?photo=${encodeURIComponent(processedUrl)}`)}
+                      className="h-12 sm:h-10 active:scale-95 transition-transform">
                       <ChevronRight className="w-4 h-4 mr-2" /> Use in Listing
                     </Button>
                   </>
                 )}
-                <Button
-                  variant="ghost"
-                  onClick={() => { setOriginalUrl(null); setProcessedUrl(null); setVariations([]); setBatchItems([]); }}
-                  className="h-12 sm:h-10 active:scale-95 transition-transform"
-                >
+                <Button variant="ghost" onClick={() => { setOriginalUrl(null); setProcessedUrl(null); setVariations([]); setBatchItems([]); }}
+                  className="h-12 sm:h-10 active:scale-95 transition-transform">
                   <RotateCcw className="w-4 h-4 mr-2" /> New Photo
                 </Button>
               </div>
@@ -544,7 +429,6 @@ export default function Vintography() {
               <h2 className="font-display font-bold text-base sm:text-lg">Previous Edits</h2>
               {gallery.length > 0 && <Badge variant="secondary" className="text-xs">{gallery.length}</Badge>}
             </div>
-
             {galleryLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="aspect-square rounded-xl" />)}
@@ -557,15 +441,10 @@ export default function Vintography() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {gallery.map((job) => (
-                  <GalleryCard
-                    key={job.id}
-                    job={job}
-                    opLabel={opLabel(job.operation)}
+                  <GalleryCard key={job.id} job={job} opLabel={opLabel(job.operation)}
                     onRestore={(j) => {
-                      setOriginalUrl(j.original_url);
-                      setProcessedUrl(j.processed_url);
-                      setVariations(j.processed_url ? [j.processed_url] : []);
-                      setCurrentVariation(0);
+                      setOriginalUrl(j.original_url); setProcessedUrl(j.processed_url);
+                      setVariations(j.processed_url ? [j.processed_url] : []); setCurrentVariation(0);
                     }}
                     onDelete={handleDeleteJob}
                   />
