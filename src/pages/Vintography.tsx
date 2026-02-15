@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,12 +9,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatDistanceToNow } from "date-fns";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
-  Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon,
+  Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock, Trash2,
 } from "lucide-react";
+
+type VintographyJob = {
+  id: string;
+  original_url: string;
+  processed_url: string | null;
+  operation: string;
+  status: string;
+  created_at: string;
+};
 
 type Operation = "remove_bg" | "smart_bg" | "model_shot" | "enhance";
 
@@ -44,11 +55,41 @@ export default function Vintography() {
   const [processing, setProcessing] = useState(false);
   const [sliderValue, setSliderValue] = useState([50]);
 
+  // Gallery state
+  const [gallery, setGallery] = useState<VintographyJob[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(true);
+
   // Smart BG params
   const [bgStyle, setBgStyle] = useState("studio");
   // Model shot params
   const [modelGender, setModelGender] = useState("female");
   const [modelPose, setModelPose] = useState("standing");
+
+  // Fetch gallery on mount
+  useEffect(() => {
+    if (!user) return;
+    const fetchGallery = async () => {
+      setGalleryLoading(true);
+      const { data } = await supabase
+        .from("vintography_jobs")
+        .select("id, original_url, processed_url, operation, status, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      setGallery((data as VintographyJob[]) || []);
+      setGalleryLoading(false);
+    };
+    fetchGallery();
+  }, [user, processedUrl]); // refetch after a new edit completes
+
+  const handleDeleteJob = async (jobId: string) => {
+    const { error } = await supabase.from("vintography_jobs").delete().eq("id", jobId);
+    if (error) { toast.error("Failed to delete"); return; }
+    setGallery((prev) => prev.filter((j) => j.id !== jobId));
+    toast.success("Deleted");
+  };
+
+  const opLabel = (op: string) => operations.find((o) => o.id === op)?.label || op;
 
   const handleFileSelect = useCallback(async (file: File) => {
     if (!user) return;
@@ -365,6 +406,89 @@ export default function Vintography() {
               </div>
             </motion.div>
           )}
+
+          {/* Previous Edits Gallery */}
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <h2 className="font-display font-bold text-base sm:text-lg">Previous Edits</h2>
+              {gallery.length > 0 && (
+                <Badge variant="secondary" className="text-xs">{gallery.length}</Badge>
+              )}
+            </div>
+
+            {galleryLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="aspect-square rounded-xl" />
+                ))}
+              </div>
+            ) : gallery.length === 0 ? (
+              <Card className="p-8 text-center">
+                <ImageIcon className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  Your edited photos will appear here
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {gallery.map((job) => (
+                  <motion.div
+                    key={job.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="group"
+                  >
+                    <Card className="overflow-hidden">
+                      <div className="relative aspect-square bg-muted/30">
+                        <img
+                          src={job.processed_url || job.original_url}
+                          alt="Vintography edit"
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        {job.status === "processing" && (
+                          <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                            <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                          </div>
+                        )}
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                          {job.processed_url && (
+                            <Button
+                              size="icon"
+                              variant="secondary"
+                              className="h-8 w-8 rounded-full"
+                              onClick={() => {
+                                setOriginalUrl(job.original_url);
+                                setProcessedUrl(job.processed_url);
+                              }}
+                            >
+                              <ImageIcon className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="destructive"
+                            className="h-8 w-8 rounded-full"
+                            onClick={() => handleDeleteJob(job.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="p-2">
+                        <p className="text-xs font-medium truncate">{opLabel(job.operation)}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </FeatureGate>
     </PageShell>
