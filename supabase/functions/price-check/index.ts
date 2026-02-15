@@ -45,7 +45,6 @@ serve(async (req) => {
     // Build search query for Firecrawl
     let searchQuery = "";
     if (url && url.includes("vinted")) {
-      // Scrape the URL first to get item details
       const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
       if (!firecrawlKey) throw new Error("Firecrawl not configured");
 
@@ -56,8 +55,6 @@ serve(async (req) => {
       });
       const scrapeData = await scrapeRes.json();
       const markdown = scrapeData.data?.markdown || scrapeData.markdown || "";
-
-      // Extract item details from markdown
       searchQuery = `vinted ${markdown.substring(0, 300)}`;
     } else {
       searchQuery = `vinted ${brand || ""} ${category || ""} ${condition || ""}`.trim();
@@ -79,16 +76,15 @@ serve(async (req) => {
     const searchData = await searchRes.json();
     const comparables = searchData.data || [];
 
-    // Build context for AI analysis
     const comparablesSummary = comparables
       .map((r: any, i: number) => `${i + 1}. ${r.title || r.url}: ${r.markdown?.substring(0, 200) || "No details"}`)
       .join("\n");
 
-    // AI Analysis using Lovable AI
+    // AI Analysis
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI not configured");
 
-    const aiPrompt = `You are a Vinted pricing analyst. Analyse the following market data and provide a structured pricing recommendation.
+    const aiPrompt = `You are a Vinted pricing analyst specialising in the UK secondhand market. Analyse the following market data and provide a comprehensive pricing report.
 
 Item being priced:
 - URL: ${url || "N/A"}
@@ -99,6 +95,17 @@ Item being priced:
 Comparable items found on the market:
 ${comparablesSummary || "No comparables found"}
 
+IMPORTANT INSTRUCTIONS:
+1. DIFFERENTIATE between NEW and USED items. New items (with or without tags) command significantly higher prices. Separate your analysis accordingly.
+2. Calculate RESELLER buy/sell prices:
+   - "buy_price_good": A great sourcing price (the item would be a steal at this price, giving 50%+ margin after fees)
+   - "buy_price_max": The absolute maximum to pay and still profit (assumes ~5% Vinted buyer protection fee + £3-5 shipping + minimum 40% margin on resale)
+   - "estimated_resale": The realistic sell price on Vinted (this should equal or be close to recommended_price)
+3. Estimate DEMAND LEVEL based on how many sold vs active listings you see. Many sold items = high demand. Many active, few sold = low demand.
+4. Provide CONDITION PRICE BREAKDOWN showing average prices for each condition grade you can infer from the data.
+5. Calculate FEES: estimated_fees is ~5% of the resale price (Vinted buyer protection), estimated_shipping is £3-5 based on item category weight.
+6. net_profit_estimate = estimated_resale - estimated_fees - estimated_shipping
+
 Return a JSON object (no markdown, just raw JSON) with this exact structure:
 {
   "recommended_price": <number in GBP>,
@@ -107,10 +114,26 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
   "price_range_high": <number>,
   "item_title": "<best guess at item title>",
   "item_brand": "<brand>",
-  "comparable_items": [
-    {"title": "<item title>", "price": <number>, "sold": <boolean>, "days_listed": <number or null>}
+  "condition_detected": "<new_with_tags | new_without_tags | very_good | good | satisfactory>",
+  "buy_price_good": <number>,
+  "buy_price_max": <number>,
+  "estimated_resale": <number>,
+  "estimated_days_to_sell": <number>,
+  "demand_level": "<high | medium | low>",
+  "condition_price_breakdown": [
+    {"condition": "New with tags", "avg_price": <number>, "count": <number>},
+    {"condition": "New without tags", "avg_price": <number>, "count": <number>},
+    {"condition": "Very good", "avg_price": <number>, "count": <number>},
+    {"condition": "Good", "avg_price": <number>, "count": <number>},
+    {"condition": "Satisfactory", "avg_price": <number>, "count": <number>}
   ],
-  "ai_insights": "<2-3 paragraphs explaining the pricing rationale in plain English>",
+  "estimated_fees": <number>,
+  "estimated_shipping": <number>,
+  "net_profit_estimate": <number>,
+  "comparable_items": [
+    {"title": "<item title>", "price": <number>, "sold": <boolean>, "days_listed": <number or null>, "condition": "<condition grade>"}
+  ],
+  "ai_insights": "<2-3 paragraphs explaining the pricing rationale, explicitly addressing new vs used price differences and reseller opportunity>",
   "price_distribution": [
     {"range": "£0-5", "count": <number>},
     {"range": "£5-10", "count": <number>},
@@ -130,7 +153,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You are a pricing analyst for Vinted marketplace. Always respond with valid JSON only." },
+          { role: "system", content: "You are a pricing analyst for Vinted marketplace. Always respond with valid JSON only. Be precise with numbers and realistic with estimates." },
           { role: "user", content: aiPrompt },
         ],
       }),
@@ -146,8 +169,6 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
 
     const aiData = await aiRes.json();
     let content = aiData.choices?.[0]?.message?.content || "";
-    
-    // Clean markdown code fences if present
     content = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
     let report;
@@ -172,7 +193,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
         item_title: report.item_title,
         item_brand: report.item_brand,
         item_category: category || report.item_category,
-        item_condition: condition,
+        item_condition: condition || report.condition_detected,
         recommended_price: report.recommended_price,
         confidence_score: report.confidence_score,
         price_range_low: report.price_range_low,
