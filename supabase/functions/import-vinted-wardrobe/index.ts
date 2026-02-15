@@ -90,32 +90,35 @@ Deno.serve(async (req) => {
     }
 
     // ========================================
-    // PHASE 1: MAP — get all item URLs from the member's page
+    // PHASE 1: SCRAPE links from the member's wardrobe page (JS-rendered)
     // ========================================
-    console.log(`Phase 1: Mapping URLs from ${wardrobeUrl} (tier: ${tier}, limit: ${importLimit})`);
+    console.log(`Phase 1: Scraping links from ${wardrobeUrl} (tier: ${tier}, limit: ${importLimit})`);
 
-    const mapResponse = await fetch("https://api.firecrawl.dev/v1/map", {
+    const urlObj = new URL(wardrobeUrl);
+    const baseDomain = `${urlObj.protocol}//${urlObj.hostname}`;
+
+    const linksResponse = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         url: wardrobeUrl,
-        limit: 500,
-        includeSubdomains: false,
+        formats: ["links"],
+        onlyMainContent: true,
+        waitFor: 5000,
+        timeout: 30000,
       }),
     });
 
-    const mapData = await mapResponse.json();
-    if (!mapResponse.ok || !mapData.success) {
-      console.error("Firecrawl map error:", JSON.stringify(mapData));
-      return new Response(JSON.stringify({ success: false, error: "Could not map the wardrobe. Make sure your Vinted profile is public." }), {
+    const linksData = await linksResponse.json();
+    if (!linksResponse.ok || !linksData.success) {
+      console.error("Firecrawl links scrape error:", JSON.stringify(linksData));
+      return new Response(JSON.stringify({ success: false, error: "Could not scrape the wardrobe. Make sure your Vinted profile is public." }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Filter for item URLs only (pattern: /items/12345-slug)
-    const allLinks: string[] = mapData.links || [];
-    const urlObj = new URL(wardrobeUrl);
-    const baseDomain = `${urlObj.protocol}//${urlObj.hostname}`;
+    // Extract links from response (may be in data.links or links)
+    const allLinks: string[] = linksData.data?.links || linksData.links || [];
 
     // Extract member ID from URL to validate items belong to this member
     const memberMatch = wardrobeUrl.match(/member\/(\d+)/);
