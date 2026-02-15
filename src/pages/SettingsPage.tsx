@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { User, CreditCard, Loader2, Check, Mail, Send, Globe, RotateCcw, Zap, Gift, Copy, Share2, LogOut, Settings } from "lucide-react";
+import { User, CreditCard, Loader2, Check, Mail, Send, Globe, RotateCcw, Zap, Gift, Copy, Share2, LogOut, Settings, Link2, Layers } from "lucide-react";
 import { STRIPE_TIERS, TierKey, TIMEZONES, CREDIT_PACKS } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageShell } from "@/components/PageShell";
@@ -228,6 +228,29 @@ export default function SettingsPage() {
             <Button onClick={handleSaveProfile} disabled={saving} className="h-11 sm:h-10 active:scale-95 transition-transform">
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Save Changes
+            </Button>
+          </div>
+        </Section>
+
+        {/* ─── Platform Connections ─── */}
+        <Section icon={Link2} title="Cross-Platform Publishing" tint="border-blue-500/5">
+          <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+            Connect your eBay, Vinted Pro, and Depop accounts to publish listings across platforms with one click.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="h-10 active:scale-95 transition-transform text-xs sm:text-sm"
+              onClick={() => navigate("/platforms")}
+            >
+              <Link2 className="w-4 h-4 mr-2" /> Manage Connections
+            </Button>
+            <Button
+              variant="outline"
+              className="h-10 active:scale-95 transition-transform text-xs sm:text-sm"
+              onClick={() => navigate("/cross-listings")}
+            >
+              <Layers className="w-4 h-4 mr-2" /> View Cross-Listings
             </Button>
           </div>
         </Section>

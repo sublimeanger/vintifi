@@ -29,6 +29,8 @@ import CharityBriefing from "./pages/CharityBriefing";
 import BulkOptimize from "./pages/BulkOptimize";
 import ClearanceRadar from "./pages/ClearanceRadar";
 import NicheFinder from "./pages/NicheFinder";
+import PlatformConnections from "./pages/PlatformConnections";
+import CrossListings from "./pages/CrossListings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +81,8 @@ const App = () => (
             <Route path="/bulk-optimize" element={<ProtectedRoute><OnboardingGuard><BulkOptimize /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/clearance-radar" element={<ProtectedRoute><OnboardingGuard><ClearanceRadar /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/niche-finder" element={<ProtectedRoute><OnboardingGuard><NicheFinder /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/platforms" element={<ProtectedRoute><OnboardingGuard><PlatformConnections /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/cross-listings" element={<ProtectedRoute><OnboardingGuard><CrossListings /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

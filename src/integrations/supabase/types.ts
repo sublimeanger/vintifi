@@ -196,6 +196,62 @@ export type Database = {
         }
         Relationships: []
       }
+      cross_listings: {
+        Row: {
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          listing_id: string
+          platform: string
+          platform_listing_id: string | null
+          platform_price: number | null
+          platform_url: string | null
+          published_at: string | null
+          status: string
+          sync_error: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          listing_id: string
+          platform: string
+          platform_listing_id?: string | null
+          platform_price?: number | null
+          platform_url?: string | null
+          published_at?: string | null
+          status?: string
+          sync_error?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          listing_id?: string
+          platform?: string
+          platform_listing_id?: string | null
+          platform_price?: number | null
+          platform_url?: string | null
+          published_at?: string | null
+          status?: string
+          sync_error?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cross_listings_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listings: {
         Row: {
           brand: string | null
@@ -270,6 +326,86 @@ export type Database = {
           vinted_url?: string | null
         }
         Relationships: []
+      }
+      platform_connections: {
+        Row: {
+          auth_data: Json
+          connected_at: string
+          created_at: string
+          id: string
+          platform: string
+          platform_user_id: string | null
+          platform_username: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_data?: Json
+          connected_at?: string
+          created_at?: string
+          id?: string
+          platform: string
+          platform_user_id?: string | null
+          platform_username?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_data?: Json
+          connected_at?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          platform_user_id?: string | null
+          platform_username?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      platform_sync_log: {
+        Row: {
+          action: string
+          created_at: string
+          cross_listing_id: string | null
+          details: Json | null
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          cross_listing_id?: string | null
+          details?: Json | null
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          cross_listing_id?: string | null
+          details?: Json | null
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_sync_log_cross_listing_id_fkey"
+            columns: ["cross_listing_id"]
+            isOneToOne: false
+            referencedRelation: "cross_listings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       price_reports: {
         Row: {
