@@ -78,20 +78,18 @@ type PriceReport = {
   vinted_url: string | null;
 };
 
-// Metric card config with colours and navigation
 const metricConfig = [
-  { icon: Package, label: "Active Listings", color: "text-primary", border: "border-l-primary", bg: "bg-primary/5", path: "/listings" },
-  { icon: DollarSign, label: "Portfolio Value", color: "text-success", border: "border-l-success", bg: "bg-success/5", path: "/portfolio" },
-  { icon: ShoppingBag, label: "Sold This Week", color: "text-accent", border: "border-l-accent", bg: "bg-accent/5", path: "/analytics" },
-  { icon: Zap, label: "Monthly Profit", color: "text-primary", border: "border-l-primary", bg: "bg-primary/5", path: "/analytics" },
+  { icon: Package, label: "Active Listings", color: "text-primary", border: "border-l-primary", tint: "border-primary/10 bg-primary/[0.03]", path: "/listings" },
+  { icon: DollarSign, label: "Portfolio Value", color: "text-success", border: "border-l-success", tint: "border-success/10 bg-success/[0.03]", path: "/portfolio" },
+  { icon: ShoppingBag, label: "Sold This Week", color: "text-accent", border: "border-l-accent", tint: "border-accent/10 bg-accent/[0.03]", path: "/analytics" },
+  { icon: Zap, label: "Monthly Profit", color: "text-primary", border: "border-l-primary", tint: "border-primary/10 bg-primary/[0.03]", path: "/analytics" },
 ];
 
-// Section header component
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-3">
       <div className="w-1 h-4 rounded-full bg-primary" />
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
+      <h3 className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
     </div>
   );
 }
@@ -241,7 +239,7 @@ export default function Dashboard() {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border shadow-sm flex items-center justify-between px-4 h-14">
         <h1 className="font-display text-lg font-extrabold"><span className="text-gradient">Vintifi</span></h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/settings")} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors ${creditsLow ? "bg-warning/20 hover:bg-warning/30" : "bg-muted hover:bg-muted/80"}`}>
+          <button onClick={() => navigate("/settings")} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors active:scale-95 ${creditsLow ? "bg-warning/20 hover:bg-warning/30" : "bg-muted hover:bg-muted/80"}`}>
             <Zap className={`w-3.5 h-3.5 ${creditsLow ? "text-warning" : "text-primary"}`} />
             <span className={`text-xs font-semibold ${creditsLow ? "text-warning" : ""}`}>{checksRemaining}</span>
           </button>
@@ -262,21 +260,29 @@ export default function Dashboard() {
                   <div key={section.label}>
                     <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">{section.label}</p>
                     <div className="space-y-0.5">
-                      {section.items.map((item) => (
-                        <button
-                          key={item.label + item.path}
-                          onClick={() => { navigate(item.path); setSheetOpen(false); }}
-                          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-                        >
-                          <item.icon className="w-4 h-4 shrink-0" /> {item.label}
-                        </button>
-                      ))}
+                      {section.items.map((item) => {
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <button
+                            key={item.label + item.path}
+                            onClick={() => { navigate(item.path); setSheetOpen(false); }}
+                            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors active:scale-[0.98] ${
+                              isActive
+                                ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
+                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                            }`}
+                          >
+                            <item.icon className="w-4 h-4 shrink-0" /> {item.label}
+                            {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
               </nav>
               <div className="p-4 border-t border-sidebar-border shrink-0">
-                <button onClick={() => { signOut(); setSheetOpen(false); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-destructive">
+                <button onClick={() => { signOut(); setSheetOpen(false); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-destructive active:scale-[0.98]">
                   <LogOut className="w-4 h-4" /> Sign Out
                 </button>
               </div>
@@ -287,40 +293,40 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto pt-14 lg:pt-0 pb-24 lg:pb-0">
-        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6 sm:space-y-8">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-5 sm:space-y-8">
           {/* Welcome */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold mb-1">
+            <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold mb-0.5 sm:mb-1">
               Welcome back, {profile?.display_name?.split(" ")[0] || "there"} 👋
             </h2>
-            <p className="text-muted-foreground text-sm">Here's your selling intelligence overview</p>
+            <p className="text-muted-foreground text-xs sm:text-sm">Here's your selling intelligence overview</p>
           </motion.div>
 
-          {/* Metric Cards - Tappable with colour-coded borders */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Metric Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
             {metricConfig.map((m, i) => (
               <motion.div key={m.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                 <Card
-                  className={`p-3 sm:p-4 border-l-[3px] ${m.border} ${m.bg} cursor-pointer hover:shadow-md active:scale-[0.98] transition-all`}
+                  className={`p-3 sm:p-4 border-l-[3px] ${m.border} ${m.tint} cursor-pointer hover:shadow-md active:scale-[0.97] transition-all`}
                   onClick={() => navigate(m.path)}
                 >
-                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                    <m.icon className={`w-4 h-4 ${m.color}`} />
-                    <span className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">{m.label}</span>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <m.icon className={`w-3 h-3 sm:w-4 sm:h-4 ${m.color}`} />
+                    <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider truncate">{m.label}</span>
                   </div>
-                  <p className="font-display text-2xl sm:text-2xl lg:text-3xl font-bold">{metricValues[i]}</p>
+                  <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold">{metricValues[i]}</p>
                 </Card>
               </motion.div>
             ))}
           </div>
 
-          {/* Price Check CTA - Gradient border, tighter on mobile */}
+          {/* Price Check CTA */}
           <Card id="tour-price-check" className="gradient-border p-4 sm:p-6 border-primary/20">
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <Zap className="w-5 h-5 text-primary" />
-              <h3 className="font-display font-bold text-base sm:text-lg">Price Intelligence Engine</h3>
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              <h3 className="font-display font-bold text-sm sm:text-base lg:text-lg">Price Intelligence Engine</h3>
             </div>
-            <p className="text-sm text-muted-foreground mb-4 hidden sm:block">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 hidden sm:block">
               Paste a Vinted URL or enter item details to get AI-powered pricing intelligence
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -328,10 +334,10 @@ export default function Dashboard() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="Paste Vinted URL or item details..."
-                className="flex-1 h-12 sm:h-10"
+                className="flex-1 h-11 sm:h-10 text-base sm:text-sm"
                 onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
               />
-              <Button onClick={handleAnalyze} disabled={analyzing} className="font-semibold shrink-0 h-12 sm:h-10">
+              <Button onClick={handleAnalyze} disabled={analyzing} className="font-semibold shrink-0 h-12 sm:h-10 active:scale-95 transition-transform">
                 {analyzing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
                 Analyse
               </Button>
@@ -340,13 +346,13 @@ export default function Dashboard() {
 
           {/* Recent Price Checks */}
           <Card className="p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display font-bold text-base sm:text-lg flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" />
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="font-display font-bold text-sm sm:text-base flex items-center gap-2">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 Recent Price Checks
               </h3>
               {recentReports.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => navigate("/price-check")} className="text-xs">
+                <Button variant="ghost" size="sm" onClick={() => navigate("/price-check")} className="text-[10px] sm:text-xs h-8">
                   New Check <ChevronRight className="w-3 h-3 ml-1" />
                 </Button>
               )}
@@ -356,39 +362,39 @@ export default function Dashboard() {
                 <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
               </div>
             ) : recentReports.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                  <Sparkles className="w-7 h-7 text-primary" />
+              <div className="text-center py-8 sm:py-10">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-primary" />
                 </div>
-                <p className="text-sm font-medium mb-1">No price checks yet</p>
-                <p className="text-xs text-muted-foreground mb-4">Discover what your items are really worth</p>
-                <Button size="sm" onClick={() => document.getElementById("tour-price-check")?.scrollIntoView({ behavior: "smooth" })} className="font-semibold">
+                <p className="text-xs sm:text-sm font-medium mb-1">No price checks yet</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-4">Discover what your items are really worth</p>
+                <Button size="sm" onClick={() => document.getElementById("tour-price-check")?.scrollIntoView({ behavior: "smooth" })} className="font-semibold h-10 sm:h-9 active:scale-95 transition-transform">
                   <Search className="w-3.5 h-3.5 mr-1.5" /> Run Your First Price Check
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 {recentReports.map((r) => (
                   <div
                     key={r.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/80 cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted/60 cursor-pointer transition-colors active:bg-muted/70"
                     onClick={() => r.vinted_url ? navigate(`/price-check?url=${encodeURIComponent(r.vinted_url)}`) : navigate("/price-check")}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{r.item_title || "Untitled Item"}</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">{r.item_title || "Untitled Item"}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        {r.item_brand && <span className="text-xs text-muted-foreground">{r.item_brand}</span>}
-                        <span className="text-xs text-muted-foreground">
+                        {r.item_brand && <span className="text-[10px] sm:text-xs text-muted-foreground">{r.item_brand}</span>}
+                        <span className="text-[10px] sm:text-xs text-muted-foreground">
                           {new Date(r.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                         </span>
                       </div>
                     </div>
-                    <div className="text-right ml-4 shrink-0">
+                    <div className="text-right ml-3 shrink-0">
                       {r.recommended_price !== null && (
-                        <p className="font-display font-bold text-sm">£{r.recommended_price.toFixed(2)}</p>
+                        <p className="font-display font-bold text-xs sm:text-sm">£{r.recommended_price.toFixed(2)}</p>
                       )}
                       {r.confidence_score !== null && (
-                        <Badge variant="outline" className={`text-[10px] ${
+                        <Badge variant="outline" className={`text-[9px] sm:text-[10px] py-0 ${
                           r.confidence_score >= 80 ? "text-success border-success/30" :
                           r.confidence_score >= 60 ? "text-accent border-accent/30" :
                           "text-destructive border-destructive/30"
@@ -403,12 +409,12 @@ export default function Dashboard() {
             )}
           </Card>
 
-          {/* Quick Actions - Grouped with horizontal scroll on mobile */}
-          <div className="space-y-8">
+          {/* Quick Actions */}
+          <div className="space-y-6 sm:space-y-8">
             {/* Intelligence Tools */}
             <div>
               <SectionHeader>Intelligence Tools</SectionHeader>
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4">
+              <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4 -mx-1 px-1">
                 {[
                   { icon: Search, label: "Price Check", desc: "Get instant pricing", path: "/price-check", accent: false },
                   { icon: Zap, label: "Optimise Listing", desc: "AI-powered listing optimisation", path: "/optimize", accent: false },
@@ -418,14 +424,14 @@ export default function Dashboard() {
                   <Card
                     key={item.path + item.label}
                     id={(item as any).tourId}
-                    className="min-w-[140px] sm:min-w-0 p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all border-border/50 flex-shrink-0"
+                    className="min-w-[130px] sm:min-w-0 p-3 sm:p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] transition-all border-border/50 flex-shrink-0"
                     onClick={() => navigate(item.path)}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${item.accent ? "bg-accent/15" : "bg-primary/10"}`}>
-                      <item.icon className={`w-5 h-5 ${item.accent ? "text-accent" : "text-primary"}`} />
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-2.5 sm:mb-3 ${item.accent ? "bg-accent/15" : "bg-primary/10"}`}>
+                      <item.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${item.accent ? "text-accent" : "text-primary"}`} />
                     </div>
-                    <h4 className="font-display font-bold text-sm mb-0.5">{item.label}</h4>
-                    <p className="text-xs text-muted-foreground line-clamp-2 hidden sm:block">{item.desc}</p>
+                    <h4 className="font-display font-bold text-xs sm:text-sm mb-0.5">{item.label}</h4>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2 hidden sm:block">{item.desc}</p>
                   </Card>
                 ))}
               </div>
@@ -434,7 +440,7 @@ export default function Dashboard() {
             {/* Market Analysis */}
             <div>
               <SectionHeader>Market Analysis</SectionHeader>
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4">
+              <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4 -mx-1 px-1">
                 {[
                   { icon: ArrowRightLeft, label: "Arbitrage Scanner", desc: "Find profitable flips", path: "/arbitrage", tourId: "tour-arbitrage" },
                   { icon: Radar, label: "Competitor Tracker", desc: "Monitor rivals", path: "/competitors" },
@@ -444,14 +450,14 @@ export default function Dashboard() {
                   <Card
                     key={item.path}
                     id={(item as any).tourId}
-                    className="min-w-[140px] sm:min-w-0 p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all border-border/50 flex-shrink-0"
+                    className="min-w-[130px] sm:min-w-0 p-3 sm:p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] transition-all border-border/50 flex-shrink-0"
                     onClick={() => navigate(item.path)}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
-                      <item.icon className="w-5 h-5 text-primary" />
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2.5 sm:mb-3">
+                      <item.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                     </div>
-                    <h4 className="font-display font-bold text-sm mb-0.5">{item.label}</h4>
-                    <p className="text-xs text-muted-foreground line-clamp-2 hidden sm:block">{item.desc}</p>
+                    <h4 className="font-display font-bold text-xs sm:text-sm mb-0.5">{item.label}</h4>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2 hidden sm:block">{item.desc}</p>
                   </Card>
                 ))}
               </div>
@@ -460,7 +466,7 @@ export default function Dashboard() {
             {/* Inventory Management */}
             <div>
               <SectionHeader>Inventory Management</SectionHeader>
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4 sm:[&>:nth-child(5)]:col-start-1">
+              <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4 sm:[&>:nth-child(5)]:col-start-1 -mx-1 px-1">
                 {[
                   { icon: Tag, label: "My Listings", desc: "Track and manage items", path: "/listings", tourId: "tour-listings", color: "text-primary", bg: "bg-primary/10" },
                   { icon: AlertTriangle, label: "Dead Stock", desc: "Liquidate stale inventory", path: "/dead-stock", color: "text-destructive", bg: "bg-destructive/10" },
@@ -471,14 +477,14 @@ export default function Dashboard() {
                   <Card
                     key={item.path + item.label}
                     id={(item as any).tourId}
-                    className="min-w-[140px] sm:min-w-0 p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all border-border/50 flex-shrink-0"
+                    className="min-w-[130px] sm:min-w-0 p-3 sm:p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] transition-all border-border/50 flex-shrink-0"
                     onClick={() => navigate(item.path)}
                   >
-                    <div className={`w-10 h-10 rounded-xl ${item.bg} flex items-center justify-center mb-3`}>
-                      <item.icon className={`w-5 h-5 ${item.color}`} />
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${item.bg} flex items-center justify-center mb-2.5 sm:mb-3`}>
+                      <item.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${item.color}`} />
                     </div>
-                    <h4 className="font-display font-bold text-sm mb-0.5">{item.label}</h4>
-                    <p className="text-xs text-muted-foreground line-clamp-2 hidden sm:block">{item.desc}</p>
+                    <h4 className="font-display font-bold text-xs sm:text-sm mb-0.5">{item.label}</h4>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2 hidden sm:block">{item.desc}</p>
                   </Card>
                 ))}
               </div>
@@ -487,10 +493,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Mobile Bottom Nav */}
       <MobileBottomNav />
-
-      {/* Guided Tour */}
       {!loadingReports && <GuidedTour />}
     </div>
   );
