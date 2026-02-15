@@ -14,7 +14,9 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
   ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag, Eye,
+  ArrowRightLeft, MapPin,
 } from "lucide-react";
+import { JourneyBanner } from "@/components/JourneyBanner";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PriceReportSkeleton } from "@/components/LoadingSkeletons";
 import {
@@ -366,6 +368,14 @@ export default function PriceCheck() {
               Save to Inventory
             </Button>
             <Button
+              onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(report.item_brand || brand)}&category=${encodeURIComponent(category)}`)}
+              variant="outline"
+              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+            >
+              <ArrowRightLeft className="w-4 h-4 mr-2" />
+              Find Arbitrage Deals
+            </Button>
+            <Button
               onClick={() => navigate(`/competitors?brand=${encodeURIComponent(report.item_brand || brand)}`)}
               variant="outline"
               className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
@@ -382,6 +392,19 @@ export default function PriceCheck() {
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
+
+          {/* Journey Banner */}
+          <JourneyBanner
+            title="Listing Lifecycle"
+            steps={[
+              { label: "Price Check", path: "/price-check", icon: Search, completed: true },
+              { label: "Optimise", path: `/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}`, icon: Sparkles },
+              { label: "Inventory", path: "/listings", icon: ShoppingBag },
+            ]}
+            nextLabel="Optimise This Listing"
+            nextPath={`/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}`}
+            nextIcon={Sparkles}
+          />
         </motion.div>
       )}
 
