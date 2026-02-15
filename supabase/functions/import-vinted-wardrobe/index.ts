@@ -197,64 +197,59 @@ Return ONLY a valid JSON array. No markdown fences. Maximum ${importLimit} items
     // Phase 2: Deep import — scrape individual listing pages for descriptions
     let descriptionsFetched = 0;
     if (deep_import) {
-      const itemsToDeepScrape = cappedItems.filter(i => i.vinted_url).slice(0, deepLimit);
-      console.log(`Deep import: scraping ${itemsToDeepScrape.length} individual listings (limit: ${deepLimit})`);
+      const itemsToDeepScrape = cappedItems.filter(i => i.vinted_url).slice(0, Math.min(deepLimit, 15));
+      console.log(`Deep import: scraping ${itemsToDeepScrape.length} individual listings in parallel batches`);
 
-      for (const item of itemsToDeepScrape) {
-        try {
-          // Small delay to respect rate limits
-          await new Promise(r => setTimeout(r, 500));
+      const BATCH_SIZE = 5;
+      for (let b = 0; b < itemsToDeepScrape.length; b += BATCH_SIZE) {
+        const batch = itemsToDeepScrape.slice(b, b + BATCH_SIZE);
+        const results = await Promise.allSettled(batch.map(async (item) => {
+          try {
+            const pageRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ url: item.vinted_url, formats: ["markdown"], waitFor: 2000 }),
+            });
 
-          const pageRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ url: item.vinted_url, formats: ["markdown"], waitFor: 2000 }),
-          });
+            const pageData = await pageRes.json();
+            if (!pageRes.ok || !pageData.success) return;
 
-          const pageData = await pageRes.json();
-          if (!pageRes.ok || !pageData.success) {
-            console.log(`Deep scrape failed for ${item.vinted_url}`);
-            continue;
-          }
+            const md = pageData.data?.markdown || pageData.markdown || "";
+            if (md.length < 50) return;
 
-          const md = pageData.data?.markdown || pageData.markdown || "";
-          if (md.length < 50) continue;
-
-          // Extract description, views, favourites via AI
-          const detailRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash-lite",
-              messages: [
-                {
-                  role: "system",
-                  content: `Extract details from a Vinted listing page. Return JSON with:
+            const detailRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash-lite",
+                messages: [
+                  {
+                    role: "system",
+                    content: `Extract details from a Vinted listing page. Return JSON with:
 - description (string or null) — the full item description text written by the seller
 - views_count (number or null) — number of views
 - favourites_count (number or null) — number of favourites/hearts
 Return ONLY valid JSON object. No markdown fences.`,
-                },
-                { role: "user", content: md.substring(0, 8000) },
-              ],
-              temperature: 0,
-            }),
-          });
+                  },
+                  { role: "user", content: md.substring(0, 8000) },
+                ],
+                temperature: 0,
+              }),
+            });
 
-          if (detailRes.ok) {
-            const detailData = await detailRes.json();
-            const detailContent = detailData.choices?.[0]?.message?.content || "{}";
-            try {
+            if (detailRes.ok) {
+              const detailData = await detailRes.json();
+              const detailContent = detailData.choices?.[0]?.message?.content || "{}";
               const details = JSON.parse(detailContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim());
               if (details.description) item.description = details.description;
               if (details.views_count != null) item.views_count = details.views_count;
               if (details.favourites_count != null) item.favourites_count = details.favourites_count;
               descriptionsFetched++;
-            } catch { /* ignore parse errors */ }
+            }
+          } catch (e) {
+            console.error(`Deep scrape error for ${item.vinted_url}:`, e);
           }
-        } catch (e) {
-          console.error(`Deep scrape error for ${item.vinted_url}:`, e);
-        }
+        }));
       }
       console.log(`Deep import complete: ${descriptionsFetched} descriptions fetched`);
     }
