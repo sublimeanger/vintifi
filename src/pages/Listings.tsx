@@ -387,11 +387,15 @@ export default function Listings() {
     setExpandedId(prev => prev === id ? null : id);
   };
 
+  const needsOptimisingFilter = statusFilter === "needs_optimising";
   const filteredListings = listings.filter((l) => {
     const matchesSearch =
       !searchQuery ||
       l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       l.brand?.toLowerCase().includes(searchQuery.toLowerCase());
+    if (needsOptimisingFilter) {
+      return matchesSearch && l.status === "active" && !l.description && l.health_score == null;
+    }
     const matchesStatus = statusFilter === "all" || l.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -764,20 +768,27 @@ export default function Listings() {
       {/* Status Chips */}
       {listings.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto scrollbar-hide mb-4 -mx-1 px-1 pb-1">
-          {["all", "active", "sold", "reserved", "inactive"].map(s => {
-            const count = s === "all" ? listings.length : listings.filter(l => l.status === s).length;
+          {["all", "active", "needs_optimising", "sold", "reserved", "inactive"].map(s => {
+            const count = s === "all"
+              ? listings.length
+              : s === "needs_optimising"
+                ? listings.filter(l => l.status === "active" && !l.description && l.health_score == null).length
+                : listings.filter(l => l.status === s).length;
             if (s !== "all" && count === 0) return null;
+            const label = s === "needs_optimising" ? "Needs optimising" : s;
             return (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium border transition-all active:scale-95 shrink-0 capitalize ${
+                className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium border transition-all active:scale-95 shrink-0 ${s !== "needs_optimising" ? "capitalize" : ""} ${
                   statusFilter === s
-                    ? "bg-primary/10 text-primary border-primary/30"
+                    ? s === "needs_optimising"
+                      ? "bg-accent/10 text-accent border-accent/30"
+                      : "bg-primary/10 text-primary border-primary/30"
                     : "bg-background text-muted-foreground border-border hover:border-primary/30"
                 }`}
               >
-                {s} ({count})
+                {label} ({count})
               </button>
             );
           })}
