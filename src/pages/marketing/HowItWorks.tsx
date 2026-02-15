@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import MarketingLayout from "@/components/MarketingLayout";
 import {
-  ArrowRight, Link2, Brain, BarChart3, Play,
+  ArrowRight, Link2, Brain, BarChart3,
   TrendingDown, TrendingUp, Clock, Heart, Eye,
   Quote,
 } from "lucide-react";
@@ -46,13 +46,13 @@ const steps = [
     title: "Paste a URL or describe your item",
     desc: "Drop any Vinted listing URL into the search bar, or simply describe your item — brand, size, condition. That's all we need.",
     mock: (
-      <div className="rounded-xl bg-card border border-border p-5">
+      <div className="rounded-xl bg-card border border-border p-4 sm:p-5">
         <p className="text-xs text-muted-foreground mb-2">Paste a Vinted URL or describe your item</p>
         <div className="flex gap-2">
           <div className="flex-1 h-10 rounded-lg bg-muted border border-border flex items-center px-3">
             <span className="text-muted-foreground text-sm truncate">https://www.vinted.co.uk/items/4832...</span>
           </div>
-          <div className="h-10 px-5 rounded-lg bg-primary text-primary-foreground flex items-center text-sm font-semibold shrink-0">
+          <div className="h-10 px-4 sm:px-5 rounded-lg bg-primary text-primary-foreground flex items-center text-sm font-semibold shrink-0">
             Analyse
           </div>
         </div>
@@ -65,11 +65,11 @@ const steps = [
     title: "AI analyses the market in seconds",
     desc: "Our engine scrapes comparable listings, processes pricing data through AI, and cross-references trends, demand, and competition — all in under 8 seconds.",
     mock: (
-      <div className="rounded-xl bg-card border border-border p-5 space-y-3">
+      <div className="rounded-xl bg-card border border-border p-4 sm:p-5 space-y-3">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" /> Scanning market...
         </div>
-        {["Scraping 847 comparable listings", "Analysing price distributions", "Generating AI insights"].map((t, i) => (
+        {["Scraping 847 comparable listings", "Analysing price distributions", "Generating AI insights"].map((t) => (
           <div key={t} className="flex items-center gap-3">
             <div className="w-5 h-5 rounded-full bg-success/10 flex items-center justify-center">
               <div className="w-2 h-2 rounded-full bg-success" />
@@ -86,19 +86,19 @@ const steps = [
     title: "Get your optimal price + insights",
     desc: "Receive a comprehensive pricing report with a recommended price, confidence score, market comparisons, and plain-English AI explanations.",
     mock: (
-      <div className="rounded-xl bg-card border border-border p-5">
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="rounded-lg bg-muted/50 p-3 text-center">
-            <p className="text-xl font-display font-bold text-foreground">£24.50</p>
-            <p className="text-xs text-success font-medium">Best Price</p>
+      <div className="rounded-xl bg-card border border-border p-4 sm:p-5">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
+          <div className="rounded-lg bg-muted/50 p-2.5 sm:p-3 text-center">
+            <p className="text-lg sm:text-xl font-display font-bold text-foreground">£24.50</p>
+            <p className="text-[10px] sm:text-xs text-success font-medium">Best Price</p>
           </div>
-          <div className="rounded-lg bg-muted/50 p-3 text-center">
-            <p className="text-xl font-display font-bold text-foreground">87%</p>
-            <p className="text-xs text-muted-foreground">Confidence</p>
+          <div className="rounded-lg bg-muted/50 p-2.5 sm:p-3 text-center">
+            <p className="text-lg sm:text-xl font-display font-bold text-foreground">87%</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Confidence</p>
           </div>
-          <div className="rounded-lg bg-muted/50 p-3 text-center">
-            <p className="text-xl font-display font-bold text-foreground">12</p>
-            <p className="text-xs text-muted-foreground">Comparables</p>
+          <div className="rounded-lg bg-muted/50 p-2.5 sm:p-3 text-center">
+            <p className="text-lg sm:text-xl font-display font-bold text-foreground">12</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Comparables</p>
           </div>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
@@ -115,18 +115,21 @@ const testimonials = [
     role: "Full-Time Reseller, London",
     quote: "I increased my monthly profit by 47% in the first month. The price intelligence alone pays for the subscription 10x over.",
     stat: "+47%",
+    initials: "SK",
   },
   {
     name: "Marcus T.",
     role: "Side Hustler, Berlin",
     quote: "I used to spend hours researching prices. Now I paste a URL and get better data in 8 seconds. Game changer.",
     stat: "4hrs saved/week",
+    initials: "MT",
   },
   {
     name: "Emma L.",
     role: "Vintage Specialist, Paris",
     quote: "The trend radar helped me spot the vintage Carhartt wave early. I sourced 30 jackets and sold them all within two weeks.",
     stat: "£2,400 profit",
+    initials: "EL",
   },
 ];
 
@@ -155,15 +158,19 @@ export default function HowItWorks() {
   return (
     <MarketingLayout>
       {/* Hero */}
-      <section className="py-24 md:py-36">
+      <section className="py-20 sm:py-24 md:py-36 relative overflow-hidden">
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute top-0 right-1/4 w-[500px] h-[500px] rounded-full bg-primary/6 blur-[120px] float-animation" />
+          <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] rounded-full bg-accent/6 blur-[100px] float-animation-delay" />
+        </div>
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
-            <motion.h1 variants={fadeUp} className="font-display text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6">
+            <motion.h1 variants={fadeUp} className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6">
               From guesswork to profit
               <br />
               <span className="text-gradient">in 3 steps</span>
             </motion.h1>
-            <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+            <motion.p variants={fadeUp} className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
               No complex setup. No learning curve. Paste a URL and watch the magic happen.
             </motion.p>
           </motion.div>
@@ -171,17 +178,21 @@ export default function HowItWorks() {
       </section>
 
       {/* Steps */}
-      <section className="pb-20">
+      <section className="pb-16 sm:pb-20">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="relative">
-            {/* Connecting line */}
-            <div className="absolute left-8 md:left-10 top-0 bottom-0 w-px bg-border hidden md:block" />
+            {/* Connecting line with pulsing dots */}
+            <div className="absolute left-8 md:left-10 top-0 bottom-0 w-px bg-border hidden md:block">
+              <div className="absolute top-1/4 -left-[3px] w-[7px] h-[7px] rounded-full bg-primary animate-pulse" />
+              <div className="absolute top-1/2 -left-[3px] w-[7px] h-[7px] rounded-full bg-primary animate-pulse" style={{ animationDelay: "0.5s" }} />
+              <div className="absolute top-3/4 -left-[3px] w-[7px] h-[7px] rounded-full bg-primary animate-pulse" style={{ animationDelay: "1s" }} />
+            </div>
 
-            <div className="space-y-16">
+            <div className="space-y-12 sm:space-y-16">
               {steps.map((step, i) => (
                 <motion.div
                   key={step.num}
-                  className="flex flex-col md:flex-row gap-8 relative"
+                  className="flex flex-col md:flex-row gap-6 sm:gap-8 relative"
                   initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-60px" }}
@@ -189,7 +200,7 @@ export default function HowItWorks() {
                 >
                   {/* Number */}
                   <div className="shrink-0 relative z-10">
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
                       <span className="font-display text-2xl md:text-3xl font-extrabold text-primary">{step.num}</span>
                     </div>
                   </div>
@@ -198,9 +209,9 @@ export default function HowItWorks() {
                   <div className="flex-1 space-y-4">
                     <div className="flex items-center gap-2">
                       <step.icon className="w-5 h-5 text-primary" />
-                      <h2 className="font-display text-2xl md:text-3xl font-extrabold">{step.title}</h2>
+                      <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-extrabold">{step.title}</h2>
                     </div>
-                    <p className="text-muted-foreground leading-relaxed max-w-lg">{step.desc}</p>
+                    <p className="text-muted-foreground leading-relaxed max-w-lg text-sm sm:text-base">{step.desc}</p>
                     <div className="max-w-md">{step.mock}</div>
                   </div>
                 </motion.div>
@@ -211,24 +222,30 @@ export default function HowItWorks() {
       </section>
 
       {/* Before / After */}
-      <section className="py-20 bg-muted/30">
+      <section className="py-16 sm:py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <motion.h2
-            className="font-display text-3xl md:text-4xl font-extrabold text-center mb-12"
+            className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold text-center mb-10 sm:mb-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
             The Vintifi Difference
           </motion.h2>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto relative">
+            {/* Animated divider */}
+            <div className="hidden md:flex absolute left-1/2 top-0 bottom-0 -translate-x-1/2 items-center z-10">
+              <div className="w-10 h-10 rounded-full bg-card border-2 border-primary shadow-lg flex items-center justify-center">
+                <ArrowRight className="w-4 h-4 text-primary" />
+              </div>
+            </div>
             {/* Before */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <Card className="p-6 border-destructive/30 bg-destructive/5">
+              <Card className="p-5 sm:p-6 border-destructive/30 bg-destructive/5">
                 <h3 className="font-display font-bold text-lg mb-5 text-destructive">Without Vintifi</h3>
                 <div className="space-y-4">
                   {beforeAfter.before.map((item) => (
@@ -244,13 +261,20 @@ export default function HowItWorks() {
               </Card>
             </motion.div>
 
+            {/* Mobile divider */}
+            <div className="flex md:hidden items-center justify-center -my-1">
+              <div className="w-8 h-8 rounded-full bg-card border-2 border-primary shadow-lg flex items-center justify-center">
+                <ArrowRight className="w-3 h-3 text-primary rotate-90" />
+              </div>
+            </div>
+
             {/* After */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <Card className="p-6 border-success/30 bg-success/5">
+              <Card className="p-5 sm:p-6 border-success/30 bg-success/5">
                 <h3 className="font-display font-bold text-lg mb-5 text-success">With Vintifi</h3>
                 <div className="space-y-4">
                   {beforeAfter.after.map((item) => (
@@ -270,17 +294,17 @@ export default function HowItWorks() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-20">
+      <section className="py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <motion.h2
-            className="font-display text-3xl md:text-4xl font-extrabold text-center mb-12"
+            className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold text-center mb-10 sm:mb-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
             Real Sellers, Real Results
           </motion.h2>
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
             {testimonials.map((t, i) => (
               <motion.div
                 key={t.name}
@@ -289,13 +313,19 @@ export default function HowItWorks() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
               >
-                <Card className="p-6 h-full flex flex-col">
-                  <Quote className="w-8 h-8 text-primary/20 mb-4" />
-                  <p className="text-sm text-muted-foreground leading-relaxed flex-1 mb-5">"{t.quote}"</p>
+                <Card className="p-5 sm:p-6 h-full flex flex-col relative overflow-hidden group hover:shadow-lg transition-shadow">
+                  {/* Quote watermark */}
+                  <div className="absolute top-3 right-4 text-6xl font-serif text-muted/40 leading-none select-none">"</div>
+                  <p className="text-sm text-muted-foreground leading-relaxed flex-1 mb-5 relative z-10">"{t.quote}"</p>
                   <div className="flex items-center justify-between border-t border-border pt-4">
-                    <div>
-                      <p className="font-semibold text-sm text-foreground">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.role}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                        {t.initials}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-foreground">{t.name}</p>
+                        <p className="text-xs text-muted-foreground">{t.role}</p>
+                      </div>
                     </div>
                     <Badge variant="secondary" className="font-bold">{t.stat}</Badge>
                   </div>
@@ -306,19 +336,18 @@ export default function HowItWorks() {
         </div>
       </section>
 
-
       {/* Bottom CTA */}
-      <section className="py-24">
+      <section className="py-20 sm:py-24">
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
-            <motion.h2 variants={fadeUp} className="font-display text-3xl md:text-5xl font-extrabold mb-4">
+            <motion.h2 variants={fadeUp} className="font-display text-2xl sm:text-3xl md:text-5xl font-extrabold mb-4">
               Ready to try it yourself?
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
+            <motion.p variants={fadeUp} className="text-muted-foreground text-base sm:text-lg mb-8 max-w-xl mx-auto">
               Your first 5 price checks are free. See results in under 90 seconds.
             </motion.p>
             <motion.div variants={fadeUp}>
-              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12">
+              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">
                 Get Started Free <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </motion.div>
