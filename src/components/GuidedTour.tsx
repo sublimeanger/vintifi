@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { X, ChevronRight, ChevronLeft, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const STORAGE_KEY = "vintifi_tour_completed";
 
@@ -39,13 +40,14 @@ const TOUR_STEPS: TourStep[] = [
 type Position = { top: number; left: number; width: number; height: number };
 
 export function GuidedTour() {
+  const isMobile = useIsMobile();
   const [active, setActive] = useState(false);
   const [step, setStep] = useState(0);
   const [pos, setPos] = useState<Position | null>(null);
   const rafRef = useRef<number>();
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY)) return;
+    if (localStorage.getItem(STORAGE_KEY) || isMobile) return;
     const timer = setTimeout(() => setActive(true), 600);
     return () => clearTimeout(timer);
   }, []);
