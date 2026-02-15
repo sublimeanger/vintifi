@@ -306,24 +306,6 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      {/* Video placeholder */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <motion.div
-            className="aspect-video rounded-2xl bg-secondary/80 border border-border flex items-center justify-center cursor-pointer group relative overflow-hidden"
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            whileHover={{ scale: 1.01 }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="w-20 h-20 rounded-full bg-primary/90 flex items-center justify-center shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform">
-              <Play className="w-8 h-8 text-primary-foreground ml-1" />
-            </div>
-            <p className="absolute bottom-6 text-sm text-secondary-foreground/60 font-medium">Watch the 2-minute demo</p>
-          </motion.div>
-        </div>
-      </section>
 
       {/* Bottom CTA */}
       <section className="py-24">
