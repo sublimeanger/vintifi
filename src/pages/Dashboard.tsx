@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 import { GuidedTour } from "@/components/GuidedTour";
+import { DashboardIntelligence } from "@/components/DashboardIntelligence";
 
 const navSections = [
   {
@@ -350,6 +351,9 @@ export default function Dashboard() {
               </Button>
             </div>
           </Card>
+
+          {/* Intelligence Cards & Trending */}
+          <DashboardIntelligence />
 
           {/* Recent Price Checks */}
           <Card className="p-4 sm:p-6">
