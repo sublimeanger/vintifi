@@ -1,135 +1,223 @@
 
 
-# Arbitrage Scanner -- Major Upgrade
+# Enterprise UX Cohesion Audit & Fix Plan
 
-## Overview
-Transform the Arbitrage Scanner from a basic search tool into a comprehensive deal-finding command centre with saved searches, historical tracking, platform selection, deal quality scoring, and a far richer results experience.
+## Audit Findings
 
----
-
-## 1. Backend Upgrades (Edge Function)
-
-### 1.1 Expand Source Platforms
-Add Facebook Marketplace and Gumtree alongside eBay and Depop. Let users choose which platforms to scan.
-
-```text
-Platforms:
-  eBay UK      (site:ebay.co.uk)              -- existing
-  Depop        (site:depop.com)               -- existing
-  FB Marketplace (site:facebook.com/marketplace) -- new
-  Gumtree      (site:gumtree.com)             -- new
-```
-
-### 1.2 Smarter AI Prompt
-Upgrade the AI analysis to return richer data per opportunity:
-- **deal_score** (1--100): AI-rated quality factoring demand, brand heat, condition, margin
-- **risk_level** ("low" / "medium" / "high"): Risk of the item not selling on Vinted
-- **estimated_days_to_sell**: How quickly this would likely sell
-- **demand_indicator** ("hot" / "warm" / "cold"): Current demand level
-- **suggested_listing_title**: A pre-optimised Vinted listing title ready to copy
-- **shipping_estimate**: Estimated shipping cost factored into real profit
-
-### 1.3 Accept Platform Selection from Frontend
-The edge function accepts a `platforms` array so users choose which sources to scan. Defaults to all 4.
-
-### 1.4 Net Profit Calculation
-Factor in estimated shipping and Vinted buyer protection fees to show true net profit rather than raw margin.
+After reviewing every page and cross-feature flow, here are all the dead ends, missing links, and broken connections found across the app.
 
 ---
 
-## 2. Frontend Upgrades (ArbitrageScanner.tsx)
+## Issue 1: Listings -> Price Check doesn't pre-fill manual data
 
-### 2.1 Platform Selection Chips
-Toggleable platform chips above the search form to enable/disable each source. Each chip shows a platform colour indicator.
+**Where**: `Listings.tsx` and `PriceCheck.tsx`
 
-### 2.2 Advanced Filters Panel
-Collapsible "Advanced Filters" section:
-- Condition filter: New, Like New, Good, Any
-- Max buy price cap (e.g. "Nothing over GBP50")
-- Sort by: Profit margin, Absolute profit, Deal score, Sell speed
+When a listing has no Vinted URL, clicking "Run Price Check" from the 3-dot menu navigates to `/price-check` with no data. The Price Check page has a manual entry mode with brand/category/condition fields, but none of the listing's data is passed through.
 
-### 2.3 Deal Score Badge
-Each opportunity card gets a prominent Deal Score (1--100) badge with colour coding:
-- 80--100: Green "Hot Deal"
-- 60--79: Orange "Good Deal"
-- 40--59: Yellow "Fair Deal"
-
-### 2.4 Richer Opportunity Cards
-Each card upgraded to show:
-- Deal score badge (top-right corner)
-- Demand indicator tag ("Hot" / "Warm" / "Cold")
-- Risk level indicator
-- Estimated days to sell
-- Net profit (after shipping) alongside gross profit
-- "Copy Listing Title" button for the AI-suggested Vinted title
-- "Create Listing" button linking to the listing optimiser pre-filled
-- Expandable "AI Analysis" section with detailed notes
-
-### 2.5 Results Sorting and Filtering
-After results load, add sort dropdown and quick filter tabs:
-- Sort: Best deals, Highest profit, Fastest sell, Lowest risk
-- Filter tabs: All, Hot Deals Only, per-platform filters
-
-### 2.6 Saved Searches
-"Save This Search" button stores the brand/category/margin/platform combination. "Recent Searches" row of chips above the form for one-tap re-runs.
-
-### 2.7 History Tab
-Tab toggle at the top: "New Scan" | "Past Finds". Past Finds queries existing `arbitrage_opportunities` data grouped by scan date.
-
-### 2.8 Quick Stats Enhancement
-Upgrade from 3 to 4 summary stat cards:
-- Opportunities found
-- Total potential profit
-- Average margin
-- Best deal score (new)
-
-### 2.9 Visual Polish
-- Animated scanning progress with platform-by-platform status messages
-- Platform colour-coded left border on each opportunity card
-- Profit comparison bar (buy price vs sell price as horizontal stacked bar)
-- Celebration animation when a 90+ deal score is found
+**Fix**: Pass listing data as URL search params (`?brand=Nike&category=Trainers&condition=Good`) and have Price Check auto-switch to manual mode and pre-fill the fields.
 
 ---
 
-## 3. Database Changes
+## Issue 2: Listings -> Optimise Listing not available
 
-### 3.1 Update `arbitrage_opportunities` table
-Add new columns for enriched data:
-- `deal_score` (INTEGER) -- 1 to 100
-- `risk_level` (TEXT) -- low/medium/high
-- `estimated_days_to_sell` (INTEGER)
-- `demand_indicator` (TEXT) -- hot/warm/cold
-- `suggested_listing_title` (TEXT)
-- `shipping_estimate` (DECIMAL)
-- `net_profit` (DECIMAL) -- profit after shipping
+**Where**: `Listings.tsx` dropdown menu
 
-### 3.2 New `saved_searches` table
-- `id` (UUID PK)
-- `user_id` (UUID)
-- `brand` (TEXT)
-- `category` (TEXT)
-- `min_margin` (INTEGER)
-- `platforms` (TEXT[])
-- `label` (TEXT) -- auto-generated friendly name
-- `last_run_at` (TIMESTAMPTZ)
-- `created_at` (TIMESTAMPTZ)
+The 3-dot menu on each listing only has "Run Price Check", "View on Vinted", and "Delete". There's no option to optimise an existing listing, even though the Optimise page exists.
 
-RLS: Users can only access their own saved searches (SELECT, INSERT, UPDATE, DELETE).
+**Fix**: Add "Optimise Listing" to the dropdown that navigates to `/optimize?brand=X&category=Y&title=Z` and pre-fills those fields.
 
 ---
 
-## 4. Files Modified
+## Issue 3: Trend Cards have no actions
+
+**Where**: `TrendCard.tsx`
+
+Trend cards show brand/item, opportunity score, and AI summary but have zero interactive elements. Users see "Carhartt WIP is trending" but can't do anything about it.
+
+**Fix**: Add action buttons: "Price Check" (pre-filled with brand), "Find Deals" (arbitrage pre-filled), and "Source It" (charity briefing).
+
+---
+
+## Issue 4: Dead Stock recommendations have no action links
+
+**Where**: `DeadStock.tsx`
+
+Recommendations say "Reduce Price", "Relist", "Crosslist", "Bundle" but none are clickable. They're just labels.
+
+**Fix**: Make each action a clickable link -- "Reduce Price" opens the listing, "Relist" links to the Relist Scheduler, etc.
+
+---
+
+## Issue 5: Portfolio Optimizer recommendations not actionable
+
+**Where**: `PortfolioOptimizer.tsx`
+
+Recommendations say "reduce price" or "relist" but there are no buttons to take action.
+
+**Fix**: Add "Apply Price" button and "View Listing" link.
+
+---
+
+## Issue 6: Arbitrage "Create Listing" button doesn't pre-fill
+
+**Where**: `ArbitrageScanner.tsx`
+
+The "Create Listing" button navigates to `/optimize` but doesn't pass any data (brand, category, suggested title).
+
+**Fix**: Navigate with query params: `/optimize?title=X&brand=Y&category=Z`.
+
+---
+
+## Issue 7: Clearance Radar has no "Create Listing" action
+
+**Where**: `ClearanceRadar.tsx`
+
+Opportunities show brand, category, prices but there's no way to create a listing from a find.
+
+**Fix**: Add "Create Listing" and "Price Check" action buttons.
+
+---
+
+## Issue 8: Charity Briefing items have no action links
+
+**Where**: `CharityBriefing.tsx`
+
+Briefing items show brand, buy/sell prices but no "Price Check this brand" or "I found one" action.
+
+**Fix**: Add "Price Check" button per item that navigates with pre-filled brand/category.
+
+---
+
+## Issue 9: Niche Finder results have no follow-through
+
+**Where**: `NicheFinder.tsx`
+
+Niches are identified but there's no way to act -- no "Search Arbitrage", "Check Trends", or "Price Check" for the niche.
+
+**Fix**: Add action buttons linking to Arbitrage, Trends, and Price Check pre-filtered for the niche.
+
+---
+
+## Issue 10: Seasonal Calendar has no actionable links
+
+**Where**: `SeasonalCalendar.tsx`
+
+Shows demand by month/category but no path to action. "September is peak for coats" should link to sourcing or pricing.
+
+**Fix**: Add "Source Now" -> Charity Briefing and "Check Prices" -> Price Check links.
+
+---
+
+## Issue 11: Competitor Tracker has no cross-links
+
+**Where**: `CompetitorTracker.tsx`
+
+Competitor data doesn't link to Price Check or Trends.
+
+**Fix**: Add "Price Check" and "View Trends" action links.
+
+---
+
+## Issue 12: Dashboard sidebar has no active state
+
+**Where**: `Dashboard.tsx`
+
+Sidebar nav items don't highlight which page you're on.
+
+**Fix**: Use `useLocation()` to add active styling.
+
+---
+
+## Issue 13: MobileBottomNav missing on many pages
+
+**Where**: Approximately 10 feature pages
+
+Pages like ArbitrageScanner, CompetitorTracker, DeadStock, Analytics, ClearanceRadar, NicheFinder, etc. don't have the bottom nav on mobile.
+
+**Fix**: Add `<MobileBottomNav />` to all feature pages.
+
+---
+
+## Implementation Plan
+
+### Phase 1: Cross-Feature Data Passing (Core Fix)
+
+**PriceCheck.tsx** -- Accept and auto-fill from URL params:
+- Read `brand`, `category`, `condition` from search params
+- If any manual params exist, auto-switch to "Manual Entry" mode and pre-fill fields
+
+**Listings.tsx** -- Upgrade dropdown menu:
+- Fix "Run Price Check" to pass `brand`, `category`, `condition` as params
+- Add "Optimise Listing" menu item passing listing data as params
+
+**OptimizeListing.tsx** -- Accept pre-fill from URL params:
+- Read `title`, `brand`, `category`, `condition` from search params and pre-fill
+
+### Phase 2: Action Buttons on Intelligence Pages
+
+**TrendCard.tsx** -- Add action row:
+- "Price Check" button -> `/price-check?brand=X&category=Y`
+- "Find Deals" button -> `/arbitrage?brand=X`
+
+**DeadStock.tsx** -- Make recommendations actionable:
+- "Reduce Price" -> link to listing
+- "Relist" -> `/relist`
+
+**PortfolioOptimizer.tsx** -- Add action buttons:
+- "Apply Price" to update listing price
+- "View Listing" link
+
+**ArbitrageScanner.tsx** -- Fix "Create Listing" pre-fill:
+- Pass brand, category, suggested title to `/optimize`
+
+**ClearanceRadar.tsx** -- Add actions per opportunity:
+- "Create Listing" -> `/optimize?brand=X&category=Y`
+- "Price Check" -> `/price-check?brand=X&category=Y`
+
+**CharityBriefing.tsx** -- Add actions per briefing item:
+- "Price Check" -> `/price-check?brand=X&category=Y`
+
+**NicheFinder.tsx** -- Add actions per niche:
+- "Find Deals" -> `/arbitrage?category=X`
+- "Price Check" -> `/price-check?category=X`
+
+**SeasonalCalendar.tsx** -- Add contextual links:
+- "Source Now" -> `/charity-briefing`
+- "Check Prices" -> `/price-check?category=X`
+
+**CompetitorTracker.tsx** -- Add cross-links:
+- "Price Check" and "View Trends" actions
+
+### Phase 3: Navigation Consistency
+
+**Dashboard.tsx** -- Add active sidebar state using `useLocation()`
+
+**All feature pages** -- Add `<MobileBottomNav />` to pages missing it (approximately 10 pages)
+
+---
+
+## Files Modified (approximately 14 files)
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/arbitrage-scan/index.ts` | Add FB Marketplace + Gumtree, platform selection param, enriched AI prompt, net profit calc |
-| `src/pages/ArbitrageScanner.tsx` | Platform chips, advanced filters, deal score, richer cards, saved searches, history tab, sorting, visual upgrades |
-| New SQL migration | Add columns to `arbitrage_opportunities`, create `saved_searches` table with RLS |
+| `src/pages/PriceCheck.tsx` | Read URL params, auto-switch to manual mode, pre-fill |
+| `src/pages/Listings.tsx` | Pass listing data via params, add Optimise menu item |
+| `src/pages/OptimizeListing.tsx` | Read URL params, pre-fill fields |
+| `src/components/trends/TrendCard.tsx` | Add Price Check and Find Deals buttons |
+| `src/pages/DeadStock.tsx` | Make action labels clickable links |
+| `src/pages/PortfolioOptimizer.tsx` | Add Apply Price and View Listing buttons |
+| `src/pages/ArbitrageScanner.tsx` | Fix Create Listing pre-fill |
+| `src/pages/ClearanceRadar.tsx` | Add Create Listing and Price Check actions |
+| `src/pages/CharityBriefing.tsx` | Add Price Check action per item |
+| `src/pages/NicheFinder.tsx` | Add Find Deals, Trends, Price Check actions |
+| `src/pages/SeasonalCalendar.tsx` | Add Source Now and Check Prices links |
+| `src/pages/CompetitorTracker.tsx` | Add Price Check and View Trends links |
+| `src/pages/Dashboard.tsx` | Add active sidebar state |
+| Multiple pages | Add MobileBottomNav to ~10 pages |
 
-## 5. Technical Notes
-- All new platforms use the same Firecrawl search pattern -- no new API integrations needed
-- Enriched AI prompt adds more structured fields but uses the same model
-- Saved searches are lightweight DB rows with no API cost until re-run
-- History tab reuses existing `arbitrage_opportunities` data already being stored
+## Technical Approach
+- All changes are frontend-only -- no database or edge function changes needed
+- Use React Router's `useSearchParams` for cross-page data passing
+- Use `useLocation` for active nav state
 - No new dependencies required
 
