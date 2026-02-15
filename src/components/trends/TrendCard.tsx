@@ -56,7 +56,7 @@ export default function TrendCard({ trend, index }: { trend: Trend; index: numbe
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04 }}
     >
-      <Card className="p-4 sm:p-5 hover:shadow-md active:shadow-sm transition-all h-full flex flex-col">
+      <Card className="p-3.5 sm:p-5 hover:shadow-md active:scale-[0.99] transition-all h-full flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0 flex-1">
@@ -126,11 +126,11 @@ export default function TrendCard({ trend, index }: { trend: Trend; index: numbe
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 pt-2 border-t border-border mt-auto">
+        <div className="flex gap-1.5 sm:gap-2 pt-2 border-t border-border mt-auto">
           <Button
             variant="outline"
             size="sm"
-            className="text-xs flex-1 h-9"
+            className="text-[10px] sm:text-xs flex-1 h-9 active:scale-95 transition-transform"
             onClick={() => navigate(`/price-check?brand=${encodeURIComponent(trend.brand_or_item)}&category=${encodeURIComponent(trend.category)}`)}
           >
             <Search className="w-3 h-3 mr-1" /> Price Check
@@ -138,7 +138,7 @@ export default function TrendCard({ trend, index }: { trend: Trend; index: numbe
           <Button
             variant="outline"
             size="sm"
-            className="text-xs flex-1 h-9"
+            className="text-[10px] sm:text-xs flex-1 h-9 active:scale-95 transition-transform"
             onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(trend.brand_or_item)}`)}
           >
             <ArrowRightLeft className="w-3 h-3 mr-1" /> Find Deals
