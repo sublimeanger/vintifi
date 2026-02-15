@@ -1,111 +1,150 @@
 
 
-# World-Class My Listings + Import Upgrade
+# Account Upgrade + Sitewide Plan Enforcement
 
-## Problems Identified
+## Part 1: Upgrade jamiemckaye@gmail.com
 
-1. **Listings aren't clickable** -- each listing card is flat with no expand/detail view. Users can't tap a listing to see its full details.
-2. **Optimize Listing shows blank** -- when clicking "Optimise Listing" from the dropdown, only title/brand/category/condition are passed as URL params. The `description` field is missing from both the `Listing` type and the data passed to the Optimize page.
-3. **Scraper doesn't capture descriptions** -- the import edge function only extracts title, brand, price, category, condition, size, image, and URL. It doesn't scrape individual listing pages to get full descriptions.
-4. **No description in Listing type** -- the frontend `Listing` type doesn't include `description`, even though the database column exists.
+Direct database update to set your account (user_id: `88bd3c36-b270-4512-9748-2e07cdd2512d`) to:
+- `profiles.subscription_tier` = `"scale"`
+- `usage_credits.credits_limit` = `999999`
 
-## What Changes
+This matches how the admin account (laurentwilleypiano@gmail.com) is configured.
 
-### 1. Upgrade the Scraper to Capture Descriptions
+---
 
-The `import-vinted-wardrobe` edge function currently scrapes wardrobe overview pages which only show titles, prices, and thumbnails. To get descriptions, we have two options:
+## Part 2: Sitewide Enforcement Audit
 
-**Chosen approach: Scrape individual listing pages for top items**
+### Current State -- What IS enforced
 
-After extracting the initial listing data (with `vinted_url` for each item), the function will make a second pass -- scraping each individual listing page via Firecrawl to extract the full description. This is gated by tier:
+| Location | Enforcement | Details |
+|----------|------------|---------|
+| `price-check` edge function | Server-side credit check | Blocks if `price_checks_used >= credits_limit` |
+| `optimize-listing` edge function | Server-side credit check | Blocks if `optimizations_used >= 60% of credits_limit` |
+| `import-vinted-wardrobe` edge function | Tier-based limits | Import limit, max pages, deep scrape limit all gated by tier |
+| `PriceCheck.tsx` | Client-side credit check | Toast error if credits exhausted |
+| `Dashboard.tsx` | Credit display | Shows remaining checks, low-credit warning |
+| `SettingsPage.tsx` | Credit display | Shows usage bar |
 
-- **Free**: Descriptions for first 5 items
-- **Pro**: First 50 items  
-- **Business/Scale**: All items
+### Gaps Found -- What is NOT enforced
 
-The AI prompt for individual page extraction will pull: full description text, views count, favourites count, and any additional details (measurements, materials, etc.).
+| Feature Page | Problem |
+|-------------|---------|
+| **ArbitrageScanner.tsx** | No tier gate. Free users can use it freely. Spec says Business+ only. No credit check. |
+| **OptimizeListing.tsx** | No client-side credit check before calling the edge function. User sees a generic error. |
+| **BulkOptimize.tsx** | No tier gate. Should be Business+ per spec. No per-item credit deduction. |
+| **NicheFinder.tsx** | No tier gate or credit check. |
+| **CompetitorTracker.tsx** | No tier gate. Spec says Pro+ with limits (3/15/50 competitors by tier). |
+| **TrendRadar.tsx** | No tier gate. Free users should see top 5 only per spec. |
+| **DeadStock.tsx** | No tier gate. |
+| **ClearanceRadar.tsx** | No tier gate. Should be Business+ per spec. |
+| **SeasonalCalendar.tsx** | No tier gate. |
+| **RelistScheduler.tsx** | No tier gate. |
+| **CrossListings.tsx** | No tier gate. |
+| **PortfolioOptimizer.tsx** | No tier gate. |
+| **CharityBriefing.tsx** | No tier gate. |
 
-This is a credit-intensive operation, so it runs as an optional "deep import" mode.
+### No Upgrade Modal Exists
 
-### 2. Add Expandable Listing Detail View
+There is currently **no reusable upgrade modal component** anywhere in the codebase. When users hit limits, they get a toast error with text like "Upgrade your plan for more" but no actionable path to actually upgrade. Users would need to manually navigate to Settings to find pricing.
 
-Each listing card becomes clickable. Tapping it expands an inline detail panel (accordion-style) showing:
+---
 
-- Full description (or "No description -- tap Optimise to generate one")
-- Larger image preview
-- All metadata: size, condition, brand, category
-- Quick action buttons: Price Check, Optimise, View on Vinted
-- Purchase price, sale price, profit margin
-- Health score gauge (if available)
+## Part 3: Implementation Plan
 
-This uses a `selectedListingId` state -- tapping a card toggles its expanded view with a smooth animation.
+### Step 1: Upgrade your account
+Run SQL to update `profiles` and `usage_credits` for your user.
 
-### 3. Fix Optimize Listing Data Flow
+### Step 2: Create `UpgradeModal` component
+A reusable modal component (`src/components/UpgradeModal.tsx`) that:
+- Accepts a `feature` prop describing what triggered it (e.g., "Arbitrage Scanner requires a Business plan")
+- Shows the user's current tier vs. required tier
+- Displays the relevant plan cards with pricing
+- Has "Upgrade Now" button that calls `create-checkout` edge function
+- Has "Buy Credits" option for credit-based limits
+- Closes gracefully if dismissed
+- Adapts for mobile (sheet/drawer style)
 
-- Add `description` to the frontend `Listing` type
-- Update `handleOptimiseListing` to pass `description` and `size` as URL params
-- Update `OptimizeListing.tsx` to read `description` and `size` from search params and pre-populate the form fields
-- When navigating from a listing, the Optimize page now shows the existing title, description, brand, category, size, and condition -- no more blank screen
-
-### 4. Add `description` to Listing Fetching
-
-The `listings` table already has a `description` column. The frontend `select("*")` query already returns it, but the `Listing` type silently drops it. Adding `description: string | null` to the type makes it available throughout the UI.
-
-## Technical Details
-
-### Files Changed
-
-| File | Change |
-|------|--------|
-| `src/pages/Listings.tsx` | Add `description` to Listing type, add expandable detail view with click-to-expand, pass description/size to Optimize, improve card interaction |
-| `src/pages/OptimizeListing.tsx` | Read `description` and `size` from URL search params, pre-populate form fields |
-| `supabase/functions/import-vinted-wardrobe/index.ts` | Add optional deep scrape pass to fetch descriptions from individual listing pages |
-
-### Listing Card Interaction Model
+### Step 3: Create `useFeatureGate` hook
+A reusable hook (`src/hooks/useFeatureGate.ts`) that centralises all tier/credit checks:
 
 ```text
-COLLAPSED (default):
-+------------------------------------------+
-| [img] Title                    [...menu] |
-|       Brand · Category · Status          |
-|       GBP12.00  Cost: --  Sale: --  85%  |
-+------------------------------------------+
-
-EXPANDED (tap to toggle):
-+------------------------------------------+
-| [img]  Title                   [...menu] |
-|        Brand · Category · Status         |
-|        GBP12.00  Cost: --  Sale: --      |
-|------------------------------------------|
-| [larger image]                           |
-|                                          |
-| DESCRIPTION                              |
-| "Lovely pair of Nike Air Max 90s in..."  |
-|                                          |
-| Size: UK 9  |  Condition: Very Good      |
-| Brand: Nike  |  Category: Trainers       |
-|                                          |
-| Health Score: [====== 78% ======]        |
-|                                          |
-| [Price Check] [Optimise] [View on Vinted]|
-+------------------------------------------+
+useFeatureGate(feature: string) => {
+  allowed: boolean,
+  reason: string | null,
+  showUpgrade: () => void,   // opens the UpgradeModal
+  creditsRemaining: number,
+  tierRequired: string
+}
 ```
 
-### Deep Import Flow
+Feature gate configuration:
 
-The scraper upgrade adds a second phase after the initial wardrobe scrape:
+| Feature | Min Tier | Uses Credits | Credit Type |
+|---------|----------|-------------|-------------|
+| price_check | free | Yes | price_checks |
+| optimize_listing | pro | Yes | optimizations |
+| bulk_optimize | business | Yes | optimizations |
+| arbitrage_scanner | business | No | -- |
+| niche_finder | pro | No | -- |
+| competitor_tracker | pro | No | -- |
+| trend_radar_full | pro | No | -- |
+| dead_stock | pro | No | -- |
+| clearance_radar | business | No | -- |
+| seasonal_calendar | pro | No | -- |
+| relist_scheduler | pro | No | -- |
+| cross_listings | business | No | -- |
+| portfolio_optimizer | pro | No | -- |
+| charity_briefing | pro | No | -- |
 
-1. Initial scrape extracts basic data (as today) including `vinted_url` for each item
-2. For items within the tier limit, Firecrawl scrapes each individual listing page
-3. AI extracts full description, views, favourites from each page
-4. Data is merged and upserted into the listings table
+### Step 4: Add gate checks to every feature page
 
-To keep initial imports fast, the deep scrape is opt-in via a "Import with descriptions" checkbox in the import modal. The standard import remains quick (wardrobe overview only).
+Each gated page gets a simple check at the top of its main action handler. If `allowed` is false, `showUpgrade()` is called instead of proceeding. Pages also show a banner at the top for tier-locked features:
 
-### Edge Cases
+```text
+"This feature requires a Pro plan. You're on Free."
+[Upgrade Now] [Buy Credits]
+```
 
-- Listings without descriptions show a helpful CTA: "No description yet -- tap Optimise to generate one with AI"
-- Clicking anywhere on the card (except the menu button and inline edit fields) toggles expand
-- On mobile, the expanded view is optimised for single-column viewing
-- The deep scrape respects Firecrawl rate limits with a small delay between individual page scrapes
+Pages affected (13 pages total):
+- ArbitrageScanner.tsx
+- OptimizeListing.tsx
+- BulkOptimize.tsx
+- NicheFinder.tsx
+- CompetitorTracker.tsx
+- TrendRadar.tsx (limit free users to top 5 trends)
+- DeadStock.tsx
+- ClearanceRadar.tsx
+- SeasonalCalendar.tsx
+- RelistScheduler.tsx
+- CrossListings.tsx
+- PortfolioOptimizer.tsx
+- CharityBriefing.tsx
+
+### Step 5: Improve credit exhaustion UX
+
+Update `PriceCheck.tsx` and `OptimizeListing.tsx` to show the UpgradeModal (not just a toast) when credits are exhausted. The modal provides a direct path to upgrade or buy credit packs.
+
+---
+
+## Files Created/Modified
+
+| File | Action |
+|------|--------|
+| `src/components/UpgradeModal.tsx` | **New** -- Reusable upgrade/buy credits modal |
+| `src/hooks/useFeatureGate.ts` | **New** -- Centralized feature gating hook |
+| `src/pages/ArbitrageScanner.tsx` | Add gate check |
+| `src/pages/OptimizeListing.tsx` | Add gate check + upgrade modal on credit exhaustion |
+| `src/pages/BulkOptimize.tsx` | Add gate check |
+| `src/pages/NicheFinder.tsx` | Add gate check |
+| `src/pages/CompetitorTracker.tsx` | Add gate check |
+| `src/pages/TrendRadar.tsx` | Add gate check (free = top 5 only) |
+| `src/pages/DeadStock.tsx` | Add gate check |
+| `src/pages/ClearanceRadar.tsx` | Add gate check |
+| `src/pages/SeasonalCalendar.tsx` | Add gate check |
+| `src/pages/RelistScheduler.tsx` | Add gate check |
+| `src/pages/CrossListings.tsx` | Add gate check |
+| `src/pages/PortfolioOptimizer.tsx` | Add gate check |
+| `src/pages/CharityBriefing.tsx` | Add gate check |
+| `src/pages/PriceCheck.tsx` | Replace toast with upgrade modal |
+| Database migration | Upgrade jamiemckaye account |
 
