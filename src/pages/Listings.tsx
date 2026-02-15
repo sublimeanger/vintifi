@@ -344,7 +344,7 @@ export default function Listings() {
               <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vinted URL (optional)</Label>
               <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="https://www.vinted.co.uk/items/..." className="h-11 sm:h-10 text-base sm:text-sm" />
             </div>
-            <Button onClick={handleAddListing} disabled={adding} className="w-full font-semibold h-12 sm:h-10">
+            <Button onClick={handleAddListing} disabled={adding} className="w-full font-semibold h-12 sm:h-10 active:scale-95 transition-transform">
               {adding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
               Add Listing
             </Button>
@@ -508,8 +508,10 @@ export default function Listings() {
       {loading ? (
         <ListingCardSkeleton count={5} />
       ) : filteredListings.length === 0 ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
-          <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12 sm:py-16">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+            <Package className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/40" />
+          </div>
           <h3 className="font-display font-bold text-base sm:text-lg mb-2">
             {listings.length === 0 ? "No listings yet" : "No matching listings"}
           </h3>
@@ -519,7 +521,7 @@ export default function Listings() {
               : "Try adjusting your search or filters"}
           </p>
           {listings.length === 0 && (
-            <Button onClick={() => setAddDialogOpen(true)} className="font-semibold h-12 sm:h-10">
+            <Button onClick={() => setAddDialogOpen(true)} className="font-semibold h-12 sm:h-10 active:scale-95 transition-transform">
               <Plus className="w-4 h-4 mr-2" /> Add Your First Listing
             </Button>
           )}
@@ -541,10 +543,10 @@ export default function Listings() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ delay: i * 0.03 }}
                 >
-                  <Card className={`p-3 sm:p-4 hover:shadow-md active:shadow-sm transition-all ${isDeadStock ? "border-destructive/30" : ""}`}>
-                    <div className="flex items-start gap-3">
+                  <Card className={`p-3 sm:p-4 hover:shadow-md active:scale-[0.99] transition-all ${isDeadStock ? "border-destructive/30 bg-destructive/[0.01]" : ""}`}>
+                    <div className="flex items-start gap-2.5 sm:gap-3">
                       {/* Image */}
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
                         {listing.image_url ? (
                           <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
                         ) : (
@@ -620,8 +622,8 @@ export default function Listings() {
                           </DropdownMenu>
                         </div>
 
-                        {/* Metrics Row — stacked on mobile, inline on desktop */}
-                        <div className="flex items-center gap-3 sm:gap-4 mt-2 sm:mt-3 flex-wrap">
+                        {/* Metrics Row */}
+                        <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2.5 flex-wrap">
                           {listing.current_price != null && (
                             <span className="font-display font-bold text-sm">
                               £{listing.current_price.toFixed(2)}
