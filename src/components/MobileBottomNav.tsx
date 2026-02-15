@@ -18,8 +18,8 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around h-14">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-center justify-around h-16">
         {tabs.map((tab) => {
           const isActive = location.pathname === tab.path;
           return (
@@ -27,7 +27,7 @@ export function MobileBottomNav() {
               key={tab.path}
               onClick={() => navigate(tab.path)}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors min-w-0 active:scale-95",
+                "relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-all min-w-0 active:scale-95",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground"
@@ -35,13 +35,16 @@ export function MobileBottomNav() {
             >
               {isActive && (
                 <motion.div
-                  layoutId="bottom-nav-indicator"
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full"
+                  layoutId="bottom-nav-pill"
+                  className="absolute inset-x-2 inset-y-1.5 bg-primary/10 rounded-xl"
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}
-              <tab.icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <tab.icon className="w-[22px] h-[22px] relative z-10" />
+              <span className={cn(
+                "text-[10px] font-medium relative z-10",
+                isActive && "font-semibold"
+              )}>{tab.label}</span>
             </button>
           );
         })}
