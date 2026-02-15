@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -107,10 +107,11 @@ type SortKey = "deal_score" | "profit" | "margin" | "speed";
 
 export default function ArbitrageScanner() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
-  const [brand, setBrand] = useState("");
-  const [category, setCategory] = useState("");
+  const [brand, setBrand] = useState(searchParams.get("brand") || "");
+  const [category, setCategory] = useState(searchParams.get("category") || "");
   const [minMargin, setMinMargin] = useState(30);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(PLATFORMS.map(p => p.name));
 

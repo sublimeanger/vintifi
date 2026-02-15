@@ -13,7 +13,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Sparkles, Copy, Check, Save,
   ImagePlus, X, Camera, Globe, Languages, ArrowRight,
+  Search, ShoppingBag,
 } from "lucide-react";
+import { JourneyBanner } from "@/components/JourneyBanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HealthScoreGauge } from "@/components/HealthScoreGauge";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -521,7 +523,7 @@ export default function OptimizeListing() {
               </Card>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pb-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pb-2">
                 <Button
                   onClick={() => navigate(`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}&condition=${encodeURIComponent(result.detected_condition || condition)}`)}
                   variant="outline"
@@ -535,6 +537,19 @@ export default function OptimizeListing() {
                   Save to My Listings
                 </Button>
               </div>
+
+              {/* Journey Banner */}
+              <JourneyBanner
+                title="Listing Lifecycle"
+                steps={[
+                  { label: "Optimise", path: "/optimize", icon: Sparkles, completed: true },
+                  { label: "Price Check", path: `/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}`, icon: Search },
+                  { label: "Inventory", path: "/listings", icon: ShoppingBag },
+                ]}
+                nextLabel="Price Check This Item"
+                nextPath={`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}`}
+                nextIcon={Search}
+              />
             </motion.div>
           )}
         </AnimatePresence>

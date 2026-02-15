@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,11 +10,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   RefreshCw, ShoppingBag, TrendingUp, Star,
   PoundSterling, Lightbulb, MapPin, ChevronDown, ChevronUp, Search,
+  ArrowRightLeft, BookmarkPlus,
 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { BriefingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { FeatureGate } from "@/components/FeatureGate";
+import { JourneyBanner } from "@/components/JourneyBanner";
 
 type BriefingItem = {
   brand: string;
@@ -40,6 +43,7 @@ const signalConfig = {
 
 export default function CharityBriefing() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [briefing, setBriefing] = useState<Briefing | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
@@ -187,14 +191,47 @@ export default function CharityBriefing() {
                                 <Lightbulb className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
                                 <p className="text-xs text-foreground/80">{item.tip}</p>
                               </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-[10px] sm:text-xs mt-2 w-full h-10 sm:h-9 active:scale-95 transition-transform"
-                                onClick={(e) => { e.stopPropagation(); navigate(`/price-check?brand=${encodeURIComponent(item.brand)}&category=${encodeURIComponent(item.category)}`); }}
-                              >
-                                <Search className="w-3 h-3 mr-1" /> Price Check {item.brand}
-                              </Button>
+                              <div className="flex flex-col gap-1.5 mt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-[10px] sm:text-xs w-full h-10 sm:h-9 active:scale-95 transition-transform"
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/price-check?brand=${encodeURIComponent(item.brand)}&category=${encodeURIComponent(item.category)}`); }}
+                                >
+                                  <Search className="w-3 h-3 mr-1" /> Price Check {item.brand}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-[10px] sm:text-xs w-full h-10 sm:h-9 active:scale-95 transition-transform"
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/arbitrage?brand=${encodeURIComponent(item.brand)}&category=${encodeURIComponent(item.category)}`); }}
+                                >
+                                  <ArrowRightLeft className="w-3 h-3 mr-1" /> Find Arbitrage Deals
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-[10px] sm:text-xs w-full h-10 sm:h-9 active:scale-95 transition-transform text-success"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (!user) { toast.error("Sign in first"); return; }
+                                    const { error } = await supabase.from("listings").insert({
+                                      user_id: user.id,
+                                      title: `${item.brand} ${item.item_type}`,
+                                      brand: item.brand,
+                                      category: item.category,
+                                      recommended_price: item.estimated_sell_price,
+                                      current_price: item.estimated_sell_price,
+                                      purchase_price: item.max_buy_price,
+                                      status: "watchlist",
+                                    });
+                                    if (error) toast.error("Failed to save");
+                                    else toast.success("Saved to sourcing list!");
+                                  }}
+                                >
+                                  <BookmarkPlus className="w-3 h-3 mr-1" /> Save to Sourcing List
+                                </Button>
+                              </div>
                             </div>
                           </motion.div>
                         )}
@@ -222,6 +259,20 @@ export default function CharityBriefing() {
                 </ul>
               </Card>
             )}
+
+            {/* Journey Banner */}
+            <JourneyBanner
+              title="Sourcing Journey"
+              steps={[
+                { label: "Briefing", path: "/charity-briefing", icon: MapPin, active: true },
+                { label: "Price Check", path: "/price-check", icon: Search },
+                { label: "Arbitrage", path: "/arbitrage", icon: ArrowRightLeft },
+                { label: "Inventory", path: "/listings", icon: ShoppingBag },
+              ]}
+              nextLabel="Run a Price Check"
+              nextPath="/price-check"
+              nextIcon={Search}
+            />
           </motion.div>
         </AnimatePresence>
       )}
