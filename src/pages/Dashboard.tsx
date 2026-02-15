@@ -23,6 +23,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
+import { GuidedTour } from "@/components/GuidedTour";
 
 const navSections = [
   {
@@ -273,7 +274,7 @@ export default function Dashboard() {
           </div>
 
           {/* Price Check CTA */}
-          <Card className="p-4 sm:p-6 mb-6 sm:mb-8 border-primary/20 bg-primary/[0.02]">
+          <Card id="tour-price-check" className="p-4 sm:p-6 mb-6 sm:mb-8 border-primary/20 bg-primary/[0.02]">
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-5 h-5 text-primary" />
               <h3 className="font-display font-bold text-base sm:text-lg">Price Intelligence Engine</h3>
@@ -365,10 +366,11 @@ export default function Dashboard() {
                   { icon: Search, label: "Price Check", desc: "Get instant pricing", path: "/price-check" },
                   { icon: Zap, label: "Optimise Listing", desc: "AI-powered listing optimisation", path: "/optimize" },
                   { icon: FileSpreadsheet, label: "Bulk Optimise", desc: "CSV batch AI listings", path: "/bulk-optimize", accent: "accent" },
-                  { icon: TrendingUp, label: "Trend Radar", desc: "Rising brands & styles", path: "/trends" },
+                  { icon: TrendingUp, label: "Trend Radar", desc: "Rising brands & styles", path: "/trends", tourId: "tour-trends" },
                 ].map((item) => (
                   <Card
                     key={item.path + item.label}
+                    id={(item as any).tourId}
                     className="p-4 cursor-pointer hover:shadow-md transition-shadow border-border/50"
                     onClick={() => navigate(item.path)}
                   >
@@ -385,13 +387,14 @@ export default function Dashboard() {
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Market Analysis</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { icon: ArrowRightLeft, label: "Arbitrage Scanner", desc: "Find profitable flips", path: "/arbitrage" },
+                  { icon: ArrowRightLeft, label: "Arbitrage Scanner", desc: "Find profitable flips", path: "/arbitrage", tourId: "tour-arbitrage" },
                   { icon: Radar, label: "Competitor Tracker", desc: "Monitor rivals", path: "/competitors" },
                   { icon: CalendarDays, label: "Seasonal Calendar", desc: "Demand peaks by category", path: "/seasonal" },
                   { icon: MapPin, label: "Charity Briefing", desc: "AI sourcing list", path: "/charity-briefing" },
                 ].map((item) => (
                   <Card
                     key={item.path}
+                    id={(item as any).tourId}
                     className="p-4 cursor-pointer hover:shadow-md transition-shadow border-border/50"
                     onClick={() => navigate(item.path)}
                   >
@@ -408,7 +411,7 @@ export default function Dashboard() {
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Inventory Management</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { icon: Tag, label: "My Listings", desc: "Track and manage items", path: "/listings" },
+                  { icon: Tag, label: "My Listings", desc: "Track and manage items", path: "/listings", tourId: "tour-listings" },
                   { icon: AlertTriangle, label: "Dead Stock", desc: "Liquidate stale inventory", path: "/dead-stock", color: "text-destructive" },
                   { icon: Timer, label: "Relist Scheduler", desc: "Auto-schedule relists", path: "/relist" },
                   { icon: Target, label: "Portfolio Optimiser", desc: "Bulk-fix pricing", path: "/portfolio" },
@@ -416,6 +419,7 @@ export default function Dashboard() {
                 ].map((item) => (
                   <Card
                     key={item.path + item.label}
+                    id={(item as any).tourId}
                     className="p-4 cursor-pointer hover:shadow-md transition-shadow border-border/50"
                     onClick={() => navigate(item.path)}
                   >
@@ -432,6 +436,9 @@ export default function Dashboard() {
 
       {/* Mobile Bottom Nav */}
       <MobileBottomNav />
+
+      {/* Guided Tour */}
+      {!loadingReports && <GuidedTour />}
     </div>
   );
 }
