@@ -164,10 +164,10 @@ export default function Dashboard() {
       <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
         <div className="p-6">
         <h1 className="font-display text-xl font-extrabold"><span className="text-gradient">Vintifi</span></h1>
-          <div className="mt-3 flex items-center gap-2 bg-sidebar-accent/60 rounded-lg px-3 py-2">
+          <button onClick={() => navigate("/settings")} className="mt-3 flex items-center gap-2 bg-sidebar-accent/60 hover:bg-sidebar-accent rounded-lg px-3 py-2 transition-colors w-full">
             <Zap className="w-3.5 h-3.5 text-primary shrink-0" />
             <span className="text-xs font-medium text-sidebar-foreground/80">{checksRemaining} credits left</span>
-          </div>
+          </button>
         </div>
         <nav className="flex-1 px-3 space-y-4 overflow-y-auto scrollbar-hide">
           {navSections.map((section) => (
@@ -208,10 +208,10 @@ export default function Dashboard() {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border flex items-center justify-between px-4 h-14">
         <h1 className="font-display text-lg font-extrabold"><span className="text-gradient">Vintifi</span></h1>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-muted rounded-full px-2.5 py-1">
+          <button onClick={() => navigate("/settings")} className="flex items-center gap-1.5 bg-muted hover:bg-muted/80 rounded-full px-2.5 py-1 transition-colors">
             <Zap className="w-3 h-3 text-primary" />
             <span className="text-[11px] font-semibold">{checksRemaining}</span>
-          </div>
+          </button>
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="h-10 w-10">
