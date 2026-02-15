@@ -7,6 +7,93 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const ALL_PLATFORMS = [
+  { name: "eBay", query: "site:ebay.co.uk" },
+  { name: "Depop", query: "site:depop.com" },
+  { name: "Facebook Marketplace", query: "site:facebook.com/marketplace" },
+  { name: "Gumtree", query: "site:gumtree.com" },
+];
+
+async function searchPlatform(platform: { name: string; query: string }, searchTerm: string, apiKey: string) {
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `${platform.query} ${searchTerm}`,
+        limit: 10,
+        scrapeOptions: { formats: ["markdown"] },
+      }),
+    });
+    if (!res.ok) {
+      console.error(`${platform.name} search failed:`, res.status);
+      return { platform: platform.name, results: [] };
+    }
+    const data = await res.json();
+    return { platform: platform.name, results: data.data || data.results || [] };
+  } catch (e) {
+    console.error(`${platform.name} search error:`, e);
+    return { platform: platform.name, results: [] };
+  }
+}
+
+async function searchVinted(searchTerm: string, apiKey: string) {
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `site:vinted.co.uk ${searchTerm}`,
+        limit: 8,
+        scrapeOptions: { formats: ["markdown"] },
+      }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.data || data.results || [];
+  } catch {
+    return [];
+  }
+}
+
+function buildPrompt(searchTerm: string, minMargin: number, platformSummary: string, vintedSummary: string) {
+  return `You are a UK reselling arbitrage analyst specialising in Vinted flips. Analyse these search results to find profitable arbitrage opportunities.
+
+SEARCH TERM: "${searchTerm}"
+MINIMUM PROFIT MARGIN: ${minMargin}%
+
+## Source Platform Listings (Buy From)
+${platformSummary}
+
+## Vinted Reference Prices (Sell On)
+${vintedSummary || "No Vinted results - estimate based on UK market knowledge"}
+
+Analyse and return a JSON array of arbitrage opportunities. For each opportunity include ALL of these fields:
+- source_platform: platform name exactly as shown above
+- source_url: the source listing URL (use actual URL from results if available, otherwise null)
+- source_title: item title from source
+- source_price: estimated buy price in GBP (extract from listing or estimate)
+- vinted_estimated_price: what this would sell for on Vinted in GBP
+- estimated_profit: raw profit (vinted price minus source price)
+- profit_margin: percentage margin
+- brand: brand name
+- category: item category
+- condition: estimated condition (New / Like New / Good / Fair)
+- ai_notes: 1-2 sentence explanation of why this is a good flip
+- deal_score: integer 1-100 rating the overall quality (consider margin, demand, brand heat, condition, sell speed)
+- risk_level: "low" / "medium" / "high" - risk of the item NOT selling on Vinted
+- estimated_days_to_sell: estimated days to sell on Vinted (integer)
+- demand_indicator: "hot" / "warm" / "cold" - current UK demand level
+- suggested_listing_title: an SEO-optimised Vinted listing title ready to copy-paste
+- shipping_estimate: estimated UK shipping cost in GBP (typically 2.50-5.00 for clothing, 5-10 for shoes/heavy)
+- net_profit: estimated_profit minus shipping_estimate minus 0 (Vinted has no seller fees)
+
+Only include opportunities with profit margin >= ${minMargin}%.
+If no good opportunities exist, return an empty array [].
+Return 5-10 opportunities maximum, ranked by deal_score descending.
+Return ONLY the JSON array, no other text.`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,7 +122,7 @@ serve(async (req) => {
       });
     }
 
-    const { brand, category, min_profit_margin = 30 } = await req.json();
+    const { brand, category, min_profit_margin = 30, platforms } = await req.json();
 
     if (!brand && !category) {
       return new Response(
@@ -47,125 +134,37 @@ serve(async (req) => {
     const searchTerm = [brand, category].filter(Boolean).join(" ");
     console.log("Arbitrage scan for:", searchTerm);
 
-    // Search eBay and Depop via Firecrawl search
-    const platforms = [
-      { name: "eBay", query: `site:ebay.co.uk ${searchTerm}` },
-      { name: "Depop", query: `site:depop.com ${searchTerm}` },
-    ];
+    // Filter platforms based on user selection
+    const selectedPlatforms = platforms && Array.isArray(platforms) && platforms.length > 0
+      ? ALL_PLATFORMS.filter(p => platforms.includes(p.name))
+      : ALL_PLATFORMS;
 
-    const searchPromises = platforms.map(async (platform) => {
-      try {
-        const res = await fetch("https://api.firecrawl.dev/v1/search", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query: platform.query,
-            limit: 10,
-            scrapeOptions: { formats: ["markdown"] },
-          }),
-        });
-
-        if (!res.ok) {
-          console.error(`${platform.name} search failed:`, res.status);
-          return { platform: platform.name, results: [] };
-        }
-
-        const data = await res.json();
-        return {
-          platform: platform.name,
-          results: data.data || data.results || [],
-        };
-      } catch (e) {
-        console.error(`${platform.name} search error:`, e);
-        return { platform: platform.name, results: [] };
-      }
-    });
-
-    // Also search Vinted for current pricing baseline
-    const vintedSearchPromise = (async () => {
-      try {
-        const res = await fetch("https://api.firecrawl.dev/v1/search", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query: `site:vinted.co.uk ${searchTerm}`,
-            limit: 8,
-            scrapeOptions: { formats: ["markdown"] },
-          }),
-        });
-
-        if (!res.ok) return [];
-        const data = await res.json();
-        return data.data || data.results || [];
-      } catch {
-        return [];
-      }
-    })();
-
+    // Search all selected platforms + Vinted in parallel
     const [platformResults, vintedResults] = await Promise.all([
-      Promise.all(searchPromises),
-      vintedSearchPromise,
+      Promise.all(selectedPlatforms.map(p => searchPlatform(p, searchTerm, FIRECRAWL_API_KEY))),
+      searchVinted(searchTerm, FIRECRAWL_API_KEY),
     ]);
 
-    // Build context for AI analysis
+    // Build context for AI
     const platformSummary = platformResults
       .map((p) => {
-        const items = p.results
-          .slice(0, 8)
-          .map((r: any) => {
-            const title = r.title || "";
-            const desc = r.description || r.markdown?.slice(0, 200) || "";
-            const url = r.url || "";
-            return `  - ${title} | ${desc} | ${url}`;
-          })
-          .join("\n");
+        const items = p.results.slice(0, 8).map((r: any) => {
+          const title = r.title || "";
+          const desc = r.description || r.markdown?.slice(0, 200) || "";
+          const url = r.url || "";
+          return `  - ${title} | ${desc} | ${url}`;
+        }).join("\n");
         return `## ${p.platform}\n${items || "  No results found"}`;
       })
       .join("\n\n");
 
-    const vintedSummary = vintedResults
-      .slice(0, 8)
-      .map((r: any) => {
-        const title = r.title || "";
-        const desc = r.description || r.markdown?.slice(0, 200) || "";
-        return `  - ${title} | ${desc}`;
-      })
-      .join("\n");
+    const vintedSummary = vintedResults.slice(0, 8).map((r: any) => {
+      const title = r.title || "";
+      const desc = r.description || r.markdown?.slice(0, 200) || "";
+      return `  - ${title} | ${desc}`;
+    }).join("\n");
 
-    const prompt = `You are a reselling arbitrage analyst. Analyse these search results to find profitable arbitrage opportunities where items are available cheaper on eBay or Depop than their estimated Vinted sell price.
-
-SEARCH TERM: "${searchTerm}"
-MINIMUM PROFIT MARGIN: ${min_profit_margin}%
-
-## Source Platform Listings (Buy From)
-${platformSummary}
-
-## Vinted Reference Prices (Sell On)
-${vintedSummary || "No Vinted results - estimate based on market knowledge"}
-
-Analyse and return a JSON array of arbitrage opportunities. For each opportunity:
-- source_platform: "eBay" or "Depop"
-- source_url: the source listing URL (use actual URL from results if available, otherwise null)
-- source_title: item title from source
-- source_price: estimated buy price in GBP (extract from listing or estimate)
-- vinted_estimated_price: what this would sell for on Vinted in GBP
-- estimated_profit: vinted_estimated_price minus source_price
-- profit_margin: percentage margin
-- brand: brand name
-- category: item category
-- condition: estimated condition
-- ai_notes: 1-2 sentence explanation of why this is a good flip opportunity
-
-Only include opportunities with profit margin >= ${min_profit_margin}%.
-If no good opportunities exist, return an empty array [].
-Return 5-10 opportunities maximum, ranked by profit margin descending.
-Return ONLY the JSON array, no other text.`;
+    const prompt = buildPrompt(searchTerm, min_profit_margin, platformSummary, vintedSummary);
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -184,6 +183,11 @@ Return ONLY the JSON array, no other text.`;
       if (status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited, try again later." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       throw new Error(`AI gateway error: ${status}`);
@@ -219,6 +223,13 @@ Return ONLY the JSON array, no other text.`;
         category: o.category || category,
         condition: o.condition,
         ai_notes: o.ai_notes,
+        deal_score: o.deal_score,
+        risk_level: o.risk_level,
+        estimated_days_to_sell: o.estimated_days_to_sell,
+        demand_indicator: o.demand_indicator,
+        suggested_listing_title: o.suggested_listing_title,
+        shipping_estimate: o.shipping_estimate,
+        net_profit: o.net_profit,
       }));
 
       await serviceClient.from("arbitrage_opportunities").insert(rows);
@@ -228,7 +239,7 @@ Return ONLY the JSON array, no other text.`;
       JSON.stringify({
         opportunities,
         search_term: searchTerm,
-        platforms_searched: platforms.map((p) => p.name),
+        platforms_searched: selectedPlatforms.map(p => p.name),
         total_found: opportunities.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
