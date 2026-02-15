@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Loader2, Zap, ExternalLink,
-  TrendingUp, ShoppingBag, BarChart3, ShoppingCart, Sparkles,
+  TrendingUp, ShoppingBag, BarChart3, ShoppingCart, Sparkles, BookmarkPlus,
 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
@@ -52,6 +53,7 @@ function getMarginColor(margin: number) {
 }
 
 export default function ClearanceRadar() {
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [selectedRetailers, setSelectedRetailers] = useState<string[]>([]);
@@ -293,17 +295,39 @@ export default function ClearanceRadar() {
                           variant="outline"
                           size="sm"
                           className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform"
+                          onClick={() => navigate(`/price-check?brand=${encodeURIComponent(opp.brand || "")}&category=${encodeURIComponent(opp.category || "")}`)}
+                        >
+                          <Search className="w-3 h-3 mr-1" /> Check Vinted Price
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform text-success"
+                          onClick={async () => {
+                            if (!user) { toast.error("Sign in first"); return; }
+                            const { error } = await supabase.from("listings").insert({
+                              user_id: user.id,
+                              title: opp.item_title,
+                              brand: opp.brand || null,
+                              category: opp.category || null,
+                              current_price: opp.vinted_resale_price,
+                              recommended_price: opp.vinted_resale_price,
+                              purchase_price: opp.sale_price,
+                              status: "watchlist",
+                            });
+                            if (error) toast.error("Failed to save");
+                            else toast.success("Saved to sourcing list!");
+                          }}
+                        >
+                          <BookmarkPlus className="w-3 h-3 mr-1" /> Save to Sourcing List
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform"
                           onClick={() => navigate(`/optimize?brand=${encodeURIComponent(opp.brand || "")}&category=${encodeURIComponent(opp.category || "")}`)}
                         >
                           <Sparkles className="w-3 h-3 mr-1" /> Create Listing
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform"
-                          onClick={() => navigate(`/price-check?brand=${encodeURIComponent(opp.brand || "")}&category=${encodeURIComponent(opp.category || "")}`)}
-                        >
-                          <Search className="w-3 h-3 mr-1" /> Price Check
                         </Button>
                       </div>
                     </Card>

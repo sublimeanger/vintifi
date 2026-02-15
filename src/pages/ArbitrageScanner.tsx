@@ -674,6 +674,37 @@ export default function ArbitrageScanner() {
                                   </Button>
                                 </a>
                               )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform"
+                                onClick={() => navigate(`/price-check?brand=${encodeURIComponent(opp.brand || "")}&category=${encodeURIComponent(opp.category || "")}`)}
+                              >
+                                <Search className="w-3 h-3 mr-1" /> Check Vinted Price
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform text-success"
+                                onClick={async () => {
+                                  if (!user) { toast.error("Sign in first"); return; }
+                                  const { error } = await supabase.from("listings").insert({
+                                    user_id: user.id,
+                                    title: opp.suggested_listing_title || opp.source_title,
+                                    brand: opp.brand || null,
+                                    category: opp.category || null,
+                                    condition: opp.condition || null,
+                                    current_price: opp.vinted_estimated_price,
+                                    recommended_price: opp.vinted_estimated_price,
+                                    purchase_price: opp.source_price,
+                                    status: "watchlist",
+                                  });
+                                  if (error) toast.error("Failed to save");
+                                  else toast.success("Saved to sourcing list!");
+                                }}
+                              >
+                                <BookmarkPlus className="w-3 h-3 mr-1" /> Save to Sourcing List
+                              </Button>
                               {opp.suggested_listing_title && (
                                 <Button variant="outline" size="sm" className="text-[10px] sm:text-xs h-9 active:scale-95 transition-transform" onClick={() => copyTitle(opp.suggested_listing_title!)}>
                                   <Copy className="w-3 h-3 mr-1" /> Copy Title
