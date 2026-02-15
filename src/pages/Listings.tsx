@@ -303,6 +303,8 @@ export default function Listings() {
               <Button size="sm" className="font-semibold hidden sm:flex">
                 <Plus className="w-4 h-4 mr-1" /> Add Listing
               </Button>
+            </DialogTrigger>
+            <DialogTrigger asChild>
               <Button size="icon" className="font-semibold sm:hidden h-10 w-10">
                 <Plus className="w-4 h-4" />
               </Button>
