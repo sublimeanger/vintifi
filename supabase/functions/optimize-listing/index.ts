@@ -61,9 +61,9 @@ serve(async (req) => {
           if (fetchOnly) {
             // Try to extract structured info from markdown
             const titleMatch = markdown.match(/^#\s*(.+)/m);
-            const brandMatch = markdown.match(/brand[:\s]+([^\n,]+)/i);
-            const sizeMatch = markdown.match(/size[:\s]+([^\n,]+)/i);
-            const conditionMatch = markdown.match(/condition[:\s]+([^\n,]+)/i);
+            const brandMatch = markdown.match(/brand[:\s]+([^\n,()\[\]]+)/i);
+            const sizeMatch = markdown.match(/size[:\s]+([A-Za-z0-9\s/"'.\-]+)/i);
+            const conditionMatch = markdown.match(/condition[:\s]+([^\n,()\[\]]+)/i);
 
             return new Response(JSON.stringify({
               photos: imageUrls.slice(0, 4),
