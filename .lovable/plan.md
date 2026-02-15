@@ -1,100 +1,92 @@
 
 
-# Level Up Vintography: World-Class Enhancements
+# Vintography Integration + System Logic Check + Feature Audit
 
-Here's what would take Vintography from "useful tool" to "feature sellers can't live without":
+## Part 1: Bake Vintography Into the Ecosystem
 
----
+Vintography currently lives in isolation at `/vintography`. It should be woven into every place where photos matter.
 
-## 1. Side-by-Side Comparison Toggle
+### 1.1 Listings Page -- "Enhance Photos" action in dropdown menu
+In `src/pages/Listings.tsx`, the per-listing dropdown menu (lines ~899-917) has "Run Price Check", "Optimise Listing", "Publish to Platforms", "View on Vinted", and "Delete". Add an **"Enhance Photos"** option that navigates to `/vintography?image_url={listing.image_url}` so users can enhance a listing's photo directly from their inventory.
 
-Currently the before/after slider works well, but world-class photo editors also offer a **side-by-side** mode. Add a toggle between "Overlay Slider" and "Side-by-Side" views so users can compare both images at full size without the clip-path overlap.
+Also: when a listing has no `image_url`, show a subtle "Add Photo" prompt instead.
 
-**What changes:** Add a view mode toggle above the comparison card. In side-by-side mode, show original and processed images next to each other (stacked on mobile).
+### 1.2 Optimise Listing Page -- Journey Banner with Vintography step
+The Listing Lifecycle journey banner on `OptimizeListing.tsx` (lines 626-636) currently flows: Optimise -> Price Check -> Inventory. Insert **Vintography** as a step: Optimise -> **Enhance Photos** -> Price Check -> Inventory. This prompts users to polish their photos after writing optimised copy.
 
----
+### 1.3 Price Check Page -- Journey Banner with Vintography step
+Similarly on `PriceCheck.tsx` (lines 397-407), the journey flows: Price Check -> Optimise -> Inventory. Update to: Price Check -> Optimise -> **Enhance Photos** -> Inventory.
 
-## 2. Multi-Photo Batch Queue
+### 1.4 Dashboard -- Add Vintography to Intelligence Tools grid
+In `Dashboard.tsx` (lines 452-474), the "Intelligence Tools" grid has Price Check, Optimise, Bulk Optimise, and Trend Radar. Add a **Vintography** card to the "Intelligence Tools" section (or create a mini "Studio" row) so it's discoverable from the main dashboard.
 
-Right now users process one photo at a time. Add the ability to **upload multiple images** and queue them for the same operation. Show a thumbnail strip at the top with processing status indicators per image. This is especially valuable for sellers listing items with 5+ photos.
-
-**What changes:** 
-- Accept multiple files in the upload input
-- Show a horizontal scrollable thumbnail strip
-- Process images sequentially, updating status per thumbnail
-- "Download All" button for the batch
-
----
-
-## 3. Undo / Re-generate with Variation
-
-After processing, add a **"Try Again"** button that re-runs the same operation with slightly different results (AI models produce variation naturally). This gives users choice without re-uploading. Also add an undo stack so they can flip between the last 3 results.
-
-**What changes:** Track up to 3 processed URLs in state. Add "Try Again" and left/right arrow buttons to browse variations.
+### 1.5 Vintography -- Accept `image_url` query param on load
+Update `src/pages/Vintography.tsx` to check for `?image_url=` in query params on mount. If present, set it as the `originalUrl` directly so users arriving from Listings or Optimise pages land with their photo pre-loaded, ready to edit.
 
 ---
 
-## 4. Zoom & Pan on Preview
+## Part 2: Feature Utility Audit -- What Stays, What Goes, What Upgrades
 
-For detailed inspection (checking edge quality on background removal), add **pinch-to-zoom and drag-to-pan** on the comparison preview. Essential for mobile users examining fine details like hair, lace, or frayed edges.
+After reviewing all 20+ feature pages, here is the honest assessment:
 
-**What changes:** Wrap the comparison area in a transform container with touch gesture handlers. Add a zoom slider or +/- buttons for desktop.
+### Features with Real Utility (Keep)
+| Feature | Verdict | Notes |
+|---------|---------|-------|
+| Price Check | Core. Keep | Primary conversion driver |
+| AI Listing Optimiser | Core. Keep | High daily-use value |
+| Vintography | Core. Keep | Just levelled up |
+| My Listings / Inventory | Core. Keep | Central data hub |
+| Trend Radar | Keep | Unique intelligence |
+| Dead Stock Analyser | Keep | Directly saves money |
+| P&L Analytics | Keep | Essential for serious sellers |
 
----
+### Features to Consider Removing or Merging
+| Feature | Issue | Recommendation |
+|---------|-------|----------------|
+| **Portfolio Optimiser** vs **Dead Stock** | Massive overlap. Both analyse your inventory for pricing issues. Portfolio Optimiser does "bulk fix pricing" while Dead Stock does "liquidate stale items" -- these are the same problem. | **Merge** Portfolio Optimiser INTO Dead Stock. Rename the combined page to "Inventory Health" covering both stale item liquidation AND price optimisation in one view. Remove `/portfolio` route. |
+| **Seasonal Calendar** vs **Trend Radar** | Seasonal Calendar shows "when demand peaks" and Trend Radar shows "what's trending now". The calendar is useful but rarely visited because Trend Radar already surfaces seasonal shifts. | **Merge** as a tab within Trend Radar. Add a "Seasonal" tab alongside the main trends view. Remove `/seasonal` as a standalone page. |
+| **Bulk Optimise** | CSV-based batch listing optimisation. Useful for power users but the UX is heavy (upload CSV, parse, process one by one). Low engagement expected. | **Keep but demote** -- remove from the main dashboard grid and Intelligence Tools. Move it under "My Listings" as a secondary action. It's a power-user tool, not a discovery feature. |
+| **Clearance Radar** | Monitors retail clearance pages for flip opportunities. Without actual live scraping connections, this is essentially AI-generated mock data. | **Keep for now** but flag it clearly as "coming soon" if Firecrawl/Lobstr aren't actually connected yet. Don't mislead users. |
+| **Niche Finder** | Identifies underserved categories. Overlaps conceptually with Trend Radar's opportunity scores. | **Merge** as a "Niches" tab within Trend Radar. Three tabs: Trending / Seasonal / Niches. |
+| **Cross-Listings + Platform Connections** | Cross-platform publishing to eBay/Depop. Without real API integrations, these pages show empty states. | **Keep the pages** but only surface them in the sidebar if the user has connected a platform. Hide from the dashboard until real utility exists. |
 
-## 5. Quick Presets Bar
-
-Instead of just 4 operations, show **quick preset combinations** like:
-- "Marketplace Ready" = Remove BG + Enhance in one click
-- "Lifestyle Shot" = Smart BG (wooden floor) + Enhance
-- "Premium Listing" = Model Shot + Enhance
-
-These chain two operations automatically, saving users a step and showing the premium value.
-
-**What changes:** Add a "Quick Presets" section above the operation cards. Each preset calls the edge function twice in sequence.
-
----
-
-## 6. Before/After Animation Preview
-
-Add a small **auto-playing fade toggle** animation on gallery thumbnails (like a GIF effect that flips between original and processed). This makes the gallery visually striking and instantly shows the transformation value.
-
-**What changes:** On gallery card hover (desktop) or on a timer (mobile), crossfade between `original_url` and `processed_url` using CSS transitions.
-
----
-
-## 7. Credit Usage Bar
-
-Show a clear **visual progress bar** of Vintography credits used this month (e.g., "3/15 edits used") directly on the page, not just in toast messages. This creates urgency for free users and clarity for paid users.
-
-**What changes:** Add a small progress bar component below the page subtitle showing `vintography_used / limit`.
+### Features to Upgrade
+| Feature | Upgrade |
+|---------|---------|
+| **Charity Briefing** | Add a "Snap & Check" feature: take a photo while at the charity shop and get instant brand/value identification via Vintography's AI vision. Link to Vintography's image analysis. |
+| **Relist Scheduler** | Currently manual. Add a one-click "Auto-Relist All Stale" button that queues all 30+ day items. |
 
 ---
 
-## Implementation Priority
+## Part 3: Technical Implementation Plan
 
-| Enhancement | Impact | Effort | Priority |
-|-------------|--------|--------|----------|
-| Credit Usage Bar | Medium | Low | Do first |
-| Before/After Animation on Gallery | High | Low | Do first |
-| Side-by-Side Toggle | Medium | Low | Do second |
-| Undo / Try Again | High | Medium | Do second |
-| Quick Presets | High | Medium | Do third |
-| Multi-Photo Batch | Very High | High | Do third |
-| Zoom & Pan | Medium | High | Do later |
+### Files to Modify
 
----
+1. **`src/pages/Listings.tsx`** -- Add "Enhance Photos" to dropdown menu, add Camera icon import
+2. **`src/pages/OptimizeListing.tsx`** -- Update Journey Banner to include Vintography step
+3. **`src/pages/PriceCheck.tsx`** -- Update Journey Banner to include Vintography step
+4. **`src/pages/Dashboard.tsx`** -- Add Vintography card to dashboard grid, merge sidebar entries
+5. **`src/pages/Vintography.tsx`** -- Accept `image_url` query param
+6. **`src/pages/TrendRadar.tsx`** -- Add Seasonal and Niche tabs (absorb those pages)
+7. **`src/pages/DeadStock.tsx`** -- Rename to "Inventory Health", absorb Portfolio Optimiser logic
+8. **`src/App.tsx`** -- Add redirects from old routes (`/portfolio` -> `/dead-stock`, `/seasonal` -> `/trends`, `/niche-finder` -> `/trends`)
 
-## Technical Details
+### Sidebar Cleanup (in Dashboard.tsx)
+Reduce sidebar navigation from 16 items to 12 by:
+- Removing Portfolio Optimiser (merged into Dead Stock / "Inventory Health")
+- Removing Seasonal Calendar (merged into Trend Radar)
+- Removing Niche Finder (merged into Trend Radar)
+- Moving Bulk Optimise out of the top-level nav into the Listings page as a secondary action
 
-### Files to modify:
-- **`src/pages/Vintography.tsx`** — All UI enhancements (credit bar, gallery animation, side-by-side toggle, try again, presets)
-- **`supabase/functions/vintography/index.ts`** — No changes needed for most enhancements; batch processing would need a new endpoint or loop logic
-- **`src/contexts/AuthContext.tsx`** — Already exposes `credits`; may need to add `vintography_used` to the `UsageCredits` type if not present
+### No Database Changes Required
+All changes are frontend reorganisation and navigation updates.
 
-### No new dependencies needed
-All enhancements use existing Framer Motion, Radix UI, and Tailwind utilities already in the project.
-
-### No database changes needed
-The existing `vintography_jobs` table and `usage_credits.vintography_used` column support all these features.
+### Implementation Order
+1. Vintography query param support + Listings dropdown integration (quick wins)
+2. Journey Banner updates on Price Check + Optimise pages
+3. Dashboard grid update with Vintography card
+4. Sidebar cleanup and route merges
+5. Absorb Seasonal Calendar + Niche Finder into Trend Radar tabs
+6. Absorb Portfolio Optimiser into Dead Stock (renamed "Inventory Health")
+7. Route redirects in App.tsx for backward compatibility
 
