@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
@@ -14,7 +16,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
   ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag, Eye,
-  ArrowRightLeft, MapPin, Camera,
+  ArrowRightLeft, Camera, Clock, Flame, Calculator, PoundSterling, Tag,
 } from "lucide-react";
 import { JourneyBanner } from "@/components/JourneyBanner";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -30,18 +32,37 @@ type PriceReport = {
   confidence_score: number;
   price_range_low: number;
   price_range_high: number;
+  item_title: string;
+  item_brand: string;
+  condition_detected?: string;
+  buy_price_good?: number;
+  buy_price_max?: number;
+  estimated_resale?: number;
+  estimated_days_to_sell?: number;
+  demand_level?: "high" | "medium" | "low";
+  condition_price_breakdown?: Array<{ condition: string; avg_price: number; count: number }>;
+  estimated_fees?: number;
+  estimated_shipping?: number;
+  net_profit_estimate?: number;
   comparable_items: Array<{
     title: string;
     price: number;
     sold: boolean;
     days_listed?: number;
     url?: string;
+    condition?: string;
   }>;
   ai_insights: string;
   price_distribution: Array<{ range: string; count: number }>;
-  item_title: string;
-  item_brand: string;
 };
+
+const CONDITION_OPTIONS = [
+  { value: "new_with_tags", label: "New with tags" },
+  { value: "new_without_tags", label: "New without tags" },
+  { value: "very_good", label: "Very good" },
+  { value: "good", label: "Good" },
+  { value: "satisfactory", label: "Satisfactory" },
+];
 
 export default function PriceCheck() {
   const [searchParams] = useSearchParams();
@@ -61,6 +82,7 @@ export default function PriceCheck() {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<PriceReport | null>(null);
   const [inputMode, setInputMode] = useState<"url" | "manual">(hasManualParams ? "manual" : "url");
+  const [yourCost, setYourCost] = useState("");
 
   useEffect(() => {
     const urlParam = searchParams.get("url");
@@ -86,6 +108,7 @@ export default function PriceCheck() {
 
     setLoading(true);
     setReport(null);
+    setYourCost("");
 
     try {
       const { data, error } = await supabase.functions.invoke("price-check", {
@@ -126,6 +149,28 @@ export default function PriceCheck() {
     if (score >= 80) return "bg-success/10 border-success/20";
     if (score >= 60) return "bg-accent/10 border-accent/20";
     return "bg-destructive/10 border-destructive/20";
+  };
+
+  const getDemandColor = (level?: string) => {
+    if (level === "high") return "text-success bg-success/10 border-success/30";
+    if (level === "medium") return "text-accent bg-accent/10 border-accent/30";
+    return "text-destructive bg-destructive/10 border-destructive/30";
+  };
+
+  const getDemandIcon = (level?: string) => {
+    if (level === "high") return <Flame className="w-3 h-3" />;
+    if (level === "medium") return <TrendingUp className="w-3 h-3" />;
+    return <Clock className="w-3 h-3" />;
+  };
+
+  const calcProfit = () => {
+    if (!report) return null;
+    const cost = parseFloat(yourCost);
+    if (isNaN(cost) || cost <= 0) return null;
+    const resale = report.estimated_resale || report.recommended_price;
+    const fees = report.estimated_fees || resale * 0.05;
+    const shipping = report.estimated_shipping || 3.5;
+    return resale - fees - shipping - cost;
   };
 
   return (
@@ -190,7 +235,16 @@ export default function PriceCheck() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
-              <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Good, Very Good, New with tags" className="h-12 sm:h-11 text-base sm:text-sm" />
+              <Select value={condition} onValueChange={setCondition}>
+                <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm">
+                  <SelectValue placeholder="Select condition" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONDITION_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button onClick={() => handleAnalyze()} disabled={loading} className="w-full sm:w-auto font-semibold h-12 sm:h-11 px-6 active:scale-95 transition-transform">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
@@ -211,7 +265,7 @@ export default function PriceCheck() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
             <p className="text-[10px] sm:text-sm text-muted-foreground mb-1 font-medium flex items-center gap-1.5 uppercase tracking-wider">
               <TrendingUp className="w-3.5 h-3.5 text-primary" />
-              Recommended Price
+              Sell At Price
             </p>
             <p className="font-display text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight">
               £{report.recommended_price.toFixed(2)}
@@ -219,13 +273,51 @@ export default function PriceCheck() {
             <p className="text-xs sm:text-sm text-muted-foreground mt-2">
               Market range: <span className="font-semibold text-foreground">£{report.price_range_low.toFixed(2)}</span> – <span className="font-semibold text-foreground">£{report.price_range_high.toFixed(2)}</span>
             </p>
+            {report.net_profit_estimate != null && (
+              <p className="text-xs text-success font-semibold mt-1.5">
+                Est. net profit: £{report.net_profit_estimate.toFixed(2)} after fees & shipping
+              </p>
+            )}
             {report.item_title && (
               <p className="text-[10px] sm:text-xs text-muted-foreground mt-3 truncate">{report.item_brand && `${report.item_brand} · `}{report.item_title}</p>
             )}
           </Card>
 
-          {/* Stats Row */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          {/* Reseller Guide */}
+          {(report.buy_price_good != null || report.buy_price_max != null || report.estimated_resale != null) && (
+            <Card className="p-4 sm:p-6">
+              <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
+                <PoundSterling className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                Reseller Guide
+              </h3>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="text-center p-3 rounded-xl bg-success/10 border border-success/20">
+                  <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-success mb-1">Good Buy</p>
+                  <p className="font-display text-xl sm:text-2xl font-extrabold text-success">
+                    £{(report.buy_price_good ?? 0).toFixed(0)}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">Great deal</p>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-accent/10 border border-accent/20">
+                  <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-accent mb-1">Max Buy</p>
+                  <p className="font-display text-xl sm:text-2xl font-extrabold text-accent">
+                    £{(report.buy_price_max ?? 0).toFixed(0)}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">Still profitable</p>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-primary/10 border border-primary/20">
+                  <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-primary mb-1">Resale</p>
+                  <p className="font-display text-xl sm:text-2xl font-extrabold text-primary">
+                    £{(report.estimated_resale ?? report.recommended_price).toFixed(0)}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">Sell price</p>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Stats Row: Confidence + Demand + Sell Speed */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <Card className={`p-3 sm:p-4 ${getConfidenceBg(report.confidence_score)}`}>
               <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Confidence</p>
               <div className="flex items-baseline gap-2">
@@ -244,7 +336,94 @@ export default function PriceCheck() {
               </p>
               <p className="text-[10px] text-muted-foreground">items analysed</p>
             </Card>
+            {report.demand_level && (
+              <Card className={`p-3 sm:p-4 ${getDemandColor(report.demand_level)}`}>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Demand</p>
+                <div className="flex items-center gap-1.5">
+                  {getDemandIcon(report.demand_level)}
+                  <p className="font-display text-lg sm:text-xl font-extrabold capitalize">{report.demand_level}</p>
+                </div>
+              </Card>
+            )}
+            {report.estimated_days_to_sell != null && (
+              <Card className="p-3 sm:p-4 bg-muted/30">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Sell Speed</p>
+                <p className="font-display text-2xl sm:text-3xl font-extrabold">{report.estimated_days_to_sell}</p>
+                <p className="text-[10px] text-muted-foreground">days to sell</p>
+              </Card>
+            )}
           </div>
+
+          {/* Condition Price Breakdown */}
+          {report.condition_price_breakdown && report.condition_price_breakdown.length > 0 && (
+            <Card className="p-3 sm:p-6">
+              <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
+                <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                Price by Condition
+              </h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-[10px] sm:text-xs">Condition</TableHead>
+                    <TableHead className="text-[10px] sm:text-xs text-right">Avg Price</TableHead>
+                    <TableHead className="text-[10px] sm:text-xs text-right">Listings</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report.condition_price_breakdown.map((row) => (
+                    <TableRow key={row.condition}>
+                      <TableCell className="text-xs sm:text-sm font-medium">{row.condition}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-right font-semibold">£{row.avg_price.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-right text-muted-foreground">{row.count}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+
+          {/* Profit Calculator */}
+          <Card className="p-4 sm:p-6">
+            <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
+              <Calculator className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              Profit Calculator
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs sm:text-sm mb-4">
+              <div>
+                <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Resale</p>
+                <p className="font-semibold">£{(report.estimated_resale ?? report.recommended_price).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Fees (~5%)</p>
+                <p className="font-semibold text-destructive">-£{(report.estimated_fees ?? (report.recommended_price * 0.05)).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Shipping</p>
+                <p className="font-semibold text-destructive">-£{(report.estimated_shipping ?? 3.50).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Net Profit</p>
+                <p className="font-semibold text-success">£{(report.net_profit_estimate ?? (report.recommended_price * 0.95 - 3.5)).toFixed(2)}</p>
+              </div>
+            </div>
+            <div className="border-t border-border/50 pt-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Your cost £</Label>
+              <Input
+                value={yourCost}
+                onChange={(e) => setYourCost(e.target.value)}
+                placeholder="What did you pay?"
+                className="h-10 sm:h-9 text-sm w-full sm:w-32"
+                type="number"
+                min="0"
+                step="0.50"
+              />
+              {calcProfit() !== null && (
+                <p className={`text-sm font-bold ${calcProfit()! >= 0 ? "text-success" : "text-destructive"}`}>
+                  {calcProfit()! >= 0 ? "+" : ""}£{calcProfit()!.toFixed(2)} profit
+                </p>
+              )}
+            </div>
+          </Card>
 
           {/* Price Distribution Chart */}
           {report.price_distribution && report.price_distribution.length > 0 && (
@@ -289,7 +468,11 @@ export default function PriceCheck() {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.04 }}
-                    className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted/60 active:bg-muted/70 transition-colors group"
+                    className={`flex items-center justify-between p-3 rounded-xl transition-colors group ${
+                      item.sold
+                        ? "bg-success/5 hover:bg-success/10 border border-success/10"
+                        : "bg-muted/40 hover:bg-muted/60 border border-transparent"
+                    }`}
                     onClick={() => item.url && window.open(item.url, "_blank")}
                     role={item.url ? "link" : undefined}
                     style={item.url ? { cursor: "pointer" } : undefined}
@@ -303,6 +486,9 @@ export default function PriceCheck() {
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-muted-foreground text-[9px] sm:text-[10px] py-0">Active</Badge>
+                        )}
+                        {item.condition && (
+                          <Badge variant="secondary" className="text-[9px] sm:text-[10px] py-0">{item.condition}</Badge>
                         )}
                         {item.days_listed != null && (
                           <span className="text-[10px] text-muted-foreground">{item.days_listed}d</span>
@@ -337,7 +523,7 @@ export default function PriceCheck() {
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-center pt-2 pb-4 flex-wrap">
             <Button
-              onClick={() => { setReport(null); setUrl(""); setBrand(""); setCategory(""); setCondition(""); }}
+              onClick={() => { setReport(null); setUrl(""); setBrand(""); setCategory(""); setCondition(""); setYourCost(""); }}
               variant="outline"
               className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
             >
