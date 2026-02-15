@@ -234,7 +234,7 @@ export default function Dashboard() {
                 <span className="text-gradient">Vintifi</span>
               </SheetTitle>
             </SheetHeader>
-            <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto max-h-[calc(100vh-140px)] scrollbar-hide">
+            <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto scrollbar-hide" style={{ maxHeight: 'calc(100vh - 10rem - env(safe-area-inset-bottom))' }}>
               {navSections.map((section) => (
                 <div key={section.label}>
                   <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">{section.label}</p>
