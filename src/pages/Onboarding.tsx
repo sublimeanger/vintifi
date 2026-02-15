@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Sparkles, Globe } from "lucide-react";
+import { ArrowRight, ArrowLeft, Sparkles, Globe, Check } from "lucide-react";
 import { SELLING_CATEGORIES, LISTING_COUNTS, PRIMARY_GOALS, TIMEZONES } from "@/lib/constants";
 
 export default function Onboarding() {
@@ -54,7 +54,6 @@ export default function Onboarding() {
       if (error) throw error;
       await refreshProfile();
 
-      // Redeem referral code if present
       const refCode = localStorage.getItem("vintifi_referral_code");
       if (refCode) {
         try {
@@ -83,16 +82,22 @@ export default function Onboarding() {
       subtitle: "Select all categories that apply",
       content: (
         <div className="flex flex-wrap gap-2">
-          {SELLING_CATEGORIES.map((c) => (
-            <Badge
-              key={c}
-              variant={categories.includes(c) ? "default" : "outline"}
-              className="cursor-pointer px-4 py-2 text-sm transition-all hover:scale-105"
-              onClick={() => toggleCategory(c)}
-            >
-              {c}
-            </Badge>
-          ))}
+          {SELLING_CATEGORIES.map((c) => {
+            const selected = categories.includes(c);
+            return (
+              <Badge
+                key={c}
+                variant={selected ? "default" : "outline"}
+                className={`cursor-pointer px-3.5 py-2.5 sm:px-4 sm:py-2 text-xs sm:text-sm transition-all active:scale-95 select-none ${
+                  selected ? "ring-1 ring-primary/30 shadow-sm" : "hover:border-primary/40"
+                }`}
+                onClick={() => toggleCategory(c)}
+              >
+                {selected && <Check className="w-3 h-3 mr-1 shrink-0" />}
+                {c}
+              </Badge>
+            );
+          })}
         </div>
       ),
     },
@@ -100,16 +105,21 @@ export default function Onboarding() {
       title: "How many active listings?",
       subtitle: "This helps us tailor your experience",
       content: (
-        <div className="grid grid-cols-2 gap-3">
-          {LISTING_COUNTS.map((c) => (
-            <Card
-              key={c}
-              className={`p-4 cursor-pointer text-center transition-all hover:scale-105 ${listingCount === c ? "border-primary ring-1 ring-primary bg-primary/5" : ""}`}
-              onClick={() => setListingCount(c)}
-            >
-              <span className="font-display font-bold text-lg">{c}</span>
-            </Card>
-          ))}
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          {LISTING_COUNTS.map((c) => {
+            const selected = listingCount === c;
+            return (
+              <Card
+                key={c}
+                className={`p-4 sm:p-5 cursor-pointer text-center transition-all active:scale-[0.97] select-none ${
+                  selected ? "border-primary ring-1 ring-primary bg-primary/5 shadow-sm" : "hover:border-primary/30"
+                }`}
+                onClick={() => setListingCount(c)}
+              >
+                <span className="font-display font-bold text-base sm:text-lg">{c}</span>
+              </Card>
+            );
+          })}
         </div>
       ),
     },
@@ -117,36 +127,50 @@ export default function Onboarding() {
       title: "What's your main goal?",
       subtitle: "We'll prioritise features that matter most",
       content: (
-        <div className="space-y-3">
-          {PRIMARY_GOALS.map((g) => (
-            <Card
-              key={g.value}
-              className={`p-4 cursor-pointer transition-all hover:scale-[1.02] ${goal === g.value ? "border-primary ring-1 ring-primary bg-primary/5" : ""}`}
-              onClick={() => setGoal(g.value)}
-            >
-              <span className="font-medium">{g.label}</span>
-            </Card>
-          ))}
+        <div className="space-y-2 sm:space-y-3">
+          {PRIMARY_GOALS.map((g) => {
+            const selected = goal === g.value;
+            return (
+              <Card
+                key={g.value}
+                className={`p-3.5 sm:p-4 cursor-pointer transition-all active:scale-[0.98] select-none ${
+                  selected ? "border-primary ring-1 ring-primary bg-primary/5 shadow-sm" : "hover:border-primary/30"
+                }`}
+                onClick={() => setGoal(g.value)}
+              >
+                <div className="flex items-center gap-2">
+                  {selected && <Check className="w-4 h-4 text-primary shrink-0" />}
+                  <span className="font-medium text-sm sm:text-base">{g.label}</span>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       ),
     },
     {
       title: "What's your timezone?",
-      subtitle: "We'll schedule alerts and recommendations in your local time",
+      subtitle: "We'll schedule alerts in your local time",
       content: (
-        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-          {TIMEZONES.map((tz) => (
-            <Card
-              key={tz.value}
-              className={`p-3 cursor-pointer transition-all hover:scale-[1.02] ${timezone === tz.value ? "border-primary ring-1 ring-primary bg-primary/5" : ""}`}
-              onClick={() => setTimezone(tz.value)}
-            >
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium text-sm">{tz.label}</span>
-              </div>
-            </Card>
-          ))}
+        <div className="space-y-1.5 max-h-56 sm:max-h-64 overflow-y-auto pr-1 -mr-1 scrollbar-hide">
+          {TIMEZONES.map((tz) => {
+            const selected = timezone === tz.value;
+            return (
+              <Card
+                key={tz.value}
+                className={`p-3 cursor-pointer transition-all active:scale-[0.98] select-none ${
+                  selected ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-primary/30"
+                }`}
+                onClick={() => setTimezone(tz.value)}
+              >
+                <div className="flex items-center gap-2">
+                  <Globe className={`w-3.5 h-3.5 shrink-0 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className="font-medium text-xs sm:text-sm">{tz.label}</span>
+                  {selected && <Check className="w-3.5 h-3.5 text-primary ml-auto shrink-0" />}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       ),
     },
@@ -155,14 +179,16 @@ export default function Onboarding() {
   const totalSteps = steps.length;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-lg p-8">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 py-6">
+      <Card className="w-full max-w-lg p-5 sm:p-8">
         {/* Progress */}
-        <div className="flex gap-2 mb-8">
+        <div className="flex gap-1.5 sm:gap-2 mb-6 sm:mb-8">
           {steps.map((_, i) => (
-            <div
+            <motion.div
               key={i}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? "bg-primary" : "bg-muted"}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= step ? "bg-primary" : "bg-muted"}`}
+              initial={false}
+              animate={{ scaleX: i <= step ? 1 : 0.95 }}
             />
           ))}
         </div>
@@ -175,26 +201,26 @@ export default function Onboarding() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <span className="text-sm text-muted-foreground font-medium">Step {step + 1} of {totalSteps}</span>
+            <div className="mb-1.5 sm:mb-2 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              <span className="text-[10px] sm:text-sm text-muted-foreground font-semibold uppercase tracking-wider">Step {step + 1} of {totalSteps}</span>
             </div>
-            <h2 className="font-display text-2xl font-bold mb-1">{steps[step].title}</h2>
-            <p className="text-muted-foreground text-sm mb-6">{steps[step].subtitle}</p>
+            <h2 className="font-display text-xl sm:text-2xl font-bold mb-0.5 sm:mb-1">{steps[step].title}</h2>
+            <p className="text-muted-foreground text-xs sm:text-sm mb-5 sm:mb-6">{steps[step].subtitle}</p>
             {steps[step].content}
           </motion.div>
         </AnimatePresence>
 
-        <div className="flex justify-between mt-8">
-          <Button variant="ghost" onClick={() => setStep((s) => s - 1)} disabled={step === 0}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        <div className="flex justify-between mt-6 sm:mt-8 gap-3">
+          <Button variant="ghost" onClick={() => setStep((s) => s - 1)} disabled={step === 0} className="h-11 sm:h-10 active:scale-95 transition-transform">
+            <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
           </Button>
           {step < totalSteps - 1 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()}>
-              Next <ArrowRight className="ml-2 h-4 w-4" />
+            <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()} className="h-11 sm:h-10 px-5 sm:px-4 active:scale-95 transition-transform">
+              Next <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handleFinish} disabled={!canProceed() || loading}>
+            <Button onClick={handleFinish} disabled={!canProceed() || loading} className="h-11 sm:h-10 px-5 sm:px-4 active:scale-95 transition-transform">
               {loading ? "Setting up..." : "Let's Go! 🚀"}
             </Button>
           )}
