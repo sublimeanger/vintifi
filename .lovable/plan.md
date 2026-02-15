@@ -1,223 +1,87 @@
 
+# Annual/Monthly Billing Toggle & Free Trial Implementation
 
-# Enterprise UX Cohesion Audit & Fix Plan
-
-## Audit Findings
-
-After reviewing every page and cross-feature flow, here are all the dead ends, missing links, and broken connections found across the app.
+## Overview
+Add annual billing with 20% discount across all paid tiers, and enable a 7-day free trial on Pro/Business/Scale plans (no credit card required for the free tier, but trial on paid plans uses Stripe's built-in trial functionality).
 
 ---
 
-## Issue 1: Listings -> Price Check doesn't pre-fill manual data
+## 1. Create Annual Stripe Prices
 
-**Where**: `Listings.tsx` and `PriceCheck.tsx`
+Create 3 new annual prices in Stripe (20% discount, billed yearly):
 
-When a listing has no Vinted URL, clicking "Run Price Check" from the 3-dot menu navigates to `/price-check` with no data. The Price Check page has a manual entry mode with brand/category/condition fields, but none of the listing's data is passed through.
+| Tier | Monthly | Annual (per month) | Annual total | Savings |
+|------|---------|-------------------|-------------|---------|
+| Pro | £14.99/mo | £11.99/mo | £143.88/yr | £36 |
+| Business | £34.99/mo | £27.99/mo | £335.88/yr | £84 |
+| Scale | £74.99/mo | £59.99/mo | £719.88/yr | £180 |
 
-**Fix**: Pass listing data as URL search params (`?brand=Nike&category=Trainers&condition=Good`) and have Price Check auto-switch to manual mode and pre-fill the fields.
+These will be created as `recurring: { interval: "year" }` prices on the existing products.
 
----
+## 2. Free Trial Setup
 
-## Issue 2: Listings -> Optimise Listing not available
+Stripe supports `trial_period_days` on checkout sessions. When creating a checkout session, pass `subscription_data: { trial_period_days: 7 }` so users get 7 days free before being charged. No credit card is still required at checkout (Stripe requires it for trials), but the trial means they won't be charged for the first 7 days.
 
-**Where**: `Listings.tsx` dropdown menu
+The approach:
+- Add `trial_period_days: 7` to the `create-checkout` edge function
+- Only apply trial for first-time subscribers (check if customer has had previous subscriptions)
+- Update webhook to handle `customer.subscription.trial_will_end` event
 
-The 3-dot menu on each listing only has "Run Price Check", "View on Vinted", and "Delete". There's no option to optimise an existing listing, even though the Optimise page exists.
+## 3. Update Constants
 
-**Fix**: Add "Optimise Listing" to the dropdown that navigates to `/optimize?brand=X&category=Y&title=Z` and pre-fills those fields.
+**`src/lib/constants.ts`** -- Add annual price IDs to each tier:
 
----
+```typescript
+pro: {
+  ...existing,
+  annual_price_id: "price_XXXXX",  // created by Stripe tool
+  annual_price: 143.88,            // yearly total
+},
+```
 
-## Issue 3: Trend Cards have no actions
+## 4. Update Edge Function
 
-**Where**: `TrendCard.tsx`
+**`supabase/functions/create-checkout/index.ts`**:
+- Accept `billing_interval` param ("monthly" | "annual")
+- Select the correct `price_id` based on interval
+- Add `subscription_data: { trial_period_days: 7 }` for first-time subscribers
+- Check if customer already had a subscription to avoid repeat trials
 
-Trend cards show brand/item, opportunity score, and AI summary but have zero interactive elements. Users see "Carhartt WIP is trending" but can't do anything about it.
+## 5. Update Frontend Pages
 
-**Fix**: Add action buttons: "Price Check" (pre-filled with brand), "Find Deals" (arbitrage pre-filled), and "Source It" (charity briefing).
+### Landing Page (`src/pages/Landing.tsx`)
+- Add monthly/annual toggle to the pricing section (same pattern as Pricing.tsx already has)
+- Show discounted annual prices when toggled
+- Update CTA text to mention "7-day free trial"
 
----
+### Pricing Page (`src/pages/marketing/Pricing.tsx`)
+- Already has the toggle and visual discount -- just needs to pass the correct annual `price_id` when users click upgrade
+- Update button text: "Start 7-Day Free Trial"
 
-## Issue 4: Dead Stock recommendations have no action links
+### Settings Page (`src/pages/SettingsPage.tsx`)
+- Add monthly/annual toggle to the subscription cards
+- Pass correct price_id (monthly or annual) to `create-checkout`
+- Show "7-day free trial" badge on plans if user hasn't trialled before
 
-**Where**: `DeadStock.tsx`
+### Auth Context (`src/contexts/AuthContext.tsx`)
+- No changes needed -- webhook already handles tier assignment
 
-Recommendations say "Reduce Price", "Relist", "Crosslist", "Bundle" but none are clickable. They're just labels.
+### Webhook (`supabase/functions/stripe-webhook/index.ts`)
+- Already handles subscription creation/updates correctly via product_id mapping
+- Annual subscriptions use the same products, just different prices, so tier detection works unchanged
 
-**Fix**: Make each action a clickable link -- "Reduce Price" opens the listing, "Relist" links to the Relist Scheduler, etc.
-
----
-
-## Issue 5: Portfolio Optimizer recommendations not actionable
-
-**Where**: `PortfolioOptimizer.tsx`
-
-Recommendations say "reduce price" or "relist" but there are no buttons to take action.
-
-**Fix**: Add "Apply Price" button and "View Listing" link.
-
----
-
-## Issue 6: Arbitrage "Create Listing" button doesn't pre-fill
-
-**Where**: `ArbitrageScanner.tsx`
-
-The "Create Listing" button navigates to `/optimize` but doesn't pass any data (brand, category, suggested title).
-
-**Fix**: Navigate with query params: `/optimize?title=X&brand=Y&category=Z`.
-
----
-
-## Issue 7: Clearance Radar has no "Create Listing" action
-
-**Where**: `ClearanceRadar.tsx`
-
-Opportunities show brand, category, prices but there's no way to create a listing from a find.
-
-**Fix**: Add "Create Listing" and "Price Check" action buttons.
-
----
-
-## Issue 8: Charity Briefing items have no action links
-
-**Where**: `CharityBriefing.tsx`
-
-Briefing items show brand, buy/sell prices but no "Price Check this brand" or "I found one" action.
-
-**Fix**: Add "Price Check" button per item that navigates with pre-filled brand/category.
-
----
-
-## Issue 9: Niche Finder results have no follow-through
-
-**Where**: `NicheFinder.tsx`
-
-Niches are identified but there's no way to act -- no "Search Arbitrage", "Check Trends", or "Price Check" for the niche.
-
-**Fix**: Add action buttons linking to Arbitrage, Trends, and Price Check pre-filtered for the niche.
-
----
-
-## Issue 10: Seasonal Calendar has no actionable links
-
-**Where**: `SeasonalCalendar.tsx`
-
-Shows demand by month/category but no path to action. "September is peak for coats" should link to sourcing or pricing.
-
-**Fix**: Add "Source Now" -> Charity Briefing and "Check Prices" -> Price Check links.
-
----
-
-## Issue 11: Competitor Tracker has no cross-links
-
-**Where**: `CompetitorTracker.tsx`
-
-Competitor data doesn't link to Price Check or Trends.
-
-**Fix**: Add "Price Check" and "View Trends" action links.
-
----
-
-## Issue 12: Dashboard sidebar has no active state
-
-**Where**: `Dashboard.tsx`
-
-Sidebar nav items don't highlight which page you're on.
-
-**Fix**: Use `useLocation()` to add active styling.
-
----
-
-## Issue 13: MobileBottomNav missing on many pages
-
-**Where**: Approximately 10 feature pages
-
-Pages like ArbitrageScanner, CompetitorTracker, DeadStock, Analytics, ClearanceRadar, NicheFinder, etc. don't have the bottom nav on mobile.
-
-**Fix**: Add `<MobileBottomNav />` to all feature pages.
-
----
-
-## Implementation Plan
-
-### Phase 1: Cross-Feature Data Passing (Core Fix)
-
-**PriceCheck.tsx** -- Accept and auto-fill from URL params:
-- Read `brand`, `category`, `condition` from search params
-- If any manual params exist, auto-switch to "Manual Entry" mode and pre-fill fields
-
-**Listings.tsx** -- Upgrade dropdown menu:
-- Fix "Run Price Check" to pass `brand`, `category`, `condition` as params
-- Add "Optimise Listing" menu item passing listing data as params
-
-**OptimizeListing.tsx** -- Accept pre-fill from URL params:
-- Read `title`, `brand`, `category`, `condition` from search params and pre-fill
-
-### Phase 2: Action Buttons on Intelligence Pages
-
-**TrendCard.tsx** -- Add action row:
-- "Price Check" button -> `/price-check?brand=X&category=Y`
-- "Find Deals" button -> `/arbitrage?brand=X`
-
-**DeadStock.tsx** -- Make recommendations actionable:
-- "Reduce Price" -> link to listing
-- "Relist" -> `/relist`
-
-**PortfolioOptimizer.tsx** -- Add action buttons:
-- "Apply Price" to update listing price
-- "View Listing" link
-
-**ArbitrageScanner.tsx** -- Fix "Create Listing" pre-fill:
-- Pass brand, category, suggested title to `/optimize`
-
-**ClearanceRadar.tsx** -- Add actions per opportunity:
-- "Create Listing" -> `/optimize?brand=X&category=Y`
-- "Price Check" -> `/price-check?brand=X&category=Y`
-
-**CharityBriefing.tsx** -- Add actions per briefing item:
-- "Price Check" -> `/price-check?brand=X&category=Y`
-
-**NicheFinder.tsx** -- Add actions per niche:
-- "Find Deals" -> `/arbitrage?category=X`
-- "Price Check" -> `/price-check?category=X`
-
-**SeasonalCalendar.tsx** -- Add contextual links:
-- "Source Now" -> `/charity-briefing`
-- "Check Prices" -> `/price-check?category=X`
-
-**CompetitorTracker.tsx** -- Add cross-links:
-- "Price Check" and "View Trends" actions
-
-### Phase 3: Navigation Consistency
-
-**Dashboard.tsx** -- Add active sidebar state using `useLocation()`
-
-**All feature pages** -- Add `<MobileBottomNav />` to pages missing it (approximately 10 pages)
-
----
-
-## Files Modified (approximately 14 files)
+## 6. Files Modified
 
 | File | Changes |
 |------|---------|
-| `src/pages/PriceCheck.tsx` | Read URL params, auto-switch to manual mode, pre-fill |
-| `src/pages/Listings.tsx` | Pass listing data via params, add Optimise menu item |
-| `src/pages/OptimizeListing.tsx` | Read URL params, pre-fill fields |
-| `src/components/trends/TrendCard.tsx` | Add Price Check and Find Deals buttons |
-| `src/pages/DeadStock.tsx` | Make action labels clickable links |
-| `src/pages/PortfolioOptimizer.tsx` | Add Apply Price and View Listing buttons |
-| `src/pages/ArbitrageScanner.tsx` | Fix Create Listing pre-fill |
-| `src/pages/ClearanceRadar.tsx` | Add Create Listing and Price Check actions |
-| `src/pages/CharityBriefing.tsx` | Add Price Check action per item |
-| `src/pages/NicheFinder.tsx` | Add Find Deals, Trends, Price Check actions |
-| `src/pages/SeasonalCalendar.tsx` | Add Source Now and Check Prices links |
-| `src/pages/CompetitorTracker.tsx` | Add Price Check and View Trends links |
-| `src/pages/Dashboard.tsx` | Add active sidebar state |
-| Multiple pages | Add MobileBottomNav to ~10 pages |
+| `src/lib/constants.ts` | Add `annual_price_id` and `annual_price` to each paid tier |
+| `supabase/functions/create-checkout/index.ts` | Accept `billing_interval`, select correct price, add trial days |
+| `src/pages/Landing.tsx` | Add monthly/annual toggle to pricing section, trial CTA text |
+| `src/pages/marketing/Pricing.tsx` | Wire toggle to pass annual price_id, update button text |
+| `src/pages/SettingsPage.tsx` | Add billing toggle, pass correct price_id |
 
-## Technical Approach
-- All changes are frontend-only -- no database or edge function changes needed
-- Use React Router's `useSearchParams` for cross-page data passing
-- Use `useLocation` for active nav state
-- No new dependencies required
-
+## 7. Technical Notes
+- Annual prices are separate Stripe Price objects on the same Product, so the webhook `TIER_MAP` (keyed by product_id) works without changes
+- Stripe handles trial expiry automatically -- charges the card after 7 days
+- The 20% discount is baked into the annual price itself, not a coupon
+- No database changes needed -- subscription tier detection is product-based
