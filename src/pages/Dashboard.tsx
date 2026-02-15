@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, CreditCard,
   Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target, CalendarDays, MapPin,
-  FileSpreadsheet, Sparkles,
+  FileSpreadsheet, Sparkles, Layers, Link2,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -55,6 +55,13 @@ const navSections = [
       { icon: Timer, label: "Relist Scheduler", path: "/relist" },
       { icon: Target, label: "Portfolio Optimiser", path: "/portfolio" },
       { icon: PieChart, label: "P&L Analytics", path: "/analytics" },
+    ],
+  },
+  {
+    label: "Cross-Platform",
+    items: [
+      { icon: Layers, label: "Cross-Listings", path: "/cross-listings" },
+      { icon: Link2, label: "Connections", path: "/platforms" },
     ],
   },
   {
