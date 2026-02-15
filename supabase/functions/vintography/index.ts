@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // ── Enhanced fashion-photography prompts ──────────────────────────────
-const GARMENT_PRESERVE = "CRITICAL: Preserve every detail of the garment — logos, prints, textures, stitching, buttons, zippers, tags, and brand markers must remain perfectly intact and unaltered. Maintain accurate colour reproduction under the new lighting.";
+const GARMENT_PRESERVE = "CRITICAL: Preserve every detail of the garment — logos, prints, textures, stitching, buttons, zippers, tags, and brand markers must remain perfectly intact and unaltered. Maintain accurate colour reproduction under the new lighting. NEVER add any text, labels, watermarks, captions, annotations, or overlays to the image. The output must contain zero added text of any kind.";
 
 const OPERATION_PROMPTS: Record<string, (params: Record<string, string>) => string> = {
   remove_bg: () =>
