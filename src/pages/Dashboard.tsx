@@ -45,6 +45,7 @@ const navSections = [
       { icon: CalendarDays, label: "Seasonal Calendar", path: "/seasonal" },
       { icon: MapPin, label: "Charity Briefing", path: "/charity-briefing" },
       { icon: ShoppingBag, label: "Clearance Radar", path: "/clearance-radar" },
+      { icon: Target, label: "Niche Finder", path: "/niche-finder" },
     ],
   },
   {
