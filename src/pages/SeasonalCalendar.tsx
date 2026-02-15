@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Flame, Snowflake,
+  CalendarDays, ChevronLeft, ChevronRight, Flame, Snowflake,
   Sun, Leaf, TrendingUp, TrendingDown, Minus, Info, Search, MapPin,
 } from "lucide-react";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { PageShell } from "@/components/PageShell";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 
 const MONTHS = [
@@ -254,24 +254,12 @@ export default function SeasonalCalendar() {
   const hotCategories = currentMonthData.filter((c) => c.demand.level === "very_high" || c.demand.level === "high");
 
   return (
-    <div className="flex h-screen bg-background pb-20 lg:pb-0">
-      <main className="flex-1 overflow-auto">
-        <div className="p-6 lg:p-8 max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h1 className="font-display text-2xl lg:text-3xl font-bold flex items-center gap-2">
-                <CalendarDays className="w-7 h-7 text-primary" />
-                Seasonal Demand Calendar
-              </h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Know exactly when to list each category for maximum sales
-              </p>
-            </div>
-          </div>
+    <PageShell
+      title="Seasonal Calendar"
+      subtitle="Know when to list each category for max sales"
+      icon={<CalendarDays className="w-5 h-5 text-primary" />}
+      maxWidth="max-w-6xl"
+    >
 
           <UseCaseSpotlight
             featureKey="seasonal-calendar"
@@ -283,28 +271,28 @@ export default function SeasonalCalendar() {
           />
 
           {/* Month Selector */}
-          <Card className="p-4 mb-6">
+          <Card className="p-3.5 sm:p-4 mb-4 sm:mb-6">
             <div className="flex items-center justify-between mb-3">
-              <Button variant="ghost" size="icon" onClick={() => setSelectedMonth((p) => (p === 0 ? 11 : p - 1))}>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedMonth((p) => (p === 0 ? 11 : p - 1))} className="h-9 w-9 active:scale-95 transition-transform">
                 <ChevronLeft className="w-5 h-5" />
               </Button>
               <div className="flex items-center gap-2">
                 {getSeasonIcon(selectedMonth)}
-                <h2 className="font-display text-xl font-bold">{MONTHS[selectedMonth]}</h2>
-                <Badge variant="outline" className="text-xs">{getSeasonLabel(selectedMonth)}</Badge>
+                <h2 className="font-display text-lg sm:text-xl font-bold">{MONTHS[selectedMonth]}</h2>
+                <Badge variant="outline" className="text-[10px] sm:text-xs">{getSeasonLabel(selectedMonth)}</Badge>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setSelectedMonth((p) => (p === 11 ? 0 : p + 1))}>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedMonth((p) => (p === 11 ? 0 : p + 1))} className="h-9 w-9 active:scale-95 transition-transform">
                 <ChevronRight className="w-5 h-5" />
               </Button>
             </div>
 
             {/* Mini month tabs */}
-            <div className="flex gap-1 overflow-x-auto pb-1">
+            <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
               {MONTHS_SHORT.map((m, i) => (
                 <button
                   key={m}
                   onClick={() => setSelectedMonth(i)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors shrink-0 ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-medium transition-all shrink-0 active:scale-95 ${
                     i === selectedMonth
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted"
@@ -318,7 +306,7 @@ export default function SeasonalCalendar() {
 
           {/* Hot this month */}
           {hotCategories.length > 0 && (
-            <Card className="p-4 mb-6 border-primary/20 bg-primary/[0.02]">
+            <Card className="p-3.5 sm:p-4 mb-4 sm:mb-6 border-primary/20 bg-primary/[0.02]">
               <div className="flex items-center gap-2 mb-3">
                 <Flame className="w-5 h-5 text-primary" />
                 <h3 className="font-display font-bold">Hot in {MONTHS[selectedMonth]}</h3>
@@ -328,7 +316,7 @@ export default function SeasonalCalendar() {
                   <Badge
                     key={c.category}
                     variant="secondary"
-                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-sm py-1 px-3"
+                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs sm:text-sm py-1 px-2.5 sm:px-3 active:scale-95"
                     onClick={() => { setSelectedCategory(c.category); setView("category"); }}
                   >
                     {c.icon} {c.category}
@@ -345,16 +333,18 @@ export default function SeasonalCalendar() {
               variant={view === "calendar" ? "default" : "outline"}
               size="sm"
               onClick={() => setView("calendar")}
+              className="active:scale-95 transition-transform text-[10px] sm:text-xs"
             >
-              <CalendarDays className="w-4 h-4 mr-1" /> Heatmap View
+              <CalendarDays className="w-3.5 h-3.5 mr-1" /> Heatmap
             </Button>
             <Button
               variant={view === "category" ? "default" : "outline"}
               size="sm"
               onClick={() => setView("category")}
               disabled={!selectedCategory}
+              className="active:scale-95 transition-transform text-[10px] sm:text-xs"
             >
-              <TrendingUp className="w-4 h-4 mr-1" /> Category Deep Dive
+              <TrendingUp className="w-3.5 h-3.5 mr-1" /> Deep Dive
             </Button>
           </div>
 
@@ -367,7 +357,7 @@ export default function SeasonalCalendar() {
                 exit={{ opacity: 0, y: -10 }}
               >
                 {/* Heatmap grid */}
-                <Card className="p-4 mb-6 overflow-x-auto">
+                <Card className="p-3.5 sm:p-4 mb-4 sm:mb-6 overflow-x-auto">
                   <h3 className="font-display font-bold mb-4 flex items-center gap-2">
                     <Info className="w-4 h-4 text-muted-foreground" />
                     Full Year Heatmap
@@ -437,8 +427,8 @@ export default function SeasonalCalendar() {
                 </Card>
 
                 {/* Category cards for selected month */}
-                <h3 className="font-display font-bold mb-3">{MONTHS[selectedMonth]} Breakdown</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <h3 className="font-display font-bold text-sm sm:text-base mb-3">{MONTHS[selectedMonth]} Breakdown</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3">
                   {currentMonthData.map((cat, i) => (
                     <motion.div
                       key={cat.category}
@@ -447,18 +437,18 @@ export default function SeasonalCalendar() {
                       transition={{ delay: i * 0.03 }}
                     >
                       <Card
-                        className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+                        className="p-3.5 sm:p-4 cursor-pointer hover:shadow-md active:scale-[0.99] transition-all"
                         onClick={() => { setSelectedCategory(cat.category); setView("category"); }}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xl">{cat.icon}</span>
-                            <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-lg sm:text-xl">{cat.icon}</span>
+                            <div className="min-w-0">
                               <h4 className="font-display font-bold text-sm">{cat.category}</h4>
-                              <p className="text-xs text-muted-foreground mt-0.5">{cat.demand.notes}</p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2">{cat.demand.notes}</p>
                             </div>
                           </div>
-                          <Badge className={`shrink-0 ${DEMAND_COLORS[cat.demand.level]} border-0`}>
+                          <Badge className={`shrink-0 text-[10px] sm:text-xs ${DEMAND_COLORS[cat.demand.level]} border-0`}>
                             {DEMAND_LABELS[cat.demand.level]}
                           </Badge>
                         </div>
@@ -475,17 +465,17 @@ export default function SeasonalCalendar() {
                 exit={{ opacity: 0, y: -10 }}
               >
                 {/* Category deep dive */}
-                <Card className="p-6 mb-4">
+                <Card className="p-4 sm:p-6 mb-4">
                   <div className="flex items-center gap-3 mb-4">
-                    <span className="text-3xl">{selectedCatData.icon}</span>
+                    <span className="text-2xl sm:text-3xl">{selectedCatData.icon}</span>
                     <div>
-                      <h3 className="font-display text-xl font-bold">{selectedCatData.category}</h3>
-                      <p className="text-sm text-muted-foreground">12-month demand cycle</p>
+                      <h3 className="font-display text-lg sm:text-xl font-bold">{selectedCatData.category}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground">12-month demand cycle</p>
                     </div>
                   </div>
 
                   {/* Demand bar chart */}
-                  <div className="flex items-end gap-1 h-40 mb-4">
+                  <div className="flex items-end gap-0.5 sm:gap-1 h-32 sm:h-40 mb-4">
                     {selectedCatData.monthlyDemand.map((md, i) => {
                       const heights: Record<DemandLevel, string> = {
                         very_high: "h-full",
@@ -527,7 +517,7 @@ export default function SeasonalCalendar() {
                 </Card>
 
                 {/* Peaks & Lows */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                   <Card className="p-4 border-success/20 bg-success/[0.02]">
                     <div className="flex items-center gap-2 mb-2">
                       <TrendingUp className="w-4 h-4 text-success" />
@@ -557,43 +547,43 @@ export default function SeasonalCalendar() {
                 </div>
 
                 {/* Seller tip */}
-                <Card className="p-4 border-accent/30 bg-accent/[0.03]">
+                <Card className="p-3.5 sm:p-4 border-accent/30 bg-accent/[0.03]">
                   <div className="flex items-start gap-2">
                     <Flame className="w-5 h-5 text-accent shrink-0 mt-0.5" />
                     <div>
                       <h4 className="font-display font-bold text-sm mb-1">Seller Tip</h4>
-                      <p className="text-sm text-muted-foreground">{selectedCatData.tip}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{selectedCatData.tip}</p>
                     </div>
                   </div>
                 </Card>
 
                 {/* Action Links */}
-                <div className="flex gap-3 mt-4">
+                <div className="flex gap-2 sm:gap-3 mt-4">
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 h-11 sm:h-10 text-xs sm:text-sm active:scale-95 transition-transform"
                     onClick={() => navigate(`/price-check?category=${encodeURIComponent(selectedCatData.category)}`)}
                   >
-                    <Search className="w-4 h-4 mr-2" /> Check Prices
+                    <Search className="w-3.5 h-3.5 mr-1.5" /> Check Prices
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 h-11 sm:h-10 text-xs sm:text-sm active:scale-95 transition-transform"
                     onClick={() => navigate("/charity-briefing")}
                   >
-                    <MapPin className="w-4 h-4 mr-2" /> Source Now
+                    <MapPin className="w-3.5 h-3.5 mr-1.5" /> Source Now
                   </Button>
                 </div>
 
                 {/* Category selector */}
-                <div className="mt-6">
-                  <h4 className="text-xs text-muted-foreground font-medium mb-2">Explore other categories</h4>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mt-5 sm:mt-6">
+                  <h4 className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-2">Explore other categories</h4>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {DEMAND_DATA.filter((c) => c.category !== selectedCategory).map((c) => (
                       <Badge
                         key={c.category}
                         variant="outline"
-                        className="cursor-pointer hover:bg-muted transition-colors py-1 px-3"
+                        className="cursor-pointer hover:bg-muted transition-colors py-1 px-2.5 sm:px-3 text-[10px] sm:text-xs active:scale-95"
                         onClick={() => setSelectedCategory(c.category)}
                       >
                         {c.icon} {c.category}
@@ -603,14 +593,14 @@ export default function SeasonalCalendar() {
                 </div>
               </motion.div>
             ) : (
-              <Card className="p-8 text-center">
-                <p className="text-muted-foreground">Select a category to see its demand cycle</p>
+              <Card className="p-8 sm:p-10 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+                  <CalendarDays className="w-7 h-7 text-muted-foreground/40" />
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Select a category to see its demand cycle</p>
               </Card>
             )}
           </AnimatePresence>
-        </div>
-      </main>
-      <MobileBottomNav />
-    </div>
+    </PageShell>
   );
 }
