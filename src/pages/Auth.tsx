@@ -12,6 +12,14 @@ import { Loader2, Mail } from "lucide-react";
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const defaultMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
+
+  // Capture referral code from URL
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref) {
+      localStorage.setItem("vintifi_referral_code", ref.toUpperCase());
+    }
+  }, [searchParams]);
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -330,6 +330,7 @@ export type Database = {
           id: string
           onboarding_completed: boolean
           primary_goal: string | null
+          referral_code: string | null
           selling_categories: string[] | null
           subscription_tier: string
           timezone: string
@@ -345,6 +346,7 @@ export type Database = {
           id?: string
           onboarding_completed?: boolean
           primary_goal?: string | null
+          referral_code?: string | null
           selling_categories?: string[] | null
           subscription_tier?: string
           timezone?: string
@@ -360,12 +362,40 @@ export type Database = {
           id?: string
           onboarding_completed?: boolean
           primary_goal?: string | null
+          referral_code?: string | null
           selling_categories?: string[] | null
           subscription_tier?: string
           timezone?: string
           updated_at?: string
           user_id?: string
           weekly_digest_enabled?: boolean
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          credits_awarded: number
+          id: string
+          referee_id: string
+          referral_code: string
+          referrer_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_awarded?: number
+          id?: string
+          referee_id: string
+          referral_code: string
+          referrer_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_awarded?: number
+          id?: string
+          referee_id?: string
+          referral_code?: string
+          referrer_id?: string
         }
         Relationships: []
       }

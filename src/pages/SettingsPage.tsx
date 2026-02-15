@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, User, CreditCard, Loader2, Check, Mail, Send, Globe, RotateCcw, Zap } from "lucide-react";
+import { ArrowLeft, User, CreditCard, Loader2, Check, Mail, Send, Globe, RotateCcw, Zap, Gift, Copy, Share2 } from "lucide-react";
 import { STRIPE_TIERS, TierKey, TIMEZONES, CREDIT_PACKS } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -30,8 +30,35 @@ export default function SettingsPage() {
   );
   const [timezoneSaving, setTimezoneSaving] = useState(false);
   const [creditPackLoading, setCreditPackLoading] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState<string>("");
+  const [referralCount, setReferralCount] = useState(0);
+  const [referralCredits, setReferralCredits] = useState(0);
 
   const currentTier = (profile?.subscription_tier || "free") as TierKey;
+
+  useEffect(() => {
+    if (!user) return;
+    // Fetch referral code from profile
+    supabase
+      .from("profiles")
+      .select("referral_code")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.referral_code) setReferralCode(data.referral_code);
+      });
+    // Fetch referral stats
+    supabase
+      .from("referrals")
+      .select("id, credits_awarded")
+      .eq("referrer_id", user.id)
+      .then(({ data }) => {
+        if (data) {
+          setReferralCount(data.length);
+          setReferralCredits(data.reduce((sum, r) => sum + (r.credits_awarded || 0), 0));
+        }
+      });
+  }, [user]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -327,6 +354,66 @@ export default function SettingsPage() {
             {sendingDigest ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
             Send Test Digest Now
           </Button>
+        </Card>
+
+        {/* Referral Program */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Gift className="w-5 h-5 text-primary" />
+            <h2 className="font-display font-bold text-lg">Referral Program</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Share your code — you and your friend both earn 5 bonus credits!
+          </p>
+
+          {referralCode && (
+            <div className="space-y-4">
+              <div className="bg-muted rounded-lg p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Your referral code</p>
+                <p className="font-display text-3xl font-extrabold tracking-widest">{referralCode}</p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    const link = `${window.location.origin}/auth?mode=signup&ref=${referralCode}`;
+                    navigator.clipboard.writeText(link);
+                    toast.success("Referral link copied!");
+                  }}
+                >
+                  <Copy className="w-4 h-4 mr-2" /> Copy Link
+                </Button>
+                {typeof navigator.share === "function" && (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      navigator.share({
+                        title: "Join Vintifi",
+                        text: `Use my referral code ${referralCode} and get 5 free credits!`,
+                        url: `${window.location.origin}/auth?mode=signup&ref=${referralCode}`,
+                      });
+                    }}
+                  >
+                    <Share2 className="w-4 h-4 mr-2" /> Share
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex gap-4 text-center">
+                <div className="flex-1 bg-muted/50 rounded-lg p-3">
+                  <p className="font-display text-2xl font-bold">{referralCount}</p>
+                  <p className="text-xs text-muted-foreground">Referrals</p>
+                </div>
+                <div className="flex-1 bg-muted/50 rounded-lg p-3">
+                  <p className="font-display text-2xl font-bold">{referralCredits}</p>
+                  <p className="text-xs text-muted-foreground">Credits earned</p>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Guided Tour */}
