@@ -9,7 +9,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { photoUrls, brand, category, size, condition, currentTitle, currentDescription } = await req.json();
+    const body = await req.json();
+    const { photoUrls, brand, category, size, condition, currentTitle, currentDescription, vintedUrl, fetchOnly } = body;
 
     // Auth
     const authHeader = req.headers.get("Authorization");
@@ -25,6 +26,84 @@ serve(async (req) => {
     const userId = userData.id;
     if (!userId) throw new Error("Invalid user");
 
+    // If a Vinted URL is provided, scrape listing details and photos via Firecrawl
+    if (vintedUrl && vintedUrl.includes("vinted")) {
+      const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
+      if (firecrawlKey) {
+        try {
+          const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: vintedUrl,
+              formats: ["markdown", "links"],
+              onlyMainContent: true,
+            }),
+          });
+          const scrapeData = await scrapeRes.json();
+          const markdown = scrapeData.data?.markdown || "";
+          const metadata = scrapeData.data?.metadata || {};
+
+          // Extract image URLs from scraped data
+          const scraped_links = scrapeData.data?.links || [];
+          const imageRegex = /!\[.*?\]\((https?:\/\/[^\s)]+\.(?:jpg|jpeg|png|webp)[^\s)]*)\)/gi;
+          const imageUrls: string[] = [];
+          let match;
+          while ((match = imageRegex.exec(markdown)) !== null) {
+            if (imageUrls.length < 4) imageUrls.push(match[1]);
+          }
+          // Also check og:image from metadata
+          if (metadata.ogImage && imageUrls.length < 4) {
+            imageUrls.unshift(metadata.ogImage);
+          }
+
+          // If fetchOnly, return scraped data without running AI optimisation
+          if (fetchOnly) {
+            // Try to extract structured info from markdown
+            const titleMatch = markdown.match(/^#\s*(.+)/m);
+            const brandMatch = markdown.match(/brand[:\s]+([^\n,]+)/i);
+            const sizeMatch = markdown.match(/size[:\s]+([^\n,]+)/i);
+            const conditionMatch = markdown.match(/condition[:\s]+([^\n,]+)/i);
+
+            return new Response(JSON.stringify({
+              photos: imageUrls.slice(0, 4),
+              title: metadata.title || titleMatch?.[1] || "",
+              brand: brandMatch?.[1]?.trim() || metadata.ogTitle?.split(" ")?.[0] || "",
+              description: markdown.substring(0, 500),
+              category: "",
+              size: sizeMatch?.[1]?.trim() || "",
+              condition: conditionMatch?.[1]?.trim() || "",
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          // Merge scraped photos with any existing photoUrls
+          if (imageUrls.length > 0 && (!photoUrls || photoUrls.length === 0)) {
+            body.photoUrls = imageUrls;
+          }
+        } catch (scrapeErr) {
+          console.error("Firecrawl scrape error:", scrapeErr);
+          if (fetchOnly) {
+            return new Response(JSON.stringify({ error: "Failed to fetch listing from Vinted" }), {
+              status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+      } else if (fetchOnly) {
+        return new Response(JSON.stringify({ error: "Scraping service not configured" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else if (fetchOnly) {
+      return new Response(JSON.stringify({ error: "Please provide a valid Vinted URL" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Re-read photoUrls after potential Vinted scrape enrichment
+    const finalPhotoUrls = body.photoUrls || photoUrls || [];
+
     // Check optimisation credits
     const creditsRes = await fetch(
       `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}&select=optimizations_used,credits_limit`,
@@ -33,7 +112,6 @@ serve(async (req) => {
     const creditsData = await creditsRes.json();
     if (creditsData.length > 0) {
       const c = creditsData[0];
-      // Optimisation limit is ~60% of credits_limit
       const optimLimit = Math.floor(c.credits_limit * 0.6);
       if (c.optimizations_used >= optimLimit) {
         return new Response(
@@ -96,9 +174,9 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
 
     // Add photo URLs as image content — use vision-capable model when photos present
     let hasPhotos = false;
-    if (photoUrls && photoUrls.length > 0) {
+    if (finalPhotoUrls && finalPhotoUrls.length > 0) {
       hasPhotos = true;
-      for (const photoUrl of photoUrls.slice(0, 4)) {
+      for (const photoUrl of finalPhotoUrls.slice(0, 4)) {
         userContent.push({
           type: "image_url",
           image_url: { url: photoUrl },
