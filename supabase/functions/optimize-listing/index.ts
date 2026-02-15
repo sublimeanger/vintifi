@@ -65,11 +65,56 @@ serve(async (req) => {
             const sizeMatch = markdown.match(/size[:\s]+([A-Za-z0-9\s/"'.\-]+)/i);
             const conditionMatch = markdown.match(/condition[:\s]+([^\n,()\[\]]+)/i);
 
+            // Extract actual seller description from markdown
+            // Look for description-like blocks: after metadata, before footer/buttons
+            let extractedDescription = "";
+            // Try common Vinted markdown patterns for the description section
+            const descPatterns = [
+              /description[:\s]*\n+([\s\S]*?)(?=\n(?:brand|size|condition|colour|location|uploaded|views|interested|similar|\[|!\[|---)|$)/i,
+              /(?:^|\n)(?!.*(?:brand|size|condition|colour|price|location|views|uploaded|interested|delivery|protection|similar|see all|\[|\!\[|#))(.{20,}(?:\n(?!.*(?:brand|size|condition|colour|price|location|views|uploaded|interested|delivery|protection|similar|see all|\[|\!\[|#)).{10,})*)/m,
+            ];
+            for (const pat of descPatterns) {
+              const m = markdown.match(pat);
+              if (m?.[1]?.trim() && m[1].trim().length > 15) {
+                extractedDescription = m[1].trim();
+                break;
+              }
+            }
+            // Fallback: find multi-line text blocks that look like natural language descriptions
+            if (!extractedDescription) {
+              const lines = markdown.split("\n");
+              const descLines: string[] = [];
+              for (const line of lines) {
+                const trimmed = line.trim();
+                // Skip empty, headers, images, links, tables, bullets, markdown artifacts
+                if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("[") || trimmed.includes("![") ||
+                    trimmed.startsWith("---") || trimmed.startsWith("|") || trimmed.startsWith("*") ||
+                    /^(brand|size|condition|colour|color|price|location|views|uploaded|interested|delivery|protection|similar|see all|add to|buy now|make an offer|send message|catalogue|removed|ad)/i.test(trimmed) ||
+                    /^\d+[\s]*(views|interested|followers)/i.test(trimmed) ||
+                    (/^[A-Z][a-z]+:\s/.test(trimmed) && trimmed.length < 40) ||
+                    /^https?:\/\//.test(trimmed) ||
+                    trimmed.length < 10) {
+                  if (descLines.length > 0) break; // stop after description block ends
+                  continue;
+                }
+                descLines.push(trimmed);
+              }
+              if (descLines.length > 0) extractedDescription = descLines.join("\n");
+            }
+            // Clean any remaining markdown image/link syntax from description
+            extractedDescription = extractedDescription
+              .replace(/!\[.*?\]\(.*?\)/g, "")
+              .replace(/\[([^\]]*)\]\(.*?\)/g, "$1")
+              .replace(/#{1,6}\s*/g, "")
+              .replace(/\n{3,}/g, "\n\n")
+              .trim();
+            if (!extractedDescription) extractedDescription = "No description available";
+
             return new Response(JSON.stringify({
               photos: imageUrls.slice(0, 4),
               title: metadata.title || titleMatch?.[1] || "",
               brand: brandMatch?.[1]?.trim() || metadata.ogTitle?.split(" ")?.[0] || "",
-              description: markdown.substring(0, 500),
+              description: extractedDescription,
               category: "",
               size: sizeMatch?.[1]?.trim() || "",
               condition: conditionMatch?.[1]?.trim() || "",
