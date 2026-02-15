@@ -28,9 +28,7 @@ export function UseCaseSpotlight({
     try { return localStorage.getItem(dismissKey) === "true"; } catch { return false; }
   });
 
-  const [open, setOpen] = useState(() => {
-    try { return localStorage.getItem(seenKey) !== "true"; } catch { return true; }
-  });
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem(seenKey, "true"); } catch {}
