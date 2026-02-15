@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { ImportWardrobeModal } from "@/components/ImportWardrobeModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -133,6 +134,7 @@ export default function Listings() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const tier = profile?.subscription_tier || "free";
   const listingLimit = LISTING_LIMITS[tier] || 20;
@@ -371,9 +373,22 @@ export default function Listings() {
     deadStock: deadStockListings.length,
   };
 
+  const handleImportClick = () => {
+    if (tier === "free") {
+      setShowUpgrade(true);
+      return;
+    }
+    setImportModalOpen(true);
+  };
+
   const headerActions = (
     <div className="flex items-center gap-2">
-      
+      <Button variant="outline" size="sm" onClick={handleImportClick} className="font-semibold hidden sm:flex h-9">
+        <Download className="w-3.5 h-3.5 mr-1.5" /> Import
+      </Button>
+      <Button variant="outline" size="icon" onClick={handleImportClick} className="sm:hidden h-10 w-10" title="Import from Vinted">
+        <Download className="w-4 h-4" />
+      </Button>
       <Button variant="outline" size="sm" onClick={() => navigate("/bulk-optimize")} className="font-semibold hidden sm:flex h-9">
         <Upload className="w-3.5 h-3.5 mr-1.5" /> Bulk
       </Button>
@@ -1037,6 +1052,12 @@ export default function Listings() {
         onClose={() => setShowUpgrade(false)}
         reason={`You've reached your listing limit (${listingLimit}). Upgrade to track more listings.`}
         tierRequired="pro"
+      />
+
+      <ImportWardrobeModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={fetchListings}
       />
 
       <MobileBottomNav />
