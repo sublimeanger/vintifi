@@ -19,6 +19,7 @@ type Profile = {
 type UsageCredits = {
   price_checks_used: number;
   optimizations_used: number;
+  vintography_used: number;
   credits_limit: number;
 };
 
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchCredits = async (userId: string) => {
     const { data } = await supabase
       .from("usage_credits")
-      .select("price_checks_used, optimizations_used, credits_limit")
+      .select("price_checks_used, optimizations_used, vintography_used, credits_limit")
       .eq("user_id", userId)
       .maybeSingle();
     setCredits(data as UsageCredits | null);

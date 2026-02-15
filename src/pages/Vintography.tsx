@@ -7,25 +7,22 @@ import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { formatDistanceToNow } from "date-fns";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
-  Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock, Trash2,
+  Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock, RefreshCw,
+  ChevronLeft,
 } from "lucide-react";
 
-type VintographyJob = {
-  id: string;
-  original_url: string;
-  processed_url: string | null;
-  operation: string;
-  status: string;
-  created_at: string;
-};
+// Refactored components
+import { CreditBar } from "@/components/vintography/CreditBar";
+import { ComparisonView } from "@/components/vintography/ComparisonView";
+import { GalleryCard, type VintographyJob } from "@/components/vintography/GalleryCard";
+import { QuickPresets, type Preset } from "@/components/vintography/QuickPresets";
+import { BatchStrip, type BatchItem } from "@/components/vintography/BatchStrip";
 
 type Operation = "remove_bg" | "smart_bg" | "model_shot" | "enhance";
 
@@ -45,19 +42,19 @@ const bgStyles = [
 ];
 
 export default function Vintography() {
-  const { user, refreshCredits } = useAuth();
+  const { user, credits, refreshCredits } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Core state
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [selectedOp, setSelectedOp] = useState<Operation>("remove_bg");
   const [processing, setProcessing] = useState(false);
-  const [sliderValue, setSliderValue] = useState([50]);
 
-  // Gallery state
-  const [gallery, setGallery] = useState<VintographyJob[]>([]);
-  const [galleryLoading, setGalleryLoading] = useState(true);
+  // Variations / undo stack (up to 3)
+  const [variations, setVariations] = useState<string[]>([]);
+  const [currentVariation, setCurrentVariation] = useState(0);
 
   // Smart BG params
   const [bgStyle, setBgStyle] = useState("studio");
@@ -65,7 +62,19 @@ export default function Vintography() {
   const [modelGender, setModelGender] = useState("female");
   const [modelPose, setModelPose] = useState("standing");
 
-  // Fetch gallery on mount
+  // Gallery
+  const [gallery, setGallery] = useState<VintographyJob[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(true);
+
+  // Batch queue
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
+  const [activeBatchIndex, setActiveBatchIndex] = useState(0);
+
+  // Credits
+  const vintographyUsed = (credits as any)?.vintography_used ?? 0;
+  const creditsLimit = credits?.credits_limit ?? 5;
+
+  // Fetch gallery
   useEffect(() => {
     if (!user) return;
     const fetchGallery = async () => {
@@ -80,7 +89,7 @@ export default function Vintography() {
       setGalleryLoading(false);
     };
     fetchGallery();
-  }, [user, processedUrl]); // refetch after a new edit completes
+  }, [user, processedUrl]);
 
   const handleDeleteJob = async (jobId: string) => {
     const { error } = await supabase.from("vintography_jobs").delete().eq("id", jobId);
@@ -91,77 +100,208 @@ export default function Vintography() {
 
   const opLabel = (op: string) => operations.find((o) => o.id === op)?.label || op;
 
-  const handleFileSelect = useCallback(async (file: File) => {
-    if (!user) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Image must be under 10MB");
-      return;
-    }
+  // File upload
+  const uploadFile = async (file: File): Promise<string | null> => {
+    if (!user) return null;
+    if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return null; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return null; }
 
-    // Upload to listing-photos bucket first
     const ext = file.name.split(".").pop() || "jpg";
-    const path = `${user.id}/vintography-${Date.now()}.${ext}`;
-
+    const path = `${user.id}/vintography-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
     const { error } = await supabase.storage.from("listing-photos").upload(path, file, {
-      contentType: file.type,
-      upsert: true,
+      contentType: file.type, upsert: true,
     });
-
-    if (error) {
-      toast.error("Failed to upload image");
-      console.error(error);
-      return;
-    }
-
+    if (error) { toast.error("Failed to upload image"); return null; }
     const { data: pub } = supabase.storage.from("listing-photos").getPublicUrl(path);
-    setOriginalUrl(pub.publicUrl);
-    setProcessedUrl(null);
+    return pub.publicUrl;
+  };
+
+  const handleFileSelect = useCallback(async (files: FileList | File[]) => {
+    if (!user) return;
+    const fileArr = Array.from(files).slice(0, 10); // Max 10
+
+    if (fileArr.length === 1) {
+      // Single file mode
+      const url = await uploadFile(fileArr[0]);
+      if (url) {
+        setOriginalUrl(url);
+        setProcessedUrl(null);
+        setVariations([]);
+        setCurrentVariation(0);
+        setBatchItems([]);
+      }
+    } else {
+      // Batch mode
+      const items: BatchItem[] = fileArr.map((f) => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        file: f,
+        previewUrl: URL.createObjectURL(f),
+        uploadedUrl: null,
+        processedUrl: null,
+        status: "pending" as const,
+      }));
+      setBatchItems(items);
+      setActiveBatchIndex(0);
+      // Upload first item and set as active
+      const url = await uploadFile(fileArr[0]);
+      if (url) {
+        setOriginalUrl(url);
+        setProcessedUrl(null);
+        setVariations([]);
+        setBatchItems((prev) => prev.map((it, i) => i === 0 ? { ...it, uploadedUrl: url, status: "pending" } : it));
+      }
+    }
   }, [user]);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const file = e.dataTransfer.files[0];
-      if (file) handleFileSelect(file);
-    },
-    [handleFileSelect]
-  );
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files.length > 0) handleFileSelect(e.dataTransfer.files);
+  }, [handleFileSelect]);
+
+  // Process single image
+  const processImage = async (imageUrl: string, operation: string, params: Record<string, string> = {}): Promise<string | null> => {
+    const { data, error } = await supabase.functions.invoke("vintography", {
+      body: { image_url: imageUrl, operation, parameters: params },
+    });
+    if (error) throw error;
+    if (data?.error) { toast.error(data.error); return null; }
+    toast.success(`Done! ${data.credits_used}/${data.credits_limit} edits used this month.`);
+    refreshCredits();
+    return data.processed_url;
+  };
+
+  const getParams = (): Record<string, string> => {
+    const params: Record<string, string> = {};
+    if (selectedOp === "smart_bg") params.bg_style = bgStyle;
+    if (selectedOp === "model_shot") { params.gender = modelGender; params.pose = modelPose; }
+    return params;
+  };
 
   const handleProcess = async () => {
     if (!originalUrl) return;
     setProcessing(true);
     setProcessedUrl(null);
 
-    const params: Record<string, string> = {};
-    if (selectedOp === "smart_bg") params.bg_style = bgStyle;
-    if (selectedOp === "model_shot") {
-      params.gender = modelGender;
-      params.pose = modelPose;
-    }
-
     try {
-      const { data, error } = await supabase.functions.invoke("vintography", {
-        body: { image_url: originalUrl, operation: selectedOp, parameters: params },
-      });
-
-      if (error) throw error;
-      if (data?.error) {
-        toast.error(data.error);
-        return;
+      const result = await processImage(originalUrl, selectedOp, getParams());
+      if (result) {
+        setProcessedUrl(result);
+        setVariations((prev) => [...prev.slice(-2), result]); // keep last 3
+        setCurrentVariation(variations.length > 1 ? Math.min(variations.length, 2) : 0);
       }
-
-      setProcessedUrl(data.processed_url);
-      toast.success(`Done! ${data.credits_used}/${data.credits_limit} edits used this month.`);
-      refreshCredits();
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Processing failed. Try again.");
     } finally {
       setProcessing(false);
+    }
+  };
+
+  // Try Again — re-run same operation for variation
+  const handleTryAgain = async () => {
+    if (!originalUrl) return;
+    setProcessing(true);
+    try {
+      const result = await processImage(originalUrl, selectedOp, getParams());
+      if (result) {
+        const newVars = [...variations.slice(-2), result];
+        setVariations(newVars);
+        setCurrentVariation(newVars.length - 1);
+        setProcessedUrl(result);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Processing failed");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Navigate variations
+  const handleVariationChange = (idx: number) => {
+    setCurrentVariation(idx);
+    setProcessedUrl(variations[idx]);
+  };
+
+  // Quick Preset handler
+  const handlePreset = async (preset: Preset) => {
+    if (!originalUrl) return;
+    setProcessing(true);
+    setProcessedUrl(null);
+    try {
+      let currentUrl = originalUrl;
+      for (const step of preset.steps) {
+        const result = await processImage(currentUrl, step.operation, step.parameters || {});
+        if (!result) throw new Error("Step failed");
+        currentUrl = result;
+      }
+      setProcessedUrl(currentUrl);
+      setVariations([currentUrl]);
+      setCurrentVariation(0);
+    } catch (err: any) {
+      toast.error(err.message || "Preset failed");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Batch: process all
+  const handleBatchProcessAll = async () => {
+    if (batchItems.length <= 1) return;
+    for (let i = 0; i < batchItems.length; i++) {
+      const item = batchItems[i];
+      // Upload if needed
+      let url = item.uploadedUrl;
+      if (!url) {
+        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "uploading" } : it));
+        url = await uploadFile(item.file);
+        if (!url) {
+          setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it));
+          continue;
+        }
+        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, uploadedUrl: url, status: "pending" } : it));
+      }
+      // Process
+      setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "processing" } : it));
+      setActiveBatchIndex(i);
+      setOriginalUrl(url);
+      setProcessedUrl(null);
+      try {
+        const result = await processImage(url, selectedOp, getParams());
+        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, processedUrl: result, status: result ? "done" : "error" } : it));
+        if (result) setProcessedUrl(result);
+      } catch {
+        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it));
+      }
+    }
+  };
+
+  const handleBatchSelect = (idx: number) => {
+    setActiveBatchIndex(idx);
+    const item = batchItems[idx];
+    setOriginalUrl(item.uploadedUrl || item.previewUrl);
+    setProcessedUrl(item.processedUrl);
+    setVariations(item.processedUrl ? [item.processedUrl] : []);
+    setCurrentVariation(0);
+  };
+
+  const handleBatchRemove = (idx: number) => {
+    setBatchItems((prev) => prev.filter((_, i) => i !== idx));
+    if (activeBatchIndex >= idx && activeBatchIndex > 0) setActiveBatchIndex((p) => p - 1);
+  };
+
+  const handleDownloadAll = async () => {
+    for (const item of batchItems) {
+      if (!item.processedUrl) continue;
+      try {
+        const res = await fetch(item.processedUrl);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `vintography-${item.id}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch { /* skip */ }
     }
   };
 
@@ -176,17 +316,16 @@ export default function Vintography() {
       a.download = `vintography-${Date.now()}.png`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      toast.error("Download failed");
-    }
+    } catch { toast.error("Download failed"); }
   };
-
-  const clipPercent = sliderValue[0];
 
   return (
     <PageShell title="Vintography" subtitle="AI-powered photo studio for your listings">
       <FeatureGate feature="vintography">
         <div className="space-y-4 sm:space-y-6">
+          {/* Credit Usage Bar */}
+          <CreditBar used={vintographyUsed} limit={creditsLimit} />
+
           {/* Upload Area */}
           {!originalUrl ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -201,39 +340,45 @@ export default function Vintography() {
                     <Upload className="w-7 h-7 text-primary" />
                   </div>
                   <div>
-                    <p className="font-display font-bold text-base sm:text-lg">
-                      Drop your photo here
-                    </p>
+                    <p className="font-display font-bold text-base sm:text-lg">Drop your photos here</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      or tap to upload · JPG, PNG, WebP · Max 10MB
+                      or tap to upload · JPG, PNG, WebP · Max 10MB · Up to 10 photos
                     </p>
                   </div>
-                  <div className="flex gap-2 mt-2">
-                    <Button size="sm" className="active:scale-95 transition-transform">
-                      <Camera className="w-4 h-4 mr-1.5" /> Choose Photo
-                    </Button>
-                  </div>
+                  <Button size="sm" className="active:scale-95 transition-transform">
+                    <Camera className="w-4 h-4 mr-1.5" /> Choose Photos
+                  </Button>
                 </div>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  multiple
                   className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleFileSelect(f);
-                  }}
+                  onChange={(e) => { if (e.target.files?.length) handleFileSelect(e.target.files); }}
                 />
               </Card>
             </motion.div>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 sm:space-y-6">
+              {/* Batch Strip */}
+              <BatchStrip
+                items={batchItems}
+                activeIndex={activeBatchIndex}
+                onSelect={handleBatchSelect}
+                onRemove={handleBatchRemove}
+                onDownloadAll={handleDownloadAll}
+              />
+
+              {/* Quick Presets */}
+              <QuickPresets onSelect={handlePreset} disabled={processing} />
+
               {/* Operation Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                 {operations.map((op) => (
                   <Card
                     key={op.id}
-                    onClick={() => { setSelectedOp(op.id); setProcessedUrl(null); }}
+                    onClick={() => { setSelectedOp(op.id); setProcessedUrl(null); setVariations([]); }}
                     className={`p-3 sm:p-4 cursor-pointer transition-all active:scale-[0.97] ${
                       selectedOp === op.id
                         ? "ring-2 ring-primary border-primary/30 bg-primary/[0.03]"
@@ -246,9 +391,7 @@ export default function Vintography() {
                       }`}>
                         <op.icon className={`w-4 h-4 ${selectedOp === op.id ? "text-primary" : "text-muted-foreground"}`} />
                       </div>
-                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-                        {op.tier}
-                      </Badge>
+                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{op.tier}</Badge>
                     </div>
                     <p className="font-semibold text-xs sm:text-sm">{op.label}</p>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">{op.desc}</p>
@@ -265,9 +408,7 @@ export default function Vintography() {
                       <Select value={bgStyle} onValueChange={setBgStyle}>
                         <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {bgStyles.map((s) => (
-                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                          ))}
+                          {bgStyles.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Card>
@@ -302,88 +443,64 @@ export default function Vintography() {
                 )}
               </AnimatePresence>
 
-              {/* Before / After */}
-              <Card className="overflow-hidden">
-                <div className="relative w-full" style={{ aspectRatio: "4/5", maxHeight: 500 }}>
-                  {/* Original (full) */}
-                  <img
-                    src={originalUrl}
-                    alt="Original"
-                    className="absolute inset-0 w-full h-full object-contain bg-muted/30"
-                  />
-                  {/* Processed overlay with clip */}
-                  {processedUrl && (
-                    <div
-                      className="absolute inset-0"
-                      style={{ clipPath: `inset(0 ${100 - clipPercent}% 0 0)` }}
-                    >
-                      <img
-                        src={processedUrl}
-                        alt="Processed"
-                        className="w-full h-full object-contain bg-background"
-                      />
-                    </div>
-                  )}
-                  {/* Slider line */}
-                  {processedUrl && (
-                    <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none"
-                      style={{ left: `${clipPercent}%` }}
-                    >
-                      <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                        <ChevronRight className="w-4 h-4 text-primary-foreground -ml-0.5" />
-                        <ChevronRight className="w-4 h-4 text-primary-foreground -ml-3 rotate-180" />
-                      </div>
-                    </div>
-                  )}
-                  {/* Labels */}
-                  <div className="absolute top-3 left-3 z-10">
-                    <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur-sm">Original</Badge>
-                  </div>
-                  {processedUrl && (
-                    <div className="absolute top-3 right-3 z-10">
-                      <Badge className="text-[10px] bg-primary/90 backdrop-blur-sm">Enhanced</Badge>
-                    </div>
-                  )}
-                  {/* Processing overlay */}
-                  {processing && (
-                    <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
-                      <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
-                      <p className="font-semibold text-sm">AI is working its magic…</p>
-                      <p className="text-xs text-muted-foreground">This usually takes 5–10 seconds</p>
-                    </div>
-                  )}
-                </div>
-                {/* Comparison slider control */}
-                {processedUrl && (
-                  <div className="px-4 py-3 border-t border-border">
-                    <Slider
-                      value={sliderValue}
-                      onValueChange={setSliderValue}
-                      min={0}
-                      max={100}
-                      step={1}
-                    />
-                  </div>
-                )}
-              </Card>
+              {/* Comparison View */}
+              <ComparisonView
+                originalUrl={originalUrl}
+                processedUrl={processedUrl}
+                processing={processing}
+                variations={variations}
+                currentVariation={currentVariation}
+                onVariationChange={handleVariationChange}
+              />
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  onClick={handleProcess}
-                  disabled={processing}
-                  className="flex-1 h-12 sm:h-10 font-semibold active:scale-95 transition-transform"
-                >
-                  {processing ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Wand2 className="w-4 h-4 mr-2" />
-                  )}
-                  {processing ? "Processing…" : `Apply ${operations.find((o) => o.id === selectedOp)?.label}`}
-                </Button>
+                {batchItems.length > 1 ? (
+                  <Button
+                    onClick={handleBatchProcessAll}
+                    disabled={processing}
+                    className="flex-1 h-12 sm:h-10 font-semibold active:scale-95 transition-transform"
+                  >
+                    {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                    {processing ? "Processing batch…" : `Process All ${batchItems.length} Photos`}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleProcess}
+                    disabled={processing}
+                    className="flex-1 h-12 sm:h-10 font-semibold active:scale-95 transition-transform"
+                  >
+                    {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                    {processing ? "Processing…" : `Apply ${opLabel(selectedOp)}`}
+                  </Button>
+                )}
                 {processedUrl && (
                   <>
+                    <Button variant="outline" onClick={handleTryAgain} disabled={processing} className="h-12 sm:h-10 active:scale-95 transition-transform">
+                      <RefreshCw className="w-4 h-4 mr-2" /> Try Again
+                    </Button>
+                    {variations.length > 1 && (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          disabled={currentVariation === 0}
+                          onClick={() => handleVariationChange(currentVariation - 1)}
+                          className="h-12 sm:h-10 w-10"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          disabled={currentVariation === variations.length - 1}
+                          onClick={() => handleVariationChange(currentVariation + 1)}
+                          className="h-12 sm:h-10 w-10"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
                     <Button variant="outline" onClick={handleDownload} className="h-12 sm:h-10 active:scale-95 transition-transform">
                       <Download className="w-4 h-4 mr-2" /> Download
                     </Button>
@@ -398,7 +515,7 @@ export default function Vintography() {
                 )}
                 <Button
                   variant="ghost"
-                  onClick={() => { setOriginalUrl(null); setProcessedUrl(null); }}
+                  onClick={() => { setOriginalUrl(null); setProcessedUrl(null); setVariations([]); setBatchItems([]); }}
                   className="h-12 sm:h-10 active:scale-95 transition-transform"
                 >
                   <RotateCcw className="w-4 h-4 mr-2" /> New Photo
@@ -412,79 +529,33 @@ export default function Vintography() {
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-muted-foreground" />
               <h2 className="font-display font-bold text-base sm:text-lg">Previous Edits</h2>
-              {gallery.length > 0 && (
-                <Badge variant="secondary" className="text-xs">{gallery.length}</Badge>
-              )}
+              {gallery.length > 0 && <Badge variant="secondary" className="text-xs">{gallery.length}</Badge>}
             </div>
 
             {galleryLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="aspect-square rounded-xl" />
-                ))}
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="aspect-square rounded-xl" />)}
               </div>
             ) : gallery.length === 0 ? (
               <Card className="p-8 text-center">
                 <ImageIcon className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  Your edited photos will appear here
-                </p>
+                <p className="text-sm text-muted-foreground">Your edited photos will appear here</p>
               </Card>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {gallery.map((job) => (
-                  <motion.div
+                  <GalleryCard
                     key={job.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="group"
-                  >
-                    <Card className="overflow-hidden">
-                      <div className="relative aspect-square bg-muted/30">
-                        <img
-                          src={job.processed_url || job.original_url}
-                          alt="Vintography edit"
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                        {job.status === "processing" && (
-                          <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                            <Loader2 className="w-6 h-6 text-primary animate-spin" />
-                          </div>
-                        )}
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                          {job.processed_url && (
-                            <Button
-                              size="icon"
-                              variant="secondary"
-                              className="h-8 w-8 rounded-full"
-                              onClick={() => {
-                                setOriginalUrl(job.original_url);
-                                setProcessedUrl(job.processed_url);
-                              }}
-                            >
-                              <ImageIcon className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
-                          <Button
-                            size="icon"
-                            variant="destructive"
-                            className="h-8 w-8 rounded-full"
-                            onClick={() => handleDeleteJob(job.id)}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="p-2">
-                        <p className="text-xs font-medium truncate">{opLabel(job.operation)}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </Card>
-                  </motion.div>
+                    job={job}
+                    opLabel={opLabel(job.operation)}
+                    onRestore={(j) => {
+                      setOriginalUrl(j.original_url);
+                      setProcessedUrl(j.processed_url);
+                      setVariations(j.processed_url ? [j.processed_url] : []);
+                      setCurrentVariation(0);
+                    }}
+                    onDelete={handleDeleteJob}
+                  />
                 ))}
               </div>
             )}
