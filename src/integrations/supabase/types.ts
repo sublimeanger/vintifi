@@ -21,16 +21,23 @@ export type Database = {
           category: string | null
           condition: string | null
           created_at: string
+          deal_score: number | null
+          demand_indicator: string | null
+          estimated_days_to_sell: number | null
           estimated_profit: number | null
           expires_at: string | null
           id: string
           image_url: string | null
+          net_profit: number | null
           profit_margin: number | null
+          risk_level: string | null
+          shipping_estimate: number | null
           source_platform: string
           source_price: number | null
           source_title: string | null
           source_url: string | null
           status: string
+          suggested_listing_title: string | null
           updated_at: string
           user_id: string
           vinted_estimated_price: number | null
@@ -41,16 +48,23 @@ export type Database = {
           category?: string | null
           condition?: string | null
           created_at?: string
+          deal_score?: number | null
+          demand_indicator?: string | null
+          estimated_days_to_sell?: number | null
           estimated_profit?: number | null
           expires_at?: string | null
           id?: string
           image_url?: string | null
+          net_profit?: number | null
           profit_margin?: number | null
+          risk_level?: string | null
+          shipping_estimate?: number | null
           source_platform: string
           source_price?: number | null
           source_title?: string | null
           source_url?: string | null
           status?: string
+          suggested_listing_title?: string | null
           updated_at?: string
           user_id: string
           vinted_estimated_price?: number | null
@@ -61,16 +75,23 @@ export type Database = {
           category?: string | null
           condition?: string | null
           created_at?: string
+          deal_score?: number | null
+          demand_indicator?: string | null
+          estimated_days_to_sell?: number | null
           estimated_profit?: number | null
           expires_at?: string | null
           id?: string
           image_url?: string | null
+          net_profit?: number | null
           profit_margin?: number | null
+          risk_level?: string | null
+          shipping_estimate?: number | null
           source_platform?: string
           source_price?: number | null
           source_title?: string | null
           source_url?: string | null
           status?: string
+          suggested_listing_title?: string | null
           updated_at?: string
           user_id?: string
           vinted_estimated_price?: number | null
@@ -451,6 +472,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      saved_searches: {
+        Row: {
+          brand: string | null
+          category: string | null
+          created_at: string
+          id: string
+          label: string | null
+          last_run_at: string | null
+          min_margin: number
+          platforms: string[]
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_run_at?: string | null
+          min_margin?: number
+          platforms?: string[]
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_run_at?: string | null
+          min_margin?: number
+          platforms?: string[]
+          user_id?: string
+        }
+        Relationships: []
       }
       scrape_jobs: {
         Row: {
