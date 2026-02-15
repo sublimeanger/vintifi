@@ -376,9 +376,24 @@ export default function DeadStock() {
                                 Apply £{rec.suggested_price.toFixed(0)}
                               </Button>
                             )}
-                            {rec.action === "relist" && (
-                              <Button size="sm" variant="outline" className="text-[10px] sm:text-xs h-8 sm:h-7 active:scale-95 transition-transform" onClick={(e) => { e.stopPropagation(); navigate("/relist"); }}>
-                                <RefreshCw className="w-3 h-3 mr-1" /> Relist
+                            {rec.action === "relist" && rec.listing_id && (
+                              <Button size="sm" variant="outline" className="text-[10px] sm:text-xs h-8 sm:h-7 active:scale-95 transition-transform" onClick={async (e) => {
+                                e.stopPropagation();
+                                const scheduledAt = new Date();
+                                scheduledAt.setDate(scheduledAt.getDate() + 1);
+                                const { error } = await supabase.from("relist_schedules").insert({
+                                  user_id: user!.id,
+                                  listing_id: rec.listing_id!,
+                                  scheduled_at: scheduledAt.toISOString(),
+                                  new_price: rec.suggested_price || rec.current_price,
+                                  strategy: "dead_stock_recovery",
+                                  ai_reason: rec.reasoning,
+                                  status: "pending",
+                                });
+                                if (error) toast.error("Failed to schedule relist");
+                                else toast.success("Added to Relist Scheduler!");
+                              }}>
+                                <RefreshCw className="w-3 h-3 mr-1" /> Schedule Relist
                               </Button>
                             )}
                             <Button size="sm" variant="ghost" className="text-[10px] sm:text-xs h-8 sm:h-7 active:scale-95 transition-transform" onClick={(e) => { e.stopPropagation(); navigate(`/price-check?brand=${encodeURIComponent(rec.listing_title.split(" ")[0])}`); }}>

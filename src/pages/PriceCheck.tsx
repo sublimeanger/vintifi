@@ -13,7 +13,7 @@ import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
-  ArrowRight, RotateCcw, Sparkles, ExternalLink,
+  ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag, Eye,
 } from "lucide-react";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PriceReportSkeleton } from "@/components/LoadingSkeletons";
@@ -333,7 +333,7 @@ export default function PriceCheck() {
           )}
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-center pt-2 pb-4">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-center pt-2 pb-4 flex-wrap">
             <Button
               onClick={() => { setReport(null); setUrl(""); setBrand(""); setCategory(""); setCondition(""); }}
               variant="outline"
@@ -341,6 +341,37 @@ export default function PriceCheck() {
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               New Analysis
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!user) { toast.error("Sign in to save"); return; }
+                const { error } = await supabase.from("listings").insert({
+                  user_id: user.id,
+                  title: report.item_title || `${report.item_brand || brand} ${category}`.trim() || "Untitled",
+                  brand: report.item_brand || brand || null,
+                  category: category || null,
+                  condition: condition || null,
+                  current_price: report.recommended_price,
+                  recommended_price: report.recommended_price,
+                  vinted_url: url || null,
+                  status: "active",
+                });
+                if (error) toast.error("Failed to save");
+                else toast.success("Saved to your inventory!");
+              }}
+              variant="outline"
+              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+            >
+              <ShoppingBag className="w-4 h-4 mr-2" />
+              Save to Inventory
+            </Button>
+            <Button
+              onClick={() => navigate(`/competitors?brand=${encodeURIComponent(report.item_brand || brand)}`)}
+              variant="outline"
+              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Track This Brand
             </Button>
             <Button
               onClick={() => navigate(`/optimize?brand=${encodeURIComponent(report.item_brand || brand)}&title=${encodeURIComponent(report.item_title || "")}`)}

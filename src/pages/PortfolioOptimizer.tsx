@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { PageShell } from "@/components/PageShell";
@@ -129,6 +129,31 @@ export default function PortfolioOptimizer() {
     : recommendations.filter(r => r.classification === filter);
 
   const actionableCount = recommendations.filter(r => r.classification !== "WELL_PRICED").length;
+  const actionableRecs = recommendations.filter(r => r.classification !== "WELL_PRICED" && r.suggested_price != null);
+
+  const [applyingAll, setApplyingAll] = useState(false);
+
+  const handleApplyAll = useCallback(async () => {
+    if (actionableRecs.length === 0) return;
+    setApplyingAll(true);
+    let success = 0;
+    for (const r of actionableRecs) {
+      const { error } = await supabase
+        .from("listings")
+        .update({ current_price: r.suggested_price })
+        .eq("id", r.listing_id);
+      if (!error) success++;
+    }
+    setApplyingAll(false);
+    toast.success(`Updated ${success} of ${actionableRecs.length} listings`);
+    setRecommendations(prev =>
+      prev.map(r =>
+        r.suggested_price != null && r.classification !== "WELL_PRICED"
+          ? { ...r, listing: r.listing ? { ...r.listing, current_price: r.suggested_price } : null, classification: "WELL_PRICED" as const, action: "keep" }
+          : r
+      )
+    );
+  }, [actionableRecs]);
 
   return (
     <PageShell
@@ -202,31 +227,44 @@ export default function PortfolioOptimizer() {
             ))}
           </div>
 
-          {/* Filters */}
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 scrollbar-hide">
-            <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
-            {[
-              { key: "all", label: "All" },
-              { key: "OVERPRICED", label: "Overpriced" },
-              { key: "UNDERPRICED", label: "Underpriced" },
-              { key: "STALE", label: "Stale" },
-              { key: "WELL_PRICED", label: "Well Priced" },
-            ].map(f => (
+          {/* Filters + Apply All */}
+          <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 scrollbar-hide flex-1">
+              <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
+              {[
+                { key: "all", label: "All" },
+                { key: "OVERPRICED", label: "Overpriced" },
+                { key: "UNDERPRICED", label: "Underpriced" },
+                { key: "STALE", label: "Stale" },
+                { key: "WELL_PRICED", label: "Well Priced" },
+              ].map(f => (
+                <Button
+                  key={f.key}
+                  variant={filter === f.key ? "default" : "outline"}
+                  size="sm"
+                  className="text-[10px] sm:text-xs h-7 sm:h-8 px-2.5 sm:px-3 shrink-0 active:scale-95 transition-transform"
+                  onClick={() => setFilter(f.key)}
+                >
+                  {f.label}
+                  {f.key !== "all" && (
+                    <span className="ml-1 opacity-70">
+                      ({recommendations.filter(r => r.classification === f.key).length})
+                    </span>
+                  )}
+                </Button>
+              ))}
+            </div>
+            {actionableRecs.length > 0 && (
               <Button
-                key={f.key}
-                variant={filter === f.key ? "default" : "outline"}
                 size="sm"
-                className="text-[10px] sm:text-xs h-7 sm:h-8 px-2.5 sm:px-3 shrink-0 active:scale-95 transition-transform"
-                onClick={() => setFilter(f.key)}
+                onClick={handleApplyAll}
+                disabled={applyingAll}
+                className="text-[10px] sm:text-xs h-7 sm:h-8 shrink-0 active:scale-95 transition-transform font-semibold"
               >
-                {f.label}
-                {f.key !== "all" && (
-                  <span className="ml-1 opacity-70">
-                    ({recommendations.filter(r => r.classification === f.key).length})
-                  </span>
-                )}
+                {applyingAll ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CheckCircle2 className="w-3 h-3 mr-1" />}
+                Apply All ({actionableRecs.length})
               </Button>
-            ))}
+            )}
           </div>
 
           {/* Recommendations */}
