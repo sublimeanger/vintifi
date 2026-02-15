@@ -22,6 +22,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization") || "";
     let userCategories: string[] = [];
     let userTimezone = "Europe/London";
+    let userTier = "free";
     if (authHeader.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "");
       try {
@@ -29,13 +30,22 @@ serve(async (req) => {
         if (user) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("selling_categories, timezone")
+            .select("selling_categories, timezone, subscription_tier")
             .eq("user_id", user.id)
             .single();
           userCategories = profile?.selling_categories || [];
           userTimezone = profile?.timezone || "Europe/London";
+          userTier = profile?.subscription_tier || "free";
         }
       } catch { /* continue without personalisation */ }
+    }
+
+    // Tier check: pro+
+    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    if ((tierLevel[userTier] ?? 0) < 1) {
+      return new Response(JSON.stringify({ error: "This feature requires a Pro plan. Upgrade to continue." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Get latest trends for context

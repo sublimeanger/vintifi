@@ -45,6 +45,17 @@ serve(async (req) => {
       });
     }
 
+    // Tier check: pro+
+    const serviceClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: profile } = await serviceClient.from("profiles").select("subscription_tier").eq("user_id", user.id).single();
+    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    if ((tierLevel[profile?.subscription_tier || "free"] ?? 0) < 1) {
+      return new Response(JSON.stringify({ error: "This feature requires a Pro plan. Upgrade to continue." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { categories, price_range, limit = 12 } = await req.json();
 
     if (!categories || categories.length === 0) {

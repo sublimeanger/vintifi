@@ -122,6 +122,17 @@ serve(async (req) => {
       });
     }
 
+    // Tier check: business+
+    const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: profile } = await serviceClient.from("profiles").select("subscription_tier").eq("user_id", user.id).single();
+    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    if ((tierLevel[profile?.subscription_tier || "free"] ?? 0) < 2) {
+      return new Response(JSON.stringify({ error: "This feature requires a Business plan. Upgrade to continue." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { brand, category, min_profit_margin = 30, platforms } = await req.json();
 
     if (!brand && !category) {
