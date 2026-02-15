@@ -30,6 +30,19 @@ serve(async (req) => {
     } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authError || !user) throw new Error("Unauthorized");
 
+    // --- Tier check: Business+ required for eBay connection ---
+    const { data: profile } = await supabase
+      .from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle();
+    const tier = profile?.subscription_tier || "free";
+    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    if ((tierLevel[tier] ?? 0) < 2) {
+      return new Response(
+        JSON.stringify({ error: "This feature requires a Business plan. Upgrade to continue." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // --- End tier check ---
+
     const body = await req.json();
     const { action } = body;
 

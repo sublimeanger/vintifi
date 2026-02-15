@@ -44,6 +44,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { UpgradeModal } from "@/components/UpgradeModal";
+import { Crown } from "lucide-react";
 
 type Listing = {
   id: string;
@@ -97,9 +99,11 @@ function getProfit(listing: Listing): number | null {
   return null;
 }
 
+const LISTING_LIMITS: Record<string, number> = { free: 20, pro: 200, business: 1000, scale: 999999 };
+
 export default function Listings() {
   const navigate = useNavigate();
-  const { user, session } = useAuth();
+  const { user, session, profile } = useAuth();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -128,6 +132,12 @@ export default function Listings() {
   const [newPurchasePrice, setNewPurchasePrice] = useState("");
   const [newUrl, setNewUrl] = useState("");
 
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  const tier = profile?.subscription_tier || "free";
+  const listingLimit = LISTING_LIMITS[tier] || 20;
+  const isUnlimited = listingLimit > 99999;
+
   const fetchListings = async () => {
     if (!user) return;
     setLoading(true);
@@ -151,6 +161,13 @@ export default function Listings() {
   }, [user]);
 
   const handleAddListing = async () => {
+    // Check listing limit
+    const activeCount = listings.filter(l => l.status === "active").length;
+    if (activeCount >= listingLimit) {
+      setShowUpgrade(true);
+      return;
+    }
+
     if (!newTitle.trim()) {
       toast.error("Title is required");
       return;
@@ -608,6 +625,23 @@ export default function Listings() {
           </motion.div>
         ))}
       </div>
+
+      {/* Listing Limit Indicator */}
+      {!isUnlimited && (
+        <Card className={`p-3 sm:p-4 mb-5 sm:mb-6 ${stats.active >= listingLimit ? "border-destructive/30 bg-destructive/[0.03]" : "border-border"}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Active Listings: {stats.active} of {listingLimit}
+            </span>
+            {stats.active >= listingLimit && (
+              <Button size="sm" variant="outline" onClick={() => setShowUpgrade(true)} className="h-7 text-xs gap-1.5">
+                <Crown className="w-3 h-3" /> Upgrade
+              </Button>
+            )}
+          </div>
+          <Progress value={Math.min((stats.active / listingLimit) * 100, 100)} className="h-1.5" />
+        </Card>
+      )}
 
       {/* P&L Summary */}
       {(totalPurchaseCost > 0 || totalRevenue > 0) && (
@@ -1070,6 +1104,13 @@ export default function Listings() {
         open={!!publishListing}
         onOpenChange={(open) => !open && setPublishListing(null)}
         listing={publishListing}
+      />
+
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        reason={`You've reached your listing limit (${listingLimit}). Upgrade to track more listings.`}
+        tierRequired="pro"
       />
 
       <MobileBottomNav />
