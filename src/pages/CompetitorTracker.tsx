@@ -12,13 +12,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Loader2, Eye, Trash2, RefreshCw,
   TrendingUp, TrendingDown, Minus, Bell, BellOff,
-  Users, Search, BarChart3, Radar,
+  Users, Search, BarChart3, Radar, Lock,
 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CompetitorCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { FeatureGate } from "@/components/FeatureGate";
+import { UpgradeModal } from "@/components/UpgradeModal";
 
 type Competitor = {
   id: string;
@@ -64,15 +65,23 @@ function getAlertBadge(type: string) {
   }
 }
 
+const COMPETITOR_LIMITS: Record<string, number> = {
+  free: 0,
+  pro: 3,
+  business: 15,
+  scale: 50,
+};
+
 export default function CompetitorTracker() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [scanningId, setScanningId] = useState<string | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   // Add form state
   const [newName, setNewName] = useState("");
@@ -80,6 +89,10 @@ export default function CompetitorTracker() {
   const [newQuery, setNewQuery] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [adding, setAdding] = useState(false);
+
+  const tier = (profile?.subscription_tier || "free") as string;
+  const maxCompetitors = COMPETITOR_LIMITS[tier] ?? 0;
+  const atLimit = competitors.length >= maxCompetitors;
 
   useEffect(() => {
     if (!user) return;
@@ -107,9 +120,21 @@ export default function CompetitorTracker() {
     setLoading(false);
   };
 
+  const handleAddClick = () => {
+    if (atLimit) {
+      setShowUpgrade(true);
+      return;
+    }
+    setShowAddForm(!showAddForm);
+  };
+
   const handleAdd = async () => {
     if (!user || !newName.trim()) {
       toast.error("Enter a competitor name");
+      return;
+    }
+    if (atLimit) {
+      setShowUpgrade(true);
       return;
     }
     setAdding(true);
@@ -172,6 +197,9 @@ export default function CompetitorTracker() {
 
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
+  const nextTierName = tier === "pro" ? "Business" : tier === "business" ? "Scale" : "Pro";
+  const nextTierLimit = tier === "pro" ? 15 : tier === "business" ? 50 : 3;
+
   return (
     <PageShell
       title="Competitor Tracker"
@@ -198,17 +226,37 @@ export default function CompetitorTracker() {
               <div className="flex items-center justify-between">
                 <h2 className="font-display font-bold text-base flex items-center gap-2">
                   <Users className="w-4 h-4 text-primary" />
-                  Tracked Competitors ({competitors.length})
+                  Tracked Competitors ({competitors.length} of {maxCompetitors})
                 </h2>
-                <Button size="sm" onClick={() => setShowAddForm(!showAddForm)} className="active:scale-95 transition-transform">
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add
+                <Button
+                  size="sm"
+                  onClick={handleAddClick}
+                  className="active:scale-95 transition-transform"
+                  variant={atLimit ? "outline" : "default"}
+                >
+                  {atLimit ? (
+                    <><Lock className="w-3 h-3 mr-1" /> Limit Reached</>
+                  ) : (
+                    <><Plus className="w-3 h-3 mr-1" /> Add</>
+                  )}
                 </Button>
               </div>
 
+              {/* Limit banner */}
+              {atLimit && (
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <p className="text-xs text-muted-foreground">
+                    You're tracking {competitors.length}/{maxCompetitors} competitors. Upgrade to {nextTierName} for {nextTierLimit}.
+                  </p>
+                  <Button size="sm" className="h-7 text-xs shrink-0" onClick={() => setShowUpgrade(true)}>
+                    Upgrade
+                  </Button>
+                </div>
+              )}
+
               {/* Add Form */}
               <AnimatePresence>
-                {showAddForm && (
+                {showAddForm && !atLimit && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
                     <Card className="p-4 sm:p-5">
                       <h3 className="font-display font-bold text-sm mb-3">Track a new competitor or niche</h3>
@@ -254,7 +302,7 @@ export default function CompetitorTracker() {
                   <p className="text-xs sm:text-sm text-muted-foreground mb-4">
                     Add a Vinted seller or search query to start monitoring.
                   </p>
-                  <Button onClick={() => setShowAddForm(true)} size="sm" className="active:scale-95 transition-transform">
+                  <Button onClick={handleAddClick} size="sm" className="active:scale-95 transition-transform">
                     <Plus className="w-3 h-3 mr-1" /> Add Your First Competitor
                   </Button>
                 </Card>
@@ -417,6 +465,13 @@ export default function CompetitorTracker() {
           </div>
         )}
         </FeatureGate>
+
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        reason={`You've reached your competitor tracking limit (${maxCompetitors}). Upgrade to ${nextTierName} for up to ${nextTierLimit} competitors.`}
+        tierRequired={tier === "pro" ? "business" : tier === "business" ? "scale" : "pro"}
+      />
     </PageShell>
   );
 }

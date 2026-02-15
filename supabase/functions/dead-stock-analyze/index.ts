@@ -23,6 +23,18 @@ serve(async (req) => {
     const userId = userData.id;
     if (!userId) throw new Error("Invalid user");
 
+    // Tier check: pro+
+    const profileRes = await fetch(`${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}&select=subscription_tier`, {
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+    });
+    const profiles = await profileRes.json();
+    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    if ((tierLevel[profiles?.[0]?.subscription_tier || "free"] ?? 0) < 1) {
+      return new Response(JSON.stringify({ error: "This feature requires a Pro plan. Upgrade to continue." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Fetch active listings older than threshold
     const { threshold_days = 30 } = await req.json().catch(() => ({}));
 

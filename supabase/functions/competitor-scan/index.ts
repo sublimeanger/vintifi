@@ -33,6 +33,29 @@ serve(async (req) => {
       });
     }
 
+    // Tier check: pro+
+    const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: profile } = await serviceClient.from("profiles").select("subscription_tier").eq("user_id", user.id).single();
+    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    const userTierLevel = tierLevel[profile?.subscription_tier || "free"] ?? 0;
+    if (userTierLevel < 1) {
+      return new Response(JSON.stringify({ error: "This feature requires a Pro plan. Upgrade to continue." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Competitor count limit check
+    const competitorLimits: Record<string, number> = { free: 0, pro: 3, business: 15, scale: 50 };
+    const maxCompetitors = competitorLimits[profile?.subscription_tier || "free"] ?? 0;
+    const { count } = await serviceClient.from("competitor_profiles").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+    if ((count || 0) > maxCompetitors) {
+      return new Response(JSON.stringify({ error: `You've reached your competitor limit (${maxCompetitors}). Upgrade for more.` }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { competitor_id, competitor_name, vinted_username, search_query, category } = await req.json();
 
     const searchTerm = vinted_username
