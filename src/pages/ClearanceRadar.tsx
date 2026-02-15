@@ -17,6 +17,7 @@ import {
 import { PageShell } from "@/components/PageShell";
 import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { FeatureGate } from "@/components/FeatureGate";
 
 const RETAILERS = [
   { id: "ASOS Outlet", label: "ASOS Outlet", color: "bg-[hsl(200,70%,50%)]/10 text-[hsl(200,70%,50%)] border-[hsl(200,70%,50%)]/20" },
@@ -113,6 +114,7 @@ export default function ClearanceRadar() {
       icon={<ShoppingCart className="w-5 h-5 text-primary" />}
       maxWidth="max-w-4xl"
     >
+      <FeatureGate feature="clearance_radar">
       <UseCaseSpotlight
         featureKey="clearance-radar"
         icon={ShoppingCart}
@@ -318,6 +320,7 @@ export default function ClearanceRadar() {
           </div>
         </motion.div>
       )}
+      </FeatureGate>
     </PageShell>
   );
 }

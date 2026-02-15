@@ -15,6 +15,7 @@ import {
   ArrowRightLeft, BarChart3, Lightbulb, Target,
 } from "lucide-react";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { FeatureGate } from "@/components/FeatureGate";
 
 type Recommendation = {
   listing_index: number;
@@ -117,6 +118,7 @@ export default function DeadStock() {
       icon={<AlertTriangle className="w-5 h-5 text-destructive" />}
       maxWidth="max-w-4xl"
     >
+      <FeatureGate feature="dead_stock">
       <UseCaseSpotlight
         featureKey="dead-stock"
         icon={AlertTriangle}
@@ -393,6 +395,7 @@ export default function DeadStock() {
           );
         })}
       </AnimatePresence>
+      </FeatureGate>
     </PageShell>
   );
 }

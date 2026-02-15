@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { FeatureGate } from "@/components/FeatureGate";
 
 const CATEGORIES = [
   "Womenswear", "Menswear", "Streetwear", "Vintage",
@@ -124,6 +125,7 @@ export default function NicheFinder() {
       subtitle="Find underserved niches with high demand & low supply"
       icon={<Target className="w-5 h-5 text-primary" />}
     >
+      <FeatureGate feature="niche_finder">
       <UseCaseSpotlight
         featureKey="niche-finder"
         icon={Target}
@@ -331,6 +333,7 @@ export default function NicheFinder() {
           </div>
         </motion.div>
       )}
+      </FeatureGate>
     </PageShell>
   );
 }

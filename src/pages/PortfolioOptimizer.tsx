@@ -14,6 +14,7 @@ import {
   ArrowDownRight, BarChart3, Filter,
 } from "lucide-react";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { FeatureGate } from "@/components/FeatureGate";
 
 type ListingInfo = {
   title: string;
@@ -143,6 +144,7 @@ export default function PortfolioOptimizer() {
         </Button>
       }
     >
+      <FeatureGate feature="portfolio_optimizer">
       <UseCaseSpotlight
         featureKey="portfolio-optimizer"
         icon={Target}
@@ -323,6 +325,7 @@ export default function PortfolioOptimizer() {
           </Button>
         </Card>
       )}
+      </FeatureGate>
     </PageShell>
   );
 }

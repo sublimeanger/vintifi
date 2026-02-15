@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+import { FeatureGate } from "@/components/FeatureGate";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -261,6 +262,7 @@ export default function SeasonalCalendar() {
       maxWidth="max-w-6xl"
     >
 
+      <FeatureGate feature="seasonal_calendar">
           <UseCaseSpotlight
             featureKey="seasonal-calendar"
             icon={CalendarDays}
@@ -601,6 +603,7 @@ export default function SeasonalCalendar() {
               </Card>
             )}
           </AnimatePresence>
+      </FeatureGate>
     </PageShell>
   );
 }

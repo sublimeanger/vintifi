@@ -19,6 +19,7 @@ import { HealthScoreGauge } from "@/components/HealthScoreGauge";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { FeatureGate } from "@/components/FeatureGate";
 
 type HealthScore = {
   overall: number;
@@ -215,6 +216,7 @@ export default function OptimizeListing() {
       subtitle="Upload photos · Get AI-optimised listings"
       maxWidth="max-w-6xl"
     >
+      <FeatureGate feature="optimize_listing">
       <UseCaseSpotlight
         featureKey="optimize-listing"
         icon={Sparkles}
@@ -539,6 +541,7 @@ export default function OptimizeListing() {
       </div>
 
       <MobileBottomNav />
+      </FeatureGate>
     </PageShell>
   );
 }
