@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -236,6 +237,17 @@ export default function SeasonalCalendar() {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [view, setView] = useState<"calendar" | "category">("calendar");
+  const [liveTrends, setLiveTrends] = useState<{ brand_or_item: string; category: string; search_volume_change_7d: number | null; opportunity_score: number | null }[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("trends")
+      .select("brand_or_item, category, search_volume_change_7d, opportunity_score")
+      .eq("trend_direction", "rising")
+      .order("opportunity_score", { ascending: false })
+      .limit(12)
+      .then(({ data }) => setLiveTrends(data || []));
+  }, []);
 
   const currentMonthData = useMemo(() => {
     return DEMAND_DATA.map((cat) => ({
@@ -323,6 +335,35 @@ export default function SeasonalCalendar() {
                   >
                     {c.icon} {c.category}
                     {c.demand.level === "very_high" && <Flame className="w-3 h-3 ml-1" />}
+                  </Badge>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Live Trend Confirmations */}
+          {liveTrends.length > 0 && (
+            <Card className="p-3.5 sm:p-4 mb-4 sm:mb-6 border-success/20 bg-success/[0.02]">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-5 h-5 text-success" />
+                <h3 className="font-display font-bold text-sm">Live Trend Radar Confirmation</h3>
+                <Badge variant="outline" className="text-[9px] text-success border-success/30 ml-auto">LIVE</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                These brands are trending right now on Vinted, confirming seasonal demand patterns:
+              </p>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                {liveTrends.slice(0, 8).map((t) => (
+                  <Badge
+                    key={t.brand_or_item}
+                    variant="outline"
+                    className="cursor-pointer hover:bg-success/10 transition-colors text-xs py-1 px-2.5 shrink-0 active:scale-95"
+                    onClick={() => navigate(`/price-check?brand=${encodeURIComponent(t.brand_or_item)}&category=${encodeURIComponent(t.category)}`)}
+                  >
+                    {t.brand_or_item}
+                    {t.search_volume_change_7d != null && (
+                      <span className="text-success ml-1 font-semibold">+{Math.round(t.search_volume_change_7d)}%</span>
+                    )}
                   </Badge>
                 ))}
               </div>

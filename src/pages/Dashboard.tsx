@@ -25,6 +25,9 @@ import {
 import { STRIPE_TIERS } from "@/lib/constants";
 import { GuidedTour } from "@/components/GuidedTour";
 import { DashboardIntelligence } from "@/components/DashboardIntelligence";
+import { DashboardForYou } from "@/components/DashboardForYou";
+import { useSidebarBadges } from "@/hooks/useSidebarBadges";
+import { useFeatureUnlocks } from "@/hooks/useFeatureUnlocks";
 
 const navSections = [
   {
@@ -111,6 +114,8 @@ export default function Dashboard() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [recentReports, setRecentReports] = useState<PriceReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(true);
+  const badges = useSidebarBadges();
+  useFeatureUnlocks();
 
   const [activeCount, setActiveCount] = useState<number>(0);
   const [portfolioValue, setPortfolioValue] = useState<number>(0);
@@ -219,7 +224,13 @@ export default function Dashboard() {
                     >
                       <item.icon className="w-4 h-4 shrink-0" />
                       {item.label}
-                      {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+                      {badges[item.path] ? (
+                        <span className="ml-auto text-[10px] font-bold bg-destructive/15 text-destructive px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                          {badges[item.path]}
+                        </span>
+                      ) : isActive ? (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                      ) : null}
                     </button>
                   );
                 })}
@@ -281,7 +292,13 @@ export default function Dashboard() {
                             }`}
                           >
                             <item.icon className="w-4 h-4 shrink-0" /> {item.label}
-                            {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+                            {badges[item.path] ? (
+                              <span className="ml-auto text-[10px] font-bold bg-destructive/15 text-destructive px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                                {badges[item.path]}
+                              </span>
+                            ) : isActive ? (
+                              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                            ) : null}
                           </button>
                         );
                       })}
@@ -354,6 +371,9 @@ export default function Dashboard() {
 
           {/* Intelligence Cards & Trending */}
           <DashboardIntelligence />
+
+          {/* For You - Personalised */}
+          <DashboardForYou />
 
           {/* Recent Price Checks */}
           <Card className="p-4 sm:p-6">
