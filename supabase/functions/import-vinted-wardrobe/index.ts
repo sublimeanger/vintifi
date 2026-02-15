@@ -90,61 +90,85 @@ Deno.serve(async (req) => {
     const urlObj = new URL(wardrobeUrl);
 
     // ========================================
-    // PHASE 1: Discover item URLs with scrolling
+    // PHASE 1: Discover item URLs via paginated scraping
     // ========================================
-    console.log(`Phase 1: Discovering URLs from ${wardrobeUrl} with scrolling (tier: ${tier}, limit: ${importLimit})`);
+    // Vinted wardrobes paginate at ~20 items per page.
+    // We scrape multiple pages to discover all items.
+    const MAX_PAGES = Math.ceil(Math.min(importLimit, remaining) / 20) + 1; // +1 safety
+    const PAGE_CAP = 15; // Max pages to avoid excessive Firecrawl credits
+    const pagesToScrape = Math.min(MAX_PAGES, PAGE_CAP);
 
-    // Build scroll actions to trigger infinite scroll loading
-    const scrollActions: any[] = [];
-    for (let i = 0; i < 10; i++) {
-      scrollActions.push({ type: "scroll", direction: "down", amount: 2000 });
-      scrollActions.push({ type: "wait", milliseconds: 1000 });
-    }
+    console.log(`Phase 1: Discovering URLs from ${wardrobeUrl} via ${pagesToScrape} pages (tier: ${tier}, limit: ${importLimit})`);
 
-    const linksResponse = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: wardrobeUrl,
-        formats: ["links"],
-        actions: scrollActions,
-        waitFor: 5000,
-        timeout: 45000,
-      }),
-    });
-
-    const linksData = await linksResponse.json();
-    if (!linksResponse.ok || !linksData.success) {
-      console.error("Firecrawl scroll-scrape error:", JSON.stringify(linksData));
-      return new Response(JSON.stringify({ success: false, error: "Could not scrape the wardrobe. Make sure your Vinted profile is public." }), {
-        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const allLinks: string[] = linksData.data?.links || linksData.links || [];
-    console.log(`Scroll-scrape found ${allLinks.length} total URLs`);
-
-    // ========================================
-    // PHASE 2: Strict URL filtering — only /items/{id} on same domain
-    // ========================================
-    const itemUrlPattern = /\/items\/(\d+)/;
     const seen = new Set<string>();
     const itemUrls: { url: string; id: string; slug: string }[] = [];
+    const itemUrlPattern = /\/items\/(\d+)-?(.*)/;
 
-    for (const link of allLinks) {
-      try {
-        const u = new URL(link);
-        if (u.hostname !== urlObj.hostname) continue;
-        const match = u.pathname.match(/\/items\/(\d+)-?(.*)/);
-        if (!match) continue;
-        const itemId = match[1];
-        if (seen.has(itemId)) continue;
-        seen.add(itemId);
-        itemUrls.push({ url: link, id: itemId, slug: match[2] || "" });
-      } catch { /* skip invalid URLs */ }
+    // Scrape pages in parallel batches of 3
+    const PAGE_BATCH = 3;
+    let emptyPages = 0;
+
+    for (let pageStart = 1; pageStart <= pagesToScrape && emptyPages < 2; pageStart += PAGE_BATCH) {
+      const pageBatch = [];
+      for (let p = pageStart; p < pageStart + PAGE_BATCH && p <= pagesToScrape; p++) {
+        pageBatch.push(p);
+      }
+
+      const pageResults = await Promise.allSettled(pageBatch.map(async (pageNum) => {
+        const pageUrl = `${wardrobeUrl}?page=${pageNum}`;
+        console.log(`Scraping page ${pageNum}: ${pageUrl}`);
+
+        const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: pageUrl,
+            formats: ["links"],
+            onlyMainContent: true,
+            waitFor: 5000,
+            timeout: 30000,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          console.error(`Page ${pageNum} scrape failed:`, JSON.stringify(data));
+          return [];
+        }
+
+        const links: string[] = data.data?.links || data.links || [];
+        const pageItems: { url: string; id: string; slug: string }[] = [];
+
+        for (const link of links) {
+          try {
+            const u = new URL(link);
+            if (u.hostname !== urlObj.hostname) continue;
+            const match = u.pathname.match(itemUrlPattern);
+            if (!match) continue;
+            const itemId = match[1];
+            if (seen.has(itemId)) continue;
+            seen.add(itemId);
+            pageItems.push({ url: link, id: itemId, slug: match[2] || "" });
+          } catch { /* skip */ }
+        }
+
+        console.log(`Page ${pageNum}: found ${links.length} URLs, ${pageItems.length} new items`);
+        return pageItems;
+      }));
+
+      for (const r of pageResults) {
+        if (r.status === "fulfilled") {
+          if (r.value.length === 0) emptyPages++;
+          else emptyPages = 0; // reset if we found items
+          itemUrls.push(...r.value);
+        }
+      }
+
+      // Stop if we've found enough
+      if (itemUrls.length >= Math.min(importLimit, remaining)) break;
     }
 
-    console.log(`Phase 2: ${itemUrls.length} unique item URLs after filtering`);
+    console.log(`Phase 1 complete: ${itemUrls.length} unique item URLs discovered across pages`);
 
     if (itemUrls.length === 0) {
       return new Response(JSON.stringify({ success: false, error: "No items found in this wardrobe. Make sure the profile is public and has active listings." }), {
@@ -156,15 +180,14 @@ Deno.serve(async (req) => {
     const cappedItems = itemUrls.slice(0, Math.min(importLimit, remaining));
 
     // ========================================
-    // PHASE 3: Deep scrape each item individually
+    // PHASE 2: Deep scrape each item individually
     // ========================================
-    // Cap deep scrapes to avoid edge function timeout (~50 items max)
     const DEEP_SCRAPE_CAP = 50;
     const BATCH_SIZE = 5;
     const deepScrapeItems = cappedItems.slice(0, DEEP_SCRAPE_CAP);
     const slugOnlyItems = cappedItems.slice(DEEP_SCRAPE_CAP);
 
-    console.log(`Phase 3: Deep scraping ${deepScrapeItems.length} items, ${slugOnlyItems.length} slug-only`);
+    console.log(`Phase 2: Deep scraping ${deepScrapeItems.length} items, ${slugOnlyItems.length} slug-only`);
 
     type ItemData = {
       item_id: string;
@@ -196,7 +219,6 @@ Deno.serve(async (req) => {
         };
 
         try {
-          // Scrape individual listing page
           const pageRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
             method: "POST",
             headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
@@ -215,7 +237,6 @@ Deno.serve(async (req) => {
           const md = pageData.data?.markdown || pageData.markdown || "";
           if (md.length < 50) return fallback;
 
-          // Lightweight AI extraction from single item page
           const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
             headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
@@ -286,7 +307,7 @@ Return ONLY a valid JSON object. No markdown fences.`,
       });
     }
 
-    console.log(`Phase 3 complete: ${deepSuccess} deep-scraped, ${results.length} total items`);
+    console.log(`Phase 2 complete: ${deepSuccess} deep-scraped, ${results.length} total items`);
 
     if (results.length === 0) {
       return new Response(JSON.stringify({ success: false, error: "No listings could be processed." }), {
@@ -295,7 +316,7 @@ Return ONLY a valid JSON object. No markdown fences.`,
     }
 
     // ========================================
-    // PHASE 4: Upsert into listings table
+    // PHASE 3: Upsert into listings table
     // ========================================
     let imported = 0;
     let updated = 0;
