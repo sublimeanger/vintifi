@@ -100,6 +100,7 @@ function getProfit(listing: Listing): number | null {
 }
 
 const LISTING_LIMITS: Record<string, number> = { free: 20, pro: 200, business: 1000, scale: 999999 };
+const IMPORT_LIMITS: Record<string, number> = { free: 20, pro: 200, business: 9999, scale: 9999 };
 
 export default function Listings() {
   const navigate = useNavigate();
@@ -137,6 +138,8 @@ export default function Listings() {
   const tier = profile?.subscription_tier || "free";
   const listingLimit = LISTING_LIMITS[tier] || 20;
   const isUnlimited = listingLimit > 99999;
+  const importLimit = IMPORT_LIMITS[tier] || 20;
+  const isImportUnlimited = importLimit > 9000;
 
   const fetchListings = async () => {
     if (!user) return;
@@ -409,6 +412,12 @@ export default function Listings() {
     .filter((l) => l.status === "sold" && l.purchase_price != null)
     .reduce((sum, l) => sum + (l.purchase_price || 0), 0);
 
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const importsThisMonth = listings.filter(l => new Date(l.created_at) >= monthStart).length;
+  const importRemaining = Math.max(0, importLimit - importsThisMonth);
+
   const stats = {
     total: listings.length,
     active: listings.filter((l) => l.status === "active").length,
@@ -643,7 +652,26 @@ export default function Listings() {
         </Card>
       )}
 
-      {/* P&L Summary */}
+      {/* Monthly Import Allowance */}
+      {!isImportUnlimited && (
+        <Card className={`p-3 sm:p-4 mb-5 sm:mb-6 ${importRemaining <= 0 ? "border-destructive/30 bg-destructive/[0.03]" : "border-border"}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Monthly Imports: {importsThisMonth} of {importLimit}
+            </span>
+            {importRemaining <= 0 && (
+              <Button size="sm" variant="outline" onClick={() => setShowUpgrade(true)} className="h-7 text-xs gap-1.5">
+                <Crown className="w-3 h-3" /> Upgrade
+              </Button>
+            )}
+          </div>
+          <Progress value={Math.min((importsThisMonth / importLimit) * 100, 100)} className="h-1.5" />
+          <p className="text-[10px] text-muted-foreground mt-1.5">
+            {importRemaining > 0 ? `${importRemaining} imports remaining this month` : "Limit reached — upgrade for more"}
+          </p>
+        </Card>
+      )}
+
       {(totalPurchaseCost > 0 || totalRevenue > 0) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="p-4 mb-5 sm:mb-6 border-primary/20 bg-primary/[0.02]">
