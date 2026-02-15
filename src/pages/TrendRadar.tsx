@@ -150,17 +150,19 @@ export default function TrendRadar() {
       {loading ? (
         <TrendCardSkeleton count={4} />
       ) : filteredTrends.length === 0 ? (
-        <div className="text-center py-16">
-          <BarChart3 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-          <h3 className="font-display font-bold text-base sm:text-lg mb-2">No trends found</h3>
-          <p className="text-sm text-muted-foreground">
+        <div className="text-center py-12 sm:py-16">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+            <BarChart3 className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/40" />
+          </div>
+          <h3 className="font-display font-bold text-sm sm:text-lg mb-1.5">No trends found</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             {allTrends.length === 0
               ? "Trends update daily at 6am UK time. Check back soon!"
               : `No trends in ${selectedCategory} right now. Try another category.`}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <AnimatePresence>
             {filteredTrends.map((trend, i) => (
               <TrendCard key={trend.id} trend={trend} index={i} />
