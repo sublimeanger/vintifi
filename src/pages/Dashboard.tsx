@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Search, Tag, TrendingUp, Settings, LogOut, Zap,
   Package, DollarSign, ShoppingBag, BarChart3, Loader2, Menu, CreditCard,
   Clock, ChevronRight, ArrowRightLeft, Radar, AlertTriangle, PieChart, Timer, Target, CalendarDays, MapPin,
-  FileSpreadsheet,
+  FileSpreadsheet, Sparkles,
 } from "lucide-react";
 import { STRIPE_TIERS } from "@/lib/constants";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -78,6 +78,24 @@ type PriceReport = {
   vinted_url: string | null;
 };
 
+// Metric card config with colours and navigation
+const metricConfig = [
+  { icon: Package, label: "Active Listings", color: "text-primary", border: "border-l-primary", bg: "bg-primary/5", path: "/listings" },
+  { icon: DollarSign, label: "Portfolio Value", color: "text-success", border: "border-l-success", bg: "bg-success/5", path: "/portfolio" },
+  { icon: ShoppingBag, label: "Sold This Week", color: "text-accent", border: "border-l-accent", bg: "bg-accent/5", path: "/analytics" },
+  { icon: Zap, label: "Monthly Profit", color: "text-primary", border: "border-l-primary", bg: "bg-primary/5", path: "/analytics" },
+];
+
+// Section header component
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-1 h-4 rounded-full bg-primary" />
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, profile, credits, signOut } = useAuth();
   const navigate = useNavigate();
@@ -97,11 +115,11 @@ export default function Dashboard() {
   const tierInfo = STRIPE_TIERS[tier] || STRIPE_TIERS.free;
   const checksRemaining = credits ? credits.credits_limit - credits.price_checks_used : 0;
   const creditsLow = checksRemaining <= 2;
+
   useEffect(() => {
     if (!user) return;
 
     const fetchAll = async () => {
-      // Recent reports
       const { data: reports } = await supabase
         .from("price_reports")
         .select("id, item_title, item_brand, recommended_price, confidence_score, created_at, vinted_url")
@@ -110,7 +128,6 @@ export default function Dashboard() {
         .limit(5);
       setRecentReports((reports as PriceReport[]) || []);
 
-      // Active listings count & portfolio value
       const { data: activeListings } = await supabase
         .from("listings")
         .select("id, current_price")
@@ -121,7 +138,6 @@ export default function Dashboard() {
         setPortfolioValue(activeListings.reduce((sum, l) => sum + (Number(l.current_price) || 0), 0));
       }
 
-      // Sold this week
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
       const { data: soldItems } = await supabase
@@ -132,7 +148,6 @@ export default function Dashboard() {
         .gte("sold_at", weekAgo.toISOString());
       setSoldThisWeek(soldItems?.length || 0);
 
-      // Monthly profit
       const monthStart = new Date();
       monthStart.setDate(1);
       monthStart.setHours(0, 0, 0, 0);
@@ -161,13 +176,20 @@ export default function Dashboard() {
     navigate(`/price-check?url=${encodeURIComponent(url.trim())}`);
   };
 
+  const metricValues = [
+    `${activeCount}`,
+    `£${portfolioValue.toFixed(0)}`,
+    `${soldThisWeek}`,
+    `£${monthlyProfit.toFixed(0)}`,
+  ];
+
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar - Desktop */}
       <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
         <div className="p-6">
-        <h1 className="font-display text-xl font-extrabold"><span className="text-gradient">Vintifi</span></h1>
-          <button onClick={() => navigate("/settings")} className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 transition-colors w-full ${creditsLow ? "bg-warning/20 hover:bg-warning/30" : "bg-sidebar-accent/60 hover:bg-sidebar-accent"}`}>
+          <h1 className="font-display text-xl font-extrabold"><span className="text-gradient">Vintifi</span></h1>
+          <button onClick={() => navigate("/settings")} className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 transition-all w-full ${creditsLow ? "bg-warning/20 hover:bg-warning/30" : "bg-sidebar-accent/60 hover:bg-sidebar-accent"}`}>
             <Zap className={`w-3.5 h-3.5 shrink-0 ${creditsLow ? "text-warning" : "text-primary"}`} />
             <span className={`text-xs font-medium ${creditsLow ? "text-warning" : "text-sidebar-foreground/80"}`}>{checksRemaining} credits left</span>
           </button>
@@ -183,14 +205,15 @@ export default function Dashboard() {
                     <button
                       key={item.label + item.path}
                       onClick={() => navigate(item.path)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                         isActive
                           ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground hover:translate-x-0.5"
                       }`}
                     >
                       <item.icon className="w-4 h-4 shrink-0" />
                       {item.label}
+                      {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
                     </button>
                   );
                 })}
@@ -198,9 +221,9 @@ export default function Dashboard() {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border bg-gradient-to-t from-sidebar-accent/30 to-transparent">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-bold shrink-0">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
               {profile?.display_name?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">
@@ -215,102 +238,100 @@ export default function Dashboard() {
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border flex items-center justify-between px-4 h-14">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border shadow-sm flex items-center justify-between px-4 h-14">
         <h1 className="font-display text-lg font-extrabold"><span className="text-gradient">Vintifi</span></h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/settings")} className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors ${creditsLow ? "bg-warning/20 hover:bg-warning/30" : "bg-muted hover:bg-muted/80"}`}>
-            <Zap className={`w-3 h-3 ${creditsLow ? "text-warning" : "text-primary"}`} />
-            <span className={`text-[11px] font-semibold ${creditsLow ? "text-warning" : ""}`}>{checksRemaining}</span>
+          <button onClick={() => navigate("/settings")} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors ${creditsLow ? "bg-warning/20 hover:bg-warning/30" : "bg-muted hover:bg-muted/80"}`}>
+            <Zap className={`w-3.5 h-3.5 ${creditsLow ? "text-warning" : "text-primary"}`} />
+            <span className={`text-xs font-semibold ${creditsLow ? "text-warning" : ""}`}>{checksRemaining}</span>
           </button>
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-10 w-10">
-              <Menu className="w-5 h-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0 bg-sidebar text-sidebar-foreground">
-            <SheetHeader className="p-5 border-b border-sidebar-border">
-              <SheetTitle className="font-display text-xl font-extrabold text-sidebar-foreground">
-                <span className="text-gradient">Vintifi</span>
-              </SheetTitle>
-            </SheetHeader>
-            <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto scrollbar-hide" style={{ maxHeight: 'calc(100vh - 10rem - env(safe-area-inset-bottom))' }}>
-              {navSections.map((section) => (
-                <div key={section.label}>
-                  <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">{section.label}</p>
-                  <div className="space-y-0.5">
-                    {section.items.map((item) => (
-                      <button
-                        key={item.label + item.path}
-                        onClick={() => { navigate(item.path); setSheetOpen(false); }}
-                        className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-                      >
-                        <item.icon className="w-4 h-4 shrink-0" /> {item.label}
-                      </button>
-                    ))}
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-10 w-10">
+                <Menu className="w-5 h-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 p-0 bg-sidebar text-sidebar-foreground">
+              <SheetHeader className="p-5 border-b border-sidebar-border">
+                <SheetTitle className="font-display text-xl font-extrabold text-sidebar-foreground">
+                  <span className="text-gradient">Vintifi</span>
+                </SheetTitle>
+              </SheetHeader>
+              <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto scrollbar-hide" style={{ maxHeight: 'calc(100vh - 10rem - env(safe-area-inset-bottom))' }}>
+                {navSections.map((section) => (
+                  <div key={section.label}>
+                    <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">{section.label}</p>
+                    <div className="space-y-0.5">
+                      {section.items.map((item) => (
+                        <button
+                          key={item.label + item.path}
+                          onClick={() => { navigate(item.path); setSheetOpen(false); }}
+                          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                        >
+                          <item.icon className="w-4 h-4 shrink-0" /> {item.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </nav>
-            <div className="p-4 border-t border-sidebar-border">
-              <button onClick={() => { signOut(); setSheetOpen(false); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-destructive">
-                <LogOut className="w-4 h-4" /> Sign Out
-              </button>
-            </div>
-          </SheetContent>
-        </Sheet>
+                ))}
+              </nav>
+              <div className="p-4 border-t border-sidebar-border">
+                <button onClick={() => { signOut(); setSheetOpen(false); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-destructive">
+                  <LogOut className="w-4 h-4" /> Sign Out
+                </button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto pt-14 lg:pt-0 pb-20 lg:pb-0">
-        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+      <main className="flex-1 overflow-auto pt-14 lg:pt-0 pb-24 lg:pb-0">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6 sm:space-y-8">
           {/* Welcome */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold mb-1">
               Welcome back, {profile?.display_name?.split(" ")[0] || "there"} 👋
             </h2>
-            <p className="text-muted-foreground text-sm mb-6 sm:mb-8">Here's your selling intelligence overview</p>
+            <p className="text-muted-foreground text-sm">Here's your selling intelligence overview</p>
           </motion.div>
 
-          {/* Metric Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-            {[
-              { icon: Package, label: "Active Listings", value: `${activeCount}`, color: "text-primary" },
-              { icon: DollarSign, label: "Portfolio Value", value: `£${portfolioValue.toFixed(0)}`, color: "text-success" },
-              { icon: ShoppingBag, label: "Sold This Week", value: `${soldThisWeek}`, color: "text-accent" },
-              { icon: Zap, label: "Monthly Profit", value: `£${monthlyProfit.toFixed(0)}`, color: "text-primary" },
-            ].map((m, i) => (
+          {/* Metric Cards - Tappable with colour-coded borders */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {metricConfig.map((m, i) => (
               <motion.div key={m.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card className="p-3 sm:p-4">
+                <Card
+                  className={`p-3 sm:p-4 border-l-[3px] ${m.border} ${m.bg} cursor-pointer hover:shadow-md active:scale-[0.98] transition-all`}
+                  onClick={() => navigate(m.path)}
+                >
                   <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                    <m.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${m.color}`} />
+                    <m.icon className={`w-4 h-4 ${m.color}`} />
                     <span className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">{m.label}</span>
                   </div>
-                  <p className="font-display text-xl sm:text-2xl font-bold">{m.value}</p>
+                  <p className="font-display text-2xl sm:text-2xl lg:text-3xl font-bold">{metricValues[i]}</p>
                 </Card>
               </motion.div>
             ))}
           </div>
 
-          {/* Price Check CTA */}
-          <Card id="tour-price-check" className="p-4 sm:p-6 mb-6 sm:mb-8 border-primary/20 bg-primary/[0.02]">
-            <div className="flex items-center gap-2 mb-3">
+          {/* Price Check CTA - Gradient border, tighter on mobile */}
+          <Card id="tour-price-check" className="gradient-border p-4 sm:p-6 border-primary/20">
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
               <Zap className="w-5 h-5 text-primary" />
               <h3 className="font-display font-bold text-base sm:text-lg">Price Intelligence Engine</h3>
             </div>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-4 hidden sm:block">
               Paste a Vinted URL or enter item details to get AI-powered pricing intelligence
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://www.vinted.co.uk/items/..."
-                className="flex-1"
+                placeholder="Paste Vinted URL or item details..."
+                className="flex-1 h-12 sm:h-10"
                 onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
               />
-              <Button onClick={handleAnalyze} disabled={analyzing} className="font-semibold shrink-0 h-10">
+              <Button onClick={handleAnalyze} disabled={analyzing} className="font-semibold shrink-0 h-12 sm:h-10">
                 {analyzing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
                 Analyse
               </Button>
@@ -318,7 +339,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Recent Price Checks */}
-          <Card className="p-4 sm:p-6 mb-6 sm:mb-8">
+          <Card className="p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-display font-bold text-base sm:text-lg flex items-center gap-2">
                 <Clock className="w-5 h-5 text-primary" />
@@ -335,9 +356,15 @@ export default function Dashboard() {
                 <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
               </div>
             ) : recentReports.length === 0 ? (
-              <div className="text-center py-8">
-                <Search className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No price checks yet. Run your first analysis above!</p>
+              <div className="text-center py-10">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <Sparkles className="w-7 h-7 text-primary" />
+                </div>
+                <p className="text-sm font-medium mb-1">No price checks yet</p>
+                <p className="text-xs text-muted-foreground mb-4">Discover what your items are really worth</p>
+                <Button size="sm" onClick={() => document.getElementById("tour-price-check")?.scrollIntoView({ behavior: "smooth" })} className="font-semibold">
+                  <Search className="w-3.5 h-3.5 mr-1.5" /> Run Your First Price Check
+                </Button>
               </div>
             ) : (
               <div className="space-y-2">
@@ -376,27 +403,29 @@ export default function Dashboard() {
             )}
           </Card>
 
-          {/* Quick Actions - Grouped */}
-          <div className="space-y-6">
+          {/* Quick Actions - Grouped with horizontal scroll on mobile */}
+          <div className="space-y-8">
             {/* Intelligence Tools */}
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Intelligence Tools</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <SectionHeader>Intelligence Tools</SectionHeader>
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4">
                 {[
-                  { icon: Search, label: "Price Check", desc: "Get instant pricing", path: "/price-check" },
-                  { icon: Zap, label: "Optimise Listing", desc: "AI-powered listing optimisation", path: "/optimize" },
-                  { icon: FileSpreadsheet, label: "Bulk Optimise", desc: "CSV batch AI listings", path: "/bulk-optimize", accent: "accent" },
-                  { icon: TrendingUp, label: "Trend Radar", desc: "Rising brands & styles", path: "/trends", tourId: "tour-trends" },
+                  { icon: Search, label: "Price Check", desc: "Get instant pricing", path: "/price-check", accent: false },
+                  { icon: Zap, label: "Optimise Listing", desc: "AI-powered listing optimisation", path: "/optimize", accent: false },
+                  { icon: FileSpreadsheet, label: "Bulk Optimise", desc: "CSV batch AI listings", path: "/bulk-optimize", accent: true },
+                  { icon: TrendingUp, label: "Trend Radar", desc: "Rising brands & styles", path: "/trends", tourId: "tour-trends", accent: false },
                 ].map((item) => (
                   <Card
                     key={item.path + item.label}
                     id={(item as any).tourId}
-                    className="p-4 cursor-pointer hover:shadow-md transition-shadow border-border/50"
+                    className="min-w-[140px] sm:min-w-0 p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all border-border/50 flex-shrink-0"
                     onClick={() => navigate(item.path)}
                   >
-                    <item.icon className={`w-5 h-5 mb-2 ${item.accent ? "text-accent" : "text-primary"}`} />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${item.accent ? "bg-accent/15" : "bg-primary/10"}`}>
+                      <item.icon className={`w-5 h-5 ${item.accent ? "text-accent" : "text-primary"}`} />
+                    </div>
                     <h4 className="font-display font-bold text-sm mb-0.5">{item.label}</h4>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{item.desc}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2 hidden sm:block">{item.desc}</p>
                   </Card>
                 ))}
               </div>
@@ -404,8 +433,8 @@ export default function Dashboard() {
 
             {/* Market Analysis */}
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Market Analysis</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <SectionHeader>Market Analysis</SectionHeader>
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4">
                 {[
                   { icon: ArrowRightLeft, label: "Arbitrage Scanner", desc: "Find profitable flips", path: "/arbitrage", tourId: "tour-arbitrage" },
                   { icon: Radar, label: "Competitor Tracker", desc: "Monitor rivals", path: "/competitors" },
@@ -415,12 +444,14 @@ export default function Dashboard() {
                   <Card
                     key={item.path}
                     id={(item as any).tourId}
-                    className="p-4 cursor-pointer hover:shadow-md transition-shadow border-border/50"
+                    className="min-w-[140px] sm:min-w-0 p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all border-border/50 flex-shrink-0"
                     onClick={() => navigate(item.path)}
                   >
-                    <item.icon className="w-5 h-5 text-primary mb-2" />
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
+                      <item.icon className="w-5 h-5 text-primary" />
+                    </div>
                     <h4 className="font-display font-bold text-sm mb-0.5">{item.label}</h4>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{item.desc}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2 hidden sm:block">{item.desc}</p>
                   </Card>
                 ))}
               </div>
@@ -428,24 +459,26 @@ export default function Dashboard() {
 
             {/* Inventory Management */}
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Inventory Management</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <SectionHeader>Inventory Management</SectionHeader>
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 sm:pb-0 sm:grid sm:grid-cols-4 sm:[&>:nth-child(5)]:col-start-1">
                 {[
-                  { icon: Tag, label: "My Listings", desc: "Track and manage items", path: "/listings", tourId: "tour-listings" },
-                  { icon: AlertTriangle, label: "Dead Stock", desc: "Liquidate stale inventory", path: "/dead-stock", color: "text-destructive" },
-                  { icon: Timer, label: "Relist Scheduler", desc: "Auto-schedule relists", path: "/relist" },
-                  { icon: Target, label: "Portfolio Optimiser", desc: "Bulk-fix pricing", path: "/portfolio" },
-                  { icon: PieChart, label: "P&L Analytics", desc: "Revenue, margins & ROI", path: "/analytics", color: "text-success" },
+                  { icon: Tag, label: "My Listings", desc: "Track and manage items", path: "/listings", tourId: "tour-listings", color: "text-primary", bg: "bg-primary/10" },
+                  { icon: AlertTriangle, label: "Dead Stock", desc: "Liquidate stale inventory", path: "/dead-stock", color: "text-destructive", bg: "bg-destructive/10" },
+                  { icon: Timer, label: "Relist Scheduler", desc: "Auto-schedule relists", path: "/relist", color: "text-primary", bg: "bg-primary/10" },
+                  { icon: Target, label: "Portfolio Optimiser", desc: "Bulk-fix pricing", path: "/portfolio", color: "text-primary", bg: "bg-primary/10" },
+                  { icon: PieChart, label: "P&L Analytics", desc: "Revenue, margins & ROI", path: "/analytics", color: "text-success", bg: "bg-success/10" },
                 ].map((item) => (
                   <Card
                     key={item.path + item.label}
                     id={(item as any).tourId}
-                    className="p-4 cursor-pointer hover:shadow-md transition-shadow border-border/50"
+                    className="min-w-[140px] sm:min-w-0 p-4 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all border-border/50 flex-shrink-0"
                     onClick={() => navigate(item.path)}
                   >
-                    <item.icon className={`w-5 h-5 mb-2 ${item.color || "text-primary"}`} />
+                    <div className={`w-10 h-10 rounded-xl ${item.bg} flex items-center justify-center mb-3`}>
+                      <item.icon className={`w-5 h-5 ${item.color}`} />
+                    </div>
                     <h4 className="font-display font-bold text-sm mb-0.5">{item.label}</h4>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{item.desc}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2 hidden sm:block">{item.desc}</p>
                   </Card>
                 ))}
               </div>

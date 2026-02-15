@@ -50,7 +50,7 @@ export function GuidedTour() {
     if (localStorage.getItem(STORAGE_KEY) || isMobile) return;
     const timer = setTimeout(() => setActive(true), 600);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isMobile]);
 
   const updatePosition = useCallback(() => {
     if (!active) return;
