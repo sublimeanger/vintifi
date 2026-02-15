@@ -218,8 +218,6 @@ serve(async (req) => {
     }
 
     // Store opportunities in database
-    const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
     if (opportunities.length > 0) {
       const rows = opportunities.map((o: any) => ({
         user_id: user.id,
