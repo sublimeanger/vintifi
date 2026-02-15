@@ -137,6 +137,9 @@ Deno.serve(async (req) => {
 
     const urlObj = new URL(wardrobeUrl);
     const baseDomain = `${urlObj.protocol}//${urlObj.hostname}`;
+    // Extract member ID from URL for filtering
+    const memberMatch = wardrobeUrl.match(/member\/(\d+[-\w]*)/);
+    const memberId = memberMatch ? memberMatch[1] : "";
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -146,13 +149,22 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You extract Vinted listing data from scraped wardrobe markdown. Return a JSON array of items. Each item must have:
+            content: `You extract Vinted listing data from a scraped wardrobe page for member "${memberId}" on ${baseDomain}.
+
+CRITICAL RULES:
+- ONLY extract items that belong to this specific member's wardrobe/closet.
+- DO NOT include "Similar items", "You might also like", "Recommended for you", "Popular items", sponsored items, or any items from other sellers.
+- Items from this member's wardrobe will typically appear in a grid/list under their profile section. They will have URLs containing "/items/" on the same domain.
+- If an item's URL contains a different member ID or points to a different seller, EXCLUDE it.
+- Look for the main wardrobe listing section, ignore sidebar content, footer recommendations, and promotional sections.
+
+Return a JSON array of items. Each item must have:
 - title (string), brand (string or null), current_price (number or null), category (string or null)
 - condition (string or null), size (string or null), image_url (string or null)
 - vinted_url (string or null) — full URL using base domain: ${baseDomain}
 Return ONLY a valid JSON array. No markdown fences. Maximum ${importLimit} items. Deduplicate across pages.`,
           },
-          { role: "user", content: `Extract all Vinted listings from this wardrobe (${pagesScraped} page(s)):\n\n${combinedMarkdown.substring(0, 60000)}` },
+          { role: "user", content: `Extract ONLY this member's own wardrobe listings (member: ${memberId}) from these ${pagesScraped} page(s). Ignore all recommended/similar/sponsored items:\n\n${combinedMarkdown.substring(0, 60000)}` },
         ],
         temperature: 0.1,
       }),
