@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,6 +87,28 @@ export default function OptimizeListing() {
   const [activeTransLang, setActiveTransLang] = useState("fr");
 
   const itemId = searchParams.get("itemId");
+
+  // Fetch existing photos from DB when opened from an item detail page
+  useEffect(() => {
+    if (!itemId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("listings")
+        .select("image_url, images")
+        .eq("id", itemId)
+        .maybeSingle();
+      if (!data) return;
+      const urls: string[] = [];
+      if (data.image_url) urls.push(data.image_url);
+      if (Array.isArray(data.images)) {
+        for (const img of data.images) {
+          const u = typeof img === "string" ? img : (img as any)?.url;
+          if (u && !urls.includes(u)) urls.push(u);
+        }
+      }
+      if (urls.length > 0) setRemotePhotoUrls(urls);
+    })();
+  }, [itemId]);
 
   const handlePhotoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
