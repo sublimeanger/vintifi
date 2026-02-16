@@ -446,6 +446,7 @@ export type Database = {
           purchase_price: number | null
           recommended_price: number | null
           sale_price: number | null
+          shipping_cost: number | null
           size: string | null
           sold_at: string | null
           source_meta: Json | null
@@ -478,6 +479,7 @@ export type Database = {
           purchase_price?: number | null
           recommended_price?: number | null
           sale_price?: number | null
+          shipping_cost?: number | null
           size?: string | null
           sold_at?: string | null
           source_meta?: Json | null
@@ -510,6 +512,7 @@ export type Database = {
           purchase_price?: number | null
           recommended_price?: number | null
           sale_price?: number | null
+          shipping_cost?: number | null
           size?: string | null
           sold_at?: string | null
           source_meta?: Json | null

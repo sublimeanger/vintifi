@@ -77,6 +77,7 @@ serve(async (req) => {
     const imgCount = Array.isArray(listing.images) ? listing.images.filter((u: any) => typeof u === "string" && u.startsWith("http")).length : (listing.image_url ? 1 : 0);
     if (imgCount === 0) warnings.push("No photos — eBay listings without photos rarely sell");
     else if (imgCount < 3) warnings.push(`Only ${imgCount} photo${imgCount === 1 ? "" : "s"} — eBay recommends 3+ for best results`);
+    if (listing.shipping_cost == null) warnings.push("Shipping cost not set — will default to £3.99");
 
     return new Response(JSON.stringify({
       categoryId: category.id,

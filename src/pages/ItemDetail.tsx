@@ -54,6 +54,7 @@ type Listing = {
   source_type: string | null;
   colour: string | null;
   material: string | null;
+  shipping_cost: number | null;
 };
 
 type PriceReport = {
@@ -211,6 +212,8 @@ export default function ItemDetail() {
   const [activeTab, setActiveTab] = useState("overview");
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState("");
+  const [editingShipping, setEditingShipping] = useState(false);
+  const [shippingInput, setShippingInput] = useState("");
 
   useEffect(() => {
     if (!user || !id) return;
@@ -526,6 +529,49 @@ export default function ItemDetail() {
               <div>
                 <p className="text-sm font-bold">{item.purchase_price != null ? `£${item.purchase_price.toFixed(2)}` : "—"}</p>
                 <p className="text-[10px] text-muted-foreground">Cost</p>
+              </div>
+            </Card>
+            <Card
+              className="p-3 flex items-center gap-3 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
+              onClick={() => {
+                if (!editingShipping) {
+                  setShippingInput(item.shipping_cost != null ? item.shipping_cost.toFixed(2) : "");
+                  setEditingShipping(true);
+                }
+              }}
+            >
+              <Package className="w-4 h-4 text-muted-foreground shrink-0" />
+              <div className="flex-1">
+                {editingShipping ? (
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-sm font-bold">£</span>
+                    <input
+                      autoFocus
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="text-sm font-bold bg-transparent border-b border-primary outline-none w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      value={shippingInput}
+                      onChange={(e) => setShippingInput(e.target.value)}
+                      onBlur={async () => {
+                        const val = parseFloat(shippingInput);
+                        if (!isNaN(val) && val >= 0) {
+                          const { error } = await supabase.from("listings").update({ shipping_cost: val } as any).eq("id", item.id);
+                          if (error) { toast.error("Failed to update shipping"); }
+                          else { setItem({ ...item, shipping_cost: val }); toast.success("Shipping cost updated"); }
+                        }
+                        setEditingShipping(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        if (e.key === "Escape") setEditingShipping(false);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-sm font-bold">{item.shipping_cost != null ? `£${item.shipping_cost.toFixed(2)}` : "—"}</p>
+                )}
+                <p className="text-[10px] text-muted-foreground">Shipping</p>
               </div>
             </Card>
           </div>

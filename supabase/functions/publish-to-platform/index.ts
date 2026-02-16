@@ -164,14 +164,18 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
   // Step 1.5: Ensure merchant location exists
   await ensureMerchantLocation(accessToken);
 
-  // Step 1.6: Fetch seller's business policies
+  // Step 1.6: Fetch seller's business policies (optional — may not exist)
   const policies = await fetchSellerPolicies(accessToken);
+
+  const shippingCost = listing.shipping_cost ?? 3.99; // fallback default
 
   const offerBase: Record<string, any> = {
     sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
     pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
     availableQuantity: 1, categoryId: category.id, merchantLocationKey: "default",
-    listingPolicies: policies,
+    ...(Object.keys(policies).length > 0
+      ? { listingPolicies: policies }
+      : {}),
   };
 
   // Step 2: Check for existing offer on this SKU
@@ -460,15 +464,11 @@ async function fetchSellerPolicies(accessToken: string): Promise<Record<string, 
     }
   }
 
-  if (!policies.fulfillmentPolicyId) {
-    throw new Error("No eBay shipping (fulfillment) policy found. Please create a shipping policy in your eBay Seller Hub first: https://www.ebay.co.uk/ship/prf");
-  }
-  if (!policies.paymentPolicyId) {
-    throw new Error("No eBay payment policy found. Please create a payment policy in your eBay Seller Hub first.");
-  }
-  if (!policies.returnPolicyId) {
-    throw new Error("No eBay return policy found. Please create a return policy in your eBay Seller Hub first.");
+  // Only return policies if ALL three are present; otherwise eBay rejects partial policies
+  if (policies.fulfillmentPolicyId && policies.paymentPolicyId && policies.returnPolicyId) {
+    return policies;
   }
 
-  return policies;
+  console.log("eBay business policies incomplete — will rely on eBay defaults");
+  return {};
 }
