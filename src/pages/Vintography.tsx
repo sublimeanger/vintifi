@@ -24,6 +24,7 @@ import { BatchStrip, type BatchItem } from "@/components/vintography/BatchStrip"
 import { ModelPicker } from "@/components/vintography/ModelPicker";
 import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
 import { FlatLayPicker } from "@/components/vintography/FlatLayPicker";
+import { SellSmartProgress } from "@/components/SellSmartProgress";
 
 type Operation = "remove_bg" | "smart_bg" | "model_shot" | "mannequin_shot" | "ghost_mannequin" | "flatlay_style" | "enhance";
 
@@ -317,6 +318,7 @@ export default function Vintography() {
     <PageShell title="Vintography" subtitle="AI-powered photo studio for your listings">
       <FeatureGate feature="vintography">
         <div className="space-y-4 sm:space-y-6">
+          <SellSmartProgress currentStep="photos" />
           <CreditBar used={vintographyUsed} limit={creditsLimit} />
 
           {!originalUrl ? (
