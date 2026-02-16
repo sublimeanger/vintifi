@@ -1,99 +1,64 @@
 
-# Credit Engine & Tier Gating — Full Fix Plan
 
-## Issues Found
+# Fix: Unified Credit Engine Across All Edge Functions
 
-### 1. CRITICAL: Scale tier `credits: 999` causes wrong display everywhere
-**Root cause:** `STRIPE_TIERS.scale.credits` is `999` and the webhook sets `credits_limit` to `999` in the database for Scale users. But your actual DB `credits_limit` is `999999` or `1000049` (from credit pack purchases stacking on top). The sidebar in `AppShellV2.tsx` shows raw `credits_limit - price_checks_used` which could show `999`, `999999`, or `1000030` — all confusing.
+## Problem
 
-**The real problem is architectural:** Scale tier means "unlimited" but the system stores a finite number (999) and credit packs ADD to it, creating absurd numbers like 1,000,049.
+All three credit-consuming edge functions have **different, broken** credit checking logic:
 
-**Fix:**
-- In `constants.ts`: Change `credits: 999` to `credits: -1` (sentinel for unlimited)
-- In `AppShellV2.tsx`: When credits_limit >= 999 OR tier is "scale", display "Unlimited" instead of a number
-- In `SettingsPage.tsx`: Same — show "Unlimited" for scale users instead of raw numbers
-- In `PriceCheck.tsx`: Skip credit exhaustion check for scale tier
-- In `Vintography.tsx` / `CreditBar.tsx`: Show "Unlimited" when limit >= 999
-- In `UpgradeModal.tsx`: Already handles 999 -> "Unlimited" but should use the sentinel too
-- In `useFeatureGate.ts`: When tier is "scale", skip credit exhaustion entirely (set `creditsExhausted = false`)
+1. **`optimize-listing`** — Artificially caps optimisations at 60% of `credits_limit` (the `Math.floor(c.credits_limit * 0.6)` bug). A user with 50 credits can only do 30 optimisations.
+2. **`price-check`** — Checks only `price_checks_used` against the full `credits_limit`, ignoring optimisations and vintography usage. A user could exhaust their pool via optimisations and still pass the price check gate.
+3. **`vintography`** — Uses a completely separate hardcoded `TIER_LIMITS` map (`free: 3, pro: 15, business: 50, scale: 999`) instead of the shared `credits_limit` from the database. Totally disconnected from the unified pool.
 
-### 2. MEDIUM: Credit pool is shared but checked separately
-**Problem:** All three usage types (price_checks, optimizations, vintography) share ONE `credits_limit` pool, but the sidebar only shows `credits_limit - price_checks_used`. If a user does 40 optimisations and 5 price checks with a 50-credit limit, the sidebar says "45 credits remaining" — wrong.
+None of them bypass the check for Scale/unlimited users.
 
-**Fix:**
-- Calculate `totalUsed = price_checks_used + optimizations_used + vintography_used`
-- Display remaining as `credits_limit - totalUsed`
-- Apply this everywhere: AppShellV2, SettingsPage, PriceCheck subtitle, useFeatureGate
+## Fix (All 3 Edge Functions)
 
-### 3. MEDIUM: Credit pack purchases create absurdly high limits
-**Problem:** In `stripe-webhook`, credit packs ADD to `credits_limit` (line 82: `newLimit = currentCredits.credits_limit + creditsToAdd`). For a Scale user with `credits_limit: 999`, buying a 50-pack makes it `1049`. Multiple purchases balloon it to `1000049`. This is the source of the "1000030" display.
+The unified logic for each function should be:
 
-**Fix:** Credit packs should add to a separate `bonus_credits` column, OR the display logic should cap at "Unlimited" for scale users regardless of the raw number. The simplest fix is the display-side: treat any `credits_limit >= 999` as unlimited.
-
-### 4. LOW: Vintography CreditBar shows raw numbers for unlimited users
-**File:** `src/components/vintography/CreditBar.tsx`
-**Fix:** Accept an `unlimited` prop and show "Unlimited" text instead of the progress bar.
-
----
-
-## Technical Implementation
-
-### `src/lib/constants.ts`
-- Change Scale `credits: 999` to `credits: -1`
-
-### `src/components/AppShellV2.tsx` (lines 93-96)
-```typescript
-const isUnlimited = tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
-const totalUsed = credits ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used : 0;
-const checksRemaining = isUnlimited ? Infinity : (credits ? credits.credits_limit - totalUsed : 0);
-const creditsLow = !isUnlimited && checksRemaining <= 2;
+```text
+1. Fetch ALL usage columns: price_checks_used, optimizations_used, vintography_used, credits_limit
+2. If credits_limit >= 999 -> skip check (unlimited user)
+3. totalUsed = price_checks_used + optimizations_used + vintography_used
+4. If totalUsed >= credits_limit -> return 403 "Monthly credit limit reached"
+5. Otherwise proceed, then increment the relevant counter
 ```
-- Line 200: Display `isUnlimited ? "Unlimited" : checksRemaining` + " AI credits"
-- Line 241: Display `isUnlimited ? "∞" : checksRemaining`
 
-### `src/hooks/useFeatureGate.ts` (lines 64-76)
-- Add unlimited check: if user tier is "scale", set `creditsExhausted = false` and `creditsRemaining = Infinity`
-- For other tiers, calculate remaining using ALL usage types combined: `credits_limit - (price_checks_used + optimizations_used + vintography_used)`
+### File: `supabase/functions/optimize-listing/index.ts`
+- **Lines 183-197**: Change the credit check query to fetch all three usage columns
+- Remove the `optimLimit = Math.floor(c.credits_limit * 0.6)` line
+- Replace with: `totalUsed = price_checks + optimizations + vintography`, check `totalUsed >= credits_limit`
+- Add Scale bypass: `if (c.credits_limit >= 999) { /* skip check */ }`
 
-### `src/pages/SettingsPage.tsx` (lines 255-265)
-- When `credits_limit >= 999` or tier is "scale", show "Unlimited" badge instead of progress bar
-- Otherwise show `totalUsed / credits_limit` (not just price_checks_used)
+### File: `supabase/functions/price-check/index.ts`
+- **Lines 100-112**: Change the credit check query to fetch all three usage columns
+- Replace `price_checks_used >= credits_limit` with `totalUsed >= credits_limit`
+- Add Scale bypass
 
-### `src/pages/PriceCheck.tsx`
-- Line 106: Add scale tier bypass — skip the `>= credits_limit` check for unlimited users
-- Line 204: Show "Unlimited checks" for scale users, otherwise `credits_limit - totalUsed`
+### File: `supabase/functions/vintography/index.ts`
+- **Lines 114-120**: Remove the separate `TIER_LIMITS` map entirely
+- **Lines 198-211**: Replace with unified check — fetch all three usage columns from `usage_credits` plus `credits_limit`
+- Add Scale bypass
+- This is the biggest change: the function currently doesn't even read `credits_limit` from the database
 
-### `src/pages/Vintography.tsx` (line 76)
-- Pass `isUnlimited` flag to CreditBar when tier is scale or limit >= 999
-
-### `src/components/vintography/CreditBar.tsx`
-- Accept `unlimited?: boolean` prop
-- When unlimited, show a simple "Unlimited edits" label instead of the progress bar
-
-### `src/components/UpgradeModal.tsx` (line 122)
-- Change `t.credits === 999` to `t.credits === -1 || t.credits >= 999` to handle both sentinel and legacy values
-
-### `supabase/functions/stripe-webhook/index.ts`
-- Change all Scale tier entries from `credits: 999` to `credits: 9999` (a high but displayable cap) — OR keep 999 and rely on frontend "unlimited" logic
-- The simplest approach: keep webhook as-is, handle everything on the display side
-
----
+### Optional: Add `-1 credit` toast on the frontend
+- In `src/pages/PriceCheck.tsx`, `src/pages/OptimizeListing.tsx`, and `src/pages/Vintography.tsx`: after a successful action, show a brief toast like "1 credit used" using sonner
+- Only show for non-unlimited users
+- This gives users clear feedback without cluttering the UI
 
 ## Summary
 
-| Issue | Severity | Fix Location |
-|-------|----------|-------------|
-| "999" shown instead of "Unlimited" for Scale users | CRITICAL | AppShellV2, SettingsPage, PriceCheck, Vintography, UpgradeModal |
-| Credits pool checked per-type, not combined | MEDIUM | useFeatureGate, AppShellV2, SettingsPage, PriceCheck |
-| Credit packs inflate limit to absurd numbers | MEDIUM | Display-side fix (treat >= 999 as unlimited) |
-| CreditBar shows raw numbers for unlimited | LOW | CreditBar component |
+| Function | Current Bug | Fix |
+|----------|------------|-----|
+| optimize-listing | 60% cap on optimisations | Unified totalUsed check + Scale bypass |
+| price-check | Only checks price_checks_used | Unified totalUsed check + Scale bypass |
+| vintography | Separate hardcoded limits, ignores credits_limit | Use shared credits_limit + Scale bypass |
+| Frontend toast | No feedback on credit spend | Optional `-1 credit` toast |
 
 ### Files to Modify
-- `src/lib/constants.ts`
-- `src/components/AppShellV2.tsx`
-- `src/hooks/useFeatureGate.ts`
-- `src/pages/SettingsPage.tsx`
-- `src/pages/PriceCheck.tsx`
-- `src/pages/Vintography.tsx`
-- `src/components/vintography/CreditBar.tsx`
-- `src/components/UpgradeModal.tsx`
+- `supabase/functions/optimize-listing/index.ts` (lines 182-197)
+- `supabase/functions/price-check/index.ts` (lines 100-112)
+- `supabase/functions/vintography/index.ts` (lines 114-120, 198-211)
+- `src/pages/PriceCheck.tsx` (optional toast)
+- `src/pages/OptimizeListing.tsx` (optional toast)
+- `src/pages/Vintography.tsx` (optional toast)
