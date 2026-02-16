@@ -294,6 +294,59 @@ Return ONLY the JSON array.`;
       throw new Error("Failed to parse clearance data");
     }
 
+    // ── Post-AI validation: cross-reference vinted_resale_price against Apify baseline ──
+    const vintedPriceMap: Record<string, { median: number; low: number; high: number }> = {};
+    if (vintedItems.length > 0) {
+      // Group Vinted items by brand for lookup
+      for (const item of vintedItems) {
+        const brand = (item.brand || item.brand_title || "").toLowerCase().trim();
+        const price = parseFloat(item.price || item.total_price || 0);
+        if (!brand || !price) continue;
+        if (!vintedPriceMap[brand]) vintedPriceMap[brand] = { median: 0, low: Infinity, high: 0 };
+        vintedPriceMap[brand].low = Math.min(vintedPriceMap[brand].low, price);
+        vintedPriceMap[brand].high = Math.max(vintedPriceMap[brand].high, price);
+      }
+      // Calculate medians per brand
+      const brandPrices: Record<string, number[]> = {};
+      for (const item of vintedItems) {
+        const brand = (item.brand || item.brand_title || "").toLowerCase().trim();
+        const price = parseFloat(item.price || item.total_price || 0);
+        if (!brand || !price) continue;
+        if (!brandPrices[brand]) brandPrices[brand] = [];
+        brandPrices[brand].push(price);
+      }
+      for (const [brand, prices] of Object.entries(brandPrices)) {
+        prices.sort((a, b) => a - b);
+        vintedPriceMap[brand].median = prices[Math.floor(prices.length / 2)];
+      }
+    }
+
+    const validatedOpportunities = opportunities.filter((opp: any) => {
+      const brand = (opp.brand || "").toLowerCase().trim();
+      const baseline = vintedPriceMap[brand];
+      
+      if (baseline && opp.vinted_resale_price) {
+        const deviation = Math.abs(opp.vinted_resale_price - baseline.median) / baseline.median;
+        if (deviation > 0.3) {
+          console.log(`Correcting ${opp.item_title}: AI said £${opp.vinted_resale_price}, Apify median £${baseline.median}`);
+          opp.vinted_resale_price = Math.round(baseline.median * 100) / 100;
+          opp.estimated_profit = Math.round((opp.vinted_resale_price - opp.sale_price) * 100) / 100;
+          opp.profit_margin = opp.sale_price > 0 
+            ? Math.round((opp.estimated_profit / opp.sale_price) * 10000) / 100 
+            : 0;
+        }
+      }
+      
+      // Reject if margin falls below threshold after correction
+      if (opp.profit_margin < min_margin || opp.estimated_profit <= 0) {
+        console.log(`Rejecting ${opp.item_title}: margin ${opp.profit_margin}% < ${min_margin}%`);
+        return false;
+      }
+      return true;
+    });
+
+    opportunities = validatedOpportunities;
+
     // Optionally save to clearance_opportunities table
     if (save_results && opportunities.length > 0) {
       const rows = opportunities.map((o: any) => ({

@@ -106,7 +106,24 @@ serve(async (req) => {
 
       const hasData = apifyResults.some((r) => r.items.length > 0);
       if (hasData) {
+        // Pre-compute real statistics from scraped data
+        const categoryStats: Record<string, { avgPrice: number; count: number; avgFavs: number }> = {};
+        for (const r of apifyResults) {
+          if (r.items.length === 0) continue;
+          const prices = r.items.map((i: any) => parseFloat(i.price || i.total_price || 0)).filter((p: number) => p > 0);
+          const favs = r.items.map((i: any) => parseInt(i.favourite_count || i.favorites || 0, 10));
+          categoryStats[r.category] = {
+            avgPrice: prices.length > 0 ? Math.round((prices.reduce((a: number, b: number) => a + b, 0) / prices.length) * 100) / 100 : 0,
+            count: r.items.length,
+            avgFavs: favs.length > 0 ? Math.round((favs.reduce((a: number, b: number) => a + b, 0) / favs.length) * 100) / 100 : 0,
+          };
+        }
+
         contextLines = apifyResults.map((r) => {
+          const stats = categoryStats[r.category];
+          const statsLine = stats
+            ? `PRE-COMPUTED STATS (use these, do NOT invent your own): avg_price=£${stats.avgPrice}, total_listings=${stats.count}, avg_favourites=${stats.avgFavs}`
+            : "";
           const summary = r.items.slice(0, 15).map((item: any) => {
             const brand = item.brand || item.brand_title || "Unknown";
             const price = item.price || item.total_price || "?";
@@ -115,8 +132,11 @@ serve(async (req) => {
             const favs = item.favourite_count || item.favorites || 0;
             return `  - ${brand} | £${price} | ${title} | ${views} views | ${favs} favs`;
           }).join("\n");
-          return `## ${r.category} (${r.items.length} listings found)\n${summary || "  No results"}`;
+          return `## ${r.category} (${r.items.length} listings found)\n${statsLine}\n${summary || "  No results"}`;
         }).join("\n\n");
+
+        // Store stats for post-AI validation
+        (globalThis as any).__nicheStats = categoryStats;
       }
     }
 
@@ -148,6 +168,8 @@ PRICE RANGE FILTER: ${price_range || "All prices"}
 ${contextLines}
 
 For each category, identify specific sub-niches (e.g. "Y2K mini skirts" not just "Womenswear") where demand signals (sold items, favourites, search interest) are high but active listing supply is low.
+
+CRITICAL: Use the PRE-COMPUTED STATS provided above for avg_price and competition_count. Do NOT invent your own values. Your avg_price for each niche must be within 30% of the pre-computed category average.
 
 Return a JSON array of niche opportunities (max ${limit}). Each object must have:
 - niche_name: specific niche name (e.g. "Vintage Levi's 501 jeans", "Carhartt WIP jackets")
@@ -189,6 +211,26 @@ Return ONLY the JSON array.`;
     } catch {
       console.error("Failed to parse AI response:", content);
       throw new Error("Failed to parse niche data");
+    }
+
+    // Post-AI validation: reject niches with hallucinated avg_price
+    const nicheStats = (globalThis as any).__nicheStats as Record<string, { avgPrice: number; count: number }> | undefined;
+    if (nicheStats) {
+      niches = niches.filter((n: any) => {
+        const catStats = nicheStats[n.category];
+        if (!catStats || !catStats.avgPrice || !n.avg_price) return true; // can't validate, keep
+        const deviation = Math.abs(n.avg_price - catStats.avgPrice) / catStats.avgPrice;
+        if (deviation > 0.3) {
+          console.log(`Correcting niche "${n.niche_name}": AI avg_price £${n.avg_price} vs real £${catStats.avgPrice}`);
+          n.avg_price = catStats.avgPrice;
+        }
+        // Also cap competition_count to real listing count
+        if (n.competition_count && catStats.count && n.competition_count > catStats.count * 2) {
+          n.competition_count = catStats.count;
+        }
+        return true;
+      });
+      delete (globalThis as any).__nicheStats;
     }
 
     return new Response(

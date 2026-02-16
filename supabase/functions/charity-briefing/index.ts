@@ -56,9 +56,49 @@ serve(async (req) => {
       .order("opportunity_score", { ascending: false })
       .limit(20);
 
-    const trendContext = (trends || []).map(t =>
-      `${t.brand_or_item} (${t.category}) — direction: ${t.trend_direction}, 7d search change: ${t.search_volume_change_7d}%, avg price: £${t.avg_price}, score: ${t.opportunity_score}/100`
-    ).join("\n");
+    // Fetch real Vinted prices for top trending items via Apify
+    const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
+    const topTrends = (trends || []).slice(0, 10);
+    const vintedPriceRanges: Record<string, { low: number; high: number; median: number }> = {};
+
+    if (APIFY_API_TOKEN && topTrends.length > 0) {
+      const APIFY_BASE = "https://api.apify.com/v2";
+      const APIFY_ACTOR = "kazkn~vinted-smart-scraper";
+      
+      const pricePromises = topTrends.map(async (t) => {
+        try {
+          const url = `${APIFY_BASE}/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ search: t.brand_or_item, maxItems: 10, country: "uk" }),
+          });
+          if (!res.ok) return;
+          const items = await res.json();
+          if (!Array.isArray(items) || items.length === 0) return;
+          const prices = items.map((i: any) => parseFloat(i.price || i.total_price || 0)).filter((p: number) => p > 0);
+          if (prices.length === 0) return;
+          prices.sort((a: number, b: number) => a - b);
+          vintedPriceRanges[t.brand_or_item] = {
+            low: prices[0],
+            high: prices[prices.length - 1],
+            median: prices[Math.floor(prices.length / 2)],
+          };
+        } catch (e) {
+          console.error(`Apify price fetch for ${t.brand_or_item} failed:`, e);
+        }
+      });
+      await Promise.all(pricePromises);
+      console.log(`Fetched real Vinted prices for ${Object.keys(vintedPriceRanges).length}/${topTrends.length} trending items`);
+    }
+
+    const trendContext = (trends || []).map(t => {
+      const priceRange = vintedPriceRanges[t.brand_or_item];
+      const priceInfo = priceRange
+        ? `REAL Vinted prices: £${priceRange.low}-£${priceRange.high} (median £${priceRange.median})`
+        : `avg price from trends DB: £${t.avg_price} (no live validation)`;
+      return `${t.brand_or_item} (${t.category}) — direction: ${t.trend_direction}, 7d search change: ${t.search_volume_change_7d}%, ${priceInfo}, score: ${t.opportunity_score}/100`;
+    }).join("\n");
 
     const categoriesHint = userCategories.length > 0
       ? `The seller primarily sells: ${userCategories.join(", ")}. Prioritise items in these categories but also include cross-category opportunities.`
@@ -96,7 +136,7 @@ Return a valid JSON object (no markdown) with this structure:
 Rules:
 - Return 8-12 items, ranked by profit potential
 - max_buy_price should be realistic for charity shop pricing (£1-£15)
-- estimated_sell_price based on current Vinted market data
+- CRITICAL: estimated_sell_price MUST be within the REAL Vinted price range provided above. Do NOT invent sell prices. If no real price data is available for an item, use the trend DB avg_price as a ceiling.
 - Tips should be practical and actionable
 - Include a mix of safe bets and high-upside picks`;
 
@@ -128,6 +168,24 @@ Rules:
     // Strip markdown fences if present
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const briefing = JSON.parse(cleaned);
+
+    // Post-AI validation: correct estimated_sell_price against real Vinted data
+    if (briefing.items && Array.isArray(briefing.items)) {
+      for (const item of briefing.items) {
+        const brandKey = Object.keys(vintedPriceRanges).find(k => 
+          item.brand?.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(item.brand?.toLowerCase() || "")
+        );
+        if (brandKey && vintedPriceRanges[brandKey]) {
+          const range = vintedPriceRanges[brandKey];
+          if (item.estimated_sell_price > range.high * 1.3) {
+            console.log(`Correcting ${item.brand}: AI said £${item.estimated_sell_price}, Vinted high £${range.high}`);
+            item.estimated_sell_price = Math.round(range.median * 100) / 100;
+          } else if (item.estimated_sell_price < range.low * 0.7) {
+            item.estimated_sell_price = Math.round(range.median * 100) / 100;
+          }
+        }
+      }
+    }
 
     return new Response(JSON.stringify(briefing), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
