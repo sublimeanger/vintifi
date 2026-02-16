@@ -140,7 +140,7 @@ export default function Dashboard() {
         </div>
 
         {/* C) Pipeline Snapshot */}
-        <div>
+        <div id="tour-pipeline">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
             <div className="w-1 h-4 rounded-full bg-primary" /> Pipeline
           </h3>
@@ -151,7 +151,7 @@ export default function Dashboard() {
         <EbayStatusCard />
 
         {/* B) Next Actions */}
-        <div>
+        <div id="tour-actions">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
             <div className="w-1 h-4 rounded-full bg-accent" /> Your Next Actions
           </h3>
@@ -160,7 +160,7 @@ export default function Dashboard() {
 
         {/* D) Opportunities For You */}
         {trendsPreview.length > 0 && (
-          <div>
+          <div id="tour-opportunities">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <div className="w-1 h-4 rounded-full bg-success" /> Opportunities

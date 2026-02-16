@@ -19,23 +19,23 @@ type TourStep = {
 const TOUR_STEPS: TourStep[] = [
   {
     targetId: "tour-price-check",
-    title: "Price Intelligence Engine",
+    title: "Quick Price Check",
     description: "Paste any Vinted URL here to get AI-powered pricing intelligence in seconds.",
   },
   {
-    targetId: "tour-listings",
-    title: "My Listings",
-    description: "Track all your active listings, views, favourites, and health scores here.",
+    targetId: "tour-pipeline",
+    title: "Your Pipeline",
+    description: "Track items from watchlist through to sold — see your inventory at a glance.",
   },
   {
-    targetId: "tour-trends",
-    title: "Trend Radar",
+    targetId: "tour-actions",
+    title: "Next Actions",
+    description: "AI-prioritised tasks to keep your shop running at peak performance.",
+  },
+  {
+    targetId: "tour-opportunities",
+    title: "Opportunities",
     description: "Discover rising brands and styles before they peak.",
-  },
-  {
-    targetId: "tour-arbitrage",
-    title: "Arbitrage Scanner",
-    description: "Find profitable buy-low-sell-high opportunities across platforms.",
   },
 ];
 
