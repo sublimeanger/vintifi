@@ -1,34 +1,41 @@
 
+## Dashboard Navigation Audit and Fix
 
-## Fix: Save Scraped Photos When Adding Item via Vinted URL
+### Issues Found
 
-### Problem
+**1. Metric cards ALL go to /analytics (the main bug you reported)**
+All four metric cards (Active Items, Portfolio Value, Sold 7d, Profit MTD) navigate to `/analytics` regardless of which card you click. "Active Items" should go to your listings page, not P&L analytics.
 
-When adding an item via Vinted URL, the `scrape-vinted-url` edge function successfully extracts photo URLs (the `photos` array in the response), but the New Item Wizard completely ignores them. The scraped photos are never stored in state, never displayed in the wizard, and never saved to the database.
+**2. DashboardIntelligence "Pending Relists" links to /relist (dead route)**
+The "Pending Relists" attention card links to `/relist`, which is a redirect to `/dead-stock`. This works but is indirect and confusing.
 
-### Root Cause
+**3. Trending cards go to /price-check instead of /trends**
+In `DashboardIntelligence.tsx`, clicking a trending brand card takes you to Price Check pre-filled with that brand. This is debatable, but arguably clicking a trend card should go to the trends page with that brand highlighted, not straight to price check.
 
-In `scrapeVintedUrl()` (line 145-172 of `NewItemWizard.tsx`), the prefill logic maps title, brand, category, size, condition, etc., but has no handling for `result.photos`. The wizard's `photoUrls` state stays empty, and on save, the `image_url` and `images` columns get null/empty values.
+### Fixes
 
-### Solution
+**File: `src/pages/Dashboard.tsx`**
 
-Two changes in `src/components/NewItemWizard.tsx`:
+Change each metric card to navigate to a logical destination instead of all going to `/analytics`:
 
-1. **Capture scraped photo URLs in state**: In `scrapeVintedUrl()`, when `result.photos` is a non-empty array, set `data.photoUrls` to those URLs. These are already full HTTPS URLs hosted on Vinted's CDN, so they can be used directly without uploading.
+| Card | Current Destination | Correct Destination |
+|------|-------------------|-------------------|
+| Active Items | /analytics | /listings?status=active |
+| Portfolio Value | /analytics | /analytics |
+| Sold (7d) | /analytics | /listings?status=sold |
+| Profit (MTD) | /analytics | /analytics |
 
-2. **Save scraped photo URLs to the database on item creation**: In `handleSave()`, after uploading any local `data.photos` files, also include any scraped `photoUrls` that aren't from local files. Set `image_url` to the first available photo and `images` to the full array.
+This means adding a `path` property to each metric object and using it in the `onClick`. "Active Items" and "Sold" go to filtered listings views, while "Portfolio Value" and "Profit" stay on analytics since those are financial metrics.
 
-### Technical Detail
+**File: `src/components/DashboardIntelligence.tsx`**
 
-```
-scrapeVintedUrl():
-  - Add: if (result.photos?.length > 0) prefill.photoUrls = result.photos
+- Change "Pending Relists" path from `/relist` to `/dead-stock` (direct route instead of going through a redirect).
 
-handleSave():
-  - After uploading local photos, merge with existing photoUrls from scraping
-  - Final image list = uploaded local URLs + scraped URLs (deduplicated)
-  - Set image_url = first image, images = full array
-```
+### Everything Else: Already Correct
 
-This means scraped Vinted photos will display in the details step (they're already rendered from `data.photoUrls`) and persist to the database when the item is saved.
-
+- **Pipeline Snapshot**: Watchlist, Drafts, Live, Stale, Sold all link to the correct filtered views.
+- **Next Actions Inbox**: Card click goes to item detail, action button goes to the tool with proper params (fixed in previous update).
+- **Opportunities section**: Trend cards go to `/trends` -- correct.
+- **Recent Price Checks**: Clicking a report re-runs that price check -- correct.
+- **eBay Status Card**: Goes to `/platforms` -- correct.
+- **"See all" buttons**: All point to their correct parent pages.
