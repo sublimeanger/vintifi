@@ -98,6 +98,60 @@ export type Database = {
         }
         Relationships: []
       }
+      clearance_opportunities: {
+        Row: {
+          ai_notes: string | null
+          brand: string | null
+          category: string | null
+          created_at: string
+          estimated_profit: number | null
+          id: string
+          image_url: string | null
+          item_title: string
+          item_url: string | null
+          profit_margin: number | null
+          retailer: string
+          sale_price: number | null
+          status: string
+          user_id: string
+          vinted_resale_price: number | null
+        }
+        Insert: {
+          ai_notes?: string | null
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          estimated_profit?: number | null
+          id?: string
+          image_url?: string | null
+          item_title: string
+          item_url?: string | null
+          profit_margin?: number | null
+          retailer: string
+          sale_price?: number | null
+          status?: string
+          user_id: string
+          vinted_resale_price?: number | null
+        }
+        Update: {
+          ai_notes?: string | null
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          estimated_profit?: number | null
+          id?: string
+          image_url?: string | null
+          item_title?: string
+          item_url?: string | null
+          profit_margin?: number | null
+          retailer?: string
+          sale_price?: number | null
+          status?: string
+          user_id?: string
+          vinted_resale_price?: number | null
+        }
+        Relationships: []
+      }
       competitor_alerts: {
         Row: {
           alert_type: string

@@ -10,28 +10,148 @@ const corsHeaders = {
 const APIFY_BASE = "https://api.apify.com/v2";
 const APIFY_ACTOR = "kazkn~vinted-smart-scraper";
 
-const RETAILER_QUERIES: Record<string, string> = {
-  "ASOS Outlet": "site:asos.com sale OR outlet",
-  "End Clothing": "site:endclothing.com sale",
-  "TK Maxx": "site:tkmaxx.com",
-  "Nike Clearance": "site:nike.com sale",
-  "Adidas Outlet": "site:adidas.co.uk outlet OR sale",
-  "ZARA Sale": "site:zara.com sale",
+/* ── Retailer config with actual sale page URLs ── */
+
+type RetailerConfig = {
+  label: string;
+  saleUrls: string[];
 };
 
-// ── Apify for Vinted baseline ──
+const RETAILERS: Record<string, RetailerConfig> = {
+  "ASOS Outlet": {
+    label: "ASOS Outlet",
+    saleUrls: ["https://www.asos.com/women/sale/cat/?cid=7046", "https://www.asos.com/men/sale/cat/?cid=8409"],
+  },
+  "End Clothing": {
+    label: "End Clothing",
+    saleUrls: ["https://www.endclothing.com/gb/sale"],
+  },
+  "TK Maxx": {
+    label: "TK Maxx",
+    saleUrls: ["https://www.tkmaxx.com/uk/en/clearance/c/01300000"],
+  },
+  "Nike Clearance": {
+    label: "Nike",
+    saleUrls: ["https://www.nike.com/gb/w/sale-3yaep"],
+  },
+  "Adidas Outlet": {
+    label: "Adidas",
+    saleUrls: ["https://www.adidas.co.uk/outlet"],
+  },
+  "ZARA Sale": {
+    label: "ZARA",
+    saleUrls: ["https://www.zara.com/uk/en/sale-l1314.html"],
+  },
+  "H&M Sale": {
+    label: "H&M",
+    saleUrls: ["https://www2.hm.com/en_gb/sale.html"],
+  },
+  "Uniqlo Sale": {
+    label: "Uniqlo",
+    saleUrls: ["https://www.uniqlo.com/uk/en/spl/sale/all-items"],
+  },
+  "COS Sale": {
+    label: "COS",
+    saleUrls: ["https://www.cos.com/en_gbp/sale.html"],
+  },
+  "Ralph Lauren": {
+    label: "Ralph Lauren",
+    saleUrls: ["https://www.ralphlauren.co.uk/en/sale/10006"],
+  },
+  "Depop": {
+    label: "Depop",
+    saleUrls: ["https://www.depop.com/category/mens/"],
+  },
+  "Vinted UK": {
+    label: "Vinted UK",
+    saleUrls: ["https://www.vinted.co.uk/catalog"],
+  },
+};
+
+/* ── Firecrawl structured extraction schema ── */
+
+const PRODUCT_EXTRACT_SCHEMA = {
+  type: "object",
+  properties: {
+    products: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Product name/title" },
+          brand: { type: "string", description: "Brand name" },
+          price: { type: "number", description: "Current sale price in GBP" },
+          original_price: { type: "number", description: "Original/RRP price if available" },
+          url: { type: "string", description: "Direct product URL" },
+          image_url: { type: "string", description: "Product image URL" },
+          category: { type: "string", description: "Product category e.g. Jacket, Trainers" },
+        },
+        required: ["title", "price"],
+      },
+    },
+  },
+  required: ["products"],
+};
+
+/* ── Apify for Vinted baseline ── */
+
 async function scrapeVintedBaseline(apiToken: string, query: string): Promise<any[]> {
   try {
     const url = `${APIFY_BASE}/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${apiToken}`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ search: query, maxItems: 15, country: "uk" }),
+      body: JSON.stringify({ search: query, maxItems: 20, country: "uk" }),
     });
-    if (!res.ok) { console.error(`Apify clearance baseline failed: ${res.status}`); return []; }
+    if (!res.ok) { console.error(`Apify baseline failed: ${res.status}`); return []; }
     const data = await res.json();
     return Array.isArray(data) ? data : [];
-  } catch (e) { console.error("Apify clearance error:", e); return []; }
+  } catch (e) { console.error("Apify error:", e); return []; }
+}
+
+/* ── Firecrawl structured scrape ── */
+
+async function scrapeRetailer(apiKey: string, retailerId: string, config: RetailerConfig, searchSuffix: string): Promise<{ retailer: string; products: any[] }> {
+  const allProducts: any[] = [];
+
+  for (const saleUrl of config.saleUrls) {
+    try {
+      // Use Firecrawl scrape with extract for structured data
+      const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: saleUrl,
+          formats: [{ type: "json", schema: PRODUCT_EXTRACT_SCHEMA, prompt: `Extract product listings from this sale/clearance page. ${searchSuffix ? `Focus on items matching: ${searchSuffix}.` : ""} Return up to 10 products with their sale prices in GBP.` }],
+          onlyMainContent: true,
+          waitFor: 3000,
+        }),
+      });
+
+      if (!res.ok) {
+        console.error(`Firecrawl scrape ${retailerId} failed: ${res.status}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const extracted = data?.data?.json || data?.json || {};
+      const products = extracted?.products || [];
+      
+      for (const p of products) {
+        if (p.title && p.price) {
+          allProducts.push({
+            ...p,
+            retailer: retailerId,
+            source_url: p.url || saleUrl,
+          });
+        }
+      }
+    } catch (e) {
+      console.error(`${retailerId} scrape error:`, e);
+    }
+  }
+
+  return { retailer: retailerId, products: allProducts.slice(0, 8) };
 }
 
 serve(async (req) => {
@@ -47,7 +167,7 @@ serve(async (req) => {
     if (!FIRECRAWL_API_KEY) throw new Error("FIRECRAWL_API_KEY not configured");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Verify auth
+    // Auth
     const authHeader = req.headers.get("authorization");
     const userClient = createClient(SUPABASE_URL, anonKey, {
       global: { headers: { Authorization: authHeader || "" } },
@@ -69,7 +189,7 @@ serve(async (req) => {
       });
     }
 
-    const { retailers, brand, category, min_margin = 40 } = await req.json();
+    const { retailers, brand, category, min_margin = 40, save_results = false } = await req.json();
     if (!retailers || retailers.length === 0) {
       return new Response(JSON.stringify({ error: "Select at least one retailer" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -78,104 +198,73 @@ serve(async (req) => {
 
     const searchSuffix = [brand, category].filter(Boolean).join(" ");
 
-    // Search each retailer via Firecrawl (parallel) — retailers stay on Firecrawl
-    const retailerPromises = retailers.map(async (retailer: string) => {
-      const baseQuery = RETAILER_QUERIES[retailer];
-      if (!baseQuery) return { retailer, results: [] };
-      const query = searchSuffix ? `${baseQuery} ${searchSuffix}` : baseQuery;
-      try {
-        const res = await fetch("https://api.firecrawl.dev/v1/search", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ query, limit: 8, scrapeOptions: { formats: ["markdown"] } }),
-        });
-        if (!res.ok) { console.error(`${retailer} search failed:`, res.status); return { retailer, results: [] }; }
-        const data = await res.json();
-        return { retailer, results: data.data || data.results || [] };
-      } catch (e) { console.error(`${retailer} error:`, e); return { retailer, results: [] }; }
+    // Scrape retailers in parallel using structured extraction
+    const retailerPromises = retailers.map((r: string) => {
+      const config = RETAILERS[r];
+      if (!config) return Promise.resolve({ retailer: r, products: [] });
+      return scrapeRetailer(FIRECRAWL_API_KEY, r, config, searchSuffix);
     });
 
-    // Vinted baseline: Apify primary, Firecrawl fallback
+    // Vinted baseline via Apify
     const vintedPromise = (async () => {
-      const vintedQuery = searchSuffix || "sale";
-
-      // Try Apify first
+      const query = searchSuffix || "sale";
       if (APIFY_API_TOKEN) {
-        const items = await scrapeVintedBaseline(APIFY_API_TOKEN, vintedQuery);
-        if (items.length > 0) {
-          return { source: "apify", items };
-        }
+        const items = await scrapeVintedBaseline(APIFY_API_TOKEN, query);
+        if (items.length > 0) return items;
       }
-
-      // Fallback to Firecrawl
-      try {
-        const res = await fetch("https://api.firecrawl.dev/v1/search", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ query: `site:vinted.co.uk ${vintedQuery}`, limit: 8, scrapeOptions: { formats: ["markdown"] } }),
-        });
-        if (!res.ok) return { source: "firecrawl", items: [] };
-        const data = await res.json();
-        return { source: "firecrawl", items: data.data || data.results || [] };
-      } catch { return { source: "firecrawl", items: [] }; }
+      return [];
     })();
 
-    const [retailerResults, vintedResult] = await Promise.all([
+    const [retailerResults, vintedItems] = await Promise.all([
       Promise.all(retailerPromises),
       vintedPromise,
     ]);
 
-    // Build AI context
-    const retailerSummary = retailerResults.map((r) => {
-      const items = r.results.slice(0, 6).map((item: any) => {
-        const title = item.title || "";
-        const desc = item.description || item.markdown?.slice(0, 200) || "";
-        const url = item.url || "";
-        return `  - ${title} | ${desc} | ${url}`;
-      }).join("\n");
-      return `## ${r.retailer}\n${items || "  No results found"}`;
+    // Build structured AI context
+    const retailerContext = retailerResults.map((r: any) => {
+      if (r.products.length === 0) return `## ${r.retailer}\nNo products found`;
+      const items = r.products.map((p: any) =>
+        `  - ${p.brand || "Unknown"} | ${p.title} | £${p.price} ${p.original_price ? `(was £${p.original_price})` : ""} | ${p.category || ""} | ${p.url || ""} | ${p.image_url || ""}`
+      ).join("\n");
+      return `## ${r.retailer}\n${items}`;
     }).join("\n\n");
 
-    let vintedSummary = "";
-    if (vintedResult.source === "apify") {
-      vintedSummary = vintedResult.items.slice(0, 10).map((item: any) => {
-        const brand = item.brand || item.brand_title || "";
-        const price = item.price || item.total_price || "?";
-        const title = item.title || "";
-        const favs = item.favourite_count || item.favorites || 0;
-        return `  - ${brand} | £${price} | ${title} | ${favs} favs`;
-      }).join("\n");
-    } else {
-      vintedSummary = vintedResult.items.slice(0, 8).map((r: any) =>
-        `  - ${r.title || ""} | ${r.description || r.markdown?.slice(0, 200) || ""}`
-      ).join("\n");
-    }
+    const vintedContext = vintedItems.length > 0
+      ? vintedItems.slice(0, 15).map((item: any) => {
+          const b = item.brand || item.brand_title || "";
+          const price = item.price || item.total_price || "?";
+          const title = item.title || "";
+          const favs = item.favourite_count || item.favorites || 0;
+          return `  - ${b} | £${price} | ${title} | ${favs} favs`;
+        }).join("\n")
+      : "No Vinted baseline data — estimate based on market knowledge";
 
-    const prompt = `You are a reselling arbitrage analyst specialising in UK retail clearance flips. Compare retail clearance prices against Vinted resale values to find profitable opportunities.
+    const prompt = `You are a UK reselling arbitrage analyst. Compare structured retail clearance product data against Vinted resale values to find profitable flip opportunities.
 
 SEARCH FILTERS: ${searchSuffix || "General clearance"}
 MINIMUM PROFIT MARGIN: ${min_margin}%
 
-## Retail Clearance Listings (Buy From)
-${retailerSummary}
+## Retail Clearance Products (Buy From — STRUCTURED DATA)
+${retailerContext}
 
 ## Vinted Reference Prices (Sell On)
-${vintedSummary || "No Vinted results - estimate based on market knowledge"}
+${vintedContext}
 
 Return a JSON array of opportunities. Each object must have:
 - retailer: the retailer name
 - item_title: item name
-- item_url: the retail listing URL (from results, or null)
-- sale_price: clearance buy price in GBP (extract or estimate)
+- item_url: the product URL from the retailer data (use exact URL from data, or null)
+- image_url: the product image URL from the retailer data (use exact URL from data, or null)
+- sale_price: clearance buy price in GBP (from structured data)
 - vinted_resale_price: estimated Vinted sell price in GBP
 - estimated_profit: vinted_resale_price minus sale_price
 - profit_margin: percentage margin
 - brand: brand name
 - category: item category
-- ai_notes: 1-2 sentence explanation
+- ai_notes: 1-2 sentence explanation of why this is a good flip
 
 Only include items with profit margin >= ${min_margin}%.
-Return max 10 opportunities ranked by margin descending.
+Return max 12 opportunities ranked by margin descending.
 If none found, return [].
 Return ONLY the JSON array.`;
 
@@ -203,6 +292,27 @@ Return ONLY the JSON array.`;
     } catch {
       console.error("Failed to parse AI response:", content);
       throw new Error("Failed to parse clearance data");
+    }
+
+    // Optionally save to clearance_opportunities table
+    if (save_results && opportunities.length > 0) {
+      const rows = opportunities.map((o: any) => ({
+        user_id: user.id,
+        retailer: o.retailer,
+        item_title: o.item_title,
+        item_url: o.item_url || null,
+        image_url: o.image_url || null,
+        sale_price: o.sale_price,
+        vinted_resale_price: o.vinted_resale_price,
+        estimated_profit: o.estimated_profit,
+        profit_margin: o.profit_margin,
+        brand: o.brand || null,
+        category: o.category || null,
+        ai_notes: o.ai_notes || null,
+        status: "new",
+      }));
+      const { error: insertError } = await serviceClient.from("clearance_opportunities").insert(rows);
+      if (insertError) console.error("Failed to save opportunities:", insertError);
     }
 
     return new Response(

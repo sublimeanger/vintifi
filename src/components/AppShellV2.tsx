@@ -46,7 +46,7 @@ const WORKSPACES: Workspace[] = [
       { icon: TrendingUp, label: "Trends", path: "/trends" },
       { icon: ArrowRightLeft, label: "Deals", path: "/arbitrage", tier: "business" },
       { icon: Radar, label: "Competitors", path: "/competitors" },
-      { icon: MapPin, label: "In-Store List", path: "/charity-briefing" },
+      { icon: MapPin, label: "Charity Shop Briefing", path: "/charity-briefing" },
       { icon: ShoppingBag, label: "Clearance Radar", path: "/clearance-radar", tier: "business" },
     ],
   },
