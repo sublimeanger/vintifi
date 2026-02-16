@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,6 +81,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
   const [saving, setSaving] = useState(false);
   const [createdItemId, setCreatedItemId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [scraping, setScraping] = useState(false);
 
   const update = (partial: Partial<WizardData>) => setData(prev => ({ ...prev, ...partial }));
 
@@ -137,7 +138,34 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
     }
   };
 
-  const handleInputNext = () => {
+  const scrapeVintedUrl = async (vintedUrl: string) => {
+    setScraping(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("scrape-vinted-url", {
+        body: { url: vintedUrl },
+      });
+      if (error) throw error;
+      if (result && !result.error) {
+        const prefill: Partial<WizardData> = {};
+        if (result.title) prefill.title = result.title;
+        if (result.brand) prefill.brand = result.brand;
+        if (result.category) prefill.category = result.category;
+        if (result.size) prefill.size = result.size;
+        if (result.condition) prefill.condition = result.condition;
+        if (result.description) prefill.description = result.description;
+        if (result.price != null) prefill.currentPrice = String(result.price);
+        update(prefill);
+        toast.success("Listing details imported!");
+      }
+    } catch (err: any) {
+      console.error("Scrape error:", err);
+      toast.info("Couldn't auto-detect details — fill them in manually");
+    } finally {
+      setScraping(false);
+    }
+  };
+
+  const handleInputNext = async () => {
     if (data.method === "url" && !data.url.trim()) {
       toast.error("Paste a Vinted URL to continue");
       return;
@@ -145,6 +173,10 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
     if (data.method === "photo" && data.photos.length === 0) {
       toast.error("Upload at least one photo");
       return;
+    }
+    // Auto-detect from URL before moving to details
+    if (data.method === "url" && data.url.includes("vinted")) {
+      await scrapeVintedUrl(data.url.trim());
     }
     setStep("details");
   };
@@ -355,11 +387,15 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
               )}
 
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" onClick={() => setStep("method")} className="h-11 active:scale-95 transition-transform">
+                <Button variant="outline" onClick={() => setStep("method")} disabled={scraping} className="h-11 active:scale-95 transition-transform">
                   <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
                 </Button>
-                <Button onClick={handleInputNext} className="flex-1 h-11 font-semibold active:scale-95 transition-transform">
-                  Continue <ArrowRight className="w-4 h-4 ml-1.5" />
+                <Button onClick={handleInputNext} disabled={scraping} className="flex-1 h-11 font-semibold active:scale-95 transition-transform">
+                  {scraping ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Detecting details...</>
+                  ) : (
+                    <>Continue <ArrowRight className="w-4 h-4 ml-1.5" /></>
+                  )}
                 </Button>
               </div>
             </motion.div>
