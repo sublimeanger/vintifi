@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowRight, Sparkles, Search, Package,
+  ArrowRight, Sparkles, Search, Package, TrendingUp,
 } from "lucide-react";
 
 type ImportedItem = {
@@ -157,12 +157,20 @@ export default function Welcome() {
               </div>
             )}
 
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="w-full mt-5 text-sm text-muted-foreground hover:text-foreground transition-colors text-center flex items-center justify-center gap-1.5"
-            >
-              Go to Dashboard <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="mt-5 space-y-2">
+              <button
+                onClick={() => navigate("/trends")}
+                className="w-full text-sm text-primary hover:text-primary/80 transition-colors text-center flex items-center justify-center gap-1.5 font-medium"
+              >
+                <TrendingUp className="w-3.5 h-3.5" /> Explore what's trending right now
+              </button>
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors text-center flex items-center justify-center gap-1.5"
+              >
+                Go to Dashboard <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </motion.div>
         </AnimatePresence>
       </Card>

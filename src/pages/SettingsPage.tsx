@@ -33,6 +33,7 @@ function Section({ icon: Icon, title, children, tint = "" }: {
 
 export default function SettingsPage() {
   const { user, profile, credits, signOut, refreshProfile } = useAuth();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
   const [saving, setSaving] = useState(false);
@@ -453,8 +454,15 @@ export default function SettingsPage() {
           <Button
             variant="outline"
             className="h-10 active:scale-95 transition-transform"
-            onClick={() => {
+            onClick={async () => {
               localStorage.removeItem("vintifi_tour_completed");
+              if (user) {
+                await supabase
+                  .from("profiles")
+                  .update({ tour_completed: false } as any)
+                  .eq("user_id", user.id);
+                await refreshProfile();
+              }
               toast.success("Tour reset! Head to the dashboard to start it.");
               navigate("/dashboard");
             }}

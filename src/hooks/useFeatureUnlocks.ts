@@ -6,15 +6,17 @@ import { toast } from "sonner";
 const MILESTONES = [
   { key: "unlock_arbitrage", check: "price_checks", threshold: 5, message: "🎉 You've unlocked the Arbitrage Scanner! Find profitable cross-platform deals.", path: "/arbitrage" },
   { key: "unlock_deadstock", check: "listings", threshold: 10, message: "📦 Dead Stock Liquidation unlocked! Keep your inventory healthy.", path: "/dead-stock" },
-  { key: "unlock_portfolio", check: "listings", threshold: 15, message: "📊 Portfolio Optimiser unlocked! Bulk-fix pricing across your inventory.", path: "/portfolio" },
+  { key: "unlock_portfolio", check: "listings", threshold: 15, message: "📊 Inventory Health unlocked! Bulk-fix pricing across your inventory.", path: "/dead-stock" },
   { key: "unlock_competitor", check: "price_checks", threshold: 10, message: "🔍 Competitor Tracker unlocked! Monitor your rivals' pricing.", path: "/competitors" },
 ] as const;
 
 export function useFeatureUnlocks() {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profile) return;
+
+    const shownMilestones = profile.milestones_shown || [];
 
     const checkMilestones = async () => {
       const [checksRes, listingsRes] = await Promise.all([
@@ -34,13 +36,17 @@ export function useFeatureUnlocks() {
       };
 
       for (const milestone of MILESTONES) {
-        const storageKey = `${milestone.key}_${user.id}`;
-        const alreadyShown = localStorage.getItem(storageKey);
-        if (alreadyShown) continue;
+        if (shownMilestones.includes(milestone.key)) continue;
 
         if (counts[milestone.check] >= milestone.threshold) {
-          localStorage.setItem(storageKey, "true");
-          // Slight delay so it doesn't conflict with page load toasts
+          // Update DB
+          const updatedMilestones = [...shownMilestones, milestone.key];
+          await supabase
+            .from("profiles")
+            .update({ milestones_shown: updatedMilestones } as any)
+            .eq("user_id", user.id);
+          refreshProfile();
+
           setTimeout(() => {
             toast.success(milestone.message, { duration: 6000 });
           }, 2000);
@@ -50,5 +56,5 @@ export function useFeatureUnlocks() {
     };
 
     checkMilestones();
-  }, [user]);
+  }, [user, profile]);
 }
