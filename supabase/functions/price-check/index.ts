@@ -81,7 +81,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { url, brand, category, condition } = await req.json();
+    const { url, brand, category, condition, itemId } = await req.json();
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Not authenticated");
@@ -283,6 +283,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
       },
       body: JSON.stringify({
         user_id: userId,
+        listing_id: itemId || null,
         item_title: report.item_title,
         item_brand: report.item_brand,
         item_category: category || report.item_category,

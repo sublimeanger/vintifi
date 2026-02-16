@@ -210,7 +210,19 @@ export default function OptimizeListing() {
           type: "optimised",
           payload: {
             health_score: data.health_score.overall,
-            improvements: data.improvements?.length || 0,
+            title_score: data.health_score.title_score,
+            description_score: data.health_score.description_score,
+            photo_score: data.health_score.photo_score,
+            completeness_score: data.health_score.completeness_score,
+            title_feedback: data.health_score.title_feedback,
+            description_feedback: data.health_score.description_feedback,
+            photo_feedback: data.health_score.photo_feedback,
+            completeness_feedback: data.health_score.completeness_feedback,
+            improvements: data.improvements || [],
+            suggested_tags: data.suggested_tags || [],
+            style_notes: data.style_notes || "",
+            optimised_title: data.optimised_title,
+            optimised_description: data.optimised_description,
           },
         });
       }

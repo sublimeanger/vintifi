@@ -16,7 +16,7 @@ import {
   ArrowLeft, Search, Sparkles, ImageIcon, ExternalLink,
   Eye, Heart, Calendar, PoundSterling, TrendingUp,
   Package, MoreHorizontal, Clock, Zap, Tag, Ruler,
-  ShieldCheck, Loader2, Copy, Check,
+  ShieldCheck, Loader2, Copy, Check, ChevronDown, ChevronUp,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -101,6 +101,99 @@ type EbayStatus = {
   platform_url?: string;
   cross_listing_id?: string;
 };
+
+function ActivityItem({ activity: a, index: i }: { activity: Activity; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const payload = a.payload as Record<string, any> | null;
+  const hasDetail = a.type === "optimised" && payload && (payload.improvements || payload.title_feedback);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.05 }}
+    >
+      <Card className="p-3">
+        <div
+          className={`flex items-center gap-3 ${hasDetail ? "cursor-pointer" : ""}`}
+          onClick={() => hasDetail && setExpanded(!expanded)}
+        >
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+            a.type === "price_checked" ? "bg-primary/10 text-primary" :
+            a.type === "optimised" ? "bg-accent/10 text-accent" :
+            a.type === "photo_edited" ? "bg-secondary/50 text-secondary-foreground" :
+            "bg-muted text-muted-foreground"
+          }`}>
+            {a.type === "price_checked" ? <Search className="w-3.5 h-3.5" /> :
+             a.type === "optimised" ? <Sparkles className="w-3.5 h-3.5" /> :
+             a.type === "photo_edited" ? <ImageIcon className="w-3.5 h-3.5" /> :
+             a.type === "status_change" ? <Package className="w-3.5 h-3.5" /> :
+             <Clock className="w-3.5 h-3.5" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium capitalize">{a.type.replace(/_/g, " ")}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {format(new Date(a.created_at), "dd MMM yyyy 'at' HH:mm")}
+            </p>
+          </div>
+          {hasDetail && (
+            expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+          )}
+        </div>
+
+        {expanded && hasDetail && payload && (
+          <div className="mt-3 pt-3 border-t border-border space-y-3 text-sm">
+            {/* Health score breakdown */}
+            {payload.health_score != null && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { label: "Title", score: payload.title_score, feedback: payload.title_feedback },
+                  { label: "Description", score: payload.description_score, feedback: payload.description_feedback },
+                  { label: "Photos", score: payload.photo_score, feedback: payload.photo_feedback },
+                  { label: "Completeness", score: payload.completeness_score, feedback: payload.completeness_feedback },
+                ].map((s) => (
+                  <div key={s.label} className="p-2 rounded-lg bg-muted/40">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{s.label}</p>
+                    <p className="text-lg font-bold">{s.score ?? "—"}<span className="text-xs text-muted-foreground">/100</span></p>
+                    {s.feedback && <p className="text-[10px] text-muted-foreground mt-0.5">{s.feedback}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Improvements */}
+            {Array.isArray(payload.improvements) && payload.improvements.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold mb-1">Improvements Applied</p>
+                <ul className="text-xs text-muted-foreground space-y-0.5">
+                  {payload.improvements.map((imp: string, j: number) => (
+                    <li key={j} className="flex items-start gap-1.5">
+                      <Check className="w-3 h-3 text-success shrink-0 mt-0.5" />
+                      {imp}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Tags */}
+            {Array.isArray(payload.suggested_tags) && payload.suggested_tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {payload.suggested_tags.map((tag: string, j: number) => (
+                  <Badge key={j} variant="secondary" className="text-[10px]">{tag}</Badge>
+                ))}
+              </div>
+            )}
+
+            {payload.style_notes && (
+              <p className="text-xs text-muted-foreground italic">{payload.style_notes}</p>
+            )}
+          </div>
+        )}
+      </Card>
+    </motion.div>
+  );
+}
 
 export default function ItemDetail() {
   const { id } = useParams<{ id: string }>();
@@ -645,33 +738,7 @@ export default function ItemDetail() {
           {activities.length > 0 ? (
             <div className="space-y-1">
               {activities.map((a, i) => (
-                <motion.div
-                  key={a.id}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <Card className="p-3 flex items-center gap-3">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                      a.type === "price_checked" ? "bg-primary/10 text-primary" :
-                      a.type === "optimised" ? "bg-accent/10 text-accent" :
-                      a.type === "photo_edited" ? "bg-secondary/50 text-secondary-foreground" :
-                      "bg-muted text-muted-foreground"
-                    }`}>
-                      {a.type === "price_checked" ? <Search className="w-3.5 h-3.5" /> :
-                       a.type === "optimised" ? <Sparkles className="w-3.5 h-3.5" /> :
-                       a.type === "photo_edited" ? <ImageIcon className="w-3.5 h-3.5" /> :
-                       a.type === "status_change" ? <Package className="w-3.5 h-3.5" /> :
-                       <Clock className="w-3.5 h-3.5" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium capitalize">{a.type.replace(/_/g, " ")}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(new Date(a.created_at), "dd MMM yyyy 'at' HH:mm")}
-                      </p>
-                    </div>
-                  </Card>
-                </motion.div>
+                <ActivityItem key={a.id} activity={a} index={i} />
               ))}
             </div>
           ) : (
