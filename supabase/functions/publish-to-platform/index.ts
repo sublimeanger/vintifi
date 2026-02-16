@@ -164,23 +164,58 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
   // Step 1.5: Ensure merchant location exists
   await ensureMerchantLocation(accessToken);
 
-  // Step 2: Create offer
-  const offerRes = await fetch("https://api.ebay.com/sell/inventory/v1/offer", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB", "Accept-Language": "en-GB" },
-    body: JSON.stringify({
-      sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
-      pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
-      availableQuantity: 1, categoryId: category.id, merchantLocationKey: "default",
-    }),
-  });
-  if (!offerRes.ok) throw new Error(`eBay offer creation failed [${offerRes.status}]: ${await offerRes.text()}`);
+  // Step 2: Check for existing offer on this SKU
+  const existingOffersRes = await fetch(
+    `https://api.ebay.com/sell/inventory/v1/offer?sku=${encodeURIComponent(sku)}&marketplace_id=EBAY_GB`,
+    { headers: { Authorization: `Bearer ${accessToken}`, "Accept-Language": "en-GB" } }
+  );
 
-  const offerData = await offerRes.json();
+  let offerId: string | null = null;
+
+  if (existingOffersRes.ok) {
+    const existingData = await existingOffersRes.json();
+    const existingOffer = existingData.offers?.[0];
+    if (existingOffer?.offerId) {
+      offerId = existingOffer.offerId;
+      // Update existing offer
+      const updateRes = await fetch(
+        `https://api.ebay.com/sell/inventory/v1/offer/${offerId}`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB", "Accept-Language": "en-GB" },
+          body: JSON.stringify({
+            sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
+            pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
+            availableQuantity: 1, categoryId: category.id, merchantLocationKey: "default",
+            listingDescription: listing.description || listing.title,
+          }),
+        }
+      );
+      if (!updateRes.ok && updateRes.status !== 204) {
+        throw new Error(`eBay offer update failed [${updateRes.status}]: ${await updateRes.text()}`);
+      }
+    }
+  }
+
+  // Create new offer if none exists
+  if (!offerId) {
+    const offerRes = await fetch("https://api.ebay.com/sell/inventory/v1/offer", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB", "Accept-Language": "en-GB" },
+      body: JSON.stringify({
+        sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
+        pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
+        availableQuantity: 1, categoryId: category.id, merchantLocationKey: "default",
+      }),
+    });
+    if (!offerRes.ok) throw new Error(`eBay offer creation failed [${offerRes.status}]: ${await offerRes.text()}`);
+    const offerData = await offerRes.json();
+    offerId = offerData.offerId;
+  }
 
   // Step 3: Publish offer
   const publishRes = await fetch(
-    `https://api.ebay.com/sell/inventory/v1/offer/${offerData.offerId}/publish`,
+    `https://api.ebay.com/sell/inventory/v1/offer/${offerId}/publish`,
     { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB", "Accept-Language": "en-GB" } }
   );
   if (!publishRes.ok) throw new Error(`eBay publish failed [${publishRes.status}]: ${await publishRes.text()}`);
