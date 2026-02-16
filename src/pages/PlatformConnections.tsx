@@ -42,6 +42,33 @@ export default function PlatformConnections() {
     setLoading(false);
   };
 
+  // Handle OAuth callback: exchange code for tokens
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (!code || !user) return;
+
+    const exchangeCode = async () => {
+      setConnecting(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("connect-ebay", {
+          body: { action: "exchange_code", code },
+        });
+        if (error) throw error;
+        toast.success("eBay connected successfully!");
+        await fetchConnections();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to complete eBay connection");
+      } finally {
+        setConnecting(false);
+        // Clean the URL to prevent re-triggering
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    };
+
+    exchangeCode();
+  }, [user]);
+
   useEffect(() => { fetchConnections(); }, [user]);
 
   const ebayConnection = connections.find((c) => c.platform === "ebay");
