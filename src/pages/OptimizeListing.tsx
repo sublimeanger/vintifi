@@ -84,6 +84,8 @@ export default function OptimizeListing() {
   const [translating, setTranslating] = useState(false);
   const [activeTransLang, setActiveTransLang] = useState("fr");
 
+  const itemId = searchParams.get("itemId");
+
   const handlePhotoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (photos.length + files.length > 4) {
@@ -177,6 +179,35 @@ export default function OptimizeListing() {
       setResult(data as OptimiseResult);
       refreshCredits();
       toast.success("Listing optimised!");
+
+      // If opened from an item, update the listing record
+      if (itemId && data?.health_score) {
+        const updatePayload: Record<string, any> = {
+          health_score: data.health_score.overall,
+          last_optimised_at: new Date().toISOString(),
+          title: data.optimised_title,
+          description: data.optimised_description,
+        };
+        if (data.detected_brand) updatePayload.brand = data.detected_brand;
+        if (data.detected_category) updatePayload.category = data.detected_category;
+        if (data.detected_condition) updatePayload.condition = data.detected_condition;
+
+        await supabase
+          .from("listings")
+          .update(updatePayload)
+          .eq("id", itemId)
+          .eq("user_id", user.id);
+
+        await supabase.from("item_activity").insert({
+          user_id: user.id,
+          listing_id: itemId,
+          type: "optimised",
+          payload: {
+            health_score: data.health_score.overall,
+            improvements: data.improvements?.length || 0,
+          },
+        });
+      }
     } catch (e: any) {
       toast.error(e.message || "Optimisation failed");
       console.error(e);
@@ -608,18 +639,30 @@ export default function OptimizeListing() {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pb-2">
-                <Button
-                  onClick={() => navigate(`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}&condition=${encodeURIComponent(result.detected_condition || condition)}`)}
-                  variant="outline"
-                  className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
-                >
-                  Price Check This Item
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
-                <Button onClick={handleSaveAsListing} disabled={saving} className="w-full sm:w-auto font-semibold h-12 sm:h-10 active:scale-95 transition-transform">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                  Save to My Listings
-                </Button>
+                {itemId ? (
+                  <Button
+                    onClick={() => navigate(`/items/${itemId}`)}
+                    className="w-full sm:w-auto font-semibold h-12 sm:h-10 active:scale-95 transition-transform"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    Back to Item
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={() => navigate(`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}&condition=${encodeURIComponent(result.detected_condition || condition)}`)}
+                      variant="outline"
+                      className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+                    >
+                      Price Check This Item
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                    <Button onClick={handleSaveAsListing} disabled={saving} className="w-full sm:w-auto font-semibold h-12 sm:h-10 active:scale-95 transition-transform">
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                      Save to My Listings
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* Journey Banner */}
