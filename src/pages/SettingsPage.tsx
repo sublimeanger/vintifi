@@ -252,19 +252,25 @@ export default function SettingsPage() {
           <div className="mb-4">
             <p className="text-xs sm:text-sm text-muted-foreground">Current plan</p>
             <p className="font-display font-bold text-xl sm:text-2xl capitalize">{STRIPE_TIERS[currentTier].name}</p>
-            {credits && (
-              <div className="mt-2 flex items-center gap-2">
-                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${Math.min(100, (credits.price_checks_used / credits.credits_limit) * 100)}%` }}
-                  />
+            {credits && (() => {
+              const isUnlimited = currentTier === "scale" || credits.credits_limit >= 999;
+              const totalUsed = credits.price_checks_used + credits.optimizations_used + credits.vintography_used;
+              return isUnlimited ? (
+                <Badge className="mt-2 bg-primary/10 text-primary border-primary/20">Unlimited credits</Badge>
+              ) : (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${Math.min(100, (totalUsed / credits.credits_limit) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
+                    {totalUsed}/{credits.credits_limit} used
+                  </span>
                 </div>
-                <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
-                  {credits.price_checks_used}/{credits.credits_limit}
-                </span>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {currentTier !== "free" && (

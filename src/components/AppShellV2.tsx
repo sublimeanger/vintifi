@@ -92,8 +92,10 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
   const tier = (profile?.subscription_tier || "free") as keyof typeof STRIPE_TIERS;
   const tierInfo = STRIPE_TIERS[tier] || STRIPE_TIERS.free;
-  const checksRemaining = credits ? credits.credits_limit - credits.price_checks_used : 0;
-  const creditsLow = checksRemaining <= 2;
+  const isUnlimited = tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+  const totalUsed = credits ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used : 0;
+  const checksRemaining = isUnlimited ? Infinity : (credits ? credits.credits_limit - totalUsed : 0);
+  const creditsLow = !isUnlimited && checksRemaining <= 2;
 
   const isActive = (path: string) => location.pathname === path;
   const isWorkspaceActive = (ws: Workspace) => {
@@ -197,7 +199,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
         >
           <Zap className={cn("w-3.5 h-3.5 shrink-0", creditsLow ? "text-warning" : "text-primary")} />
           <span className={cn("text-xs font-medium", creditsLow ? "text-warning" : "text-sidebar-foreground/80")}>
-            {checksRemaining} AI credits
+            {isUnlimited ? "Unlimited" : checksRemaining} AI credits
           </span>
         </button>
 
@@ -238,7 +240,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
           )}
         >
           <Zap className={cn("w-3.5 h-3.5", creditsLow ? "text-warning" : "text-primary")} />
-          <span className={cn("text-xs font-semibold", creditsLow && "text-warning")}>{checksRemaining}</span>
+          <span className={cn("text-xs font-semibold", creditsLow && "text-warning")}>{isUnlimited ? "∞" : checksRemaining}</span>
         </button>
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
