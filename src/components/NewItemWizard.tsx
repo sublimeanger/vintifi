@@ -160,6 +160,9 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
         if (result.material) prefill.material = result.material;
         if (result.description) prefill.description = result.description;
         if (result.price != null) prefill.currentPrice = String(result.price);
+        if (Array.isArray(result.photos) && result.photos.length > 0) {
+          prefill.photoUrls = result.photos.filter((u: string) => typeof u === "string" && u.startsWith("http"));
+        }
         update(prefill);
         toast.success("Listing details imported!");
       }
@@ -200,11 +203,15 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
 
     setSaving(true);
     try {
-      // Upload photos if any
-      let imageUrls: string[] = [];
+      // Upload local photos if any
+      let uploadedUrls: string[] = [];
       if (data.photos.length > 0) {
-        imageUrls = await uploadPhotos(data.photos);
+        uploadedUrls = await uploadPhotos(data.photos);
       }
+
+      // Merge uploaded URLs with scraped external URLs (deduplicated)
+      const scrapedUrls = data.photoUrls.filter(u => u.startsWith("http") && !u.startsWith("blob:"));
+      const allImages = [...new Set([...uploadedUrls, ...scrapedUrls])];
 
       const { data: inserted, error } = await supabase.from("listings").insert({
         user_id: user.id,
@@ -219,8 +226,8 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
         current_price: data.currentPrice ? parseFloat(data.currentPrice) : null,
         purchase_price: data.purchasePrice ? parseFloat(data.purchasePrice) : null,
         vinted_url: data.url.trim() || null,
-        image_url: imageUrls[0] || null,
-        images: imageUrls.length > 0 ? imageUrls : [],
+        image_url: allImages[0] || null,
+        images: allImages.length > 0 ? allImages : [],
         status: "active",
         source_type: data.method === "url" ? "vinted_url" : data.method === "photo" ? "photo_upload" : "manual",
       }).select("id").single();
