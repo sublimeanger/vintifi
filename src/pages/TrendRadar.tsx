@@ -13,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
+
 import {
   Flame, BarChart3, Clock, Crown, CalendarDays, Target,
   ChevronLeft, ChevronRight, Snowflake, Sun, Leaf, TrendingUp, TrendingDown,

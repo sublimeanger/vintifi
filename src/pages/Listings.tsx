@@ -105,7 +105,7 @@ export default function Listings() {
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("filter") || "all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editField, setEditField] = useState<string | null>(null);
@@ -200,19 +200,21 @@ export default function Listings() {
   };
 
   const handlePriceCheck = (listing: Listing) => {
+    const params = new URLSearchParams();
+    params.set("itemId", listing.id);
     if (listing.vinted_url) {
-      navigate(`/price-check?url=${encodeURIComponent(listing.vinted_url)}`);
+      params.set("url", listing.vinted_url);
     } else {
-      const params = new URLSearchParams();
       if (listing.brand) params.set("brand", listing.brand);
       if (listing.category) params.set("category", listing.category);
       if (listing.condition) params.set("condition", listing.condition);
-      navigate(`/price-check?${params.toString()}`);
     }
+    navigate(`/price-check?${params.toString()}`);
   };
 
   const handleOptimiseListing = (listing: Listing) => {
     const params = new URLSearchParams();
+    params.set("itemId", listing.id);
     if (listing.title) params.set("title", listing.title);
     if (listing.description) params.set("description", listing.description);
     if (listing.brand) params.set("brand", listing.brand);
@@ -257,9 +259,6 @@ export default function Listings() {
     cancelEdit();
   };
 
-  const toggleExpand = (id: string) => {
-    setExpandedId(prev => prev === id ? null : id);
-  };
 
   const needsOptimisingFilter = statusFilter === "needs_optimising";
   const filteredListings = listings.filter((l) => {
@@ -735,7 +734,7 @@ export default function Listings() {
                                       <Camera className="w-4 h-4 mr-2" /> Enhance Photos
                                     </DropdownMenuItem>
                                   ) : (
-                                    <DropdownMenuItem onClick={() => navigate("/vintography")}>
+                                    <DropdownMenuItem onClick={() => navigate(`/vintography?itemId=${listing.id}`)}>
                                       <Camera className="w-4 h-4 mr-2 text-muted-foreground" /> Add & Enhance Photo
                                     </DropdownMenuItem>
                                   )}

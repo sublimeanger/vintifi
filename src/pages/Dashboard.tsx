@@ -104,10 +104,10 @@ export default function Dashboard() {
         <Card id="tour-price-check" className="gradient-border p-4 sm:p-6 border-primary/20">
           <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-            <h3 className="font-display font-bold text-sm sm:text-base lg:text-lg">New Item</h3>
+            <h3 className="font-display font-bold text-sm sm:text-base lg:text-lg">Quick Price Check</h3>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mb-3 hidden sm:block">
-            Paste a Vinted URL to price check, or start listing a new item
+            Paste a Vinted URL to instantly see what your item is worth
           </p>
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
