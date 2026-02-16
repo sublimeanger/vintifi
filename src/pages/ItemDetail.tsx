@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { EbayPublishDialog } from "@/components/EbayPublishDialog";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -111,6 +112,7 @@ export default function ItemDetail() {
   const [copied, setCopied] = useState(false);
   const [ebay, setEbay] = useState<EbayStatus>({ status: "not_connected" });
   const [ebayPublishing, setEbayPublishing] = useState(false);
+  const [ebayDialogOpen, setEbayDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -410,7 +412,7 @@ export default function ItemDetail() {
             ) : ebay.status === "not_listed" ? (
               <div className="flex items-center gap-3">
                 <p className="text-xs text-muted-foreground flex-1">This item isn't on eBay yet.</p>
-                <Button size="sm" onClick={handlePublishToEbay} disabled={ebayPublishing}>
+                <Button size="sm" onClick={() => setEbayDialogOpen(true)} disabled={ebayPublishing}>
                   {ebayPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ExternalLink className="w-3.5 h-3.5 mr-1.5" />}
                   List on eBay
                 </Button>
@@ -636,6 +638,24 @@ export default function ItemDetail() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* eBay Pre-Publish Dialog */}
+      {item && (
+        <EbayPublishDialog
+          open={ebayDialogOpen}
+          onOpenChange={setEbayDialogOpen}
+          listing={item}
+          publishing={ebayPublishing}
+          onPublish={() => {
+            setEbayDialogOpen(false);
+            handlePublishToEbay();
+          }}
+          onOptimise={() => {
+            setEbayDialogOpen(false);
+            handleOptimise();
+          }}
+        />
+      )}
     </PageShell>
   );
 }
