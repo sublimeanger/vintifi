@@ -1,39 +1,34 @@
 
 
-## Fix: Next Actions Inbox — Card Click vs Button Click
+## Fix: Save Scraped Photos When Adding Item via Vinted URL
 
 ### Problem
 
-The "Next Actions" inbox has a single click handler on the entire row. Whether you tap the product image/title or the "Price Check" button, it navigates to the same path: `/price-check?title=...&itemId=...`.
+When adding an item via Vinted URL, the `scrape-vinted-url` edge function successfully extracts photo URLs (the `photos` array in the response), but the New Item Wizard completely ignores them. The scraped photos are never stored in state, never displayed in the wizard, and never saved to the database.
 
-Two issues with this:
+### Root Cause
 
-1. **Clicking the product card** should navigate to the Item Detail page (`/items/:id`) — not to the Price Check page. Users expect tapping a product to open that product.
-
-2. **The Price Check link passes `title` but not `brand` or `category`** — yet the Price Check page reads `brand` and `category` from URL params to pre-populate the form. Since those are missing, the manual entry fields are empty and the page appears blank/useless.
+In `scrapeVintedUrl()` (line 145-172 of `NewItemWizard.tsx`), the prefill logic maps title, brand, category, size, condition, etc., but has no handling for `result.photos`. The wizard's `photoUrls` state stays empty, and on save, the `image_url` and `images` columns get null/empty values.
 
 ### Solution
 
-Split the click targets so they behave correctly:
+Two changes in `src/components/NewItemWizard.tsx`:
 
-- **Row click (thumbnail + title area):** Always navigates to `/items/:id` — the item's detail hub.
-- **Action button click ("Price Check" / "Improve" / "Review"):** Navigates to the action-specific path with proper parameters, and stops event propagation so it doesn't also trigger the row click.
+1. **Capture scraped photo URLs in state**: In `scrapeVintedUrl()`, when `result.photos` is a non-empty array, set `data.photoUrls` to those URLs. These are already full HTTPS URLs hosted on Vinted's CDN, so they can be used directly without uploading.
 
-Additionally, fix the Price Check action path to include `brand` and `category` (which are already fetched from the database) so the manual entry form is pre-populated.
+2. **Save scraped photo URLs to the database on item creation**: In `handleSave()`, after uploading any local `data.photos` files, also include any scraped `photoUrls` that aren't from local files. Set `image_url` to the first available photo and `images` to the full array.
 
-### Technical Changes
+### Technical Detail
 
-**File: `src/components/NextActionsInbox.tsx`**
+```
+scrapeVintedUrl():
+  - Add: if (result.photos?.length > 0) prefill.photoUrls = result.photos
 
-1. Change the row's `onClick` to always navigate to `/items/${item.id}` (the item detail page).
+handleSave():
+  - After uploading local photos, merge with existing photoUrls from scraping
+  - Final image list = uploaded local URLs + scraped URLs (deduplicated)
+  - Set image_url = first image, images = full array
+```
 
-2. On the action `Button`, add an `onClick` with `e.stopPropagation()` that navigates to `item.actionPath`.
-
-3. Update the `actionPath` for "needs_price" items to include `brand` and `category` params:
-   - From: `/price-check?title=...&itemId=...`
-   - To: `/price-check?brand=...&category=...&itemId=...`
-
-4. Similarly update the "needs_optimise" path to also pass `brand`.
-
-This aligns with the item-centric navigation model where clicking any inventory card always goes to the detail page, and specific action buttons trigger their respective tools with proper context.
+This means scraped Vinted photos will display in the details step (they're already rendered from `data.photoUrls`) and persist to the database when the item is saved.
 
