@@ -253,11 +253,13 @@ serve(async (req) => {
     const { action } = body;
     const serviceClient = getServiceClient();
 
-    // Scheduled action: called by pg_cron
+    // Scheduled action: called by pg_cron (auth via Authorization header with anon key)
     if (action === "scheduled") {
-      const cronSecret = req.headers.get("x-cron-secret");
-      const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-      if (cronSecret !== anonKey) {
+      // pg_cron sends Authorization: Bearer <anon_key> — skip user auth for scheduled runs
+      const authHeader = req.headers.get("authorization") || "";
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+      const token = authHeader.replace("Bearer ", "");
+      if (token !== anonKey) {
         await authenticateUser(req);
       }
     } else {
