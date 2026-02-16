@@ -22,7 +22,7 @@ import {
 import { ArbitrageCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PageShell } from "@/components/PageShell";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
+
 import { FeatureGate } from "@/components/FeatureGate";
 
 type Opportunity = {

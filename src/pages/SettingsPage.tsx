@@ -13,7 +13,7 @@ import { User, CreditCard, Loader2, Check, Mail, Send, Globe, RotateCcw, Zap, Gi
 import { STRIPE_TIERS, TierKey, TIMEZONES, CREDIT_PACKS } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageShell } from "@/components/PageShell";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
+
 import { motion } from "framer-motion";
 
 /* ─── Section wrapper ─── */

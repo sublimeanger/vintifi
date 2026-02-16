@@ -46,7 +46,7 @@ export function PipelineSnapshot() {
     { key: "watchlist", label: "Watchlist", icon: Eye, color: "text-muted-foreground", bg: "bg-muted/60", filter: "?status=watchlist" },
     { key: "draft", label: "Drafts", icon: FileEdit, color: "text-accent", bg: "bg-accent/10", filter: "?status=draft" },
     { key: "active", label: "Live", icon: Radio, color: "text-success", bg: "bg-success/10", filter: "?status=active" },
-    { key: "stale", label: "Stale", icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", filter: "" },
+    { key: "stale", label: "Stale", icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", filter: "/dead-stock" },
     { key: "sold", label: "Sold", icon: CheckCircle2, color: "text-primary", bg: "bg-primary/10", filter: "?status=sold" },
   ] as const;
 
@@ -55,7 +55,7 @@ export function PipelineSnapshot() {
       {stages.map((s) => (
         <button
           key={s.key}
-          onClick={() => navigate(`/listings${s.filter}`)}
+          onClick={() => navigate(s.filter.startsWith("/") ? s.filter : `/listings${s.filter}`)}
           className={cn(
             "flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border/50 min-w-[100px] transition-all hover:shadow-sm active:scale-[0.97]",
             s.bg,

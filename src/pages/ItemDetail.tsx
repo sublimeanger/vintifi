@@ -615,14 +615,14 @@ export default function ItemDetail() {
                 >
                   <Card className="p-3 flex items-center gap-3">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                      a.type === "price_check" ? "bg-primary/10 text-primary" :
-                      a.type === "optimise" ? "bg-accent/10 text-accent" :
-                      a.type === "photo_edit" ? "bg-secondary/50 text-secondary-foreground" :
+                      a.type === "price_checked" ? "bg-primary/10 text-primary" :
+                      a.type === "optimised" ? "bg-accent/10 text-accent" :
+                      a.type === "photo_edited" ? "bg-secondary/50 text-secondary-foreground" :
                       "bg-muted text-muted-foreground"
                     }`}>
-                      {a.type === "price_check" ? <Search className="w-3.5 h-3.5" /> :
-                       a.type === "optimise" ? <Sparkles className="w-3.5 h-3.5" /> :
-                       a.type === "photo_edit" ? <ImageIcon className="w-3.5 h-3.5" /> :
+                      {a.type === "price_checked" ? <Search className="w-3.5 h-3.5" /> :
+                       a.type === "optimised" ? <Sparkles className="w-3.5 h-3.5" /> :
+                       a.type === "photo_edited" ? <ImageIcon className="w-3.5 h-3.5" /> :
                        a.type === "status_change" ? <Package className="w-3.5 h-3.5" /> :
                        <Clock className="w-3.5 h-3.5" />}
                     </div>
