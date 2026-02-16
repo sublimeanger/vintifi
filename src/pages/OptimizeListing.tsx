@@ -13,11 +13,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Sparkles, Copy, Check, Save,
   ImagePlus, X, Camera, Globe, Languages, ArrowRight,
-  Search, ShoppingBag, Link, ExternalLink, Tag,
+  Search, ShoppingBag, Link, ExternalLink, Tag, ChevronDown,
 } from "lucide-react";
-import { JourneyBanner } from "@/components/JourneyBanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HealthScoreGauge } from "@/components/HealthScoreGauge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PageShell } from "@/components/PageShell";
 import { FeatureGate } from "@/components/FeatureGate";
@@ -86,6 +86,10 @@ export default function OptimizeListing() {
   const [translations, setTranslations] = useState<Translations | null>(null);
   const [translating, setTranslating] = useState(false);
   const [activeTransLang, setActiveTransLang] = useState("fr");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const resultsRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   const itemId = searchParams.get("itemId");
 
@@ -489,19 +493,64 @@ export default function OptimizeListing() {
         {/* Results Panel */}
         <AnimatePresence>
           {result && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 sm:space-y-4">
-              {/* Health Score */}
-              <Card className="p-4 sm:p-6 border-primary/10 bg-gradient-to-br from-primary/[0.03] to-transparent">
-                <h2 className="font-display font-bold text-sm sm:text-lg mb-3 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                  Listing Health
-                </h2>
-                <div className="flex justify-center">
-                  <HealthScoreGauge score={result.health_score} size="lg" />
+            <motion.div ref={resultsRef} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 sm:space-y-4">
+              {/* Zone 1 — Success Header + Next Steps */}
+              <Card className="p-4 sm:p-5 border-primary/10 bg-gradient-to-br from-primary/[0.03] to-transparent">
+                <div className="flex items-start gap-4">
+                  <HealthScoreGauge score={result.health_score} compact size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-display font-bold text-sm sm:text-base mb-0.5">Listing optimised! ✨</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mb-3">Copy your new content below, then enhance your photos.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {itemId ? (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => navigate(`/vintography?itemId=${itemId}`)}
+                            className="h-9 font-semibold active:scale-95 transition-transform"
+                          >
+                            <Camera className="w-3.5 h-3.5 mr-1.5" />
+                            Enhance Photos
+                            <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate(`/items/${itemId}`)}
+                            className="h-9 active:scale-95 transition-transform"
+                          >
+                            Back to Item
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate(`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}&condition=${encodeURIComponent(result.detected_condition || condition)}`)}
+                            className="h-9 active:scale-95 transition-transform"
+                          >
+                            <Search className="w-3.5 h-3.5 mr-1.5" />
+                            Price Check
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleSaveAsListing}
+                            disabled={saving}
+                            className="h-9 font-semibold active:scale-95 transition-transform"
+                          >
+                            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                            Save to Listings
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </Card>
 
-              {/* Optimised Title */}
+              {/* Zone 2 — Optimised Content */}
+              {/* Title */}
               <Card className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Optimised Title</Label>
@@ -521,7 +570,7 @@ export default function OptimizeListing() {
                 )}
               </Card>
 
-              {/* Optimised Description */}
+              {/* Description */}
               <Card className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Optimised Description</Label>
@@ -553,204 +602,173 @@ export default function OptimizeListing() {
                 </div>
               </Card>
 
-              {/* Detected Metadata */}
-              {(result.detected_brand || result.detected_colour || result.detected_material) && (
-                <Card className="p-4 sm:p-6">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Detected Details</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {result.detected_brand && <Badge variant="secondary"><Tag className="w-3 h-3 mr-1" />{result.detected_brand}</Badge>}
-                    {result.detected_category && <Badge variant="secondary">{result.detected_category}</Badge>}
-                    {result.detected_condition && <Badge variant="secondary">{result.detected_condition}</Badge>}
-                    {result.detected_colour && <Badge variant="secondary">{result.detected_colour}</Badge>}
-                    {result.detected_material && <Badge variant="secondary">{result.detected_material}</Badge>}
-                  </div>
-                </Card>
-              )}
-
-              {/* Improvements & Style */}
-              {result.improvements.length > 0 && (
-                <Card className="p-4 sm:p-6">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Improvements Made</Label>
-                  <ul className="space-y-2">
-                    {result.improvements.map((imp, i) => (
-                      <motion.li
-                        key={i}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="flex items-start gap-2.5 text-sm"
-                      >
-                        <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
-                        <span>{imp}</span>
-                      </motion.li>
-                    ))}
-                  </ul>
-                  {result.style_notes && (
-                    <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20">
-                      <p className="text-[10px] font-semibold text-primary mb-1 uppercase tracking-wider">Style Notes</p>
-                      <p className="text-sm leading-relaxed">{result.style_notes}</p>
-                    </div>
+              {/* Zone 3 — Collapsible Details */}
+              <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 w-full py-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
+                    <ChevronDown className={`w-4 h-4 transition-transform ${detailsOpen ? "rotate-180" : ""}`} />
+                    More Details
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 sm:space-y-4">
+                  {/* Detected Metadata */}
+                  {(result.detected_brand || result.detected_colour || result.detected_material) && (
+                    <Card className="p-4 sm:p-6">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Detected Details</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {result.detected_brand && <Badge variant="secondary"><Tag className="w-3 h-3 mr-1" />{result.detected_brand}</Badge>}
+                        {result.detected_category && <Badge variant="secondary">{result.detected_category}</Badge>}
+                        {result.detected_condition && <Badge variant="secondary">{result.detected_condition}</Badge>}
+                        {result.detected_colour && <Badge variant="secondary">{result.detected_colour}</Badge>}
+                        {result.detected_material && <Badge variant="secondary">{result.detected_material}</Badge>}
+                      </div>
+                    </Card>
                   )}
-                </Card>
-              )}
 
-              {/* Multi-Language Translation */}
-              <Card className="p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-4 gap-2">
-                  <h2 className="font-display font-bold text-xs sm:text-lg flex items-center gap-2 min-w-0">
-                    <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
-                    <span className="truncate">Multi-Language</span>
-                  </h2>
-                  <Button
-                    onClick={handleTranslate}
-                    disabled={translating}
-                    size="sm"
-                    variant={translations ? "outline" : "default"}
-                    className="shrink-0 h-9"
-                  >
-                    {translating ? (
-                      <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Translating</>
-                    ) : translations ? (
-                      <><Languages className="w-3 h-3 mr-1" /> Redo</>
-                    ) : (
-                      <><Languages className="w-3 h-3 mr-1" /> Translate</>
-                    )}
-                  </Button>
-                </div>
-
-                {!translations && !translating && (
-                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                    Expand your reach across Vinted's 18+ European markets. Translate into French, German, Dutch & Spanish with one click.
-                  </p>
-                )}
-
-                {translating && (
-                  <div className="text-center py-8">
-                    <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">Translating into 4 languages...</p>
-                  </div>
-                )}
-
-                {translations && !translating && (
-                  <Tabs value={activeTransLang} onValueChange={setActiveTransLang}>
-                    <TabsList className="w-full grid grid-cols-4 mb-4">
-                      {LANGUAGES.map((lang) => (
-                        <TabsTrigger key={lang.code} value={lang.code} className="text-[10px] sm:text-xs px-1">
-                          {lang.label}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-
-                    {LANGUAGES.map((lang) => {
-                      const t = translations[lang.code];
-                      if (!t) return null;
-                      return (
-                        <TabsContent key={lang.code} value={lang.code} className="space-y-3">
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Title ({lang.short})</Label>
-                              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyToClipboard(t.title, `trans-title-${lang.code}`)}>
-                                {copiedField === `trans-title-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                                {copiedField === `trans-title-${lang.code}` ? "Copied" : "Copy"}
-                              </Button>
-                            </div>
-                            <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
-                              <p className="text-sm font-medium">{t.title}</p>
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Description ({lang.short})</Label>
-                              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyToClipboard(t.description, `trans-desc-${lang.code}`)}>
-                                {copiedField === `trans-desc-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                                {copiedField === `trans-desc-${lang.code}` ? "Copied" : "Copy"}
-                              </Button>
-                            </div>
-                            <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 max-h-48 overflow-y-auto">
-                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{t.description}</p>
-                            </div>
-                          </div>
-
-                          {t.tags?.length > 0 && (
-                            <div>
-                              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Tags ({lang.short})</Label>
-                              <div className="flex flex-wrap gap-1.5">
-                                {t.tags.map((tag) => (
-                                  <Badge
-                                    key={tag}
-                                    variant="secondary"
-                                    className="text-[10px] cursor-pointer hover:bg-primary hover:text-primary-foreground active:scale-95 transition-all py-1 px-2"
-                                    onClick={() => copyToClipboard(tag, `trans-tag-${lang.code}-${tag}`)}
-                                  >
-                                    {tag}
-                                    {copiedField === `trans-tag-${lang.code}-${tag}` ? <Check className="w-2.5 h-2.5 ml-1" /> : <Copy className="w-2.5 h-2.5 ml-1 opacity-50" />}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full text-xs h-10 active:scale-95 transition-transform"
-                            onClick={() => copyToClipboard(
-                              `${t.title}\n\n${t.description}\n\nTags: ${t.tags?.join(", ") || ""}`,
-                              `trans-all-${lang.code}`
-                            )}
+                  {/* Improvements & Style */}
+                  {result.improvements.length > 0 && (
+                    <Card className="p-4 sm:p-6">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Improvements Made</Label>
+                      <ul className="space-y-2">
+                        {result.improvements.map((imp, i) => (
+                          <motion.li
+                            key={i}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                            className="flex items-start gap-2.5 text-sm"
                           >
-                            {copiedField === `trans-all-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                            Copy Full {lang.short} Listing
-                          </Button>
-                        </TabsContent>
-                      );
-                    })}
-                  </Tabs>
-                )}
-              </Card>
+                            <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                            <span>{imp}</span>
+                          </motion.li>
+                        ))}
+                      </ul>
+                      {result.style_notes && (
+                        <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                          <p className="text-[10px] font-semibold text-primary mb-1 uppercase tracking-wider">Style Notes</p>
+                          <p className="text-sm leading-relaxed">{result.style_notes}</p>
+                        </div>
+                      )}
+                    </Card>
+                  )}
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pb-2">
-                {itemId ? (
-                  <Button
-                    onClick={() => navigate(`/items/${itemId}`)}
-                    className="w-full sm:w-auto font-semibold h-12 sm:h-10 active:scale-95 transition-transform"
-                  >
-                    <ArrowRight className="w-4 h-4 mr-2" />
-                    Back to Item
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      onClick={() => navigate(`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}&condition=${encodeURIComponent(result.detected_condition || condition)}`)}
-                      variant="outline"
-                      className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
-                    >
-                      Price Check This Item
-                      <ArrowRight className="w-4 h-4 ml-1" />
-                    </Button>
-                    <Button onClick={handleSaveAsListing} disabled={saving} className="w-full sm:w-auto font-semibold h-12 sm:h-10 active:scale-95 transition-transform">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                      Save to My Listings
-                    </Button>
-                  </>
-                )}
-              </div>
+                  {/* Multi-Language Translation */}
+                  <Card className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between mb-4 gap-2">
+                      <h2 className="font-display font-bold text-xs sm:text-lg flex items-center gap-2 min-w-0">
+                        <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+                        <span className="truncate">Multi-Language</span>
+                      </h2>
+                      <Button
+                        onClick={handleTranslate}
+                        disabled={translating}
+                        size="sm"
+                        variant={translations ? "outline" : "default"}
+                        className="shrink-0 h-9"
+                      >
+                        {translating ? (
+                          <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Translating</>
+                        ) : translations ? (
+                          <><Languages className="w-3 h-3 mr-1" /> Redo</>
+                        ) : (
+                          <><Languages className="w-3 h-3 mr-1" /> Translate</>
+                        )}
+                      </Button>
+                    </div>
 
-              {/* Journey Banner */}
-              <JourneyBanner
-                title="Listing Lifecycle"
-                steps={[
-                  { label: "Optimise", path: "/optimize", icon: Sparkles, completed: true },
-                  { label: "Enhance Photos", path: "/vintography", icon: Camera },
-                  { label: "Price Check", path: `/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}`, icon: Search },
-                  { label: "Inventory", path: "/listings", icon: ShoppingBag },
-                ]}
-                nextLabel="Enhance Photos"
-                nextPath="/vintography"
-                nextIcon={Camera}
-              />
+                    {!translations && !translating && (
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                        Expand your reach across Vinted's 18+ European markets. Translate into French, German, Dutch & Spanish with one click.
+                      </p>
+                    )}
+
+                    {translating && (
+                      <div className="text-center py-8">
+                        <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
+                        <p className="text-sm text-muted-foreground">Translating into 4 languages...</p>
+                      </div>
+                    )}
+
+                    {translations && !translating && (
+                      <Tabs value={activeTransLang} onValueChange={setActiveTransLang}>
+                        <TabsList className="w-full grid grid-cols-4 mb-4">
+                          {LANGUAGES.map((lang) => (
+                            <TabsTrigger key={lang.code} value={lang.code} className="text-[10px] sm:text-xs px-1">
+                              {lang.label}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+
+                        {LANGUAGES.map((lang) => {
+                          const t = translations[lang.code];
+                          if (!t) return null;
+                          return (
+                            <TabsContent key={lang.code} value={lang.code} className="space-y-3">
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Title ({lang.short})</Label>
+                                  <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyToClipboard(t.title, `trans-title-${lang.code}`)}>
+                                    {copiedField === `trans-title-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                    {copiedField === `trans-title-${lang.code}` ? "Copied" : "Copy"}
+                                  </Button>
+                                </div>
+                                <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
+                                  <p className="text-sm font-medium">{t.title}</p>
+                                </div>
+                              </div>
+
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Description ({lang.short})</Label>
+                                  <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyToClipboard(t.description, `trans-desc-${lang.code}`)}>
+                                    {copiedField === `trans-desc-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                    {copiedField === `trans-desc-${lang.code}` ? "Copied" : "Copy"}
+                                  </Button>
+                                </div>
+                                <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 max-h-48 overflow-y-auto">
+                                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{t.description}</p>
+                                </div>
+                              </div>
+
+                              {t.tags?.length > 0 && (
+                                <div>
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Tags ({lang.short})</Label>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {t.tags.map((tag) => (
+                                      <Badge
+                                        key={tag}
+                                        variant="secondary"
+                                        className="text-[10px] cursor-pointer hover:bg-primary hover:text-primary-foreground active:scale-95 transition-all py-1 px-2"
+                                        onClick={() => copyToClipboard(tag, `trans-tag-${lang.code}-${tag}`)}
+                                      >
+                                        {tag}
+                                        {copiedField === `trans-tag-${lang.code}-${tag}` ? <Check className="w-2.5 h-2.5 ml-1" /> : <Copy className="w-2.5 h-2.5 ml-1 opacity-50" />}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-xs h-10 active:scale-95 transition-transform"
+                                onClick={() => copyToClipboard(
+                                  `${t.title}\n\n${t.description}\n\nTags: ${t.tags?.join(", ") || ""}`,
+                                  `trans-all-${lang.code}`
+                                )}
+                              >
+                                {copiedField === `trans-all-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                Copy Full {lang.short} Listing
+                              </Button>
+                            </TabsContent>
+                          );
+                        })}
+                      </Tabs>
+                    )}
+                  </Card>
+                </CollapsibleContent>
+              </Collapsible>
             </motion.div>
           )}
         </AnimatePresence>
