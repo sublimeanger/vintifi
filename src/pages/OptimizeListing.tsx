@@ -12,13 +12,11 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Sparkles, Copy, Check, Save,
-  ImagePlus, X, Camera, Globe, Languages, ArrowRight,
-  Search, ShoppingBag, Link, ExternalLink, Tag, ChevronDown,
+  ImagePlus, X, Camera, Link, ExternalLink, Tag, ChevronDown,
+  ClipboardCopy, Download, Package,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HealthScoreGauge } from "@/components/HealthScoreGauge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
 import { PageShell } from "@/components/PageShell";
 import { FeatureGate } from "@/components/FeatureGate";
 
@@ -37,6 +35,7 @@ type HealthScore = {
 type OptimiseResult = {
   optimised_title: string;
   optimised_description: string;
+  hashtags: string[];
   suggested_tags: string[];
   detected_brand: string;
   detected_category: string;
@@ -47,21 +46,6 @@ type OptimiseResult = {
   improvements: string[];
   style_notes: string;
 };
-
-type TranslationEntry = {
-  title: string;
-  description: string;
-  tags: string[];
-};
-
-type Translations = Record<string, TranslationEntry>;
-
-const LANGUAGES = [
-  { code: "fr", label: "🇫🇷 French", short: "FR" },
-  { code: "de", label: "🇩🇪 German", short: "DE" },
-  { code: "nl", label: "🇳🇱 Dutch", short: "NL" },
-  { code: "es", label: "🇪🇸 Spanish", short: "ES" },
-] as const;
 
 export default function OptimizeListing() {
   const navigate = useNavigate();
@@ -83,9 +67,6 @@ export default function OptimizeListing() {
   const [result, setResult] = useState<OptimiseResult | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [translations, setTranslations] = useState<Translations | null>(null);
-  const [translating, setTranslating] = useState(false);
-  const [activeTransLang, setActiveTransLang] = useState("fr");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const resultsRef = useCallback((node: HTMLDivElement | null) => {
     if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -175,20 +156,12 @@ export default function OptimizeListing() {
     setResult(null);
 
     try {
-      // Upload local photos
       for (const photo of photos) {
         const ext = photo.name.split(".").pop();
         const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("listing-photos")
-          .upload(path, photo);
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
-          continue;
-        }
-        const { data: urlData } = supabase.storage
-          .from("listing-photos")
-          .getPublicUrl(path);
+        const { error: uploadError } = await supabase.storage.from("listing-photos").upload(path, photo);
+        if (uploadError) { console.error("Upload error:", uploadError); continue; }
+        const { data: urlData } = supabase.storage.from("listing-photos").getPublicUrl(path);
         allPhotoUrls.push(urlData.publicUrl);
       }
 
@@ -213,7 +186,6 @@ export default function OptimizeListing() {
       const isUnlimited = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
       if (!isUnlimited) toast("−1 credit used", { duration: 2000 });
 
-      // If opened from an item, update the listing record
       if (itemId && data?.health_score) {
         const updatePayload: Record<string, any> = {
           health_score: data.health_score.overall,
@@ -227,29 +199,16 @@ export default function OptimizeListing() {
         if (data.detected_colour) updatePayload.colour = data.detected_colour;
         if (data.detected_material) updatePayload.material = data.detected_material;
 
-        await supabase
-          .from("listings")
-          .update(updatePayload)
-          .eq("id", itemId)
-          .eq("user_id", user.id);
-
+        await supabase.from("listings").update(updatePayload).eq("id", itemId).eq("user_id", user.id);
         await supabase.from("item_activity").insert({
           user_id: user.id,
           listing_id: itemId,
           type: "optimised",
           payload: {
             health_score: data.health_score.overall,
-            title_score: data.health_score.title_score,
-            description_score: data.health_score.description_score,
-            photo_score: data.health_score.photo_score,
-            completeness_score: data.health_score.completeness_score,
-            title_feedback: data.health_score.title_feedback,
-            description_feedback: data.health_score.description_feedback,
-            photo_feedback: data.health_score.photo_feedback,
-            completeness_feedback: data.health_score.completeness_feedback,
             improvements: data.improvements || [],
             suggested_tags: data.suggested_tags || [],
-            style_notes: data.style_notes || "",
+            hashtags: data.hashtags || [],
             optimised_title: data.optimised_title,
             optimised_description: data.optimised_description,
           },
@@ -266,8 +225,16 @@ export default function OptimizeListing() {
   const copyToClipboard = async (text: string, field: string) => {
     await navigator.clipboard.writeText(text);
     setCopiedField(field);
-    toast.success("Copied to clipboard!");
+    toast.success("Copied!");
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const handleCopyAll = async () => {
+    if (!result) return;
+    const hashtagStr = (result.hashtags || []).join(" ");
+    const fullText = `${result.optimised_title}\n\n${result.optimised_description}${hashtagStr ? `\n\n${hashtagStr}` : ""}`;
+    await copyToClipboard(fullText, "all");
+    toast.success("Full listing copied — paste into Vinted!");
   };
 
   const handleSaveAsListing = async () => {
@@ -285,11 +252,11 @@ export default function OptimizeListing() {
         material: result.detected_material || null,
         size: size || null,
         health_score: result.health_score.overall,
-        image_url: photoPreviewUrls[0] || null,
+        image_url: remotePhotoUrls[0] || null,
         status: "active",
       } as any);
       if (error) throw error;
-      toast.success("Saved to My Listings!");
+      toast.success("Saved to My Items!");
       navigate("/listings");
     } catch (e: any) {
       toast.error("Failed to save listing");
@@ -299,44 +266,179 @@ export default function OptimizeListing() {
     }
   };
 
-  const handleTranslate = async () => {
-    if (!result) return;
-    setTranslating(true);
-    setTranslations(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("translate-listing", {
-        body: {
-          title: result.optimised_title,
-          description: result.optimised_description,
-          tags: result.suggested_tags,
-          languages: LANGUAGES.map((l) => l.code),
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setTranslations(data.translations);
-      toast.success("Listing translated into 4 languages!");
-    } catch (e: any) {
-      toast.error(e.message || "Translation failed");
-      console.error(e);
-    } finally {
-      setTranslating(false);
-    }
-  };
+  const allPhotos = [...remotePhotoUrls, ...photoPreviewUrls];
 
   return (
-    <PageShell
-      title="AI Listing Optimiser"
-      subtitle="Upload photos · Get AI-optimised listings"
-      maxWidth="max-w-6xl"
-    >
+    <PageShell title="AI Listing Optimiser" subtitle="Create the perfect Vinted listing" maxWidth="max-w-6xl">
       <FeatureGate feature="optimize_listing">
 
+      {/* If we have a result, show the Vinted-Ready Pack */}
+      {result ? (
+        <motion.div ref={resultsRef} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-3xl mx-auto">
+          
+          {/* Master Copy All Button */}
+          <Card className="p-4 sm:p-5 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-display font-bold text-base sm:text-lg">Your Vinted-Ready Pack</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Everything below is ready to copy and paste directly into Vinted.</p>
+              </div>
+              <HealthScoreGauge score={result.health_score} compact size="sm" />
+            </div>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button onClick={handleCopyAll} className="font-semibold h-11 active:scale-95 transition-transform flex-1 sm:flex-none">
+                {copiedField === "all" ? <Check className="w-4 h-4 mr-2" /> : <ClipboardCopy className="w-4 h-4 mr-2" />}
+                {copiedField === "all" ? "Copied!" : "Copy Full Listing"}
+              </Button>
+              {!itemId && (
+                <Button variant="outline" onClick={handleSaveAsListing} disabled={saving} className="h-11 active:scale-95 transition-transform">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  Save to Items
+                </Button>
+              )}
+              {itemId && (
+                <Button variant="outline" onClick={() => navigate(`/vintography?itemId=${itemId}`)} className="h-11 active:scale-95 transition-transform">
+                  <Camera className="w-4 h-4 mr-2" />
+                  Enhance Photos
+                </Button>
+              )}
+            </div>
+          </Card>
 
+          {/* Title */}
+          <Card className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</Label>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => copyToClipboard(result.optimised_title, "title")}>
+                {copiedField === "title" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                {copiedField === "title" ? "Copied" : "Copy"}
+              </Button>
+            </div>
+            <div className="p-3 rounded-lg bg-success/5 border border-success/20">
+              <p className="text-sm sm:text-base font-medium">{result.optimised_title}</p>
+            </div>
+          </Card>
 
-      <div className={`grid gap-4 sm:gap-6 ${result ? "lg:grid-cols-2" : "max-w-2xl mx-auto"}`}>
-        {/* Input Panel */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          {/* Description */}
+          <Card className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</Label>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => copyToClipboard(result.optimised_description, "description")}>
+                {copiedField === "description" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                {copiedField === "description" ? "Copied" : "Copy"}
+              </Button>
+            </div>
+            <div className="p-3 rounded-lg bg-success/5 border border-success/20 max-h-72 overflow-y-auto">
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">{result.optimised_description}</p>
+            </div>
+          </Card>
+
+          {/* Hashtags */}
+          {result.hashtags && result.hashtags.length > 0 && (
+            <Card className="p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hashtags</Label>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => copyToClipboard(result.hashtags.join(" "), "hashtags")}>
+                  {copiedField === "hashtags" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                  {copiedField === "hashtags" ? "Copied" : "Copy All"}
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {result.hashtags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground active:scale-95 transition-all py-1.5 px-2.5 text-xs"
+                    onClick={() => copyToClipboard(tag, `ht-${tag}`)}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Photos */}
+          {allPhotos.length > 0 && (
+            <Card className="p-4 sm:p-5">
+              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Photos</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {allPhotos.slice(0, 4).map((url, i) => (
+                  <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border bg-muted">
+                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+              {itemId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-3 h-9 text-xs active:scale-95 transition-transform"
+                  onClick={() => navigate(`/vintography?itemId=${itemId}`)}
+                >
+                  <Camera className="w-3.5 h-3.5 mr-1.5" />
+                  Enhance these photos in Photo Studio
+                </Button>
+              )}
+            </Card>
+          )}
+
+          {/* More Details (collapsible) */}
+          <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 w-full py-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
+                <ChevronDown className={`w-4 h-4 transition-transform ${detailsOpen ? "rotate-180" : ""}`} />
+                Details &amp; Feedback
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3">
+              {(result.detected_brand || result.detected_colour || result.detected_material) && (
+                <Card className="p-4">
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Detected</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.detected_brand && <Badge variant="secondary"><Tag className="w-3 h-3 mr-1" />{result.detected_brand}</Badge>}
+                    {result.detected_category && <Badge variant="secondary">{result.detected_category}</Badge>}
+                    {result.detected_condition && <Badge variant="secondary">{result.detected_condition}</Badge>}
+                    {result.detected_colour && <Badge variant="secondary">{result.detected_colour}</Badge>}
+                    {result.detected_material && <Badge variant="secondary">{result.detected_material}</Badge>}
+                  </div>
+                </Card>
+              )}
+              {result.improvements.length > 0 && (
+                <Card className="p-4">
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Improvements Made</Label>
+                  <ul className="space-y-1.5">
+                    {result.improvements.map((imp, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <Check className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
+                        <span>{imp}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
+              {result.style_notes && (
+                <Card className="p-4">
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Style Notes</Label>
+                  <p className="text-sm leading-relaxed">{result.style_notes}</p>
+                </Card>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Start Over */}
+          <div className="text-center pt-2 pb-4">
+            <Button variant="ghost" size="sm" onClick={() => setResult(null)} className="text-xs text-muted-foreground">
+              ← Optimise another item
+            </Button>
+          </div>
+        </motion.div>
+      ) : (
+        /* Input Form */
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
           <Card className="p-4 sm:p-6 border-border/50">
             <h2 className="font-display font-bold text-sm sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
               <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
@@ -362,31 +464,20 @@ export default function OptimizeListing() {
                   disabled={fetchingFromUrl || !vintedUrl.trim()}
                   className="h-11 sm:h-10 shrink-0 active:scale-95 transition-transform"
                 >
-                  {fetchingFromUrl ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <><ExternalLink className="w-4 h-4 mr-1" /> Fetch</>
-                  )}
+                  {fetchingFromUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ExternalLink className="w-4 h-4 mr-1" /> Fetch</>}
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground mt-1">Paste a Vinted listing URL to auto-import photos &amp; details</p>
             </div>
 
-            {/* Loading item photos */}
             {loadingItemPhotos && (
               <div className="mb-4 sm:mb-5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                  Loading item photos…
-                </Label>
                 <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="aspect-square rounded-xl bg-muted animate-pulse" />
-                  ))}
+                  {[1, 2, 3].map(i => <div key={i} className="aspect-square rounded-xl bg-muted animate-pulse" />)}
                 </div>
               </div>
             )}
 
-            {/* Remote photos preview */}
             {!loadingItemPhotos && remotePhotoUrls.length > 0 && (
               <div className="mb-4 sm:mb-5">
                 <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-success mb-2 block">
@@ -417,10 +508,7 @@ export default function OptimizeListing() {
                 {photoPreviewUrls.map((url, i) => (
                   <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-border bg-muted">
                     <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => removePhoto(i)}
-                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center active:scale-90 transition-transform"
-                    >
+                    <button onClick={() => removePhoto(i)} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center active:scale-90 transition-transform">
                       <X className="w-3 h-3" />
                     </button>
                   </div>
@@ -429,13 +517,7 @@ export default function OptimizeListing() {
                   <label className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 active:border-primary flex flex-col items-center justify-center cursor-pointer transition-colors bg-muted/30">
                     <ImagePlus className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground mb-0.5" />
                     <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Add</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handlePhotoUpload}
-                      className="hidden"
-                    />
+                    <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
                   </label>
                 )}
               </div>
@@ -482,292 +564,8 @@ export default function OptimizeListing() {
             </Button>
           </Card>
         </motion.div>
+      )}
 
-        {/* Results Panel */}
-        <AnimatePresence>
-          {result && (
-            <motion.div ref={resultsRef} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 sm:space-y-4">
-              {/* Zone 1 — Success Header + Next Steps */}
-              <Card className="p-4 sm:p-5 border-primary/10 bg-gradient-to-br from-primary/[0.03] to-transparent">
-                <div className="flex items-start gap-4">
-                  <HealthScoreGauge score={result.health_score} compact size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-display font-bold text-sm sm:text-base mb-0.5">Listing optimised! ✨</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground mb-3">Copy your new content below, then enhance your photos.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {itemId ? (
-                        <>
-                          <Button
-                            size="sm"
-                            onClick={() => navigate(`/vintography?itemId=${itemId}`)}
-                            className="h-9 font-semibold active:scale-95 transition-transform"
-                          >
-                            <Camera className="w-3.5 h-3.5 mr-1.5" />
-                            Enhance Photos
-                            <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate(`/items/${itemId}`)}
-                            className="h-9 active:scale-95 transition-transform"
-                          >
-                            Back to Item
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate(`/price-check?brand=${encodeURIComponent(result.detected_brand || brand)}&category=${encodeURIComponent(result.detected_category || category)}&condition=${encodeURIComponent(result.detected_condition || condition)}`)}
-                            className="h-9 active:scale-95 transition-transform"
-                          >
-                            <Search className="w-3.5 h-3.5 mr-1.5" />
-                            Price Check
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleSaveAsListing}
-                            disabled={saving}
-                            className="h-9 font-semibold active:scale-95 transition-transform"
-                          >
-                            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
-                            Save to Listings
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Zone 2 — Optimised Content */}
-              {/* Title */}
-              <Card className="p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Optimised Title</Label>
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => copyToClipboard(result.optimised_title, "title")}>
-                    {copiedField === "title" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                    {copiedField === "title" ? "Copied" : "Copy"}
-                  </Button>
-                </div>
-                <div className="p-3 rounded-xl bg-success/5 border border-success/20">
-                  <p className="text-sm font-medium">{result.optimised_title}</p>
-                </div>
-                {currentTitle && (
-                  <div className="mt-2 p-3 rounded-xl bg-muted/50 border border-border">
-                    <p className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider font-semibold">Original</p>
-                    <p className="text-sm text-muted-foreground line-through">{currentTitle}</p>
-                  </div>
-                )}
-              </Card>
-
-              {/* Description */}
-              <Card className="p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Optimised Description</Label>
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => copyToClipboard(result.optimised_description, "description")}>
-                    {copiedField === "description" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                    {copiedField === "description" ? "Copied" : "Copy"}
-                  </Button>
-                </div>
-                <div className="p-3 rounded-xl bg-success/5 border border-success/20 max-h-60 overflow-y-auto">
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{result.optimised_description}</p>
-                </div>
-              </Card>
-
-              {/* Tags */}
-              <Card className="p-4 sm:p-6">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Suggested Tags</Label>
-                <div className="flex flex-wrap gap-2">
-                  {result.suggested_tags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="secondary"
-                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground active:scale-95 transition-all py-1.5 px-3 text-xs"
-                      onClick={() => copyToClipboard(tag, `tag-${tag}`)}
-                    >
-                      {tag}
-                      {copiedField === `tag-${tag}` ? <Check className="w-3 h-3 ml-1.5" /> : <Copy className="w-3 h-3 ml-1.5 opacity-50" />}
-                    </Badge>
-                  ))}
-                </div>
-              </Card>
-
-              {/* Zone 3 — Collapsible Details */}
-              <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-2 w-full py-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
-                    <ChevronDown className={`w-4 h-4 transition-transform ${detailsOpen ? "rotate-180" : ""}`} />
-                    More Details
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 sm:space-y-4">
-                  {/* Detected Metadata */}
-                  {(result.detected_brand || result.detected_colour || result.detected_material) && (
-                    <Card className="p-4 sm:p-6">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Detected Details</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {result.detected_brand && <Badge variant="secondary"><Tag className="w-3 h-3 mr-1" />{result.detected_brand}</Badge>}
-                        {result.detected_category && <Badge variant="secondary">{result.detected_category}</Badge>}
-                        {result.detected_condition && <Badge variant="secondary">{result.detected_condition}</Badge>}
-                        {result.detected_colour && <Badge variant="secondary">{result.detected_colour}</Badge>}
-                        {result.detected_material && <Badge variant="secondary">{result.detected_material}</Badge>}
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* Improvements & Style */}
-                  {result.improvements.length > 0 && (
-                    <Card className="p-4 sm:p-6">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Improvements Made</Label>
-                      <ul className="space-y-2">
-                        {result.improvements.map((imp, i) => (
-                          <motion.li
-                            key={i}
-                            initial={{ opacity: 0, x: -8 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.05 }}
-                            className="flex items-start gap-2.5 text-sm"
-                          >
-                            <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
-                            <span>{imp}</span>
-                          </motion.li>
-                        ))}
-                      </ul>
-                      {result.style_notes && (
-                        <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20">
-                          <p className="text-[10px] font-semibold text-primary mb-1 uppercase tracking-wider">Style Notes</p>
-                          <p className="text-sm leading-relaxed">{result.style_notes}</p>
-                        </div>
-                      )}
-                    </Card>
-                  )}
-
-                  {/* Multi-Language Translation */}
-                  <Card className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between mb-4 gap-2">
-                      <h2 className="font-display font-bold text-xs sm:text-lg flex items-center gap-2 min-w-0">
-                        <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
-                        <span className="truncate">Multi-Language</span>
-                      </h2>
-                      <Button
-                        onClick={handleTranslate}
-                        disabled={translating}
-                        size="sm"
-                        variant={translations ? "outline" : "default"}
-                        className="shrink-0 h-9"
-                      >
-                        {translating ? (
-                          <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Translating</>
-                        ) : translations ? (
-                          <><Languages className="w-3 h-3 mr-1" /> Redo</>
-                        ) : (
-                          <><Languages className="w-3 h-3 mr-1" /> Translate</>
-                        )}
-                      </Button>
-                    </div>
-
-                    {!translations && !translating && (
-                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                        Expand your reach across Vinted's 18+ European markets. Translate into French, German, Dutch & Spanish with one click.
-                      </p>
-                    )}
-
-                    {translating && (
-                      <div className="text-center py-8">
-                        <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
-                        <p className="text-sm text-muted-foreground">Translating into 4 languages...</p>
-                      </div>
-                    )}
-
-                    {translations && !translating && (
-                      <Tabs value={activeTransLang} onValueChange={setActiveTransLang}>
-                        <TabsList className="w-full grid grid-cols-4 mb-4">
-                          {LANGUAGES.map((lang) => (
-                            <TabsTrigger key={lang.code} value={lang.code} className="text-[10px] sm:text-xs px-1">
-                              {lang.label}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-
-                        {LANGUAGES.map((lang) => {
-                          const t = translations[lang.code];
-                          if (!t) return null;
-                          return (
-                            <TabsContent key={lang.code} value={lang.code} className="space-y-3">
-                              <div>
-                                <div className="flex items-center justify-between mb-1">
-                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Title ({lang.short})</Label>
-                                  <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyToClipboard(t.title, `trans-title-${lang.code}`)}>
-                                    {copiedField === `trans-title-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                                    {copiedField === `trans-title-${lang.code}` ? "Copied" : "Copy"}
-                                  </Button>
-                                </div>
-                                <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
-                                  <p className="text-sm font-medium">{t.title}</p>
-                                </div>
-                              </div>
-
-                              <div>
-                                <div className="flex items-center justify-between mb-1">
-                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Description ({lang.short})</Label>
-                                  <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyToClipboard(t.description, `trans-desc-${lang.code}`)}>
-                                    {copiedField === `trans-desc-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                                    {copiedField === `trans-desc-${lang.code}` ? "Copied" : "Copy"}
-                                  </Button>
-                                </div>
-                                <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 max-h-48 overflow-y-auto">
-                                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{t.description}</p>
-                                </div>
-                              </div>
-
-                              {t.tags?.length > 0 && (
-                                <div>
-                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Tags ({lang.short})</Label>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {t.tags.map((tag) => (
-                                      <Badge
-                                        key={tag}
-                                        variant="secondary"
-                                        className="text-[10px] cursor-pointer hover:bg-primary hover:text-primary-foreground active:scale-95 transition-all py-1 px-2"
-                                        onClick={() => copyToClipboard(tag, `trans-tag-${lang.code}-${tag}`)}
-                                      >
-                                        {tag}
-                                        {copiedField === `trans-tag-${lang.code}-${tag}` ? <Check className="w-2.5 h-2.5 ml-1" /> : <Copy className="w-2.5 h-2.5 ml-1 opacity-50" />}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full text-xs h-10 active:scale-95 transition-transform"
-                                onClick={() => copyToClipboard(
-                                  `${t.title}\n\n${t.description}\n\nTags: ${t.tags?.join(", ") || ""}`,
-                                  `trans-all-${lang.code}`
-                                )}
-                              >
-                                {copiedField === `trans-all-${lang.code}` ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                                Copy Full {lang.short} Listing
-                              </Button>
-                            </TabsContent>
-                          );
-                        })}
-                      </Tabs>
-                    )}
-                  </Card>
-                </CollapsibleContent>
-              </Collapsible>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      
       </FeatureGate>
     </PageShell>
   );
