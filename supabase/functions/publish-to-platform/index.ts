@@ -164,6 +164,16 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
   // Step 1.5: Ensure merchant location exists
   await ensureMerchantLocation(accessToken);
 
+  // Step 1.6: Fetch seller's business policies
+  const policies = await fetchSellerPolicies(accessToken);
+
+  const offerBase: Record<string, any> = {
+    sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
+    pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
+    availableQuantity: 1, categoryId: category.id, merchantLocationKey: "default",
+    listingPolicies: policies,
+  };
+
   // Step 2: Check for existing offer on this SKU
   const existingOffersRes = await fetch(
     `https://api.ebay.com/sell/inventory/v1/offer?sku=${encodeURIComponent(sku)}&marketplace_id=EBAY_GB`,
@@ -177,18 +187,12 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
     const existingOffer = existingData.offers?.[0];
     if (existingOffer?.offerId) {
       offerId = existingOffer.offerId;
-      // Update existing offer
       const updateRes = await fetch(
         `https://api.ebay.com/sell/inventory/v1/offer/${offerId}`,
         {
           method: "PUT",
           headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB", "Accept-Language": "en-GB" },
-          body: JSON.stringify({
-            sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
-            pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
-            availableQuantity: 1, categoryId: category.id, merchantLocationKey: "default",
-            listingDescription: listing.description || listing.title,
-          }),
+          body: JSON.stringify({ ...offerBase, listingDescription: listing.description || listing.title }),
         }
       );
       if (!updateRes.ok && updateRes.status !== 204) {
@@ -197,16 +201,11 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
     }
   }
 
-  // Create new offer if none exists
   if (!offerId) {
     const offerRes = await fetch("https://api.ebay.com/sell/inventory/v1/offer", {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB", "Accept-Language": "en-GB" },
-      body: JSON.stringify({
-        sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
-        pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
-        availableQuantity: 1, categoryId: category.id, merchantLocationKey: "default",
-      }),
+      body: JSON.stringify(offerBase),
     });
     if (!offerRes.ok) throw new Error(`eBay offer creation failed [${offerRes.status}]: ${await offerRes.text()}`);
     const offerData = await offerRes.json();
@@ -416,4 +415,60 @@ async function ensureMerchantLocation(accessToken: string) {
     console.error(`eBay location setup failed [${createRes.status}]: ${errorText}`);
     throw new Error(`eBay location setup failed [${createRes.status}]: ${errorText}`);
   }
+}
+
+// ─── Fetch Seller Business Policies ───
+async function fetchSellerPolicies(accessToken: string): Promise<Record<string, string>> {
+  const policies: Record<string, string> = {};
+  const headers = { Authorization: `Bearer ${accessToken}`, "Accept-Language": "en-GB" };
+  const baseUrl = "https://api.ebay.com/sell/account/v1";
+
+  // Fetch fulfillment, payment, and return policies in parallel
+  const [fulfillRes, paymentRes, returnRes] = await Promise.all([
+    fetch(`${baseUrl}/fulfillment_policy?marketplace_id=EBAY_GB`, { headers }),
+    fetch(`${baseUrl}/payment_policy?marketplace_id=EBAY_GB`, { headers }),
+    fetch(`${baseUrl}/return_policy?marketplace_id=EBAY_GB`, { headers }),
+  ]);
+
+  if (fulfillRes.ok) {
+    const data = await fulfillRes.json();
+    const defaultPolicy = data.fulfillmentPolicies?.find((p: any) =>
+      p.categoryTypes?.some((ct: any) => ct.default === true)
+    ) || data.fulfillmentPolicies?.[0];
+    if (defaultPolicy?.fulfillmentPolicyId) {
+      policies.fulfillmentPolicyId = defaultPolicy.fulfillmentPolicyId;
+    }
+  }
+
+  if (paymentRes.ok) {
+    const data = await paymentRes.json();
+    const defaultPolicy = data.paymentPolicies?.find((p: any) =>
+      p.categoryTypes?.some((ct: any) => ct.default === true)
+    ) || data.paymentPolicies?.[0];
+    if (defaultPolicy?.paymentPolicyId) {
+      policies.paymentPolicyId = defaultPolicy.paymentPolicyId;
+    }
+  }
+
+  if (returnRes.ok) {
+    const data = await returnRes.json();
+    const defaultPolicy = data.returnPolicies?.find((p: any) =>
+      p.categoryTypes?.some((ct: any) => ct.default === true)
+    ) || data.returnPolicies?.[0];
+    if (defaultPolicy?.returnPolicyId) {
+      policies.returnPolicyId = defaultPolicy.returnPolicyId;
+    }
+  }
+
+  if (!policies.fulfillmentPolicyId) {
+    throw new Error("No eBay shipping (fulfillment) policy found. Please create a shipping policy in your eBay Seller Hub first: https://www.ebay.co.uk/ship/prf");
+  }
+  if (!policies.paymentPolicyId) {
+    throw new Error("No eBay payment policy found. Please create a payment policy in your eBay Seller Hub first.");
+  }
+  if (!policies.returnPolicyId) {
+    throw new Error("No eBay return policy found. Please create a return policy in your eBay Seller Hub first.");
+  }
+
+  return policies;
 }
