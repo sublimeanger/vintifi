@@ -86,10 +86,10 @@ serve(async (req) => {
     }
 
     // The Apify actor only accepts vinted.[2-3 letter TLD] URLs.
-    // Convert .co.uk to .com and extract the member ID for compatibility.
-    const memberIdMatch = profileUrl.match(/\/(?:member|membre|mitglied)\/(\d+)/);
-    const memberId = memberIdMatch?.[1];
-    const apifySellerUrl = `https://www.vinted.com/member/${memberId}`;
+    // Convert .co.uk to .fr (Vinted uses unified member IDs across all domains).
+    let apifySellerUrl = profileUrl.replace(/https?:\/\/www\.vinted\.co\.uk\//i, "https://www.vinted.fr/");
+    // Normalise /membre/ or /mitglied/ path segments to /member/ for the actor
+    apifySellerUrl = apifySellerUrl.replace(/\/(membre|mitglied)\//, "/member/");
 
     console.log(`Starting wardrobe import for user ${user.id}, URL: ${profileUrl}, apifyUrl: ${apifySellerUrl}, tier: ${tier}, limit: ${maxItems}`);
 
