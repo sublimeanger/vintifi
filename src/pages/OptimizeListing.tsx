@@ -70,6 +70,7 @@ export default function OptimizeListing() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [remotePhotoUrls, setRemotePhotoUrls] = useState<string[]>([]);
+  const [loadingItemPhotos, setLoadingItemPhotos] = useState(false);
   const [vintedUrl, setVintedUrl] = useState(searchParams.get("vintedUrl") || "");
   const [fetchingFromUrl, setFetchingFromUrl] = useState(false);
   const [brand, setBrand] = useState(searchParams.get("brand") || "");
@@ -91,13 +92,14 @@ export default function OptimizeListing() {
   // Fetch existing photos from DB when opened from an item detail page
   useEffect(() => {
     if (!itemId) return;
+    setLoadingItemPhotos(true);
     (async () => {
       const { data } = await supabase
         .from("listings")
         .select("image_url, images")
         .eq("id", itemId)
         .maybeSingle();
-      if (!data) return;
+      if (!data) { setLoadingItemPhotos(false); return; }
       const urls: string[] = [];
       if (data.image_url) urls.push(data.image_url);
       if (Array.isArray(data.images)) {
@@ -107,6 +109,7 @@ export default function OptimizeListing() {
         }
       }
       if (urls.length > 0) setRemotePhotoUrls(urls);
+      setLoadingItemPhotos(false);
     })();
   }, [itemId]);
 
@@ -372,8 +375,22 @@ export default function OptimizeListing() {
               <p className="text-[10px] text-muted-foreground mt-1">Paste a Vinted listing URL to auto-import photos &amp; details</p>
             </div>
 
+            {/* Loading item photos */}
+            {loadingItemPhotos && (
+              <div className="mb-4 sm:mb-5">
+                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                  Loading item photos…
+                </Label>
+                <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="aspect-square rounded-xl bg-muted animate-pulse" />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Remote photos preview */}
-            {remotePhotoUrls.length > 0 && (
+            {!loadingItemPhotos && remotePhotoUrls.length > 0 && (
               <div className="mb-4 sm:mb-5">
                 <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-success mb-2 block">
                   ✓ Imported Photos ({remotePhotoUrls.length})
