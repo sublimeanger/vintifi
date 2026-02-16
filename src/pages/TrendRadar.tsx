@@ -176,7 +176,7 @@ export default function TrendRadar() {
   };
 
   const subtitleParts = [
-    dataSource === "lobstr" ? "Real market data" : dataSource === "firecrawl" ? "Web search data" : "No data yet",
+    dataSource === "apify" ? "Real market data" : dataSource === "firecrawl" ? "Web search data" : "No data yet",
     `${allTrends.length} trends`,
   ];
 
