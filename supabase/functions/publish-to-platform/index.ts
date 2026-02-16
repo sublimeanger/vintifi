@@ -150,6 +150,7 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
           title: listing.title,
           description: listing.description || listing.title,
           brand: listing.brand || "Unbranded",
+          mpn: "Does Not Apply",
           imageUrls: listing.image_url ? [listing.image_url] : [],
           aspects,
         },
