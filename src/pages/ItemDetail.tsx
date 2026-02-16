@@ -116,6 +116,8 @@ export default function ItemDetail() {
   const [ebayPublishing, setEbayPublishing] = useState(false);
   const [ebayDialogOpen, setEbayDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [priceInput, setPriceInput] = useState("");
 
   useEffect(() => {
     if (!user || !id) return;
@@ -332,11 +334,47 @@ export default function ItemDetail() {
         {/* ═══ OVERVIEW TAB ═══ */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Card className="p-4">
+            <Card
+              className="p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
+              onClick={() => {
+                if (!editingPrice) {
+                  setPriceInput(item.current_price != null ? item.current_price.toFixed(2) : "");
+                  setEditingPrice(true);
+                }
+              }}
+            >
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Current Price</p>
-              <p className="text-xl font-display font-bold">
-                {item.current_price != null ? `£${item.current_price.toFixed(2)}` : "—"}
-              </p>
+              {editingPrice ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-xl font-display font-bold">£</span>
+                  <input
+                    autoFocus
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="text-xl font-display font-bold bg-transparent border-b border-primary outline-none w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                    onBlur={async () => {
+                      const val = parseFloat(priceInput);
+                      if (!isNaN(val) && val >= 0) {
+                        const { error } = await supabase.from("listings").update({ current_price: val }).eq("id", item.id);
+                        if (error) { toast.error("Failed to update price"); }
+                        else { setItem({ ...item, current_price: val }); toast.success("Price updated"); }
+                      }
+                      setEditingPrice(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      if (e.key === "Escape") setEditingPrice(false);
+                    }}
+                  />
+                </div>
+              ) : (
+                <p className="text-xl font-display font-bold">
+                  {item.current_price != null ? `£${item.current_price.toFixed(2)}` : "—"}
+                </p>
+              )}
             </Card>
             <Card className="p-4">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Recommended</p>
