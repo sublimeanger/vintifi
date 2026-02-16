@@ -12,6 +12,7 @@ type ActionItem = {
   id: string;
   title: string;
   brand: string | null;
+  category: string | null;
   image_url: string | null;
   action: string;
   actionLabel: string;
@@ -36,20 +37,25 @@ export function NextActionsInbox() {
       // Items without price checks (no recommended_price)
       const { data: noPriceItems } = await supabase
         .from("listings")
-        .select("id, title, brand, image_url")
+        .select("id, title, brand, category, image_url")
         .eq("user_id", user.id)
         .eq("status", "active")
         .is("recommended_price", null)
         .limit(3);
       (noPriceItems || []).forEach((item) => {
+        const params = new URLSearchParams();
+        if (item.brand) params.set("brand", item.brand);
+        if (item.category) params.set("category", item.category);
+        params.set("itemId", item.id);
         actions.push({
           id: item.id,
           title: item.title,
           brand: item.brand,
+          category: item.category,
           image_url: item.image_url,
           action: "needs_price",
           actionLabel: "Price Check",
-          actionPath: `/price-check?title=${encodeURIComponent(item.title)}&itemId=${item.id}`,
+          actionPath: `/price-check?${params.toString()}`,
           icon: Search,
           priority: 1,
         });
@@ -58,7 +64,7 @@ export function NextActionsInbox() {
       // Stale items (active > 30 days)
       const { data: staleItems } = await supabase
         .from("listings")
-        .select("id, title, brand, image_url")
+        .select("id, title, brand, category, image_url")
         .eq("user_id", user.id)
         .eq("status", "active")
         .lte("created_at", thirtyDaysAgo.toISOString())
@@ -69,6 +75,7 @@ export function NextActionsInbox() {
             id: item.id,
             title: item.title,
             brand: item.brand,
+            category: item.category,
             image_url: item.image_url,
             action: "stale",
             actionLabel: "Review",
@@ -82,21 +89,26 @@ export function NextActionsInbox() {
       // Items without descriptions
       const { data: noDescItems } = await supabase
         .from("listings")
-        .select("id, title, brand, image_url, description, size")
+        .select("id, title, brand, category, image_url, description, size")
         .eq("user_id", user.id)
         .eq("status", "active")
         .is("description", null)
         .limit(2);
       (noDescItems || []).forEach((item) => {
         if (!actions.find((a) => a.id === item.id)) {
+          const oParams = new URLSearchParams();
+          if (item.title) oParams.set("title", item.title);
+          if (item.brand) oParams.set("brand", item.brand);
+          oParams.set("itemId", item.id);
           actions.push({
             id: item.id,
             title: item.title,
             brand: item.brand,
+            category: item.category,
             image_url: item.image_url,
             action: "needs_optimise",
             actionLabel: "Improve",
-            actionPath: `/optimize?title=${encodeURIComponent(item.title)}&itemId=${item.id}`,
+            actionPath: `/optimize?${oParams.toString()}`,
             icon: Sparkles,
             priority: 3,
           });
@@ -134,7 +146,7 @@ export function NextActionsInbox() {
         <div
           key={item.id + item.action}
           className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors cursor-pointer active:bg-muted/70"
-          onClick={() => navigate(item.actionPath)}
+          onClick={() => navigate(`/items/${item.id}`)}
         >
           {/* Thumbnail */}
           <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0">
@@ -152,7 +164,7 @@ export function NextActionsInbox() {
           </div>
 
           {/* Action CTA */}
-          <Button size="sm" variant="outline" className="shrink-0 h-8 text-xs gap-1.5">
+          <Button size="sm" variant="outline" className="shrink-0 h-8 text-xs gap-1.5" onClick={(e) => { e.stopPropagation(); navigate(item.actionPath); }}>
             <item.icon className="w-3 h-3" />
             {item.actionLabel}
           </Button>
