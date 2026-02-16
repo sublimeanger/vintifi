@@ -7,6 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const APIFY_BASE = "https://api.apify.com/v2";
+const APIFY_ACTOR = "kazkn~vinted-smart-scraper";
+
 const CATEGORY_QUERIES: Record<string, string> = {
   Womenswear: "women clothing",
   Menswear: "men clothing",
@@ -19,19 +22,47 @@ const CATEGORY_QUERIES: Record<string, string> = {
   Home: "home decor",
 };
 
+// ── Apify scrape ──
+async function scrapeApify(apiToken: string, query: string, limit: number): Promise<any[]> {
+  try {
+    const url = `${APIFY_BASE}/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${apiToken}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ search: query, maxItems: limit, country: "uk" }),
+    });
+    if (!res.ok) { console.error(`Apify niche scrape failed: ${res.status}`); return []; }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) { console.error("Apify niche error:", e); return []; }
+}
+
+// ── Firecrawl fallback ──
+async function fetchFirecrawl(apiKey: string, query: string, limit: number, label: string) {
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query, limit, scrapeOptions: { formats: ["markdown"] } }),
+    });
+    if (!res.ok) { console.error(`${label} search failed:`, res.status); return { label, results: [] }; }
+    const data = await res.json();
+    return { label, results: data.data || data.results || [] };
+  } catch (e) { console.error(`${label} error:`, e); return { label, results: [] }; }
+}
+
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    if (!FIRECRAWL_API_KEY) throw new Error("FIRECRAWL_API_KEY not configured");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!APIFY_API_TOKEN && !FIRECRAWL_API_KEY) throw new Error("No scraping API configured");
 
     const authHeader = req.headers.get("authorization");
     const userClient = createClient(SUPABASE_URL, anonKey, {
@@ -40,8 +71,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await userClient.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -51,42 +81,64 @@ serve(async (req) => {
     const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
     if ((tierLevel[profile?.subscription_tier || "free"] ?? 0) < 1) {
       return new Response(JSON.stringify({ error: "This feature requires a Pro plan. Upgrade to continue." }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const { categories, price_range, limit = 12 } = await req.json();
-
     if (!categories || categories.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Select at least one category" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Select at least one category" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const priceFilter = price_range ? ` ${price_range}` : "";
+    let contextLines = "";
 
-    // Two parallel searches per category: supply (active) and demand (sold/popular)
-    const searchPromises = categories.flatMap((cat: string) => {
-      const q = CATEGORY_QUERIES[cat] || cat.toLowerCase();
-      return [
-        fetchFirecrawl(FIRECRAWL_API_KEY, `site:vinted.co.uk ${q}${priceFilter}`, 8, `${cat}-supply`),
-        fetchFirecrawl(FIRECRAWL_API_KEY, `site:vinted.co.uk ${q} popular OR sold${priceFilter}`, 8, `${cat}-demand`),
-      ];
-    });
+    // Try Apify first for structured data
+    if (APIFY_API_TOKEN) {
+      const apifyPromises = categories.map(async (cat: string) => {
+        const q = CATEGORY_QUERIES[cat] || cat.toLowerCase();
+        const items = await scrapeApify(APIFY_API_TOKEN, `${q}${priceFilter}`, 30);
+        return { category: cat, items };
+      });
+      const apifyResults = await Promise.all(apifyPromises);
 
-    const searchResults = await Promise.all(searchPromises);
+      const hasData = apifyResults.some((r) => r.items.length > 0);
+      if (hasData) {
+        contextLines = apifyResults.map((r) => {
+          const summary = r.items.slice(0, 15).map((item: any) => {
+            const brand = item.brand || item.brand_title || "Unknown";
+            const price = item.price || item.total_price || "?";
+            const title = item.title || "";
+            const views = item.view_count || item.views || 0;
+            const favs = item.favourite_count || item.favorites || 0;
+            return `  - ${brand} | £${price} | ${title} | ${views} views | ${favs} favs`;
+          }).join("\n");
+          return `## ${r.category} (${r.items.length} listings found)\n${summary || "  No results"}`;
+        }).join("\n\n");
+      }
+    }
 
-    // Build context for AI
-    const contextLines = searchResults.map((r) => {
-      const items = r.results.slice(0, 6).map((item: any) => {
-        const title = item.title || "";
-        const desc = item.description || item.markdown?.slice(0, 200) || "";
-        return `  - ${title} | ${desc}`;
-      }).join("\n");
-      return `## ${r.label}\n${items || "  No results found"}`;
-    }).join("\n\n");
+    // Fallback to Firecrawl
+    if (!contextLines && FIRECRAWL_API_KEY) {
+      const searchPromises = categories.flatMap((cat: string) => {
+        const q = CATEGORY_QUERIES[cat] || cat.toLowerCase();
+        return [
+          fetchFirecrawl(FIRECRAWL_API_KEY, `site:vinted.co.uk ${q}${priceFilter}`, 8, `${cat}-supply`),
+          fetchFirecrawl(FIRECRAWL_API_KEY, `site:vinted.co.uk ${q} popular OR sold${priceFilter}`, 8, `${cat}-demand`),
+        ];
+      });
+      const searchResults = await Promise.all(searchPromises);
+      contextLines = searchResults.map((r) => {
+        const items = r.results.slice(0, 6).map((item: any) => {
+          const title = item.title || "";
+          const desc = item.description || item.markdown?.slice(0, 200) || "";
+          return `  - ${title} | ${desc}`;
+        }).join("\n");
+        return `## ${r.label}\n${items || "  No results found"}`;
+      }).join("\n\n");
+    }
 
     const prompt = `You are a Vinted market analyst. Analyse the following scraped data from Vinted to identify underserved niches where buyer demand significantly outstrips seller supply.
 
@@ -115,28 +167,14 @@ Return ONLY the JSON array.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "user", content: prompt }],
-      }),
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: [{ role: "user", content: prompt }] }),
     });
 
     if (!aiResponse.ok) {
       const status = aiResponse.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please top up." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (status === 429) return new Response(JSON.stringify({ error: "Rate limited, try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted. Please top up." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       throw new Error(`AI gateway error: ${status}`);
     }
 
@@ -154,11 +192,7 @@ Return ONLY the JSON array.`;
     }
 
     return new Response(
-      JSON.stringify({
-        niches,
-        categories_searched: categories,
-        total_found: niches.length,
-      }),
+      JSON.stringify({ niches, categories_searched: categories, total_found: niches.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
@@ -169,25 +203,3 @@ Return ONLY the JSON array.`;
     );
   }
 });
-
-async function fetchFirecrawl(apiKey: string, query: string, limit: number, label: string) {
-  try {
-    const res = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query, limit, scrapeOptions: { formats: ["markdown"] } }),
-    });
-    if (!res.ok) {
-      console.error(`${label} search failed:`, res.status);
-      return { label, results: [] };
-    }
-    const data = await res.json();
-    return { label, results: data.data || data.results || [] };
-  } catch (e) {
-    console.error(`${label} error:`, e);
-    return { label, results: [] };
-  }
-}

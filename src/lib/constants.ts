@@ -112,10 +112,6 @@ export const PRIMARY_GOALS = [
   { value: "save_time", label: "Save time" },
 ] as const;
 
-// Lobstr.io Squid ID for Vinted scraping
-export const DEFAULT_LOBSTR_SQUID_IDS = [
-  "2a6c83edef674d04a168760fe2f0d607",
-] as const;
 
 export const FEATURE_FLAGS = {
   VINTED_PRO_ENABLED: false,

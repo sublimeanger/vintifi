@@ -7,17 +7,50 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const APIFY_BASE = "https://api.apify.com/v2";
+const APIFY_ACTOR = "kazkn~vinted-smart-scraper";
+
+// ── Apify scrape ──
+async function scrapeApify(apiToken: string, query: string): Promise<any[]> {
+  try {
+    const url = `${APIFY_BASE}/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${apiToken}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ search: query, maxItems: 20, country: "uk" }),
+    });
+    if (!res.ok) { console.error(`Apify competitor scrape failed: ${res.status}`); return []; }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) { console.error("Apify competitor error:", e); return []; }
+}
+
+// ── Firecrawl fallback ──
+async function firecrawlSearch(apiKey: string, query: string): Promise<any[]> {
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query, limit: 15, scrapeOptions: { formats: ["markdown"] } }),
+    });
+    if (!res.ok) { console.error("Firecrawl search failed:", res.status); return []; }
+    const data = await res.json();
+    return data.data || data.results || [];
+  } catch (e) { console.error("Firecrawl error:", e); return []; }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    if (!FIRECRAWL_API_KEY) throw new Error("FIRECRAWL_API_KEY not configured");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!APIFY_API_TOKEN && !FIRECRAWL_API_KEY) throw new Error("No scraping API configured");
 
     // Auth
     const authHeader = req.headers.get("authorization");
@@ -28,8 +61,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await userClient.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -40,8 +72,7 @@ serve(async (req) => {
     const userTierLevel = tierLevel[profile?.subscription_tier || "free"] ?? 0;
     if (userTierLevel < 1) {
       return new Response(JSON.stringify({ error: "This feature requires a Pro plan. Upgrade to continue." }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -51,55 +82,49 @@ serve(async (req) => {
     const { count } = await serviceClient.from("competitor_profiles").select("id", { count: "exact", head: true }).eq("user_id", user.id);
     if ((count || 0) > maxCompetitors) {
       return new Response(JSON.stringify({ error: `You've reached your competitor limit (${maxCompetitors}). Upgrade for more.` }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const { competitor_id, competitor_name, vinted_username, search_query, category } = await req.json();
+    const searchTerm = vinted_username || search_query || competitor_name || "";
+    const fullSearch = `${searchTerm} ${category || ""}`.trim();
 
-    const searchTerm = vinted_username
-      ? `site:vinted.co.uk ${vinted_username}`
-      : `site:vinted.co.uk ${search_query || competitor_name} ${category || ""}`.trim();
+    console.log("Competitor scan for:", fullSearch);
 
-    console.log("Competitor scan for:", searchTerm);
+    let listingSummary = "";
 
-    // Scrape Vinted for competitor data
-    const searchRes = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: searchTerm,
-        limit: 15,
-        scrapeOptions: { formats: ["markdown"] },
-      }),
-    });
-
-    if (!searchRes.ok) {
-      console.error("Firecrawl search failed:", searchRes.status);
-      throw new Error("Failed to search marketplace data");
+    // Try Apify first for structured data
+    if (APIFY_API_TOKEN) {
+      const items = await scrapeApify(APIFY_API_TOKEN, fullSearch);
+      if (items.length > 0) {
+        listingSummary = items.slice(0, 15).map((item: any) => {
+          const brand = item.brand || item.brand_title || "";
+          const price = item.price || item.total_price || "?";
+          const title = item.title || "";
+          const views = item.view_count || item.views || 0;
+          const favs = item.favourite_count || item.favorites || 0;
+          const url = item.url || "";
+          return `- ${brand} | £${price} | ${title} | ${views} views | ${favs} favs | ${url}`;
+        }).join("\n");
+      }
     }
 
-    const searchData = await searchRes.json();
-    const results = searchData.data || searchData.results || [];
-
-    // Build context for AI
-    const listingSummary = results
-      .slice(0, 12)
-      .map((r: any) => {
+    // Fallback to Firecrawl
+    if (!listingSummary && FIRECRAWL_API_KEY) {
+      const firecrawlQuery = vinted_username
+        ? `site:vinted.co.uk ${vinted_username}`
+        : `site:vinted.co.uk ${fullSearch}`;
+      const results = await firecrawlSearch(FIRECRAWL_API_KEY, firecrawlQuery);
+      listingSummary = results.slice(0, 12).map((r: any) => {
         const title = r.title || "";
         const desc = r.description || r.markdown?.slice(0, 200) || "";
         const url = r.url || "";
         return `- ${title} | ${desc} | ${url}`;
-      })
-      .join("\n");
+      }).join("\n");
+    }
 
     // Get previous scan data for comparison
-    const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
     let previousData: any = null;
     if (competitor_id) {
       const { data: prev } = await serviceClient
@@ -144,25 +169,12 @@ Analyse and return a JSON object with:
   ]
 }
 
-Generate 1-4 relevant alerts based on:
-- Price changes vs previous scan (if available)
-- New listings appearing in the niche
-- Unusual pricing patterns
-- Market saturation signals
-
-If this is the first scan, generate "baseline" alerts about the current state of the market.
-Return ONLY the JSON object, no other text.`;
+Generate 1-4 relevant alerts. Return ONLY the JSON object, no other text.`;
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "user", content: prompt }],
-      }),
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: [{ role: "user", content: prompt }] }),
     });
 
     if (!aiRes.ok) {
@@ -176,12 +188,8 @@ Return ONLY the JSON object, no other text.`;
     content = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
     let analysis;
-    try {
-      analysis = JSON.parse(content);
-    } catch {
-      console.error("Failed to parse AI response:", content);
-      throw new Error("Failed to parse competitor analysis");
-    }
+    try { analysis = JSON.parse(content); }
+    catch { console.error("Failed to parse AI response:", content); throw new Error("Failed to parse competitor analysis"); }
 
     // Update competitor profile
     if (competitor_id) {
