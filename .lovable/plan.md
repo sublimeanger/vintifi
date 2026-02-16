@@ -1,168 +1,103 @@
 
+# Apify Integration Audit: Replacing Lobstr and Upgrading All Features
 
-# Comprehensive Cohesion Audit and Fix Plan
+## Current State Summary
 
-## Full User Flow Map (Current State)
+| Edge Function | Vinted Data Source | Other Platform Source | Needs Update? |
+|---|---|---|---|
+| `price-check` | Apify (primary), Firecrawl (fallback) | N/A | No -- already done |
+| `arbitrage-scan` | Apify (primary), Firecrawl (fallback) | Firecrawl (eBay, Depop, etc.) | No -- already done |
+| `lobstr-sync` (Trend Radar) | Lobstr (primary), Firecrawl (fallback) | N/A | **YES -- replace Lobstr with Apify** |
+| `competitor-scan` | Firecrawl only | N/A | **YES -- add Apify for better data** |
+| `niche-finder` | Firecrawl only | N/A | **YES -- add Apify for structured data** |
+| `clearance-radar` | Firecrawl (Vinted baseline) | Firecrawl (retailers) | **YES -- Apify for Vinted side** |
+| `charity-briefing` | None (reads from trends table) | N/A | No -- uses trend data downstream |
+| `dead-stock-analyze` | None (reads from listings table) | N/A | No -- no scraping involved |
+| `import-wardrobe` | None (CSV import only) | N/A | No -- already uses Apify separately |
+| `fetch-trends` | None (reads from trends table) | N/A | No -- just a DB read |
 
-```text
-Landing (/) --> Auth (/auth) --> Onboarding (4 steps) --> Welcome (/welcome) --> Dashboard (/dashboard)
-                                                                                      |
-                                            +------------------------------------------+
-                                            |
-                        +-------------------+-------------------+-------------------+
-                        |                   |                   |                   |
-                   Price Check         Optimise            Trends             Arbitrage
-                        |                   |                   |                   |
-                   [Report]            [Result]            [Cards]           [Opportunities]
-                        |                   |                   |                   |
-                   Save to             Save to            Price Check          Price Check
-                   Inventory           Inventory                               
-                        |                   |
-                   Optimise            Vintography
-                        |                   |
-                   Vintography         Price Check
-                        |                   |
-                   Inventory           Inventory
-```
+## Cost Analysis: Apify vs Lobstr vs Firecrawl
 
----
+### Apify (Vinted Smart Scraper)
+- **Pricing**: Pay-per-use based on compute units. The `kazkn~vinted-smart-scraper` actor costs roughly $0.25-0.50 per 100 items scraped (varies by load).
+- **For Trend Radar (80 trends)**: Need ~200-500 items across 8 categories = ~$1-3 per full scan.
+- **For Price Check**: Already running, ~$0.01-0.03 per check (20 items).
+- **Advantage**: Returns **structured JSON** with exact prices, view counts, favourite counts, brand, size, condition. Far superior to Firecrawl's markdown snippets.
 
-## BUGS FOUND
+### Lobstr.io (Current)
+- **Pricing**: ~$30-50/month for scheduled scraping.
+- **Problem**: Requires manual Squid configuration, separate polling/launch/process flow, and the LOBSTR_API_KEY is configured but may not be reliably returning data (the fallback to Firecrawl fires frequently).
+- **Recommendation**: **Deprecate entirely**. Apify does the same thing better and on-demand.
 
-### BUG 1: Guided Tour Reappears (Critical)
-**File**: `src/components/GuidedTour.tsx`
-**Problem**: Tour dismissal is stored in `localStorage` under key `vintifi_tour_completed`. This is fragile -- it resets when browser data is cleared, on different devices, or when the preview iframe has separate storage from the published app. This is why the tour keeps restarting.
-**Fix**: Add a `tour_completed` boolean column to the `profiles` table. The GuidedTour reads from `profile.tour_completed` (via AuthContext) as the authoritative source, with localStorage as a fast cache. The `finish()` function updates both the database and localStorage. The Settings page "Restart Tour" button resets the DB field.
+### Firecrawl
+- **Pricing**: $0.01 per search query.
+- **Role going forward**: Keep for **non-Vinted** searches only (eBay, Depop, retail clearance sites, competitor web presence). Firecrawl cannot access Vinted's dynamic SPA content -- it returns markdown snippets that lack structured pricing data.
 
-### BUG 2: Feature Unlock Toasts Use localStorage (Same Problem)
-**File**: `src/hooks/useFeatureUnlocks.ts`
-**Problem**: Milestone unlock toasts (e.g., "You've unlocked Arbitrage Scanner!") are tracked via localStorage keys like `unlock_arbitrage_{userId}`. Same fragility as the tour -- these milestones will re-trigger on new browsers/devices.
-**Fix**: Track unlocked milestones in the database. Add a `milestones_shown` text array column to `profiles`. Check this array instead of localStorage.
+## Recommended Update Schedule for Trend Radar
 
-### BUG 3: Dead Routes in App.tsx
-**File**: `src/App.tsx` (lines 82-83, 87, 93-95)
-**Problem**: Three routes are defined TWICE -- first as actual pages, then as redirects. React Router matches the first definition, so the redirects on lines 93-95 are unreachable dead code:
-- `/portfolio` renders `PortfolioOptimizer` (line 82) -- redirect to `/dead-stock` on line 93 never fires
-- `/seasonal` renders `SeasonalCalendar` (line 83) -- redirect to `/trends` on line 94 never fires
-- `/niche-finder` renders `NicheFinder` (line 87) -- redirect to `/trends` on line 95 never fires
+| Tier | Refresh Frequency | Apify Cost per Refresh | Monthly Cost per User |
+|---|---|---|---|
+| Free | Weekly (shared/cached) | $0 (uses cached data) | $0 |
+| Pro | Daily | ~$1.50 | ~$1.50 |
+| Business | Twice daily | ~$3.00 | ~$3.00 |
+| Scale | Every 6 hours | ~$6.00 | ~$6.00 |
 
-**Fix**: Remove the standalone page routes (lines 82, 83, 87) and keep only the redirects. These features were merged into other pages (Portfolio into Dead Stock, Seasonal and Niches into Trends tabs).
+**Shared cache strategy**: All users share the same trend data (it's market-wide, not user-specific). So one Apify run per refresh cycle serves ALL users on that tier. At 100 Pro users, cost is $1.50/day total, not per user. This makes it extremely cost-efficient.
 
-### BUG 4: DashboardIntelligence Links to Dead `/portfolio` Route
-**File**: `src/components/DashboardIntelligence.tsx` (line 137)
-**Problem**: The "Portfolio Health" attention card always shows and links to `/portfolio`, which (once Bug 3 is fixed) will redirect to `/dead-stock`. But the intent is different -- Portfolio Optimiser analyses pricing, while Dead Stock handles stale inventory.
-**Fix**: Change the path to `/dead-stock` and update the label to "Inventory Health" to match the sidebar label. Update the description too.
+## Implementation Plan
 
-### BUG 5: Dashboard Metric Card Links to Dead `/portfolio`
-**File**: `src/pages/Dashboard.tsx` (line 96)
-**Problem**: The "Portfolio Value" metric card links to `/portfolio` (dead route).
-**Fix**: Change to `/analytics` since the P&L Analytics page is the right destination for portfolio value context.
+### Step 1: Rewrite `lobstr-sync` to use Apify as primary source
 
-### BUG 6: DashboardForYou Links to Dead `/portfolio`
-**File**: `src/components/DashboardForYou.tsx` (line ~result.push with path `/portfolio`)
-**Problem**: The "Check your portfolio health" suggestion links to `/portfolio`.
-**Fix**: Change to `/dead-stock`.
+The current `lobstr-sync` function is 600 lines of complex launch/poll/process/import logic designed for Lobstr's asynchronous workflow. Apify's synchronous `run-sync-get-dataset-items` endpoint eliminates all of this complexity.
 
----
+**New flow**:
+1. Call Apify Vinted Smart Scraper for each category (8 categories, ~50 items each = 400 items total)
+2. Pass structured results directly to AI for trend analysis (no polling needed)
+3. Write trends to the `trends` table
+4. Fall back to Firecrawl web search if Apify fails
 
-## COHESION ISSUES FOUND
+This reduces the function from ~600 lines to ~250 lines and eliminates the 3-step launch/poll/process user flow. The frontend `TrendRadar.tsx` will no longer need to track job IDs or poll status.
 
-### ISSUE 1: No "Workflow Funnels" for Common User Journeys
-**Problem**: The spec calls for users to "funnel themselves into common workflows." Currently, a user who wants to sell something intelligently has to figure out the right sequence themselves. There's no guided workflow for the most common scenario: "I have an item, I want to sell it smart."
+### Step 2: Add Apify to `competitor-scan`
 
-**The ideal "Sell Smart" workflow is**:
-1. Price Check (what's it worth?)
-2. Optimise Listing (write the perfect title/description)
-3. Enhance Photos (Vintography)
-4. Add to Inventory (save it)
-5. Publish (list on Vinted)
+Currently uses `site:vinted.co.uk username` via Firecrawl, which returns weak markdown snippets. Adding Apify as primary source gives structured listing data with real prices, views, and favourites for much better competitor intelligence.
 
-The JourneyBanner on Price Check and Optimise pages partially does this, but there are gaps:
-- The Welcome page doesn't mention the Optimiser or Vintography at all
-- Vintography has no JourneyBanner connecting to the next step
-- There's no reverse link from Inventory back to "optimise this item"
+### Step 3: Add Apify to `niche-finder`
 
-**Fix**: Add a JourneyBanner to Vintography results. Ensure the Welcome page mentions the full workflow, not just price checking. These are small additions.
+Currently runs two Firecrawl searches per category (supply + demand). Adding Apify provides real listing counts, price distributions, and favourite/view ratios -- making the supply/demand gap analysis data-driven instead of AI-estimated.
 
-### ISSUE 2: Welcome Page is Too Narrow
-**File**: `src/pages/Welcome.tsx`
-**Problem**: The Welcome page only offers "Paste a Vinted URL for a price check" or shows existing items. For a new user with NO items and NO Vinted URL, the page feels like a dead end. They have to skip to the dashboard and figure things out.
-**Fix**: Add a third option: "Or explore trending items to find what to sell" with a link to Trends. This gives every user type an entry point: sellers with items (price check), sellers with URLs (paste URL), and new sellers looking for ideas (trends).
+### Step 4: Add Apify to `clearance-radar` (Vinted baseline only)
 
-### ISSUE 3: Charity Briefing Not Connected to Inventory
-**File**: `src/pages/CharityBriefing.tsx`
-**Problem**: The Charity Briefing generates a sourcing list (what to look for at charity shops), but after the user finds those items, there's no CTA to add them to inventory or run a price check. The briefing items have `max_buy_price` and `estimated_sell_price` but no "Save to Watchlist" or "Price Check This" action.
-**Fix**: Add a "Price Check" button on each briefing item that pre-fills brand/category. Add a "Save to Sourcing List" action that creates a listing with status "watchlist".
+The clearance radar searches retail sites via Firecrawl (correct -- keep this) but also searches `site:vinted.co.uk` via Firecrawl for resale baselines. Replace the Vinted baseline search with Apify for structured price data.
 
-### ISSUE 4: Arbitrage Results Don't Connect Forward
-**File**: `src/pages/ArbitrageScanner.tsx`
-**Problem**: Arbitrage opportunities show source prices and estimated Vinted sell prices, but there's no CTA to save the item to inventory or optimise a listing for it. The user sees a deal, then has to manually go create a listing.
-**Fix**: Add "Save to Inventory" and "Create Listing" CTAs on arbitrage opportunity cards.
+### Step 5: Update `data_source` labels and frontend references
 
-### ISSUE 5: Sidebar Has Duplicate "Billing" and "Settings" Links
-**File**: `src/pages/Dashboard.tsx` (lines 76-78)
-**Problem**: The Account section has both "Billing" and "Settings" -- but they both navigate to `/settings`. Redundant.
-**Fix**: Remove the "Billing" entry since Settings already has the subscription section prominently displayed.
+- Change `data_source: "lobstr"` to `data_source: "apify"` throughout
+- Update `TrendRadar.tsx` line 179 to show "Real market data" for `apify` source
+- Remove `DEFAULT_LOBSTR_SQUID_IDS` from `src/lib/constants.ts`
+- Remove the `LOBSTR_API_KEY` secret (can be done later, no rush)
 
----
+### Step 6: Simplify TrendRadar frontend
 
-## IMPLEMENTATION PLAN
-
-### Step 1: Database Migration
-Add two columns to the `profiles` table:
-```sql
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS tour_completed boolean DEFAULT false;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS milestones_shown text[] DEFAULT '{}';
-```
-
-### Step 2: Update AuthContext Profile Type
-Add `tour_completed` and `milestones_shown` to the Profile type definition so they're available app-wide.
-
-### Step 3: Fix GuidedTour (Database-backed)
-- Read `profile.tour_completed` from AuthContext instead of localStorage
-- On `finish()`, update DB (`profiles.tour_completed = true`) AND set localStorage cache
-- On mount: if `profile.tour_completed === true`, don't show. If `false`, check localStorage cache as fallback for speed, then show if neither says completed.
-- Keep mobile exclusion logic.
-
-### Step 4: Fix useFeatureUnlocks (Database-backed)
-- Read `profile.milestones_shown` from AuthContext
-- On unlock, update DB (append to array) AND set localStorage
-- Prevents re-showing milestones across devices
-
-### Step 5: Fix Settings Tour Reset
-Change the "Restart Tour" button to update `profiles.tour_completed = false` in the database and clear localStorage.
-
-### Step 6: Fix App.tsx Dead Routes
-Remove lines 82, 83, 87 (standalone page routes for `/portfolio`, `/seasonal`, `/niche-finder`). Keep only the redirect routes on lines 93-95. Also remove unused imports for `PortfolioOptimizer`, `SeasonalCalendar`, `NicheFinder`.
-
-### Step 7: Fix All `/portfolio` Links
-- `DashboardIntelligence.tsx` line 137: `/portfolio` to `/dead-stock`, update label to "Inventory Health"
-- `DashboardForYou.tsx`: `/portfolio` to `/dead-stock`
-- `Dashboard.tsx` line 96: `/portfolio` to `/analytics`
-- `useFeatureUnlocks.ts` line 9: `/portfolio` to `/dead-stock`
-
-### Step 8: Remove Duplicate Sidebar Entry
-Remove the "Billing" nav item from Dashboard sidebar (lines 76-77), keeping only "Settings".
-
-### Step 9: Enhance Welcome Page
-Add a third option below the URL input: "Or explore what's trending right now" linking to `/trends`. This ensures no user hits a dead end.
-
-### Step 10: Add Vintography JourneyBanner
-After Vintography produces a result, add a JourneyBanner showing the next step (Save to Inventory / Price Check).
+The current TrendRadar page has a complex job-tracking UI because Lobstr runs are asynchronous. With Apify's synchronous API, the "Refresh" button can just call the function and get results back directly, removing the polling UX entirely.
 
 ## Files Changed Summary
 
 | File | Change |
-|------|--------|
-| `profiles` table (migration) | Add `tour_completed` boolean, `milestones_shown` text array |
-| `src/contexts/AuthContext.tsx` | Add 2 fields to Profile type |
-| `src/components/GuidedTour.tsx` | Read from profile DB, update DB on finish |
-| `src/hooks/useFeatureUnlocks.ts` | Read from profile DB, update DB on unlock |
-| `src/pages/SettingsPage.tsx` | Tour reset updates DB |
-| `src/App.tsx` | Remove 3 dead routes + unused imports |
-| `src/components/DashboardIntelligence.tsx` | Fix `/portfolio` link |
-| `src/components/DashboardForYou.tsx` | Fix `/portfolio` link |
-| `src/pages/Dashboard.tsx` | Fix metric card link, remove duplicate sidebar entry |
-| `src/pages/Welcome.tsx` | Add "explore trends" fallback option |
-| `src/pages/Vintography.tsx` | Add JourneyBanner after results |
+|---|---|
+| `supabase/functions/lobstr-sync/index.ts` | Full rewrite: Apify primary, Firecrawl fallback, synchronous flow, ~250 lines |
+| `supabase/functions/competitor-scan/index.ts` | Add Apify Vinted search as primary, Firecrawl as fallback |
+| `supabase/functions/niche-finder/index.ts` | Add Apify for structured supply/demand data |
+| `supabase/functions/clearance-radar/index.ts` | Replace Vinted Firecrawl search with Apify |
+| `src/pages/TrendRadar.tsx` | Update data source label, simplify refresh flow |
+| `src/lib/constants.ts` | Remove `DEFAULT_LOBSTR_SQUID_IDS` |
 
+## What Stays the Same
+
+- `price-check` -- already uses Apify primary + Firecrawl fallback
+- `arbitrage-scan` -- already uses Apify for Vinted + Firecrawl for other platforms
+- `charity-briefing` -- reads from trends table (benefits automatically from better trend data)
+- `dead-stock-analyze` -- reads from listings table (no scraping)
+- `fetch-trends` -- pure DB read (no scraping)
+- `import-wardrobe` -- CSV import only
+- All Firecrawl usage for non-Vinted platforms (eBay, Depop, retail sites) stays unchanged
