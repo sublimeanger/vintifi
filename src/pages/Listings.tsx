@@ -24,7 +24,7 @@ import {
   TrendingUp, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
   PoundSterling, Calendar, Check, X, Pencil, Sparkles,
-  ChevronDown, Tag, Ruler, ShieldCheck, Camera,
+  ChevronDown, Tag, Ruler, ShieldCheck, Camera, ShoppingBag,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -115,7 +115,7 @@ export default function Listings() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
-
+  const [ebayListedIds, setEbayListedIds] = useState<Record<string, { platform_url?: string }>>({});
   const tier = profile?.subscription_tier || "free";
   const listingLimit = LISTING_LIMITS[tier] || 20;
   const isUnlimited = listingLimit > 99999;
@@ -140,7 +140,22 @@ export default function Listings() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchListings(); }, [user]);
+  useEffect(() => { fetchListings(); fetchEbayListings(); }, [user]);
+
+  const fetchEbayListings = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("cross_listings")
+      .select("listing_id, platform_url")
+      .eq("user_id", user.id)
+      .eq("platform", "ebay")
+      .eq("status", "published");
+    if (data) {
+      const map: Record<string, { platform_url?: string }> = {};
+      data.forEach((cl) => { map[cl.listing_id] = { platform_url: cl.platform_url || undefined }; });
+      setEbayListedIds(map);
+    }
+  };
 
   const handleDeleteListing = async (id: string) => {
     const { error } = await supabase.from("listings").delete().eq("id", id);
@@ -695,6 +710,11 @@ export default function Listings() {
                                     <Sparkles className="w-2.5 h-2.5" /> Needs optimising
                                   </Badge>
                                 )}
+                                {ebayListedIds[listing.id] && (
+                                  <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600 dark:text-blue-400 gap-0.5 py-0">
+                                    <ShoppingBag className="w-2.5 h-2.5" /> eBay
+                                  </Badge>
+                                )}
                               </div>
                             </div>
 
@@ -722,9 +742,15 @@ export default function Listings() {
                                       <Camera className="w-4 h-4 mr-2 text-muted-foreground" /> Add & Enhance Photo
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuItem onClick={() => handleListOnEbay(listing)}>
-                                    <ExternalLink className="w-4 h-4 mr-2" /> List on eBay
-                                  </DropdownMenuItem>
+                                  {ebayListedIds[listing.id] ? (
+                                    <DropdownMenuItem onClick={() => window.open(ebayListedIds[listing.id].platform_url, "_blank")}>
+                                      <ShoppingBag className="w-4 h-4 mr-2" /> View on eBay
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => handleListOnEbay(listing)}>
+                                      <ExternalLink className="w-4 h-4 mr-2" /> List on eBay
+                                    </DropdownMenuItem>
+                                  )}
                                   {listing.vinted_url && (
                                     <DropdownMenuItem onClick={() => window.open(listing.vinted_url!, "_blank")}>
                                       <ExternalLink className="w-4 h-4 mr-2" /> View on Vinted
