@@ -10,6 +10,7 @@ import Features from "./pages/marketing/Features";
 import Pricing from "./pages/marketing/Pricing";
 import HowItWorks from "./pages/marketing/HowItWorks";
 import About from "./pages/marketing/About";
+import Privacy from "./pages/marketing/Privacy";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Welcome from "./pages/Welcome";
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/about" element={<About />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><OnboardingGuard><Dashboard /></OnboardingGuard></ProtectedRoute>} />
