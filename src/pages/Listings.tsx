@@ -18,13 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -37,6 +30,7 @@ import {
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { ImportWardrobeModal } from "@/components/ImportWardrobeModal";
+import { NewItemWizard } from "@/components/NewItemWizard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -111,7 +105,6 @@ export default function Listings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("filter") || "all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
   const [publishListing, setPublishListing] = useState<Listing | null>(null);
 
    
@@ -122,13 +115,6 @@ export default function Listings() {
   const [editField, setEditField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
-  const [newTitle, setNewTitle] = useState("");
-  const [newBrand, setNewBrand] = useState("");
-  const [newCategory, setNewCategory] = useState("");
-  const [newCondition, setNewCondition] = useState("");
-  const [newPrice, setNewPrice] = useState("");
-  const [newPurchasePrice, setNewPurchasePrice] = useState("");
-  const [newUrl, setNewUrl] = useState("");
 
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -162,45 +148,6 @@ export default function Listings() {
   useEffect(() => {
     fetchListings();
   }, [user]);
-
-  const handleAddListing = async () => {
-    // Check listing limit
-    const activeCount = listings.filter(l => l.status === "active").length;
-    if (activeCount >= listingLimit) {
-      setShowUpgrade(true);
-      return;
-    }
-
-    if (!newTitle.trim()) {
-      toast.error("Title is required");
-      return;
-    }
-    if (!user) return;
-
-    setAdding(true);
-    const { error } = await supabase.from("listings").insert({
-      user_id: user.id,
-      title: newTitle.trim(),
-      brand: newBrand.trim() || null,
-      category: newCategory.trim() || null,
-      condition: newCondition.trim() || null,
-      current_price: newPrice ? parseFloat(newPrice) : null,
-      purchase_price: newPurchasePrice ? parseFloat(newPurchasePrice) : null,
-      vinted_url: newUrl.trim() || null,
-      status: "active",
-    });
-
-    if (error) {
-      toast.error("Failed to add listing");
-      console.error(error);
-    } else {
-      toast.success("Listing added!");
-      setAddDialogOpen(false);
-      resetForm();
-      fetchListings();
-    }
-    setAdding(false);
-  };
 
   const handleDeleteListing = async (id: string) => {
     const { error } = await supabase.from("listings").delete().eq("id", id);
@@ -302,16 +249,6 @@ export default function Listings() {
     cancelEdit();
   };
 
-  const resetForm = () => {
-    setNewTitle("");
-    setNewBrand("");
-    setNewCategory("");
-    setNewCondition("");
-    setNewPrice("");
-    setNewPurchasePrice("");
-    setNewUrl("");
-  };
-
    
 
   const toggleExpand = (id: string) => {
@@ -394,61 +331,19 @@ export default function Listings() {
       <Button variant="outline" size="icon" onClick={() => navigate("/bulk-optimize")} className="sm:hidden h-10 w-10">
         <Upload className="w-4 h-4" />
       </Button>
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogTrigger asChild>
-          <Button size="sm" className="font-semibold hidden sm:flex h-9">
+      <Button size="sm" className="font-semibold hidden sm:flex h-9" onClick={() => setAddDialogOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
           </Button>
-        </DialogTrigger>
-        <DialogTrigger asChild>
-          <Button size="icon" className="sm:hidden h-10 w-10">
+          <Button size="icon" className="sm:hidden h-10 w-10" onClick={() => setAddDialogOpen(true)}>
             <Plus className="w-4 h-4" />
           </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-display">Add New Listing</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
-              <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Nike Air Force 1 White" className="h-11 sm:h-10 text-base sm:text-sm" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
-                <Input value={newBrand} onChange={(e) => setNewBrand(e.target.value)} placeholder="e.g. Nike" className="h-11 sm:h-10 text-base sm:text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
-                <Input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="e.g. Trainers" className="h-11 sm:h-10 text-base sm:text-sm" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
-                <Input value={newCondition} onChange={(e) => setNewCondition(e.target.value)} placeholder="e.g. Good" className="h-11 sm:h-10 text-base sm:text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Listing Price (£)</Label>
-                <Input value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="0.00" type="number" step="0.01" className="h-11 sm:h-10 text-base sm:text-sm" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purchase Price (£)</Label>
-              <Input value={newPurchasePrice} onChange={(e) => setNewPurchasePrice(e.target.value)} placeholder="What you paid for it" type="number" step="0.01" className="h-11 sm:h-10 text-base sm:text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vinted URL (optional)</Label>
-              <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="https://www.vinted.co.uk/items/..." className="h-11 sm:h-10 text-base sm:text-sm" />
-            </div>
-            <Button onClick={handleAddListing} disabled={adding} className="w-full font-semibold h-12 sm:h-10 active:scale-95 transition-transform">
-              {adding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-              Add Listing
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          <NewItemWizard
+            open={addDialogOpen}
+            onOpenChange={setAddDialogOpen}
+            onCreated={fetchListings}
+            listingCount={stats.active}
+            listingLimit={listingLimit}
+          />
     </div>
   );
 
