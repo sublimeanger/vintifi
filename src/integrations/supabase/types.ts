@@ -204,51 +204,134 @@ export type Database = {
       }
       competitor_profiles: {
         Row: {
+          ai_summary: string | null
           avg_price: number | null
           category: string | null
           competitor_name: string
           created_at: string
+          follower_count: number | null
           id: string
+          last_scan_data: Json | null
           last_scanned_at: string | null
           listing_count: number | null
           notes: string | null
           price_trend: string | null
+          profile_photo_url: string | null
           search_query: string | null
+          seller_rating: number | null
+          top_items: Json | null
+          total_items_sold: number | null
           updated_at: string
           user_id: string
+          verification_status: string | null
+          vinted_profile_url: string | null
           vinted_username: string | null
         }
         Insert: {
+          ai_summary?: string | null
           avg_price?: number | null
           category?: string | null
           competitor_name: string
           created_at?: string
+          follower_count?: number | null
           id?: string
+          last_scan_data?: Json | null
           last_scanned_at?: string | null
           listing_count?: number | null
           notes?: string | null
           price_trend?: string | null
+          profile_photo_url?: string | null
           search_query?: string | null
+          seller_rating?: number | null
+          top_items?: Json | null
+          total_items_sold?: number | null
           updated_at?: string
           user_id: string
+          verification_status?: string | null
+          vinted_profile_url?: string | null
           vinted_username?: string | null
         }
         Update: {
+          ai_summary?: string | null
           avg_price?: number | null
           category?: string | null
           competitor_name?: string
           created_at?: string
+          follower_count?: number | null
           id?: string
+          last_scan_data?: Json | null
           last_scanned_at?: string | null
           listing_count?: number | null
           notes?: string | null
           price_trend?: string | null
+          profile_photo_url?: string | null
           search_query?: string | null
+          seller_rating?: number | null
+          top_items?: Json | null
+          total_items_sold?: number | null
           updated_at?: string
           user_id?: string
+          verification_status?: string | null
+          vinted_profile_url?: string | null
           vinted_username?: string | null
         }
         Relationships: []
+      }
+      competitor_scans: {
+        Row: {
+          ai_summary: string | null
+          avg_price: number | null
+          competitor_id: string
+          created_at: string | null
+          follower_count: number | null
+          id: string
+          listing_count: number | null
+          price_trend: string | null
+          raw_data: Json | null
+          seller_rating: number | null
+          top_items: Json | null
+          total_items_sold: number | null
+          user_id: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          avg_price?: number | null
+          competitor_id: string
+          created_at?: string | null
+          follower_count?: number | null
+          id?: string
+          listing_count?: number | null
+          price_trend?: string | null
+          raw_data?: Json | null
+          seller_rating?: number | null
+          top_items?: Json | null
+          total_items_sold?: number | null
+          user_id: string
+        }
+        Update: {
+          ai_summary?: string | null
+          avg_price?: number | null
+          competitor_id?: string
+          created_at?: string | null
+          follower_count?: number | null
+          id?: string
+          listing_count?: number | null
+          price_trend?: string | null
+          raw_data?: Json | null
+          seller_rating?: number | null
+          top_items?: Json | null
+          total_items_sold?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_scans_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "competitor_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cross_listings: {
         Row: {
