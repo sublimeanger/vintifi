@@ -85,7 +85,13 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Starting wardrobe import for user ${user.id}, URL: ${profileUrl}, tier: ${tier}, limit: ${maxItems}`);
+    // The Apify actor only accepts vinted.[2-3 letter TLD] URLs.
+    // Convert .co.uk to .com and extract the member ID for compatibility.
+    const memberIdMatch = profileUrl.match(/\/(?:member|membre|mitglied)\/(\d+)/);
+    const memberId = memberIdMatch?.[1];
+    const apifySellerUrl = `https://www.vinted.com/member/${memberId}`;
+
+    console.log(`Starting wardrobe import for user ${user.id}, URL: ${profileUrl}, apifyUrl: ${apifySellerUrl}, tier: ${tier}, limit: ${maxItems}`);
 
     // Call Apify actor synchronously
     const actorId = "pintostudio~vinted-seller-products";
@@ -95,7 +101,7 @@ serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        sellerUrl: profileUrl,
+        sellerUrl: apifySellerUrl,
         maxItems: maxItems,
       }),
     });
