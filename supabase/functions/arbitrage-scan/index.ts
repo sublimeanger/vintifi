@@ -14,6 +14,9 @@ const ALL_PLATFORMS = [
   { name: "Depop", query: "site:depop.com" },
   { name: "Facebook Marketplace", query: "site:facebook.com/marketplace" },
   { name: "Gumtree", query: "site:gumtree.com" },
+  { name: "Vestiaire Collective", query: "site:vestiairecollective.com" },
+  { name: "Schpock", query: "site:schpock.com" },
+  { name: "Vinted", query: "site:vinted.co.uk" },
 ];
 
 /* ── Currency conversion ─────────────────────────────────────────── */
@@ -45,6 +48,9 @@ function isListingUrl(url: string, platform: string): boolean {
   if (platform === "Depop") return url.includes("/products/");
   if (platform === "Facebook Marketplace") return url.includes("/item/");
   if (platform === "Gumtree") return /\/p\//.test(url);
+  if (platform === "Vestiaire Collective") return /\/[a-z]+-\d+\.shtml/.test(url) || url.includes("/products/");
+  if (platform === "Schpock") return url.includes("/i/");
+  if (platform === "Vinted") return /\/items\/\d+/.test(url);
   return false;
 }
 
@@ -149,7 +155,7 @@ async function searchAndScrapePlatform(
       },
       body: JSON.stringify({
         query: `${platform.query} ${searchTerm}`,
-        limit: 10,
+        limit: 20,
         scrapeOptions: { formats: ["markdown"] },
       }),
     });
@@ -165,7 +171,7 @@ async function searchAndScrapePlatform(
     // Step 2: Filter to actual listing URLs (not category/search pages)
     const listingUrls = results
       .filter((r: any) => r.url && isListingUrl(r.url, platform.name))
-      .slice(0, 5)
+      .slice(0, 10)
       .map((r: any) => r.url);
 
     if (listingUrls.length === 0) {
@@ -204,7 +210,7 @@ async function searchVintedApify(searchTerm: string, apifyToken: string): Promis
         mode: "SEARCH",
         searchQuery: searchTerm.substring(0, 100),
         country: "uk",
-        maxItems: 15,
+        maxItems: 25,
       }),
     });
 
@@ -232,7 +238,7 @@ async function searchVintedFirecrawl(searchTerm: string, apiKey: string): Promis
       },
       body: JSON.stringify({
         query: `site:vinted.co.uk ${searchTerm}`,
-        limit: 8,
+        limit: 15,
         scrapeOptions: { formats: ["markdown"] },
       }),
     });
@@ -306,7 +312,7 @@ CRITICAL RULES:
 7. net_profit = estimated_profit - shipping_estimate - 0 (Vinted has no seller fees)
 8. If there are no genuine opportunities meeting the margin threshold, return an empty array [].
 
-Return a JSON array of opportunities (max 10, ranked by deal_score desc). Each object MUST have:
+Return a JSON array of opportunities (max 20, ranked by deal_score desc). Each object MUST have:
 - source_platform: platform name
 - source_url: the listing URL
 - source_title: item title from the verified data
