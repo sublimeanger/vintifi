@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.import-wardrobe]
 verify_jwt = false
+
+[functions.scrape-vinted-url]
+verify_jwt = false
