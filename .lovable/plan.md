@@ -1,49 +1,48 @@
 
 
-# eBay Integration: Current State and Next Steps
+# eBay Integration Cohesion -- Full Plan
 
-## What's Already Built
+## Problems to Fix
 
-- **All 4 eBay secrets** are configured (Client ID, Client Secret, RuName/Redirect URI, Verification Token)
-- **eBay verification endpoint** handles GET challenge and POST deletion notifications
-- **Connect eBay page** (`/platforms`) with connect/disconnect buttons
-- **Publish to eBay** edge function with full inventory/offer/publish flow
-- **"List on eBay" buttons** on both the Listings page and Item Detail page
-- **Cross-listings tracking** in the database (status, platform URL, sync log)
+1. **Broken messaging**: Settings page says "Connect your eBay, Vinted Pro, and Depop accounts" -- only eBay is supported. The "View Cross-Listings" button links to `/cross-listings` which redirects to `/listings` (confusing).
+2. **eBay is buried**: Only accessible via Settings -> eBay Connection. No visibility in the main navigation or dashboard.
+3. **No dashboard presence**: Users can't see their eBay connection status or cross-listed items at a glance.
 
-## What's Missing: The OAuth Callback
+## Changes
 
-There is one **critical gap**: when eBay redirects the user back to `https://vintifi.com/platforms?code=XXXXX` after they authorise, **nothing catches that `code` parameter**. The `PlatformConnections` page doesn't read the URL, so the token exchange never happens and the connection never saves.
+### 1. Fix Settings Page Messaging
 
-## The Fix
+In `src/pages/SettingsPage.tsx`, update the "Cross-Platform Publishing" section:
+- Change title from "Cross-Platform Publishing" to "eBay Connection"
+- Change description from "Connect your eBay, Vinted Pro, and Depop accounts..." to "Connect your eBay seller account to publish listings with one click."
+- Remove the "View Cross-Listings" button (that route just redirects to /listings anyway)
+- Keep only the "Manage Connection" button pointing to `/platforms`
 
-### 1. Add OAuth callback handling to `/platforms`
+### 2. Add eBay to Sidebar Navigation
 
-When the PlatformConnections page loads, check for a `code` query parameter. If present:
-- Call the `connect-ebay` edge function with `{ action: "exchange_code", code: "..." }`
-- On success, show a toast ("eBay connected!") and refresh the connection status
-- Clear the `code` from the URL so it doesn't re-trigger on refresh
+In `src/components/AppShellV2.tsx`, add an "eBay" item under the Tools section:
+- Icon: `ShoppingBag` (already imported)
+- Label: "eBay"
+- Path: `/platforms`
+- This makes eBay a first-class citizen in the navigation, always one click away
 
-### 2. Fix the eBay auth URL redirect
+### 3. Add eBay Status Card to Dashboard
 
-The `connect-ebay` edge function currently builds the OAuth URL but the eBay Developer Portal "Accept URL" is set to `https://vintifi.com/platforms`. This is correct -- eBay will redirect back to that URL with `?code=xxx` appended. No change needed on the backend.
+In `src/pages/Dashboard.tsx`, add a compact eBay connection status card between the Pipeline and Next Actions sections:
+- If **not connected**: Shows "Connect eBay" with a brief value prop and a button linking to `/platforms`
+- If **connected**: Shows "eBay Connected" with a count of items listed on eBay and a quick-action button to view cross-listed items in the listings page
+- Small, unobtrusive -- fits the existing dashboard card style
 
-## How to Test (End-to-End Flow)
+### 4. Fix PlatformConnections Page Title
 
-1. Go to `/platforms` (Settings -> eBay Connection)
-2. Click **"Connect eBay"** -- this opens eBay's auth page in a new tab
-3. Sign in to eBay and authorise the app
-4. eBay redirects back to `https://vintifi.com/platforms?code=xxx`
-5. The page automatically exchanges the code for tokens and shows "Connected"
-6. Go to any listing and click **"List on eBay"** from the dropdown menu
-7. The item gets created as an eBay inventory item, an offer is made, and it's published
+In `src/pages/PlatformConnections.tsx`, the page already says "eBay Connection" which is correct. The `UseCaseSpotlight` description is also eBay-specific. No changes needed here.
 
 ## Technical Details
 
-**File changes:**
-- `src/pages/PlatformConnections.tsx` -- Add a `useEffect` that reads `window.location.search` for `code`, calls `connect-ebay` with `exchange_code`, updates state, and cleans the URL with `window.history.replaceState`
+**Files to modify:**
+- `src/pages/SettingsPage.tsx` -- Fix messaging (lines 237-257)
+- `src/components/AppShellV2.tsx` -- Add eBay to TOOL_ITEMS array (line 62-66)
+- `src/pages/Dashboard.tsx` -- Add eBay status card with a query to `platform_connections` and `cross_listings` tables
 
-**No backend changes needed** -- the `exchange_code` action already exists in the edge function and works correctly.
-
-**Note on tier gating:** The eBay connection currently requires Business tier (`tierLevel >= 2`). During testing, make sure your account is set to Business or higher, or temporarily lower the gate.
+**No backend changes needed.** All data already exists in the database -- we just need to query `platform_connections` for connection status and `cross_listings` for item counts.
 
