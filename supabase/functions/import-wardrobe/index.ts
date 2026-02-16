@@ -86,12 +86,24 @@ serve(async (req) => {
     }
 
     // The Apify actor only accepts vinted.[2-3 letter TLD] URLs.
-    // Convert .co.uk to .fr (Vinted uses unified member IDs across all domains).
-    let apifySellerUrl = profileUrl.replace(/https?:\/\/www\.vinted\.co\.uk\//i, "https://www.vinted.fr/");
-    // Normalise /membre/ or /mitglied/ path segments to /member/ for the actor
-    apifySellerUrl = apifySellerUrl.replace(/\/(membre|mitglied)\//, "/member/");
+    // Extract country code from the original URL for the actor's country parameter.
+    const domainMatch = profileUrl.match(/www\.vinted\.([a-z.]+)\//i);
+    const rawTld = domainMatch?.[1] || "fr";
+    // Map .co.uk -> "fr" (actor doesn't support .co.uk), otherwise use the TLD directly
+    const countryCode = rawTld === "co.uk" ? "fr" : rawTld;
+    
+    // Build a clean seller URL the actor will accept
+    const memberIdMatch = profileUrl.match(/\/(?:member|membre|mitglied)\/(\d+)/);
+    const memberId = memberIdMatch?.[1];
+    if (!memberId) {
+      return new Response(
+        JSON.stringify({ error: "Could not extract member ID from URL." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const apifySellerUrl = `https://www.vinted.${countryCode}/member/${memberId}`;
 
-    console.log(`Starting wardrobe import for user ${user.id}, URL: ${profileUrl}, apifyUrl: ${apifySellerUrl}, tier: ${tier}, limit: ${maxItems}`);
+    console.log(`Starting wardrobe import for user ${user.id}, URL: ${profileUrl}, apifyUrl: ${apifySellerUrl}, country: ${countryCode}, tier: ${tier}, limit: ${maxItems}`);
 
     // Call Apify actor synchronously
     const actorId = "pintostudio~vinted-seller-products";
@@ -102,6 +114,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sellerUrl: apifySellerUrl,
+        country: countryCode,
         maxItems: maxItems,
       }),
     });
@@ -109,8 +122,14 @@ serve(async (req) => {
     if (!apifyResponse.ok) {
       const errText = await apifyResponse.text();
       console.error("Apify error:", apifyResponse.status, errText);
+      // Surface the actual error for debugging
+      let detail = "Failed to fetch wardrobe from Vinted.";
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed?.error?.message) detail = parsed.error.message;
+      } catch {}
       return new Response(
-        JSON.stringify({ error: "Failed to fetch wardrobe from Vinted. Please try again later." }),
+        JSON.stringify({ error: detail }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
