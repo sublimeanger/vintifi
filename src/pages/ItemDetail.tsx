@@ -23,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PhotosTab } from "@/components/PhotosTab";
 
 type Listing = {
   id: string;
@@ -488,42 +489,7 @@ export default function ItemDetail() {
 
         {/* ═══ PHOTOS TAB ═══ */}
         <TabsContent value="photos" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Photos</h3>
-            <Button size="sm" onClick={handlePhotos}>
-              <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> Edit in Photo Studio
-            </Button>
-          </div>
-
-          {item.image_url || (Array.isArray(item.images) && (item.images as string[]).length > 0) ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {item.image_url && (
-                <Card className="aspect-square overflow-hidden">
-                  <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
-                </Card>
-              )}
-              {Array.isArray(item.images) && (item.images as string[]).map((url: string, i: number) => (
-                <Card key={i} className="aspect-square overflow-hidden">
-                  <img src={url} alt={`${item.title} ${i + 1}`} className="w-full h-full object-cover" />
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="p-10 text-center">
-              <ImageIcon className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm font-medium mb-1">No photos yet</p>
-              <p className="text-xs text-muted-foreground mb-4">Use Photo Studio to enhance your item photos.</p>
-              <Button onClick={handlePhotos}>
-                <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> Open Photo Studio
-              </Button>
-            </Card>
-          )}
-
-          {item.last_photo_edit_at && (
-            <p className="text-[10px] text-muted-foreground">
-              Last edited {format(new Date(item.last_photo_edit_at), "dd MMM yyyy 'at' HH:mm")}
-            </p>
-          )}
+          <PhotosTab item={item} onEditPhotos={handlePhotos} onItemUpdate={setItem} />
         </TabsContent>
 
         {/* ═══ ACTIVITY TAB ═══ */}
