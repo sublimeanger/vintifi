@@ -21,10 +21,10 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Search, Loader2, Package, Heart, Eye, Upload, Download,
-  TrendingUp, ExternalLink, Trash2,
-  RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
+  TrendingUp, Trash2,
+  RefreshCw, MoreVertical, Zap,  AlertTriangle,
   PoundSterling, Calendar, Check, X, Pencil, Sparkles,
-  Tag, Ruler, ShieldCheck, Camera, ShoppingBag,
+  Tag, Ruler, ShieldCheck, Camera,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 
@@ -105,8 +105,6 @@ export default function Listings() {
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") || searchParams.get("filter") || "all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-
-
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editField, setEditField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -115,7 +113,6 @@ export default function Listings() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [ebayListedIds, setEbayListedIds] = useState<Record<string, { platform_url?: string }>>({});
   const tier = profile?.subscription_tier || "free";
   const listingLimit = LISTING_LIMITS[tier] || 20;
   const isUnlimited = listingLimit > 99999;
@@ -140,22 +137,7 @@ export default function Listings() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchListings(); fetchEbayListings(); }, [user]);
-
-  const fetchEbayListings = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("cross_listings")
-      .select("listing_id, platform_url")
-      .eq("user_id", user.id)
-      .eq("platform", "ebay")
-      .eq("status", "published");
-    if (data) {
-      const map: Record<string, { platform_url?: string }> = {};
-      data.forEach((cl) => { map[cl.listing_id] = { platform_url: cl.platform_url || undefined }; });
-      setEbayListedIds(map);
-    }
-  };
+  useEffect(() => { fetchListings(); }, [user]);
 
   const handleDeleteListing = async (id: string) => {
     const { error } = await supabase.from("listings").delete().eq("id", id);
@@ -322,26 +304,6 @@ export default function Listings() {
     setImportModalOpen(true);
   };
 
-  const handleListOnEbay = async (listing: Listing) => {
-    try {
-      const { data, error } = await supabase.functions.invoke("publish-to-platform", {
-        body: {
-          listing_id: listing.id,
-          platforms: [{ platform: "ebay", price_override: listing.current_price }],
-        },
-      });
-      if (error) throw error;
-      const result = data?.results?.ebay;
-      if (result?.success) {
-        toast.success("Listed on eBay!", { description: result.platform_url ? "View your listing on eBay" : undefined });
-      } else {
-        toast.error(result?.error || "Failed to list on eBay");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to list on eBay");
-    }
-  };
-
   const headerActions = (
     <div className="flex items-center gap-2">
       <Button variant="outline" size="sm" onClick={handleImportClick} className="font-semibold hidden sm:flex h-9">
@@ -433,40 +395,48 @@ export default function Listings() {
         </Card>
       )}
 
+      {/* P&L Summary — collapsible */}
       {(totalPurchaseCost > 0 || totalRevenue > 0) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="p-4 mb-5 sm:mb-6 border-primary/20 bg-primary/[0.02]">
-            <h3 className="font-display font-bold text-sm mb-3 flex items-center gap-2">
-              <PoundSterling className="w-4 h-4 text-primary" />
-              Profit & Loss
-            </h3>
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Invested</p>
-                <p className="font-display font-bold text-base sm:text-lg">£{totalPurchaseCost.toFixed(0)}</p>
+          <details className="mb-5 sm:mb-6">
+            <summary className="cursor-pointer">
+              <Card className="p-4 border-primary/20 bg-primary/[0.02] inline-flex items-center gap-2 w-full">
+                <PoundSterling className="w-4 h-4 text-primary" />
+                <span className="font-display font-bold text-sm">P&L Summary</span>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {totalProfit >= 0 ? "+" : ""}£{totalProfit.toFixed(0)} profit
+                </span>
+              </Card>
+            </summary>
+            <Card className="p-4 mt-1 border-primary/20 bg-primary/[0.02]">
+              <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                <div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Invested</p>
+                  <p className="font-display font-bold text-base sm:text-lg">£{totalPurchaseCost.toFixed(0)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Revenue</p>
+                  <p className="font-display font-bold text-base sm:text-lg text-success">£{totalRevenue.toFixed(0)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Profit</p>
+                  <p className={`font-display font-bold text-base sm:text-lg ${totalProfit >= 0 ? "text-success" : "text-destructive"}`}>
+                    {totalProfit >= 0 ? "+" : ""}£{totalProfit.toFixed(0)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Revenue</p>
-                <p className="font-display font-bold text-base sm:text-lg text-success">£{totalRevenue.toFixed(0)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Profit</p>
-                <p className={`font-display font-bold text-base sm:text-lg ${totalProfit >= 0 ? "text-success" : "text-destructive"}`}>
-                  {totalProfit >= 0 ? "+" : ""}£{totalProfit.toFixed(0)}
-                </p>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </details>
         </motion.div>
       )}
 
-      {/* Dead Stock Alert */}
+      {/* Dead Stock Alert — with actions */}
       {deadStockListings.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="p-4 mb-5 sm:mb-6 border-destructive/30 bg-destructive/[0.03]">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h3 className="font-display font-bold text-sm text-destructive">
                   {deadStockListings.length} Dead Stock Item{deadStockListings.length > 1 ? "s" : ""}
                 </h3>
@@ -485,6 +455,16 @@ export default function Listings() {
                     </Badge>
                   )}
                 </div>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                    onClick={() => setStatusFilter("active")}
+                  >
+                    View Dead Stock
+                  </Button>
+                </div>
               </div>
             </div>
           </Card>
@@ -502,29 +482,9 @@ export default function Listings() {
             className="pl-10 h-11 sm:h-10 text-base sm:text-sm"
           />
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="h-11 w-11 sm:h-10 sm:w-10 shrink-0">
-              <Filter className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-popover">
-            {["all", "active", "sold", "reserved", "inactive"].map((s) => (
-              <DropdownMenuItem key={s} onClick={() => setStatusFilter(s)}>
-                <span className="capitalize">{s}</span>
-                {statusFilter === s && <span className="ml-auto text-primary">✓</span>}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
         <Button variant="outline" size="icon" onClick={fetchListings} className="h-11 w-11 sm:h-10 sm:w-10 shrink-0">
           <RefreshCw className="w-4 h-4" />
         </Button>
-        {(profile?.subscription_tier === "business" || profile?.subscription_tier === "scale") && listings.filter(l => l.status === "active").length > 1 && (
-          <Button variant="outline" onClick={() => navigate("/bulk-optimize")} className="h-11 sm:h-10 shrink-0 text-xs sm:text-sm font-medium">
-            <Sparkles className="w-4 h-4 mr-1.5" /> Bulk Improve
-          </Button>
-        )}
       </div>
 
       {/* Status Chips */}
@@ -697,11 +657,6 @@ export default function Listings() {
                                     <Sparkles className="w-2.5 h-2.5" /> Needs optimising
                                   </Badge>
                                 )}
-                                {ebayListedIds[listing.id] && (
-                                  <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600 dark:text-blue-400 gap-0.5 py-0">
-                                    <ShoppingBag className="w-2.5 h-2.5" /> eBay
-                                  </Badge>
-                                )}
                               </div>
                             </div>
 
@@ -728,18 +683,9 @@ export default function Listings() {
                                       <Camera className="w-4 h-4 mr-2 text-muted-foreground" /> Add & Enhance Photo
                                     </DropdownMenuItem>
                                   )}
-                                  {ebayListedIds[listing.id] ? (
-                                    <DropdownMenuItem onClick={() => window.open(ebayListedIds[listing.id].platform_url, "_blank")}>
-                                      <ShoppingBag className="w-4 h-4 mr-2" /> View on eBay
-                                    </DropdownMenuItem>
-                                  ) : (
-                                    <DropdownMenuItem onClick={() => handleListOnEbay(listing)}>
-                                      <ExternalLink className="w-4 h-4 mr-2" /> List on eBay
-                                    </DropdownMenuItem>
-                                  )}
                                   {listing.vinted_url && (
                                     <DropdownMenuItem onClick={() => window.open(listing.vinted_url!, "_blank")}>
-                                      <ExternalLink className="w-4 h-4 mr-2" /> View on Vinted
+                                      <TrendingUp className="w-4 h-4 mr-2" /> View on Vinted
                                     </DropdownMenuItem>
                                   )}
                                   <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteListing(listing.id)}>

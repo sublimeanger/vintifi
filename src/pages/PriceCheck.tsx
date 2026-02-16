@@ -15,8 +15,8 @@ import { PageShell } from "@/components/PageShell";
 
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
-  ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag, Eye,
-  ArrowRightLeft, Camera, Clock, Flame, Calculator, PoundSterling, Tag, ChevronDown,
+  ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag,
+  Camera, Clock, Flame, Calculator, PoundSterling, Tag, ChevronDown,
 } from "lucide-react";
 import { PriceReportSkeleton } from "@/components/LoadingSkeletons";
 import {
@@ -24,7 +24,6 @@ import {
 } from "recharts";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { UpgradeModal } from "@/components/UpgradeModal";
-
 
 type PriceReport = {
   recommended_price: number;
@@ -194,8 +193,8 @@ export default function PriceCheck() {
       }
 
       toast.success("Price analysis complete!");
-      const isUnlimited = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
-      if (!isUnlimited) toast("−1 credit used", { duration: 2000 });
+      const isUnlimitedAfter = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+      if (!isUnlimitedAfter) toast("−1 credit used", { duration: 2000 });
     } catch (err: any) {
       toast.error(err.message || "Analysis failed. Try again.");
     } finally {
@@ -403,200 +402,171 @@ export default function PriceCheck() {
             </Card>
           )}
 
-          {/* Stats Row: Confidence + Demand + Sell Speed */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            <Card className={`p-3 sm:p-4 ${getConfidenceBg(report.confidence_score)}`}>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Confidence</p>
-              <div className="flex items-baseline gap-2">
-                <p className={`font-display text-2xl sm:text-3xl font-extrabold ${getConfidenceColor(report.confidence_score)}`}>
-                  {report.confidence_score}%
-                </p>
-                <Badge variant="outline" className={`${getConfidenceColor(report.confidence_score)} text-[9px] sm:text-[10px] py-0`}>
-                  {getConfidenceLabel(report.confidence_score)}
-                </Badge>
+          {/* Confidence + Demand + Days */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+            <Card className={`p-3 sm:p-4 border ${getConfidenceBg(report.confidence_score)}`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <CheckCircle2 className={`w-3.5 h-3.5 ${getConfidenceColor(report.confidence_score)}`} />
+                <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Confidence</span>
               </div>
-            </Card>
-            <Card className="p-3 sm:p-4 bg-muted/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Comparables</p>
-              <p className="font-display text-2xl sm:text-3xl font-extrabold">
-                {report.comparable_items?.length || 0}
+              <p className={`font-display text-xl sm:text-2xl font-extrabold ${getConfidenceColor(report.confidence_score)}`}>
+                {Math.round(report.confidence_score)}%
               </p>
-              <p className="text-[10px] text-muted-foreground">items analysed</p>
+              <p className={`text-[10px] font-medium ${getConfidenceColor(report.confidence_score)}`}>
+                {getConfidenceLabel(report.confidence_score)}
+              </p>
             </Card>
             {report.demand_level && (
-              <Card className={`p-3 sm:p-4 ${getDemandColor(report.demand_level)}`}>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Demand</p>
-                <div className="flex items-center gap-1.5">
+              <Card className={`p-3 sm:p-4 border ${getDemandColor(report.demand_level)}`}>
+                <div className="flex items-center gap-1.5 mb-1">
                   {getDemandIcon(report.demand_level)}
-                  <p className="font-display text-lg sm:text-xl font-extrabold capitalize">{report.demand_level}</p>
+                  <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Demand</span>
                 </div>
+                <p className="font-display text-xl sm:text-2xl font-extrabold capitalize">
+                  {report.demand_level}
+                </p>
               </Card>
             )}
             {report.estimated_days_to_sell != null && (
-              <Card className="p-3 sm:p-4 bg-muted/30">
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Sell Speed</p>
-                <p className="font-display text-2xl sm:text-3xl font-extrabold">{report.estimated_days_to_sell}</p>
-                <p className="text-[10px] text-muted-foreground">days to sell</p>
+              <Card className="p-3 sm:p-4">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Avg. Sell Time</span>
+                </div>
+                <p className="font-display text-xl sm:text-2xl font-extrabold">
+                  {report.estimated_days_to_sell}
+                </p>
+                <p className="text-[10px] text-muted-foreground">days</p>
               </Card>
             )}
           </div>
 
-          {/* Condition Price Breakdown */}
-          {report.condition_price_breakdown && report.condition_price_breakdown.length > 0 && (
-            <Card className="p-3 sm:p-6">
-              <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                Price by Condition
-              </h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-[10px] sm:text-xs">Condition</TableHead>
-                    <TableHead className="text-[10px] sm:text-xs text-right">Avg Price</TableHead>
-                    <TableHead className="text-[10px] sm:text-xs text-right">Listings</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report.condition_price_breakdown.map((row) => (
-                    <TableRow key={row.condition}>
-                      <TableCell className="text-xs sm:text-sm font-medium">{row.condition}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-right font-semibold">£{row.avg_price.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-right text-muted-foreground">{row.count}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          )}
-
-          {/* Profit Calculator */}
-          <Card className="p-4 sm:p-6">
-            <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
+          {/* Your Cost Calculator */}
+          <Card className="p-4 sm:p-5">
+            <h3 className="font-display font-bold text-xs sm:text-lg mb-3 flex items-center gap-2">
               <Calculator className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-              Profit Calculator
+              Your Profit Calculator
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs sm:text-sm mb-4">
-              <div>
-                <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Resale</p>
-                <p className="font-semibold">£{(report.estimated_resale ?? report.recommended_price).toFixed(2)}</p>
+            <div className="flex items-end gap-3">
+              <div className="space-y-1.5 flex-1">
+                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your Cost (£)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={yourCost}
+                  onChange={(e) => setYourCost(e.target.value)}
+                  placeholder="What you paid"
+                  className="h-12 sm:h-11 text-base sm:text-sm"
+                />
               </div>
-              <div>
-                <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Fees (~5%)</p>
-                <p className="font-semibold text-destructive">-£{(report.estimated_fees ?? (report.recommended_price * 0.05)).toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Shipping</p>
-                <p className="font-semibold text-destructive">-£{(report.estimated_shipping ?? 3.50).toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Net Profit</p>
-                <p className="font-semibold text-success">£{(report.net_profit_estimate ?? (report.recommended_price * 0.95 - 3.5)).toFixed(2)}</p>
-              </div>
-            </div>
-            <div className="border-t border-border/50 pt-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Your cost £</Label>
-              <Input
-                value={yourCost}
-                onChange={(e) => setYourCost(e.target.value)}
-                placeholder="What did you pay?"
-                className="h-10 sm:h-9 text-sm w-full sm:w-32"
-                type="number"
-                min="0"
-                step="0.50"
-              />
               {calcProfit() !== null && (
-                <p className={`text-sm font-bold ${calcProfit()! >= 0 ? "text-success" : "text-destructive"}`}>
-                  {calcProfit()! >= 0 ? "+" : ""}£{calcProfit()!.toFixed(2)} profit
-                </p>
+                <div className={`px-4 py-3 rounded-lg border font-display font-bold text-base sm:text-lg ${
+                  calcProfit()! >= 0 ? "bg-success/10 border-success/20 text-success" : "bg-destructive/10 border-destructive/20 text-destructive"
+                }`}>
+                  {calcProfit()! >= 0 ? "+" : ""}£{calcProfit()!.toFixed(2)}
+                </div>
               )}
             </div>
+            {calcProfit() !== null && (
+              <p className="text-[10px] text-muted-foreground mt-2">
+                After ~{((report!.estimated_fees || report!.recommended_price * 0.05)).toFixed(2)} fees + ~£{(report!.estimated_shipping || 3.5).toFixed(2)} shipping
+              </p>
+            )}
           </Card>
 
-          {/* Price Distribution Chart */}
+          {/* Price Distribution */}
           {report.price_distribution && report.price_distribution.length > 0 && (
-            <Card className="p-3 sm:p-6">
+            <Card className="p-4 sm:p-6">
               <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 Price Distribution
               </h3>
-              <ResponsiveContainer width="100%" height={180} className="sm:!h-[200px]">
-                <BarChart data={report.price_distribution}>
-                  <XAxis dataKey="range" tick={{ fontSize: 9 }} interval={0} angle={-30} textAnchor="end" height={45} />
-                  <YAxis tick={{ fontSize: 9 }} width={26} />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "1px solid hsl(var(--border))",
-                      background: "hsl(var(--background))",
-                      fontSize: "12px",
-                    }}
-                  />
-                  <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                    {report.price_distribution.map((_, i) => (
-                      <Cell key={i} fill={`hsl(350, 75%, ${55 + i * 5}%)`} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-40 sm:h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={report.price_distribution}>
+                    <XAxis dataKey="range" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip formatter={(value: number) => [`${value} listings`, "Count"]} />
+                    <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                      {report.price_distribution.map((entry, index) => (
+                        <Cell key={index} fill={`hsl(var(--primary) / ${0.3 + (index / report.price_distribution.length) * 0.7})`} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </Card>
           )}
 
-          {/* Comparable Items */}
-          {report.comparable_items && report.comparable_items.length > 0 && (
-            <Card className="p-3 sm:p-6">
+          {/* Condition Price Breakdown */}
+          {report.condition_price_breakdown && report.condition_price_breakdown.length > 0 && (
+            <Card className="p-4 sm:p-6">
               <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                <Search className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                Comparable Items
+                <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                Price by Condition
               </h3>
-              <div className="space-y-1.5 sm:space-y-2">
-                {report.comparable_items.map((item, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    className={`flex items-center justify-between p-4 sm:p-3 rounded-xl transition-colors group ${
-                      item.sold
-                        ? "bg-success/5 hover:bg-success/10 border border-success/10"
-                        : "bg-muted/40 hover:bg-muted/60 border border-transparent"
-                    }`}
-                    onClick={() => item.url && window.open(item.url, "_blank")}
-                    role={item.url ? "link" : undefined}
-                    style={item.url ? { cursor: "pointer" } : undefined}
-                  >
-                    <div className="flex-1 min-w-0 mr-3">
-                      <p className="text-xs sm:text-sm font-medium truncate">{item.title}</p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {item.sold ? (
-                          <Badge variant="outline" className="text-success border-success/30 text-[9px] sm:text-[10px] py-0">
-                            <CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5" /> Sold
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground text-[9px] sm:text-[10px] py-0">Active</Badge>
-                        )}
-                        {item.condition && (
-                          <Badge variant="secondary" className="text-[9px] sm:text-[10px] py-0">{item.condition}</Badge>
-                        )}
-                        {item.days_listed != null && (
-                          <span className="text-[10px] text-muted-foreground">{item.days_listed}d</span>
-                        )}
-                      </div>
+              <div className="space-y-2">
+                {report.condition_price_breakdown.map((item) => (
+                  <div key={item.condition} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] capitalize">{item.condition}</Badge>
+                      <span className="text-[10px] text-muted-foreground">({item.count} listings)</span>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <p className="font-display font-bold text-sm sm:text-lg">£{item.price.toFixed(2)}</p>
-                      {item.url && (
-                        <ExternalLink className="w-3 h-3 text-muted-foreground/50 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" />
-                      )}
-                    </div>
-                  </motion.div>
+                    <span className="font-display font-bold text-sm">£{item.avg_price.toFixed(2)}</span>
+                  </div>
                 ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Comparables */}
+          {report.comparable_items && report.comparable_items.length > 0 && (
+            <Card className="p-4 sm:p-6">
+              <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                Comparable Listings ({report.comparable_items.length})
+              </h3>
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[10px] sm:text-xs">Item</TableHead>
+                      <TableHead className="text-[10px] sm:text-xs text-right">Price</TableHead>
+                      <TableHead className="text-[10px] sm:text-xs text-center">Status</TableHead>
+                      <TableHead className="text-[10px] sm:text-xs text-right hidden sm:table-cell">Days</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {report.comparable_items.slice(0, 8).map((item, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-xs max-w-[180px] sm:max-w-xs truncate">
+                          {item.url ? (
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1">
+                              {item.title}
+                              <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground" />
+                            </a>
+                          ) : item.title}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-xs">£{item.price.toFixed(2)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className={`text-[9px] py-0 ${item.sold ? "text-success border-success/30" : "text-muted-foreground"}`}>
+                            {item.sold ? "Sold" : "Active"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground hidden sm:table-cell">
+                          {item.days_listed != null ? `${item.days_listed}d` : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </Card>
           )}
 
           {/* AI Insights */}
           {report.ai_insights && (
-            <Card className="p-4 sm:p-6 border-primary/10 bg-gradient-to-br from-primary/[0.02] to-transparent">
+            <Card className="p-4 sm:p-6">
               <h3 className="font-display font-bold text-xs sm:text-lg mb-2 sm:mb-3 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 AI Insights
@@ -612,6 +582,7 @@ export default function PriceCheck() {
             {itemId ? (
               <Button
                 onClick={() => navigate(`/items/${itemId}`)}
+                variant="outline"
                 className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
               >
                 <ArrowRight className="w-4 h-4 mr-2" />
@@ -644,11 +615,20 @@ export default function PriceCheck() {
               </Button>
             )}
             <Button
-              onClick={() => navigate(`/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}${itemId ? `&itemId=${itemId}` : ""}`)}
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (brand) params.set("brand", brand);
+                if (category) params.set("category", category);
+                if (report.item_title) params.set("title", report.item_title);
+                if (condition) params.set("condition", condition);
+                if (url) params.set("vintedUrl", url);
+                if (itemId) params.set("itemId", itemId);
+                navigate(`/optimize?${params.toString()}`);
+              }}
               className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
             >
-              <Zap className="w-4 h-4 mr-2" />
-              Optimise This Listing
+              <Sparkles className="w-4 h-4 mr-2" />
+              Next: Optimise Listing
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
             <Button
@@ -661,62 +641,19 @@ export default function PriceCheck() {
             </Button>
           </div>
 
-          {/* Secondary Actions — collapsed on mobile */}
-          <details className="sm:hidden group pb-4">
-            <summary className="text-xs font-medium text-muted-foreground text-center cursor-pointer py-2 list-none flex items-center justify-center gap-1.5">
-              More Actions <ChevronDown className="w-3 h-3 group-open:rotate-180 transition-transform" />
-            </summary>
-            <div className="flex flex-col gap-2 mt-2">
-              <Button
-                onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(brand)}&category=${encodeURIComponent(category)}`)}
-                variant="outline"
-                className="w-full h-11 active:scale-95 transition-transform"
-              >
-                <ArrowRightLeft className="w-4 h-4 mr-2" />
-                Find Arbitrage Deals
-              </Button>
-              <Button
-                onClick={() => navigate(`/competitors?brand=${encodeURIComponent(brand)}`)}
-                variant="outline"
-                className="w-full h-11 active:scale-95 transition-transform"
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                Track This Brand
-              </Button>
-            </div>
-          </details>
-          {/* Desktop secondary actions inline */}
-          <div className="hidden sm:flex gap-3 justify-center pb-4">
-            <Button
-              onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(brand)}&category=${encodeURIComponent(category)}`)}
-              variant="outline"
-              className="h-10 active:scale-95 transition-transform"
-            >
-              <ArrowRightLeft className="w-4 h-4 mr-2" />
-              Find Arbitrage Deals
-            </Button>
-            <Button
-              onClick={() => navigate(`/competitors?brand=${encodeURIComponent(brand)}`)}
-              variant="outline"
-              className="h-10 active:scale-95 transition-transform"
-            >
-              <Eye className="w-4 h-4 mr-2" />
-              Track This Brand
-            </Button>
-          </div>
-
           {/* Next step CTA */}
           <Card className="p-4 sm:p-5 border-primary/20 bg-primary/[0.03]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">Ready to list?</p>
-                <p className="text-xs text-muted-foreground">Optimise your title, description & hashtags</p>
+                <p className="text-xs text-muted-foreground">Optimise your title, description & hashtags with AI</p>
               </div>
               <Button
                 onClick={() => {
                   const params = new URLSearchParams();
                   if (brand) params.set("brand", brand);
                   if (category) params.set("category", category);
+                  if (condition) params.set("condition", condition);
                   if (url) params.set("vintedUrl", url);
                   if (itemId) params.set("itemId", itemId);
                   navigate(`/optimize?${params.toString()}`);

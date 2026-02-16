@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Package, ImageIcon, Settings,
+  LayoutDashboard, Package, Sparkles, ImageIcon, Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 const tabs = [
   { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
   { icon: Package, label: "Items", path: "/listings" },
+  { icon: Sparkles, label: "Optimise", path: "/optimize" },
   { icon: ImageIcon, label: "Photos", path: "/vintography" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];

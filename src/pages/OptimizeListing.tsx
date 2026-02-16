@@ -8,12 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Sparkles, Copy, Check, Save,
   ImagePlus, X, Camera, Link, ExternalLink, Tag, ChevronDown,
-  ClipboardCopy, Download, Package,
+  ClipboardCopy, Download, Package, ArrowRight,
 } from "lucide-react";
 import { HealthScoreGauge } from "@/components/HealthScoreGauge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -68,11 +69,19 @@ export default function OptimizeListing() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [manualFieldsOpen, setManualFieldsOpen] = useState(false);
   const resultsRef = useCallback((node: HTMLDivElement | null) => {
     if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   const itemId = searchParams.get("itemId");
+
+  // Auto-expand manual fields if pre-populated from params (not URL mode)
+  useEffect(() => {
+    if (!vintedUrl && (brand || category || currentTitle)) {
+      setManualFieldsOpen(true);
+    }
+  }, []);
 
   // Fetch existing photos from DB when opened from an item detail page
   useEffect(() => {
@@ -272,8 +281,51 @@ export default function OptimizeListing() {
     <PageShell title="AI Listing Optimiser" subtitle="Create the perfect Vinted listing" maxWidth="max-w-6xl">
       <FeatureGate feature="optimize_listing">
 
+      {/* Loading Skeleton */}
+      {optimizing && (
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-3xl mx-auto">
+          <Card className="p-5 sm:p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Skeleton className="w-12 h-12 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-3 w-72" />
+              </div>
+              <Skeleton className="w-14 h-14 rounded-full" />
+            </div>
+            <Skeleton className="h-10 w-full rounded-lg" />
+          </Card>
+          <Card className="p-5 sm:p-6">
+            <Skeleton className="h-3 w-12 mb-3" />
+            <Skeleton className="h-6 w-full rounded-lg" />
+          </Card>
+          <Card className="p-5 sm:p-6">
+            <Skeleton className="h-3 w-20 mb-3" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          </Card>
+          <Card className="p-5 sm:p-6">
+            <Skeleton className="h-3 w-16 mb-3" />
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-7 w-20 rounded-full" />
+              ))}
+            </div>
+          </Card>
+          <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm font-medium">Analysing with AI…</span>
+          </div>
+        </motion.div>
+      )}
+
       {/* If we have a result, show the Vinted-Ready Pack */}
-      {result ? (
+      {result && !optimizing ? (
         <motion.div ref={resultsRef} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-3xl mx-auto">
           
           {/* Master Copy All Button */}
@@ -299,14 +351,35 @@ export default function OptimizeListing() {
                   Save to Items
                 </Button>
               )}
-              {itemId && (
-                <Button variant="outline" onClick={() => navigate(`/vintography?itemId=${itemId}`)} className="h-11 active:scale-95 transition-transform">
-                  <Camera className="w-4 h-4 mr-2" />
-                  Enhance Photos
-                </Button>
-              )}
+              <Button variant="outline" onClick={() => navigate(itemId ? `/vintography?itemId=${itemId}` : `/vintography`)} className="h-11 active:scale-95 transition-transform">
+                <Camera className="w-4 h-4 mr-2" />
+                Enhance Photos
+              </Button>
             </div>
           </Card>
+
+          {/* Health Score Breakdown — prominent */}
+          {result.health_score && (
+            <Card className="p-4 sm:p-5">
+              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Health Score Breakdown</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Title", score: result.health_score.title_score, feedback: result.health_score.title_feedback },
+                  { label: "Description", score: result.health_score.description_score, feedback: result.health_score.description_feedback },
+                  { label: "Photos", score: result.health_score.photo_score, feedback: result.health_score.photo_feedback },
+                  { label: "Completeness", score: result.health_score.completeness_score, feedback: result.health_score.completeness_feedback },
+                ].map((item) => (
+                  <div key={item.label} className="text-center p-3 rounded-xl bg-muted/40 border border-border">
+                    <p className={`font-display text-2xl font-extrabold ${
+                      item.score >= 80 ? "text-success" : item.score >= 60 ? "text-accent" : "text-destructive"
+                    }`}>{item.score}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-0.5">{item.label}</p>
+                    {item.feedback && <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{item.feedback}</p>}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Title */}
           <Card className="p-4 sm:p-5">
@@ -372,17 +445,15 @@ export default function OptimizeListing() {
                   </div>
                 ))}
               </div>
-              {itemId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full mt-3 h-9 text-xs active:scale-95 transition-transform"
-                  onClick={() => navigate(`/vintography?itemId=${itemId}`)}
-                >
-                  <Camera className="w-3.5 h-3.5 mr-1.5" />
-                  Enhance these photos in Photo Studio
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-3 h-9 text-xs active:scale-95 transition-transform"
+                onClick={() => navigate(itemId ? `/vintography?itemId=${itemId}` : `/vintography`)}
+              >
+                <Camera className="w-3.5 h-3.5 mr-1.5" />
+                Enhance these photos in Photo Studio
+              </Button>
             </Card>
           )}
 
@@ -429,6 +500,21 @@ export default function OptimizeListing() {
             </CollapsibleContent>
           </Collapsible>
 
+          {/* Next Step CTA */}
+          {itemId && (
+            <Card className="p-4 sm:p-5 border-primary/20 bg-primary/[0.03]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Next: Enhance Your Photos</p>
+                  <p className="text-xs text-muted-foreground">Make your photos stand out with AI background removal & enhancement</p>
+                </div>
+                <Button onClick={() => navigate(`/vintography?itemId=${itemId}`)} className="shrink-0">
+                  <Camera className="w-4 h-4 mr-1.5" /> Photo Studio
+                </Button>
+              </div>
+            </Card>
+          )}
+
           {/* Start Over */}
           <div className="text-center pt-2 pb-4">
             <Button variant="ghost" size="sm" onClick={() => setResult(null)} className="text-xs text-muted-foreground">
@@ -436,38 +522,34 @@ export default function OptimizeListing() {
             </Button>
           </div>
         </motion.div>
-      ) : (
-        /* Input Form */
+      ) : !optimizing ? (
+        /* Input Form — URL-first with collapsible manual fields */
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
           <Card className="p-4 sm:p-6 border-border/50">
-            <h2 className="font-display font-bold text-sm sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-              <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-              Your Item
-            </h2>
-
-            {/* Vinted URL Import */}
-            <div className="mb-4 sm:mb-5">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                <Link className="w-3 h-3 inline mr-1" />
+            {/* Vinted URL Import — hero input */}
+            <div className="mb-5 sm:mb-6">
+              <h2 className="font-display font-bold text-sm sm:text-lg mb-3 flex items-center gap-2">
+                <Link className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 Import from Vinted URL
-              </Label>
+              </h2>
               <div className="flex gap-2">
                 <Input
                   value={vintedUrl}
                   onChange={(e) => setVintedUrl(e.target.value)}
                   placeholder="https://www.vinted.co.uk/items/..."
-                  className="h-11 sm:h-10 text-base sm:text-sm flex-1"
+                  className="h-12 sm:h-11 text-base sm:text-sm flex-1"
+                  autoFocus={!itemId && !brand}
                 />
                 <Button
                   variant="outline"
                   onClick={handleFetchFromVintedUrl}
                   disabled={fetchingFromUrl || !vintedUrl.trim()}
-                  className="h-11 sm:h-10 shrink-0 active:scale-95 transition-transform"
+                  className="h-12 sm:h-11 shrink-0 active:scale-95 transition-transform"
                 >
                   {fetchingFromUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ExternalLink className="w-4 h-4 mr-1" /> Fetch</>}
                 </Button>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Paste a Vinted listing URL to auto-import photos &amp; details</p>
+              <p className="text-[10px] text-muted-foreground mt-1.5">Paste a Vinted listing URL to auto-import photos &amp; details</p>
             </div>
 
             {loadingItemPhotos && (
@@ -523,48 +605,52 @@ export default function OptimizeListing() {
               </div>
             </div>
 
-            {/* Item Details */}
-            <div className="space-y-2.5 sm:space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Title</Label>
-                <Input value={currentTitle} onChange={(e) => setCurrentTitle(e.target.value)} placeholder="e.g. Nike trainers size 9" className="h-11 sm:h-10 text-base sm:text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Description</Label>
-                <Textarea value={currentDescription} onChange={(e) => setCurrentDescription(e.target.value)} placeholder="Paste your existing listing description..." rows={3} className="text-base sm:text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {/* Collapsible Manual Fields */}
+            <Collapsible open={manualFieldsOpen} onOpenChange={setManualFieldsOpen}>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 w-full py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors mb-2">
+                  <ChevronDown className={`w-4 h-4 transition-transform ${manualFieldsOpen ? "rotate-180" : ""}`} />
+                  {manualFieldsOpen ? "Hide Details" : "Add details manually"}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-2.5 sm:space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
-                  <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Nike" className="h-11 sm:h-10 text-base sm:text-sm" />
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Title</Label>
+                  <Input value={currentTitle} onChange={(e) => setCurrentTitle(e.target.value)} placeholder="e.g. Nike trainers size 9" className="h-11 sm:h-10 text-base sm:text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
-                  <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Trainers" className="h-11 sm:h-10 text-base sm:text-sm" />
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Description</Label>
+                  <Textarea value={currentDescription} onChange={(e) => setCurrentDescription(e.target.value)} placeholder="Paste your existing listing description..." rows={3} className="text-base sm:text-sm" />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
-                  <Input value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. UK 9" className="h-11 sm:h-10 text-base sm:text-sm" />
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
+                    <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Nike" className="h-11 sm:h-10 text-base sm:text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
+                    <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Trainers" className="h-11 sm:h-10 text-base sm:text-sm" />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
-                  <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Very Good" className="h-11 sm:h-10 text-base sm:text-sm" />
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
+                    <Input value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. UK 9" className="h-11 sm:h-10 text-base sm:text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
+                    <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Very Good" className="h-11 sm:h-10 text-base sm:text-sm" />
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             <Button onClick={handleOptimize} disabled={optimizing} className="w-full mt-4 sm:mt-5 font-semibold h-12 sm:h-11 active:scale-95 transition-transform">
-              {optimizing ? (
-                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Analysing with AI...</>
-              ) : (
-                <><Sparkles className="w-4 h-4 mr-2" /> Optimise Listing</>
-              )}
+              <Sparkles className="w-4 h-4 mr-2" /> Optimise Listing
             </Button>
           </Card>
         </motion.div>
-      )}
+      ) : null}
 
       </FeatureGate>
     </PageShell>
