@@ -1,220 +1,106 @@
 
 
-# Vintifi World-Class UX Revamp — Sprint Plan
+# eBay Integration + Feature Cleanup
 
-This is a major architectural revamp that transforms Vintifi from a feature-directory into a workflow-first command centre. The spec is excellent and well-structured. Here is how we break it into 4 sprints, each delivering a shippable increment.
+## What's Happening
 
----
+Since you've been accepted for eBay API access, the eBay integration is genuinely valuable and worth building out properly. Meanwhile, the other "fake plumbing" features (Vinted Pro, Depop, generic cross-listings dashboard) should be removed, and the Relist Queue should become Relist Reminders inside Inventory Health.
 
-## Sprint 1: Foundation (App Shell + Navigation + Dashboard)
-**Goal:** New layout, 5-workspace navigation, and the "Today" command centre replace the current feature-menu dashboard.
+## What eBay Integration Actually Enables
 
-### 1.1 Database Migration
-Add columns to `listings` table:
-- `source_type` TEXT (trend/charity/arbitrage/manual/vinted_url)
-- `source_meta` JSONB
-- `images` JSONB (array of photo URLs)
-- `last_price_check_at` TIMESTAMPTZ
-- `last_optimised_at` TIMESTAMPTZ
-- `last_photo_edit_at` TIMESTAMPTZ
+With real eBay API access, you can offer sellers something powerful: **one-click cross-listing to eBay** directly from their item detail page or listings view. This is a genuine competitive advantage. Here's what makes it worth doing well:
 
-Add `watchlist` and `draft` as valid status values (no constraint change needed -- status is TEXT).
+- **Publish to eBay** from any listing with auto-mapped condition, category, price, and photos
+- **eBay price comparison** shown alongside Vinted pricing in Price Check reports (what's it worth on eBay vs Vinted?)
+- **Status sync** -- when an item sells on eBay, mark it sold in Vintifi; when sold on Vinted, delist from eBay
+- **eBay earnings** tracked in your existing P&L Analytics
 
-Create new `item_activity` table:
-- `id` UUID PK
-- `user_id` UUID (FK profiles)
-- `listing_id` UUID (FK listings)
-- `type` TEXT (price_check, optimise, photo_edit, relist, status_change, created)
-- `payload` JSONB
-- `created_at` TIMESTAMPTZ
+## The Plan
 
-RLS: users can only read/write their own activity rows.
+### 1. Remove Redundant Features
 
-### 1.2 AppShellV2 Component
-Create `src/components/AppShellV2.tsx` — a single unified layout replacing the per-page sidebar/header/bottom-nav code.
+**Delete pages:**
+- `CrossListings.tsx` -- the generic multi-platform dashboard (eBay tracking moves to a simpler view)
+- `VintedProModal.tsx` -- non-functional placeholder
 
-Structure:
-- **Desktop**: Left sidebar with 5 workspace icons (Today, Items, Opportunities, Automation, Analytics) + user menu footer with plan/credits/upgrade
-- **Mobile**: Top header (logo + credits pill + notifications bell) + bottom nav with 5 items: Today, Items, **New** (centre FAB), Opportunities, More (sheet)
-- **Content area**: Replaces PageShell's container logic
+**Simplify PlatformConnections page:**
+- Remove Vinted Pro and Depop cards -- keep only eBay
+- Rename page to "eBay Connection" or fold it into Settings
+- Remove edge functions: `connect-vinted-pro`, `sync-platform-status` (rebuild sync specifically for eBay)
 
-### 1.3 Rename Labels Throughout
-- "My Listings" becomes "Items"
-- "Inventory Health" replaces "Dead Stock" everywhere
-- "Optimise" becomes "Improve Listing"
-- "Vintography" gets subtitle "Photo Studio"
-- "Arbitrage" becomes "Deals" in nav
+**Clean up Listings page:**
+- Remove the generic `PublishModal` (multi-platform publish)
+- Replace with a simpler "List on eBay" action in the item dropdown menu
+- Delete `PublishModal.tsx`
 
-### 1.4 Route Restructuring (App.tsx)
-- Keep all existing routes working (no breaking changes)
-- Add `/items/:id` route (Item Detail page — placeholder initially)
-- Move Settings out of primary nav into user menu
-- Update `navSections` to use 5 workspaces
-- Add redirects: `/dead-stock` stays but nav label changes
+### 2. Relist Reminders into Inventory Health
 
-### 1.5 New "Today" Dashboard
-Replace the current Dashboard content with the spec's layout:
+- Add a **Relist Reminders** tab or section to the `DeadStock.tsx` (Inventory Health) page
+- Move the useful AI logic from `RelistScheduler.tsx` (optimal timing suggestions) into this section
+- Delete `RelistScheduler.tsx` page and `/relist` route
+- Update the `relist-scheduler` edge function to return reminders only (no crosslist strategies)
 
-**A) "New Item" primary card** — paste URL or start wizard
-**B) "Your Next Actions" inbox** — max 5 items needing attention, queried from real data (items without price checks, stale items, items missing photos). Each row shows image + title + stage + one primary CTA + snooze/dismiss
-**C) "Pipeline Snapshot"** — compact row showing counts: Watchlist, Drafts, Live, Stale, Sold. Each clickable to filter Items view
-**D) "Opportunities For You"** — 3 cards max from trends/watchlist/arbitrage
-**E) "Performance Quick"** — 4 compact metrics (revenue 7d, profit 30d, sell-through rate, avg days to sell)
-**F) "Recent Activity"** — last 5 actions from `item_activity` table
+### 3. Navigation Cleanup
 
-### 1.6 Delete Obsolete Components
-- Delete `SellSmartProgress.tsx`
-- Delete `DashboardForYou.tsx`
-- Remove SellSmartProgress imports from PriceCheck, OptimizeListing, Listings
-- Simplify `DashboardIntelligence.tsx` (trending strip only, attention cards absorbed into Next Actions)
+Update `AppShellV2.tsx` sidebar:
+- Remove the entire **Automation** workspace (Relist Queue, Cross-Listings, Connections)
+- Move **Inventory Health** into Analytics (it's already there, just remove duplicates)
+- Add **eBay** as a simple link in Settings or as a connection badge in the sidebar footer
+- Remove routes: `/cross-listings`, `/platforms` (or redirect `/platforms` to settings)
+- Redirect `/relist` to `/dead-stock`
 
-### 1.7 Update All Feature Pages
-Replace `PageShell` + per-page `MobileBottomNav` with `AppShellV2` wrapper so every page gets consistent navigation without duplicating sidebar code.
+### 4. Build Out eBay Properly
 
----
+**On the Item Detail page:**
+- Add an "eBay" section or button showing: not listed / listed (with link) / sold
+- One-click "List on eBay" that calls the existing `publish-to-platform` edge function (simplified to eBay only)
+- Show eBay listing status with a link to view on eBay
 
-## Sprint 2: Item-Centric Workflow (The Keystone)
-**Goal:** Item Detail page, New Item Wizard, and fixing the 3 broken flows.
+**On the Listings page:**
+- Add an eBay status indicator (small icon/badge) on each listing card
+- Dropdown menu item: "List on eBay" / "View on eBay" / "Remove from eBay"
 
-### 2.1 New Item Wizard Component
-Create `src/components/NewItemWizard.tsx` — a multi-step modal/dialog:
+**eBay Connection management:**
+- Move into Settings page as a dedicated section (or keep a simplified standalone page)
+- Show connection status, connected eBay username, token expiry
+- Connect / Disconnect / Re-authorise buttons
 
-1. **Start**: Choose input method (paste Vinted URL, upload photos, manual details, from opportunity)
-2. **Research** (optional): Runs Price Check, shows recommended price, "Use this price" CTA
-3. **Listing Copy** (optional): Runs Improve Listing, shows optimised title/description, "Apply" CTA
-4. **Photos** (optional): Opens Vintography "Marketplace Ready" preset
-5. **Save**: Choose status (Draft/Live/Watchlist), optional relist strategy, CTA: "Go to Item"
+**Price Check enhancement:**
+- When running a price check, optionally show "eBay value" alongside Vinted value
+- This uses the same Firecrawl scraping but targets eBay search results
+- Helps sellers decide whether to list on eBay, Vinted, or both
 
-All outputs save to the SAME listing record. Wizard accessible from: "New" button (mobile), "New Item" button (desktop), "Add to inventory" from Price Check results, "Save to watchlist" from Trends/Charity Briefing.
+### 5. Route & Code Cleanup
 
-### 2.2 Item Detail Page (`/items/:id`)
-Create `src/pages/ItemDetail.tsx`:
+- Remove routes: `/cross-listings`, `/relist`
+- Redirect `/platforms` to `/settings` (or keep as `/ebay-connection`)
+- Delete edge functions: `connect-vinted-pro`, `sync-platform-status`
+- Simplify `publish-to-platform` to eBay-only (remove Depop/Vinted Pro adapters)
+- Clean up `useSidebarBadges.ts` (remove relist/cross-listing badge counts)
+- Clean up `NextActionsInbox.tsx` (remove cross-listing actions, keep eBay-specific ones if relevant)
 
-**Header**: Item name + status badge + quick action buttons (Price, Improve, Photos, Publish, More) + "Next best action" pill
+## Technical Details
 
-**Tabbed body**:
-1. **Overview** — primary image, current vs recommended price, health score, views/favourites, next action CTA
-2. **Price** — last price report, "Recheck price" button, comparable items, profit calculator
-3. **Listing** — current title/description/tags, "Generate improved copy", apply buttons, health score breakdown
-4. **Photos** — image gallery, before/after, run Vintography in context
-5. **Sell Everywhere** (Business+) — cross-list connections, publish/sync status
-6. **Activity** — timeline from `item_activity` table
+**Files to delete:**
+- `src/pages/CrossListings.tsx`
+- `src/pages/RelistScheduler.tsx`
+- `src/components/PublishModal.tsx`
+- `src/components/VintedProModal.tsx`
+- `supabase/functions/connect-vinted-pro/index.ts`
+- `supabase/functions/sync-platform-status/index.ts`
 
-### 2.3 ItemWorkflowStepper Component
-Replace SellSmartProgress with a data-driven stepper:
-- Checks: has_price_report, has_optimized_copy, has_processed_photos, is_listed
-- Only renders when in item context (Item Detail page)
-- Shows accurate completion state
+**Files to modify heavily:**
+- `src/components/AppShellV2.tsx` -- remove Automation workspace
+- `src/pages/PlatformConnections.tsx` -- simplify to eBay-only, possibly merge into Settings
+- `src/pages/Listings.tsx` -- remove PublishModal, add eBay status indicators
+- `src/pages/DeadStock.tsx` -- add Relist Reminders section
+- `src/App.tsx` -- remove routes, add redirects
+- `supabase/functions/publish-to-platform/index.ts` -- strip to eBay adapter only
+- `src/pages/ItemDetail.tsx` -- add eBay listing status and action button
 
-### 2.4 Fix Price Check to Item Flow
-- If Price Check opened with `?itemId=...`: update that item's `recommended_price`, `last_price_check_at`, and link `price_reports.listing_id`
-- If standalone: show two clear CTAs — "Create new item" (default) + "Attach to existing item" (search/select)
-
-### 2.5 Fix Optimiser to Item Flow
-- If opened with `?itemId=...`: button reads "Apply to Item" (updates existing listing fields)
-- If no itemId: prompt to create new item or attach to existing
-- Never create duplicate listings
-
-### 2.6 Fix Vintography to Item Flow
-- Always ask "Save results to which item?" when not in item context
-- Save processed URLs to item's `images` JSONB array
-
----
-
-## Sprint 3: Workspaces + Progressive Disclosure
-**Goal:** Opportunities tabs, Automation workspace, Items board view, and cognitive load reduction.
-
-### 3.1 Opportunities Workspace (Tabbed)
-Convert the current separate pages into tabs under one "Opportunities" workspace:
-
-1. **Trending** (existing Trend Radar)
-2. **Seasonal** (existing Seasonal Calendar content)
-3. **Niches** (existing Niche Finder content)
-4. **In-Store List** (existing Charity Briefing)
-5. **Deals** (Arbitrage + Clearance Radar, gated to Business+)
-
-Every opportunity card gets 2 standard actions: "Add to Watchlist" + "Price Check"
-
-### 3.2 Automation Workspace (Tabbed)
-Combine existing pages:
-
-1. **Relist Queue** (existing Relist Scheduler, showing upcoming/success/fail)
-2. **Rules** (future — placeholder with "Coming Soon")
-3. **Cross-Listings** (existing, Business+)
-4. **Connections** (existing Platform Connections, Business+)
-
-### 3.3 Items Board View
-Add a Kanban-style board view toggle to the Items page:
-- Columns: Watchlist, Draft, Live, Stale, Sold
-- Drag-and-drop to change status
-- Each card shows: image, title/brand, price, health score, next action CTA
-
-### 3.4 Command Palette
-Add a global Cmd/Ctrl+K command palette using the existing `cmdk` dependency:
-- Navigate to any workspace or page
-- Start actions: "New item", "Price check", "Improve listing"
-- Search items by name/brand
-
-### 3.5 Cognitive Load Reduction
-- Remove all 12 quick-action cards from the old dashboard (already done in Sprint 1)
-- Add "More" collapse sections on power-user features (bulk actions, advanced filters)
-- Replace educational blocks with 1-sentence microcopy + expandable "Show me more"
-
----
-
-## Sprint 4: Polish, Credits, and Scale
-**Goal:** Unified credits, billing UX, dark mode prep, and performance.
-
-### 4.1 Unified AI Credits
-- Rename all credit references to "AI Credits" (one pool)
-- Show action cost BEFORE execution on every AI action (price check: 1 credit, improve listing: 2 credits, translate: 1 credit, photo edit: 1-2 credits)
-- Update the credits pill in AppShellV2 to show unified count
-
-### 4.2 Upgrade Moments (Contextual)
-- Only show upgrade prompts when user tries a locked action or hits a limit
-- Show what they get immediately + why it matters for their item
-- 1-click upgrade that returns to where they were
-
-### 4.3 Pricing Constants Single Source of Truth
-- Ensure the marketing pricing page and feature gating both read from `STRIPE_TIERS` in `lib/constants.ts`
-- Fix any discrepancies between displayed limits and enforced limits
-
-### 4.4 Back Button Context
-- Track referrer page so back buttons return to the correct context (e.g., Item Detail after running Price Check from within an item)
-
-### 4.5 Performance
-- Split the 1,069-line `Listings.tsx` into smaller components (ItemsListView, ItemsBoardView, ItemsFilters, ItemCard)
-- Lazy-load workspace tab contents
-- Add loading skeletons for all new components
-
-### 4.6 Cleanup
-- Remove all dead imports and unused components
-- Update the platform audit document
-- Ensure all routes have proper mobile responsiveness
-
----
-
-## Files Changed Summary
-
-| Sprint | New Files | Modified Files | Deleted Files |
-|--------|-----------|----------------|---------------|
-| 1 | AppShellV2.tsx, NextActionsInbox.tsx, PipelineSnapshot.tsx | App.tsx, Dashboard.tsx, all feature pages (PageShell swap), MobileBottomNav.tsx, constants.ts | SellSmartProgress.tsx, DashboardForYou.tsx |
-| 2 | NewItemWizard.tsx, ItemDetail.tsx, ItemWorkflowStepper.tsx, ItemActivityTimeline.tsx | PriceCheck.tsx, OptimizeListing.tsx, Vintography.tsx, App.tsx (new route) | -- |
-| 3 | OpportunitiesWorkspace.tsx, AutomationWorkspace.tsx, ItemsBoardView.tsx, CommandPalette.tsx | TrendRadar.tsx, CharityBriefing.tsx, ArbitrageScanner.tsx, ClearanceRadar.tsx, Listings.tsx | -- |
-| 4 | ItemsListView.tsx, ItemsFilters.tsx, ItemCard.tsx | UpgradeModal.tsx, constants.ts, Listings.tsx (split), Pricing.tsx | -- |
-
-## Database Changes Summary
-
-| Change | Sprint | Type |
-|--------|--------|------|
-| Add 6 columns to `listings` | 1 | Migration |
-| Create `item_activity` table + RLS | 1 | Migration |
-| Ensure `price_reports.listing_id` is reliably populated | 2 | Edge function update |
-
-## Risk Considerations
-
-- **No feature loss**: Every existing feature remains accessible, just reorganised into workspaces
-- **Route compatibility**: All existing routes kept; new routes added alongside
-- **Data safety**: Schema changes are additive only (new columns, new table) -- no destructive changes
-- **Sprint independence**: Each sprint delivers a shippable state; no sprint depends on a later one being complete
+**Files to modify lightly:**
+- `src/hooks/useSidebarBadges.ts`
+- `src/components/NextActionsInbox.tsx`
+- `src/lib/constants.ts` (remove VINTED_PRO feature flag)
+- `supabase/config.toml` (remove deleted function configs)
 
