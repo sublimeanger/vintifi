@@ -1,64 +1,192 @@
 
 
-# Fix: Unified Credit Engine Across All Edge Functions
+# Fix: Arbitrage Scanner Accuracy Overhaul
 
-## Problem
+## Root Cause
 
-All three credit-consuming edge functions have **different, broken** credit checking logic:
-
-1. **`optimize-listing`** — Artificially caps optimisations at 60% of `credits_limit` (the `Math.floor(c.credits_limit * 0.6)` bug). A user with 50 credits can only do 30 optimisations.
-2. **`price-check`** — Checks only `price_checks_used` against the full `credits_limit`, ignoring optimisations and vintography usage. A user could exhaust their pool via optimisations and still pass the price check gate.
-3. **`vintography`** — Uses a completely separate hardcoded `TIER_LIMITS` map (`free: 3, pro: 15, business: 50, scale: 999`) instead of the shared `credits_limit` from the database. Totally disconnected from the unified pool.
-
-None of them bypass the check for Scale/unlimited users.
-
-## Fix (All 3 Edge Functions)
-
-The unified logic for each function should be:
+The current flow is:
 
 ```text
-1. Fetch ALL usage columns: price_checks_used, optimizations_used, vintography_used, credits_limit
-2. If credits_limit >= 999 -> skip check (unlimited user)
-3. totalUsed = price_checks_used + optimizations_used + vintography_used
-4. If totalUsed >= credits_limit -> return 403 "Monthly credit limit reached"
-5. Otherwise proceed, then increment the relevant counter
+1. Firecrawl SEARCH (returns titles + snippets + URLs, almost NO prices)
+2. AI receives snippets like "Gucci Belt | Great condition | ebay.co.uk/itm/254667692479"
+3. Prompt says "extract price OR estimate" 
+4. AI INVENTS a price (£100 for a $599 item)
+5. User sees fake opportunity
 ```
 
-### File: `supabase/functions/optimize-listing/index.ts`
-- **Lines 183-197**: Change the credit check query to fetch all three usage columns
-- Remove the `optimLimit = Math.floor(c.credits_limit * 0.6)` line
-- Replace with: `totalUsed = price_checks + optimizations + vintography`, check `totalUsed >= credits_limit`
-- Add Scale bypass: `if (c.credits_limit >= 999) { /* skip check */ }`
+The AI has no actual price data to work with. It's hallucinating buy prices.
 
-### File: `supabase/functions/price-check/index.ts`
-- **Lines 100-112**: Change the credit check query to fetch all three usage columns
-- Replace `price_checks_used >= credits_limit` with `totalUsed >= credits_limit`
-- Add Scale bypass
+## The Fix: Scrape Before You Score
 
-### File: `supabase/functions/vintography/index.ts`
-- **Lines 114-120**: Remove the separate `TIER_LIMITS` map entirely
-- **Lines 198-211**: Replace with unified check — fetch all three usage columns from `usage_credits` plus `credits_limit`
-- Add Scale bypass
-- This is the biggest change: the function currently doesn't even read `credits_limit` from the database
+The new flow should be:
 
-### Optional: Add `-1 credit` toast on the frontend
-- In `src/pages/PriceCheck.tsx`, `src/pages/OptimizeListing.tsx`, and `src/pages/Vintography.tsx`: after a successful action, show a brief toast like "1 credit used" using sonner
-- Only show for non-unlimited users
-- This gives users clear feedback without cluttering the UI
+```text
+1. Firecrawl SEARCH (get URLs of relevant listings)
+2. Firecrawl SCRAPE top URLs individually (get REAL prices via structured extraction)  
+3. Apify gets Vinted baseline prices (already works)
+4. AI receives ACTUAL source prices + Vinted prices
+5. AI only calculates margin, never guesses prices
+6. Post-AI validation rejects any opportunity where source_price wasn't from real data
+```
 
-## Summary
+## Technical Changes
 
-| Function | Current Bug | Fix |
-|----------|------------|-----|
-| optimize-listing | 60% cap on optimisations | Unified totalUsed check + Scale bypass |
-| price-check | Only checks price_checks_used | Unified totalUsed check + Scale bypass |
-| vintography | Separate hardcoded limits, ignores credits_limit | Use shared credits_limit + Scale bypass |
-| Frontend toast | No feedback on credit spend | Optional `-1 credit` toast |
+### File: `supabase/functions/arbitrage-scan/index.ts`
+
+**1. Add a structured scrape step after search**
+
+After Firecrawl search returns URLs, scrape the top 3-5 actual listing pages using Firecrawl `/v1/scrape` with a structured extraction schema to pull real prices:
+
+```typescript
+const LISTING_PRICE_SCHEMA = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    price: { type: "number", description: "Current listing price in local currency" },
+    currency: { type: "string", description: "Currency code e.g. GBP, USD, EUR" },
+    condition: { type: "string" },
+    shipping_cost: { type: "number" },
+    seller_location: { type: "string" },
+    is_auction: { type: "boolean" },
+    buy_it_now_price: { type: "number" },
+  },
+  required: ["title", "price", "currency"],
+};
+```
+
+For each search result URL, fire a quick scrape to get the real price. This adds latency but gives accurate data.
+
+**2. Convert foreign currencies to GBP**
+
+eBay listings in USD or EUR need converting. Add a simple hardcoded rate map (updated periodically):
+
+```typescript
+const TO_GBP: Record<string, number> = {
+  GBP: 1, USD: 0.79, EUR: 0.85, // approximate
+};
+```
+
+**3. Rewrite the AI prompt to be strict about prices**
+
+The prompt must explicitly forbid price invention:
+
+```text
+CRITICAL RULES:
+- source_price MUST be the exact price from the structured data below. 
+- DO NOT estimate or invent any buy prices.
+- If a listing has no confirmed price, SKIP IT entirely.
+- Convert all prices to GBP using the rates provided.
+- Only include opportunities where BOTH source price AND Vinted price are from real data.
+```
+
+**4. Add post-AI validation**
+
+After parsing the AI JSON response, validate each opportunity:
+
+```typescript
+// Cross-reference AI output against actual scraped prices
+opportunities = opportunities.filter(opp => {
+  const scrapedItem = scrapedListings.find(s => 
+    s.url === opp.source_url || s.title === opp.source_title
+  );
+  if (!scrapedItem) return false; // AI invented this listing
+  
+  // Check price is within 10% of what was actually scraped
+  const priceDiff = Math.abs(opp.source_price - scrapedItem.price_gbp) / scrapedItem.price_gbp;
+  if (priceDiff > 0.1) {
+    opp.source_price = scrapedItem.price_gbp; // Correct it
+    opp.estimated_profit = opp.vinted_estimated_price - opp.source_price;
+    opp.profit_margin = ((opp.estimated_profit / opp.source_price) * 100);
+    opp.net_profit = opp.estimated_profit - (opp.shipping_estimate || 5);
+  }
+  
+  // Reject if margin is now below threshold
+  return opp.profit_margin >= minMargin;
+});
+```
+
+**5. Limit concurrent scrapes to manage API credits**
+
+Only scrape the top 5 URLs per platform (20 max total across 4 platforms) to keep Firecrawl credit usage reasonable. Each scrape costs 1 credit.
+
+### Revised `searchPlatform` function
+
+The function should now return both search snippets AND extracted listing URLs for follow-up scraping:
+
+```typescript
+async function searchPlatform(platform, searchTerm, apiKey) {
+  // Step 1: Search (as before)
+  const searchResults = await firecrawlSearch(...);
+  
+  // Step 2: Extract top 5 URLs that look like individual listings
+  const listingUrls = searchResults
+    .filter(r => r.url && isListingUrl(r.url, platform.name))
+    .slice(0, 5)
+    .map(r => r.url);
+  
+  // Step 3: Scrape each URL for structured price data
+  const scrapedListings = await Promise.all(
+    listingUrls.map(url => scrapeListingPrice(url, apiKey))
+  );
+  
+  return { platform: platform.name, searchResults, scrapedListings };
+}
+```
+
+### New helper: `isListingUrl`
+
+Filter out category/search pages and only scrape actual item listings:
+
+```typescript
+function isListingUrl(url: string, platform: string): boolean {
+  if (platform === "eBay") return url.includes("/itm/");
+  if (platform === "Depop") return url.includes("/products/");
+  if (platform === "Facebook Marketplace") return url.includes("/item/");
+  if (platform === "Gumtree") return /\/p\//.test(url);
+  return false;
+}
+```
+
+### New helper: `scrapeListingPrice`
+
+```typescript
+async function scrapeListingPrice(url: string, apiKey: string) {
+  const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url,
+      formats: ["extract"],
+      extract: { schema: LISTING_PRICE_SCHEMA },
+    }),
+  });
+  // ... parse and return with GBP conversion
+}
+```
+
+## Summary of Changes
+
+| Problem | Fix |
+|---------|-----|
+| AI invents buy prices | Scrape actual listing pages for real prices |
+| USD/EUR listings shown as GBP | Currency conversion step |
+| No validation of AI output | Post-AI cross-reference against scraped data |
+| Prompt allows "estimation" | Strict prompt forbids price invention |
+| Category URLs scraped instead of listings | `isListingUrl` filter |
+
+### Impact on API Credits
+
+Current: ~5 Firecrawl search calls per scan (1 per platform + 1 Vinted)
+New: ~5 searches + up to 20 individual scrapes = ~25 Firecrawl credits per scan
+
+This is still well within the 100K monthly allowance. At 200 scans/month that's 5,000 credits — 5% of the budget.
 
 ### Files to Modify
-- `supabase/functions/optimize-listing/index.ts` (lines 182-197)
-- `supabase/functions/price-check/index.ts` (lines 100-112)
-- `supabase/functions/vintography/index.ts` (lines 114-120, 198-211)
-- `src/pages/PriceCheck.tsx` (optional toast)
-- `src/pages/OptimizeListing.tsx` (optional toast)
-- `src/pages/Vintography.tsx` (optional toast)
+
+- `supabase/functions/arbitrage-scan/index.ts` — Complete rewrite of the data pipeline
+
+### Files NOT Changed
+
+- `src/pages/ArbitrageScanner.tsx` — Frontend stays the same, it already displays the fields correctly
+- `supabase/functions/clearance-radar/index.ts` — Already uses structured extraction (better architecture), but could benefit from the same validation pattern in future
+
