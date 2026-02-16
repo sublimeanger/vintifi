@@ -74,6 +74,7 @@ export default function PriceCheck() {
   const paramBrand = searchParams.get("brand") || "";
   const paramCategory = searchParams.get("category") || "";
   const paramCondition = searchParams.get("condition") || "";
+  const itemId = searchParams.get("itemId") || "";
   const hasManualParams = !!(paramBrand || paramCategory || paramCondition);
 
   const [url, setUrl] = useState(searchParams.get("url") || "");
@@ -126,6 +127,29 @@ export default function PriceCheck() {
 
       setReport(data);
       await refreshCredits();
+
+      // If opened from an item, update the listing and log activity
+      if (itemId && user) {
+        const updatePromises = [
+          supabase.from("listings").update({
+            recommended_price: data.recommended_price,
+            last_price_check_at: new Date().toISOString(),
+          }).eq("id", itemId).eq("user_id", user.id),
+          supabase.from("item_activity").insert({
+            user_id: user.id,
+            listing_id: itemId,
+            type: "price_checked",
+            payload: {
+              recommended_price: data.recommended_price,
+              confidence: data.confidence_score,
+              price_range_low: data.price_range_low,
+              price_range_high: data.price_range_high,
+            },
+          }),
+        ];
+        await Promise.all(updatePromises);
+      }
+
       toast.success("Price analysis complete!");
     } catch (err: any) {
       toast.error(err.message || "Analysis failed. Try again.");
@@ -533,35 +557,48 @@ export default function PriceCheck() {
               <RotateCcw className="w-4 h-4 mr-2" />
               New Analysis
             </Button>
-            {/* Save preview */}
-            <p className="text-[10px] sm:text-xs text-muted-foreground text-center sm:text-left">
-              Adding to inventory: <span className="font-semibold text-foreground">"{`${brand} ${category}`.trim() || url || "Untitled"}"</span>
-              {report.recommended_price != null && <> at guideline price <span className="font-semibold text-foreground">£{report.recommended_price.toFixed(0)}</span></>}
-            </p>
-            <Button
-              onClick={async () => {
-                if (!user) { toast.error("Sign in to save"); return; }
-                const { error } = await supabase.from("listings").insert({
-                  user_id: user.id,
-                  title: `${brand} ${category}`.trim() || url || "Untitled",
-                  brand: brand || null,
-                  category: category || null,
-                  condition: condition || null,
-                  purchase_price: report.buy_price_max || null,
-                  current_price: report.recommended_price,
-                  recommended_price: report.recommended_price,
-                  vinted_url: url || null,
-                  status: "active",
-                });
-                if (error) toast.error("Failed to save");
-                else toast.success("Saved to your inventory!");
-              }}
-              variant="outline"
-              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
-            >
-              <ShoppingBag className="w-4 h-4 mr-2" />
-              Save to Inventory
-            </Button>
+
+            {itemId ? (
+              <Button
+                onClick={() => navigate(`/items/${itemId}`)}
+                className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+              >
+                <ArrowRight className="w-4 h-4 mr-2" />
+                Back to Item
+              </Button>
+            ) : (
+              <>
+                {/* Save preview */}
+                <p className="text-[10px] sm:text-xs text-muted-foreground text-center sm:text-left">
+                  Adding to inventory: <span className="font-semibold text-foreground">"{`${brand} ${category}`.trim() || url || "Untitled"}"</span>
+                  {report.recommended_price != null && <> at guideline price <span className="font-semibold text-foreground">£{report.recommended_price.toFixed(0)}</span></>}
+                </p>
+                <Button
+                  onClick={async () => {
+                    if (!user) { toast.error("Sign in to save"); return; }
+                    const { error } = await supabase.from("listings").insert({
+                      user_id: user.id,
+                      title: `${brand} ${category}`.trim() || url || "Untitled",
+                      brand: brand || null,
+                      category: category || null,
+                      condition: condition || null,
+                      purchase_price: report.buy_price_max || null,
+                      current_price: report.recommended_price,
+                      recommended_price: report.recommended_price,
+                      vinted_url: url || null,
+                      status: "active",
+                    });
+                    if (error) toast.error("Failed to save");
+                    else toast.success("Saved to your inventory!");
+                  }}
+                  variant="outline"
+                  className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+                >
+                  <ShoppingBag className="w-4 h-4 mr-2" />
+                  Save to Inventory
+                </Button>
+              </>
+            )}
             <Button
               onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(brand)}&category=${encodeURIComponent(category)}`)}
               variant="outline"
