@@ -1026,7 +1026,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      reset_monthly_usage_credits: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

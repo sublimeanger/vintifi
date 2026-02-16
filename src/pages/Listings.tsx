@@ -102,7 +102,7 @@ export default function Listings() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("filter") || "all");
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") || searchParams.get("filter") || "all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
 
@@ -535,6 +535,11 @@ export default function Listings() {
         <Button variant="outline" size="icon" onClick={fetchListings} className="h-11 w-11 sm:h-10 sm:w-10 shrink-0">
           <RefreshCw className="w-4 h-4" />
         </Button>
+        {(profile?.subscription_tier === "business" || profile?.subscription_tier === "scale") && listings.filter(l => l.status === "active").length > 1 && (
+          <Button variant="outline" onClick={() => navigate("/bulk-optimize")} className="h-11 sm:h-10 shrink-0 text-xs sm:text-sm font-medium">
+            <Sparkles className="w-4 h-4 mr-1.5" /> Bulk Improve
+          </Button>
+        )}
       </div>
 
       {/* Status Chips */}

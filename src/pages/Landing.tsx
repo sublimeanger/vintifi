@@ -163,7 +163,7 @@ export default function Landing() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-6xl mx-auto">
             {(Object.entries(STRIPE_TIERS) as [TierKey, typeof STRIPE_TIERS[TierKey]][]).map(([key, tier], i) => {
               const isPopular = key === "pro";
-              const displayPrice = annual && tier.price > 0 ? (tier.price * 0.8).toFixed(2) : tier.price;
+              const displayPrice = annual && tier.price > 0 && 'annual_price' in tier ? ((tier as any).annual_price / 12).toFixed(2) : tier.price;
               return (
                 <motion.div
                   key={key}

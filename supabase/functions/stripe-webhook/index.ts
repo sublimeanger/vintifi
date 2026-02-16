@@ -27,6 +27,22 @@ const CREDIT_PACK_MAP: Record<string, number> = {
   "prod_TyqrLZZTTXPoMt": 50,
 };
 
+/** Find user by email using Supabase admin API with proper filtering */
+async function findUserByEmail(supabase: any, email: string): Promise<{ id: string; email: string } | null> {
+  // Use the admin API but paginate properly to find the user
+  let page = 1;
+  const perPage = 100;
+  while (true) {
+    const { data: { users }, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error || !users || users.length === 0) break;
+    const found = users.find((u: any) => u.email === email);
+    if (found) return { id: found.id, email: found.email };
+    if (users.length < perPage) break; // last page
+    page++;
+  }
+  return null;
+}
+
 serve(async (req) => {
   const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
     apiVersion: "2025-08-27.basil",
@@ -93,8 +109,7 @@ serve(async (req) => {
 
         // Handle subscription checkout
         if (session.mode === "subscription" && session.customer_email) {
-          const { data: users } = await supabase.auth.admin.listUsers();
-          const user = users.users.find((u) => u.email === session.customer_email);
+          const user = await findUserByEmail(supabase, session.customer_email);
           if (user) {
             const sub = await stripe.subscriptions.retrieve(session.subscription as string);
             const productId = (sub.items.data[0].price.product as string);
@@ -112,8 +127,7 @@ serve(async (req) => {
         const sub = event.data.object as Stripe.Subscription;
         const customer = await stripe.customers.retrieve(sub.customer as string) as Stripe.Customer;
         if (customer.email) {
-          const { data: users } = await supabase.auth.admin.listUsers();
-          const user = users.users.find((u) => u.email === customer.email);
+          const user = await findUserByEmail(supabase, customer.email);
           if (user) {
             if (sub.status === "active") {
               const productId = sub.items.data[0].price.product as string;
@@ -130,8 +144,7 @@ serve(async (req) => {
         const sub = event.data.object as Stripe.Subscription;
         const customer = await stripe.customers.retrieve(sub.customer as string) as Stripe.Customer;
         if (customer.email) {
-          const { data: users } = await supabase.auth.admin.listUsers();
-          const user = users.users.find((u) => u.email === customer.email);
+          const user = await findUserByEmail(supabase, customer.email);
           if (user) {
             await supabase.from("profiles").update({ subscription_tier: "free" }).eq("user_id", user.id);
             await supabase.from("usage_credits").update({ credits_limit: 5 }).eq("user_id", user.id);

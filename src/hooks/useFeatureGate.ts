@@ -49,7 +49,7 @@ const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
   cross_listings: { minTier: "business", usesCredits: false, label: "Cross-Listings" },
   portfolio_optimizer: { minTier: "pro", usesCredits: false, label: "Portfolio Optimiser" },
   charity_briefing: { minTier: "pro", usesCredits: false, label: "Charity Briefing" },
-  vintography: { minTier: "free", usesCredits: true, creditType: "price_checks", label: "Vintography" },
+  vintography: { minTier: "free", usesCredits: true, creditType: "optimizations", label: "Vintography" },
 };
 
 export function useFeatureGate(feature: FeatureKey) {
@@ -79,7 +79,7 @@ export function useFeatureGate(feature: FeatureKey) {
   if (!tierAllowed) {
     reason = `${config.label} requires a ${config.minTier.charAt(0).toUpperCase() + config.minTier.slice(1)} plan. You're on ${userTier.charAt(0).toUpperCase() + userTier.slice(1)}.`;
   } else if (creditsExhausted) {
-    reason = `You've used all your ${config.creditType === "price_checks" ? "price checks" : "optimisations"} this month.`;
+    reason = `You've used all your credits this month.`;
   }
 
   const showUpgrade = useCallback(() => setUpgradeOpen(true), []);
