@@ -325,6 +325,8 @@ function quickFallbackCategory(listing: any): string {
   const cat = (listing.category || "").toLowerCase();
   for (const [key, id] of Object.entries(EBAY_CATEGORY_FALLBACKS)) {
     if (cat.includes(key) || key.includes(cat)) return id;
+  }
+  return "11450";
 }
 
 // ─── Ensure eBay Merchant Location Exists ───
@@ -361,6 +363,4 @@ async function ensureMerchantLocation(accessToken: string) {
     console.error(`eBay location setup failed [${createRes.status}]: ${errorText}`);
     throw new Error(`eBay location setup failed [${createRes.status}]: ${errorText}`);
   }
-}
-  return "11450";
 }
