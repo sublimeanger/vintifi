@@ -150,7 +150,7 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
 
       const { error } = await supabase
         .from("listings")
-        .update({ image_url: newImageUrl, images: newImagesArray })
+        .update({ image_url: newImageUrl, images: newImagesArray, last_photo_edit_at: new Date().toISOString() })
         .eq("id", item.id)
         .eq("user_id", user.id);
       if (error) throw error;
