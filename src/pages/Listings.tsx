@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { HealthScoreMini } from "@/components/HealthScoreGauge";
-import { PublishModal } from "@/components/PublishModal";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,7 +23,7 @@ import {
   Plus, Search, Loader2, Package, Heart, Eye, Upload, Download,
   TrendingUp, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
-  PoundSterling, Calendar, Check, X, Pencil, Sparkles, Send,
+  PoundSterling, Calendar, Check, X, Pencil, Sparkles,
   ChevronDown, Tag, Ruler, ShieldCheck, Camera,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
@@ -105,16 +104,12 @@ export default function Listings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("filter") || "all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [publishListing, setPublishListing] = useState<Listing | null>(null);
-
-   
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editField, setEditField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-
 
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -145,9 +140,7 @@ export default function Listings() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchListings();
-  }, [user]);
+  useEffect(() => { fetchListings(); }, [user]);
 
   const handleDeleteListing = async (id: string) => {
     const { error } = await supabase.from("listings").delete().eq("id", id);
@@ -249,8 +242,6 @@ export default function Listings() {
     cancelEdit();
   };
 
-   
-
   const toggleExpand = (id: string) => {
     setExpandedId(prev => prev === id ? null : id);
   };
@@ -315,6 +306,26 @@ export default function Listings() {
       return;
     }
     setImportModalOpen(true);
+  };
+
+  const handleListOnEbay = async (listing: Listing) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("publish-to-platform", {
+        body: {
+          listing_id: listing.id,
+          platforms: [{ platform: "ebay", price_override: listing.current_price }],
+        },
+      });
+      if (error) throw error;
+      const result = data?.results?.ebay;
+      if (result?.success) {
+        toast.success("Listed on eBay!", { description: result.platform_url ? "View your listing on eBay" : undefined });
+      } else {
+        toast.error(result?.error || "Failed to list on eBay");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to list on eBay");
+    }
   };
 
   const headerActions = (
@@ -612,7 +623,6 @@ export default function Listings() {
                     <div
                       className="p-3 sm:p-4 cursor-pointer active:bg-muted/30 transition-colors"
                       onClick={(e) => {
-                        // Don't navigate if clicking interactive elements
                         const target = e.target as HTMLElement;
                         if (target.closest("button, input, select, [role='menuitem'], [data-radix-collection-item]")) return;
                         navigate(`/items/${listing.id}`);
@@ -712,8 +722,8 @@ export default function Listings() {
                                       <Camera className="w-4 h-4 mr-2 text-muted-foreground" /> Add & Enhance Photo
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuItem onClick={() => setPublishListing(listing)}>
-                                    <Send className="w-4 h-4 mr-2" /> Publish to Platforms
+                                  <DropdownMenuItem onClick={() => handleListOnEbay(listing)}>
+                                    <ExternalLink className="w-4 h-4 mr-2" /> List on eBay
                                   </DropdownMenuItem>
                                   {listing.vinted_url && (
                                     <DropdownMenuItem onClick={() => window.open(listing.vinted_url!, "_blank")}>
@@ -937,12 +947,6 @@ export default function Listings() {
         </div>
       )}
 
-      <PublishModal
-        open={!!publishListing}
-        onOpenChange={(open) => !open && setPublishListing(null)}
-        listing={publishListing}
-      />
-
       <UpgradeModal
         open={showUpgrade}
         onClose={() => setShowUpgrade(false)}
@@ -955,8 +959,6 @@ export default function Listings() {
         onClose={() => setImportModalOpen(false)}
         onSuccess={fetchListings}
       />
-
-      
     </PageShell>
   );
 }

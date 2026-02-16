@@ -51,14 +51,6 @@ const WORKSPACES: Workspace[] = [
     ],
   },
   {
-    icon: Bot, label: "Automation", path: "/relist",
-    items: [
-      { icon: Timer, label: "Relist Queue", path: "/relist" },
-      { icon: Layers, label: "Cross-Listings", path: "/cross-listings", tier: "business" },
-      { icon: Link2, label: "Connections", path: "/platforms", tier: "business" },
-    ],
-  },
-  {
     icon: BarChart3, label: "Analytics", path: "/analytics",
     items: [
       { icon: PieChart, label: "P&L Analytics", path: "/analytics" },

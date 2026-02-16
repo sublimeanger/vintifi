@@ -113,9 +113,7 @@ export const PRIMARY_GOALS = [
 ] as const;
 
 
-export const FEATURE_FLAGS = {
-  VINTED_PRO_ENABLED: false,
-} as const;
+export const FEATURE_FLAGS = {} as const;
 
 export const TIMEZONES = [
   { value: "Europe/London", label: "🇬🇧 London (GMT/BST)" },

@@ -20,16 +20,13 @@ import SettingsPage from "./pages/SettingsPage";
 import OptimizeListing from "./pages/OptimizeListing";
 import TrendRadar from "./pages/TrendRadar";
 import ArbitrageScanner from "./pages/ArbitrageScanner";
-
 import CompetitorTracker from "./pages/CompetitorTracker";
 import DeadStock from "./pages/DeadStock";
 import Analytics from "./pages/Analytics";
-import RelistScheduler from "./pages/RelistScheduler";
 import CharityBriefing from "./pages/CharityBriefing";
 import BulkOptimize from "./pages/BulkOptimize";
 import ClearanceRadar from "./pages/ClearanceRadar";
 import PlatformConnections from "./pages/PlatformConnections";
-import CrossListings from "./pages/CrossListings";
 import Vintography from "./pages/Vintography";
 import ItemDetail from "./pages/ItemDetail";
 import NotFound from "./pages/NotFound";
@@ -77,15 +74,15 @@ const App = () => (
             <Route path="/competitors" element={<ProtectedRoute><OnboardingGuard><CompetitorTracker /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/dead-stock" element={<ProtectedRoute><OnboardingGuard><DeadStock /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><OnboardingGuard><Analytics /></OnboardingGuard></ProtectedRoute>} />
-            <Route path="/relist" element={<ProtectedRoute><OnboardingGuard><RelistScheduler /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/charity-briefing" element={<ProtectedRoute><OnboardingGuard><CharityBriefing /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/bulk-optimize" element={<ProtectedRoute><OnboardingGuard><BulkOptimize /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/clearance-radar" element={<ProtectedRoute><OnboardingGuard><ClearanceRadar /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/platforms" element={<ProtectedRoute><OnboardingGuard><PlatformConnections /></OnboardingGuard></ProtectedRoute>} />
-            <Route path="/cross-listings" element={<ProtectedRoute><OnboardingGuard><CrossListings /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/vintography" element={<ProtectedRoute><OnboardingGuard><Vintography /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
-            {/* Redirects for merged routes */}
+            {/* Redirects for removed/merged routes */}
+            <Route path="/relist" element={<Navigate to="/dead-stock" replace />} />
+            <Route path="/cross-listings" element={<Navigate to="/listings" replace />} />
             <Route path="/portfolio" element={<Navigate to="/dead-stock" replace />} />
             <Route path="/seasonal" element={<Navigate to="/trends" replace />} />
             <Route path="/niche-finder" element={<Navigate to="/trends" replace />} />
