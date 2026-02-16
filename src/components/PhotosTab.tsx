@@ -6,7 +6,25 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
-import { ImageIcon, GripVertical, ArrowUp, ArrowDown, Save, Loader2 } from "lucide-react";
+import { ImageIcon, GripVertical, Save, Loader2 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type Listing = {
   id: string;
@@ -21,6 +39,65 @@ type Props = {
   onEditPhotos: () => void;
   onItemUpdate: (item: any) => void;
 };
+
+function SortableThumbnail({
+  url,
+  index,
+  isSelected,
+  onSelect,
+}: {
+  url: string;
+  index: number;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: url });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.7 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group">
+      <button
+        onClick={onSelect}
+        className={`aspect-square rounded-lg overflow-hidden border-2 transition-all w-full ${
+          isSelected
+            ? "border-primary ring-2 ring-primary/20"
+            : "border-border hover:border-primary/40"
+        }`}
+      >
+        <img src={url} alt={`Thumb ${index + 1}`} className="w-full h-full object-cover" />
+      </button>
+
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-1 left-1 w-6 h-6 rounded bg-background/80 border border-border flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 sm:group-hover:opacity-100 touch-none transition-opacity"
+        style={{ touchAction: "none" }}
+      >
+        <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+      </div>
+
+      {index === 0 && (
+        <span className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[8px] font-bold px-1.5 py-0.5 rounded">
+          Cover
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
   const { user } = useAuth();
@@ -38,18 +115,36 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
   const [photos, setPhotos] = useState<string[]>(allPhotosInit);
   const [hasReordered, setHasReordered] = useState(false);
 
-  const movePhoto = useCallback((from: number, to: number) => {
-    if (to < 0 || to >= photos.length) return;
-    setPhotos(prev => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setPhotos((prev) => {
+      const oldIndex = prev.indexOf(active.id as string);
+      const newIndex = prev.indexOf(over.id as string);
+      const next = arrayMove(prev, oldIndex, newIndex);
       return next;
     });
+
+    // Update selected index to follow the item if it was selected
+    setSelectedIdx((prevIdx) => {
+      const oldIndex = photos.indexOf(active.id as string);
+      const newIndex = photos.indexOf(over.id as string);
+      if (prevIdx === oldIndex) return newIndex;
+      if (prevIdx >= Math.min(oldIndex, newIndex) && prevIdx <= Math.max(oldIndex, newIndex)) {
+        return oldIndex < newIndex ? prevIdx - 1 : prevIdx + 1;
+      }
+      return prevIdx;
+    });
+
     setHasReordered(true);
-    // Keep selected on the moved item
-    setSelectedIdx(to);
-  }, [photos.length]);
+  }, [photos]);
 
   const handleSaveOrder = async () => {
     if (!user || !hasReordered) return;
@@ -69,7 +164,6 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
 
       if (error) throw error;
 
-      // Update parent state
       onItemUpdate((prev: any) => ({
         ...prev,
         image_url: newImageUrl,
@@ -106,6 +200,9 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
     );
   }
 
+  // Clamp selected index
+  const safeIdx = Math.min(selectedIdx, photos.length - 1);
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -126,17 +223,17 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
       {/* Large preview */}
       <Card className="overflow-hidden">
         <motion.div
-          key={photos[selectedIdx]}
+          key={photos[safeIdx]}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="aspect-[4/3] sm:aspect-[16/9] relative bg-muted"
         >
           <img
-            src={photos[selectedIdx]}
-            alt={`${item.title} — photo ${selectedIdx + 1}`}
+            src={photos[safeIdx]}
+            alt={`${item.title} — photo ${safeIdx + 1}`}
             className="w-full h-full object-contain"
           />
-          {selectedIdx === 0 && (
+          {safeIdx === 0 && (
             <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
               Cover
             </span>
@@ -144,48 +241,24 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
         </motion.div>
       </Card>
 
-      {/* Thumbnail strip with reorder controls */}
-      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-        {photos.map((url, i) => (
-          <div key={`${url}-${i}`} className="group relative">
-            <button
-              onClick={() => setSelectedIdx(i)}
-              className={`aspect-square rounded-lg overflow-hidden border-2 transition-all w-full ${
-                i === selectedIdx
-                  ? "border-primary ring-2 ring-primary/20"
-                  : "border-border hover:border-primary/40"
-              }`}
-            >
-              <img src={url} alt={`Thumb ${i + 1}`} className="w-full h-full object-cover" />
-            </button>
-
-            {/* Reorder arrows */}
-            <div className="absolute -right-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              {i > 0 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); movePhoto(i, i - 1); }}
-                  className="w-5 h-5 rounded bg-background/90 border border-border flex items-center justify-center hover:bg-muted"
-                >
-                  <ArrowUp className="w-3 h-3" />
-                </button>
-              )}
-              {i < photos.length - 1 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); movePhoto(i, i + 1); }}
-                  className="w-5 h-5 rounded bg-background/90 border border-border flex items-center justify-center hover:bg-muted"
-                >
-                  <ArrowDown className="w-3 h-3" />
-                </button>
-              )}
+      {/* Drag-and-drop thumbnail strip */}
+      <div>
+        <p className="text-[10px] text-muted-foreground mb-2">Drag thumbnails to reorder · first photo becomes the cover</p>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={photos} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              {photos.map((url, i) => (
+                <SortableThumbnail
+                  key={url}
+                  url={url}
+                  index={i}
+                  isSelected={i === safeIdx}
+                  onSelect={() => setSelectedIdx(i)}
+                />
+              ))}
             </div>
-
-            {i === 0 && (
-              <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[8px] font-bold px-1 rounded">
-                Cover
-              </span>
-            )}
-          </div>
-        ))}
+          </SortableContext>
+        </DndContext>
       </div>
 
       {item.last_photo_edit_at && (
