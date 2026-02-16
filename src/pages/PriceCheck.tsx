@@ -26,6 +26,7 @@ import {
 } from "recharts";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { SellSmartProgress } from "@/components/SellSmartProgress";
 
 type PriceReport = {
   recommended_price: number;
@@ -179,6 +180,8 @@ export default function PriceCheck() {
       subtitle={credits ? `${credits.credits_limit - credits.price_checks_used} checks remaining` : ""}
       maxWidth="max-w-4xl"
     >
+      <SellSmartProgress currentStep="price-check" className="mb-5" />
+
       <UseCaseSpotlight
         featureKey="price-check"
         icon={Search}

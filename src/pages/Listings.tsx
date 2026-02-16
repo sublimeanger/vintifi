@@ -46,6 +46,7 @@ import {
 import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { SellSmartProgress } from "@/components/SellSmartProgress";
 import { Crown } from "lucide-react";
 
 type Listing = {
@@ -461,6 +462,8 @@ export default function Listings() {
       actions={headerActions}
       maxWidth="max-w-5xl"
     >
+      <SellSmartProgress currentStep="inventory" className="mb-5" />
+
       <UseCaseSpotlight
         featureKey="listings"
         icon={Package}

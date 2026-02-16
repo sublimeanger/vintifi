@@ -22,6 +22,7 @@ import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PageShell } from "@/components/PageShell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { FeatureGate } from "@/components/FeatureGate";
+import { SellSmartProgress } from "@/components/SellSmartProgress";
 
 type HealthScore = {
   overall: number;
@@ -252,6 +253,7 @@ export default function OptimizeListing() {
       maxWidth="max-w-6xl"
     >
       <FeatureGate feature="optimize_listing">
+      <SellSmartProgress currentStep="optimise" className="mb-5" />
       <UseCaseSpotlight
         featureKey="optimize-listing"
         icon={Sparkles}
