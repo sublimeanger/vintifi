@@ -348,10 +348,11 @@ export default function ItemDetail() {
       subtitle={[item.brand, item.category, item.size].filter(Boolean).join(" · ")}
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handlePriceCheck}>
+          {/* Desktop: text buttons */}
+          <Button variant="outline" size="sm" onClick={handlePriceCheck} className="hidden sm:flex">
             <Search className="w-3.5 h-3.5 mr-1.5" /> Price
           </Button>
-          <Button variant="outline" size="sm" onClick={handleOptimise}>
+          <Button variant="outline" size="sm" onClick={handleOptimise} className="hidden sm:flex">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Improve
           </Button>
           <Button variant="outline" size="sm" onClick={() => setActiveTab("photos")} className="hidden sm:flex">
@@ -364,11 +365,18 @@ export default function ItemDetail() {
               </a>
             </Button>
           )}
+          {/* Mobile: icon-only buttons */}
+          <Button variant="outline" size="icon" onClick={handlePriceCheck} className="sm:hidden h-10 w-10">
+            <Search className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleOptimise} className="sm:hidden h-10 w-10">
+            <Sparkles className="w-4 h-4" />
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-10 w-10"><MoreHorizontal className="w-4 h-4" /></Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="bg-popover">
               <DropdownMenuItem onClick={() => setActiveTab("photos")} className="sm:hidden">
                 <ImageIcon className="w-3.5 h-3.5 mr-2" /> Photos
               </DropdownMenuItem>
@@ -388,16 +396,17 @@ export default function ItemDetail() {
       }
     >
       {/* Status + Next Action Bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <Badge variant="outline" className={status.className}>{status.label}</Badge>
-        {item.brand && <Badge variant="secondary"><Tag className="w-3 h-3 mr-1" />{item.brand}</Badge>}
-        {item.size && <Badge variant="secondary"><Ruler className="w-3 h-3 mr-1" />{item.size}</Badge>}
-        {item.condition && <Badge variant="secondary"><ShieldCheck className="w-3 h-3 mr-1" />{item.condition}</Badge>}
-        {item.colour && <Badge variant="secondary">{item.colour}</Badge>}
-        {item.material && <Badge variant="secondary">{item.material}</Badge>}
+      {/* Badge row — scrollable on mobile */}
+      <div className="flex items-center gap-3 mb-6 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
+        <Badge variant="outline" className={`${status.className} shrink-0`}>{status.label}</Badge>
+        {item.brand && <Badge variant="secondary" className="shrink-0"><Tag className="w-3 h-3 mr-1" />{item.brand}</Badge>}
+        {item.size && <Badge variant="secondary" className="shrink-0"><Ruler className="w-3 h-3 mr-1" />{item.size}</Badge>}
+        {item.condition && <Badge variant="secondary" className="shrink-0"><ShieldCheck className="w-3 h-3 mr-1" />{item.condition}</Badge>}
+        {item.colour && <Badge variant="secondary" className="shrink-0">{item.colour}</Badge>}
+        {item.material && <Badge variant="secondary" className="shrink-0">{item.material}</Badge>}
 
         {nextAction && (
-          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="ml-auto">
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="ml-auto shrink-0">
             <Button
               size="sm"
               className="font-semibold"
@@ -416,12 +425,12 @@ export default function ItemDetail() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="price">Price</TabsTrigger>
-          <TabsTrigger value="listing">Listing</TabsTrigger>
-          <TabsTrigger value="photos">Photos</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap gap-1 scrollbar-hide">
+          <TabsTrigger value="overview" className="min-w-fit">Overview</TabsTrigger>
+          <TabsTrigger value="price" className="min-w-fit">Price</TabsTrigger>
+          <TabsTrigger value="listing" className="min-w-fit">Listing</TabsTrigger>
+          <TabsTrigger value="photos" className="min-w-fit">Photos</TabsTrigger>
+          <TabsTrigger value="activity" className="min-w-fit">Activity</TabsTrigger>
         </TabsList>
 
         {/* ═══ OVERVIEW TAB ═══ */}
@@ -572,26 +581,46 @@ export default function ItemDetail() {
           {/* Workflow Progress */}
           <Card className="p-5">
             <h3 className="text-sm font-semibold mb-4">Item Workflow</h3>
-            <div className="flex items-center gap-2">
-              {[
+            {/* Mobile: compact summary */}
+            {(() => {
+              const steps = [
                 { label: "Priced", done: !!item.last_price_check_at, icon: Search },
                 { label: "Optimised", done: !!item.last_optimised_at, icon: Sparkles },
                 { label: "Photos", done: !!item.last_photo_edit_at || !!item.image_url, icon: ImageIcon },
                 { label: "Listed", done: item.status === "active" || item.status === "sold", icon: Package },
-              ].map((step, i) => (
-                <div key={step.label} className="flex items-center gap-2 flex-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                    step.done ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {step.done ? <Check className="w-4 h-4" /> : <step.icon className="w-3.5 h-3.5" />}
+              ];
+              const doneCount = steps.filter(s => s.done).length;
+              return (
+                <>
+                  {/* Mobile: condensed progress */}
+                  <div className="sm:hidden flex items-center gap-3">
+                    <p className="text-sm font-bold">{doneCount} of {steps.length}</p>
+                    <div className="flex-1 flex gap-1">
+                      {steps.map((step) => (
+                        <div key={step.label} className={`flex-1 h-2 rounded-full ${step.done ? "bg-success" : "bg-muted"}`} />
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">complete</p>
                   </div>
-                  <span className={`text-xs font-medium hidden sm:block ${step.done ? "text-foreground" : "text-muted-foreground"}`}>
-                    {step.label}
-                  </span>
-                  {i < 3 && <div className={`flex-1 h-px ${step.done ? "bg-success/40" : "bg-border"}`} />}
-                </div>
-              ))}
-            </div>
+                  {/* Desktop: full stepper */}
+                  <div className="hidden sm:flex items-center gap-2">
+                    {steps.map((step, i) => (
+                      <div key={step.label} className="flex items-center gap-2 flex-1">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                          step.done ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                        }`}>
+                          {step.done ? <Check className="w-4 h-4" /> : <step.icon className="w-3.5 h-3.5" />}
+                        </div>
+                        <span className={`text-xs font-medium ${step.done ? "text-foreground" : "text-muted-foreground"}`}>
+                          {step.label}
+                        </span>
+                        {i < 3 && <div className={`flex-1 h-px ${step.done ? "bg-success/40" : "bg-border"}`} />}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
           </Card>
         </TabsContent>
 

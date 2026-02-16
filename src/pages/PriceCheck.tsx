@@ -16,7 +16,7 @@ import { PageShell } from "@/components/PageShell";
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
   ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag, Eye,
-  ArrowRightLeft, Camera, Clock, Flame, Calculator, PoundSterling, Tag,
+  ArrowRightLeft, Camera, Clock, Flame, Calculator, PoundSterling, Tag, ChevronDown,
 } from "lucide-react";
 import { JourneyBanner } from "@/components/JourneyBanner";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -567,7 +567,7 @@ export default function PriceCheck() {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.04 }}
-                    className={`flex items-center justify-between p-3 rounded-xl transition-colors group ${
+                    className={`flex items-center justify-between p-4 sm:p-3 rounded-xl transition-colors group ${
                       item.sold
                         ? "bg-success/5 hover:bg-success/10 border border-success/10"
                         : "bg-muted/40 hover:bg-muted/60 border border-transparent"
@@ -619,17 +619,8 @@ export default function PriceCheck() {
             </Card>
           )}
 
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-center pt-2 pb-4 flex-wrap">
-            <Button
-              onClick={() => { setReport(null); setUrl(""); setBrand(""); setCategory(""); setCondition(""); setYourCost(""); }}
-              variant="outline"
-              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              New Analysis
-            </Button>
-
+          {/* Primary Actions */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-center pt-2 pb-2">
             {itemId ? (
               <Button
                 onClick={() => navigate(`/items/${itemId}`)}
@@ -639,42 +630,79 @@ export default function PriceCheck() {
                 Back to Item
               </Button>
             ) : (
-              <>
-                {/* Save preview */}
-                <p className="text-[10px] sm:text-xs text-muted-foreground text-center sm:text-left">
-                  Adding to inventory: <span className="font-semibold text-foreground">"{`${brand} ${category}`.trim() || url || "Untitled"}"</span>
-                  {report.recommended_price != null && <> at guideline price <span className="font-semibold text-foreground">£{report.recommended_price.toFixed(0)}</span></>}
-                </p>
-                <Button
-                  onClick={async () => {
-                    if (!user) { toast.error("Sign in to save"); return; }
-                    const { error } = await supabase.from("listings").insert({
-                      user_id: user.id,
-                      title: `${brand} ${category}`.trim() || url || "Untitled",
-                      brand: brand || null,
-                      category: category || null,
-                      condition: condition || null,
-                      purchase_price: report.buy_price_max || null,
-                      current_price: report.recommended_price,
-                      recommended_price: report.recommended_price,
-                      vinted_url: url || null,
-                      status: "active",
-                    });
-                    if (error) toast.error("Failed to save");
-                    else toast.success("Saved to your inventory!");
-                  }}
-                  variant="outline"
-                  className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
-                >
-                  <ShoppingBag className="w-4 h-4 mr-2" />
-                  Save to Inventory
-                </Button>
-              </>
+              <Button
+                onClick={async () => {
+                  if (!user) { toast.error("Sign in to save"); return; }
+                  const { error } = await supabase.from("listings").insert({
+                    user_id: user.id,
+                    title: `${brand} ${category}`.trim() || url || "Untitled",
+                    brand: brand || null,
+                    category: category || null,
+                    condition: condition || null,
+                    purchase_price: report.buy_price_max || null,
+                    current_price: report.recommended_price,
+                    recommended_price: report.recommended_price,
+                    vinted_url: url || null,
+                    status: "active",
+                  });
+                  if (error) toast.error("Failed to save");
+                  else toast.success("Saved to your inventory!");
+                }}
+                variant="outline"
+                className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+              >
+                <ShoppingBag className="w-4 h-4 mr-2" />
+                Save to Inventory
+              </Button>
             )}
+            <Button
+              onClick={() => navigate(`/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}${itemId ? `&itemId=${itemId}` : ""}`)}
+              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Optimise This Listing
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+            <Button
+              onClick={() => { setReport(null); setUrl(""); setBrand(""); setCategory(""); setCondition(""); setYourCost(""); }}
+              variant="outline"
+              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              New Analysis
+            </Button>
+          </div>
+
+          {/* Secondary Actions — collapsed on mobile */}
+          <details className="sm:hidden group pb-4">
+            <summary className="text-xs font-medium text-muted-foreground text-center cursor-pointer py-2 list-none flex items-center justify-center gap-1.5">
+              More Actions <ChevronDown className="w-3 h-3 group-open:rotate-180 transition-transform" />
+            </summary>
+            <div className="flex flex-col gap-2 mt-2">
+              <Button
+                onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(brand)}&category=${encodeURIComponent(category)}`)}
+                variant="outline"
+                className="w-full h-11 active:scale-95 transition-transform"
+              >
+                <ArrowRightLeft className="w-4 h-4 mr-2" />
+                Find Arbitrage Deals
+              </Button>
+              <Button
+                onClick={() => navigate(`/competitors?brand=${encodeURIComponent(brand)}`)}
+                variant="outline"
+                className="w-full h-11 active:scale-95 transition-transform"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Track This Brand
+              </Button>
+            </div>
+          </details>
+          {/* Desktop secondary actions inline */}
+          <div className="hidden sm:flex gap-3 justify-center pb-4">
             <Button
               onClick={() => navigate(`/arbitrage?brand=${encodeURIComponent(brand)}&category=${encodeURIComponent(category)}`)}
               variant="outline"
-              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+              className="h-10 active:scale-95 transition-transform"
             >
               <ArrowRightLeft className="w-4 h-4 mr-2" />
               Find Arbitrage Deals
@@ -682,32 +710,24 @@ export default function PriceCheck() {
             <Button
               onClick={() => navigate(`/competitors?brand=${encodeURIComponent(brand)}`)}
               variant="outline"
-              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
+              className="h-10 active:scale-95 transition-transform"
             >
               <Eye className="w-4 h-4 mr-2" />
               Track This Brand
             </Button>
-            <Button
-              onClick={() => navigate(`/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`)}
-              className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Optimise This Listing
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
           </div>
 
-          {/* Journey Banner */}
+          {/* Journey Banner — with itemId threading */}
           <JourneyBanner
             title="Listing Lifecycle"
             steps={[
               { label: "Price Check", path: "/price-check", icon: Search, completed: true },
-              { label: "Optimise", path: `/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`, icon: Sparkles },
-              { label: "Enhance Photos", path: "/vintography", icon: Camera },
+              { label: "Optimise", path: `/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}${itemId ? `&itemId=${itemId}` : ""}`, icon: Sparkles },
+              { label: "Enhance Photos", path: `/vintography${itemId ? `?itemId=${itemId}` : ""}`, icon: Camera },
               { label: "Inventory", path: "/listings", icon: ShoppingBag },
             ]}
             nextLabel="Optimise This Listing"
-            nextPath={`/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}`}
+            nextPath={`/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}${itemId ? `&itemId=${itemId}` : ""}`}
             nextIcon={Sparkles}
           />
         </motion.div>

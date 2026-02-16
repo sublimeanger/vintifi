@@ -187,6 +187,8 @@ export default function Dashboard() {
                   )}
                 </Card>
               ))}
+              {/* Spacer to prevent last card clipping */}
+              <div className="w-4 shrink-0" />
             </div>
           </div>
         )}

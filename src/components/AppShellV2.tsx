@@ -388,7 +388,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
       {sidebar}
       <div className="flex-1 flex flex-col min-w-0">
         {mobileHeader}
-        <main className="flex-1 pt-14 lg:pt-0 pb-24 lg:pb-0">
+        <main className="flex-1 pt-14 lg:pt-0 pb-28 lg:pb-0">
           <div className={cn("container mx-auto px-4 py-6 sm:py-8", maxWidth)}>
             {children}
           </div>
