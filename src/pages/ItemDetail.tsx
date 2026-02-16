@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { EbayPublishDialog } from "@/components/EbayPublishDialog";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -836,28 +835,6 @@ export default function ItemDetail() {
         </TabsContent>
       </Tabs>
 
-      {/* eBay Pre-Publish Dialog */}
-      {item && (
-        <EbayPublishDialog
-          open={ebayDialogOpen}
-          onOpenChange={setEbayDialogOpen}
-          listing={item}
-          publishing={ebayPublishing}
-          onPublish={(editedListing) => {
-            setItem(editedListing as Listing);
-            setEbayDialogOpen(false);
-            handlePublishToEbay();
-          }}
-          onOptimise={() => {
-            setEbayDialogOpen(false);
-            handleOptimise();
-          }}
-          onSave={async (updates) => {
-            await supabase.from("listings").update(updates as any).eq("id", item.id);
-            setItem((prev) => prev ? { ...prev, ...updates } : prev);
-          }}
-        />
-      )}
     </PageShell>
   );
 }

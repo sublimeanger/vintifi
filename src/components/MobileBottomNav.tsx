@@ -1,15 +1,14 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Search, Tag, TrendingUp, Settings,
+  LayoutDashboard, Package, ImageIcon, Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 const tabs = [
   { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
-  { icon: Search, label: "Price", path: "/price-check" },
-  { icon: Tag, label: "Listings", path: "/listings" },
-  { icon: TrendingUp, label: "Trends", path: "/trends" },
+  { icon: Package, label: "Items", path: "/listings" },
+  { icon: ImageIcon, label: "Photos", path: "/vintography" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 

@@ -27,7 +27,7 @@ import {
   Tag, Ruler, ShieldCheck, Camera, ShoppingBag,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
-import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+
 import { ImportWardrobeModal } from "@/components/ImportWardrobeModal";
 import { NewItemWizard } from "@/components/NewItemWizard";
 import {
@@ -350,12 +350,6 @@ export default function Listings() {
       <Button variant="outline" size="icon" onClick={handleImportClick} className="sm:hidden h-10 w-10" title="Import CSV">
         <Download className="w-4 h-4" />
       </Button>
-      <Button variant="outline" size="sm" onClick={() => navigate("/bulk-optimize")} className="font-semibold hidden sm:flex h-9">
-        <Upload className="w-3.5 h-3.5 mr-1.5" /> Bulk
-      </Button>
-      <Button variant="outline" size="icon" onClick={() => navigate("/bulk-optimize")} className="sm:hidden h-10 w-10">
-        <Upload className="w-4 h-4" />
-      </Button>
       <Button size="sm" className="font-semibold hidden sm:flex h-9" onClick={() => setAddDialogOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
           </Button>
@@ -380,16 +374,7 @@ export default function Listings() {
       actions={headerActions}
       maxWidth="max-w-5xl"
     >
-      
 
-      <UseCaseSpotlight
-        featureKey="listings"
-        icon={Package}
-        scenario="You have items scattered everywhere and can't remember what you paid for half of them..."
-        description="Without a central inventory, you can't track margins, spot dead stock, or know your true portfolio value."
-        outcome="My Listings gives you a single view of everything: purchase price, current price, days listed, and health score at a glance."
-        tip="Add purchase prices when creating listings — it unlocks profit tracking across the whole app."
-      />
 
       {/* Stats Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-5 sm:mb-6">
