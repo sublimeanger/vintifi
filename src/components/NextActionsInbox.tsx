@@ -72,7 +72,7 @@ export function NextActionsInbox() {
             image_url: item.image_url,
             action: "stale",
             actionLabel: "Review",
-            actionPath: `/dead-stock`,
+            actionPath: `/items/${item.id}`,
             icon: Timer,
             priority: 2,
           });

@@ -24,7 +24,7 @@ import {
   TrendingUp, ExternalLink, Trash2,
   RefreshCw, MoreVertical, Zap, Filter, AlertTriangle,
   PoundSterling, Calendar, Check, X, Pencil, Sparkles,
-  ChevronDown, Tag, Ruler, ShieldCheck, Camera, ShoppingBag,
+  Tag, Ruler, ShieldCheck, Camera, ShoppingBag,
 } from "lucide-react";
 import { ListingCardSkeleton } from "@/components/LoadingSkeletons";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
@@ -623,8 +623,6 @@ export default function Listings() {
               const isDeadStock = listing.status === "active" && daysListed >= 30;
               const health = getHealthIndicator(listing.health_score);
               const profit = getProfit(listing);
-              const isExpanded = expandedId === listing.id;
-
               return (
                 <motion.div
                   key={listing.id}
@@ -633,7 +631,7 @@ export default function Listings() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ delay: i * 0.03 }}
                 >
-                  <Card className={`overflow-hidden transition-all ${isDeadStock ? "border-destructive/30 bg-destructive/[0.01]" : ""} ${isExpanded ? "ring-1 ring-primary/20 shadow-md" : "hover:shadow-md"}`}>
+                  <Card className={`overflow-hidden transition-all ${isDeadStock ? "border-destructive/30 bg-destructive/[0.01]" : ""} hover:shadow-md`}>
                     {/* Collapsed row — clickable */}
                     <div
                       className="p-3 sm:p-4 cursor-pointer active:bg-muted/30 transition-colors"
@@ -719,7 +717,6 @@ export default function Listings() {
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
-                              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-8 sm:w-8 shrink-0">
@@ -734,7 +731,7 @@ export default function Listings() {
                                     <Sparkles className="w-4 h-4 mr-2" /> Optimise Listing
                                   </DropdownMenuItem>
                                   {listing.image_url ? (
-                                    <DropdownMenuItem onClick={() => navigate(`/vintography?image_url=${encodeURIComponent(listing.image_url!)}`)}>
+                                    <DropdownMenuItem onClick={() => navigate(`/vintography?itemId=${listing.id}&image_url=${encodeURIComponent(listing.image_url!)}`)}>
                                       <Camera className="w-4 h-4 mr-2" /> Enhance Photos
                                     </DropdownMenuItem>
                                   ) : (
@@ -864,107 +861,6 @@ export default function Listings() {
                       </div>
                     </div>
 
-                    {/* Expanded Detail Panel */}
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2, ease: "easeInOut" }}
-                          className="overflow-hidden"
-                        >
-                          <div className="border-t border-border px-3 sm:px-4 py-4 space-y-4 bg-muted/20">
-                            {/* Image + Description row */}
-                            <div className="flex flex-col sm:flex-row gap-4">
-                              {listing.image_url && (
-                                <div className="w-full sm:w-40 h-40 sm:h-40 rounded-xl overflow-hidden bg-muted shrink-0">
-                                  <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover" />
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Description</h4>
-                                {listing.description ? (
-                                  <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                                    {listing.description}
-                                  </p>
-                                ) : (
-                                  <div className="p-3 rounded-lg border border-dashed border-border bg-muted/30 text-center">
-                                    <p className="text-sm text-muted-foreground mb-2">No description yet</p>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="text-xs font-semibold"
-                                      onClick={() => handleOptimiseListing(listing)}
-                                    >
-                                      <Sparkles className="w-3 h-3 mr-1.5" /> Generate with AI
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Metadata grid */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                              {listing.size && (
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Ruler className="w-3.5 h-3.5 text-muted-foreground" />
-                                  <span className="text-muted-foreground">Size:</span>
-                                  <span className="font-medium">{listing.size}</span>
-                                </div>
-                              )}
-                              {listing.condition && (
-                                <div className="flex items-center gap-2 text-sm">
-                                  <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" />
-                                  <span className="text-muted-foreground">Condition:</span>
-                                  <span className="font-medium">{listing.condition}</span>
-                                </div>
-                              )}
-                              {listing.brand && (
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                                  <span className="text-muted-foreground">Brand:</span>
-                                  <span className="font-medium">{listing.brand}</span>
-                                </div>
-                              )}
-                              {listing.category && (
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Package className="w-3.5 h-3.5 text-muted-foreground" />
-                                  <span className="text-muted-foreground">Category:</span>
-                                  <span className="font-medium">{listing.category}</span>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Health Score bar */}
-                            {listing.health_score != null && (
-                              <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Health Score</span>
-                                  <span className={`text-sm font-bold ${health.textColor}`}>{listing.health_score}%</span>
-                                </div>
-                                <Progress value={listing.health_score} className="h-2" />
-                              </div>
-                            )}
-
-                            {/* Action buttons */}
-                            <div className="flex flex-wrap gap-2 pt-1">
-                              <Button size="sm" variant="outline" className="text-xs font-semibold h-9" onClick={() => handlePriceCheck(listing)}>
-                                <Zap className="w-3 h-3 mr-1.5" /> Price Check
-                              </Button>
-                              <Button size="sm" variant="outline" className="text-xs font-semibold h-9" onClick={() => handleOptimiseListing(listing)}>
-                                <Sparkles className="w-3 h-3 mr-1.5" /> Optimise
-                              </Button>
-                              {listing.vinted_url && (
-                                <Button size="sm" variant="outline" className="text-xs font-semibold h-9" onClick={() => window.open(listing.vinted_url!, "_blank")}>
-                                  <ExternalLink className="w-3 h-3 mr-1.5" /> View on Vinted
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                   </Card>
                 </motion.div>
               );

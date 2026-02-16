@@ -115,6 +115,7 @@ export default function ItemDetail() {
   const [ebay, setEbay] = useState<EbayStatus>({ status: "not_connected" });
   const [ebayPublishing, setEbayPublishing] = useState(false);
   const [ebayDialogOpen, setEbayDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     if (!user || !id) return;
@@ -210,7 +211,7 @@ export default function ItemDetail() {
     navigate(`/optimize?${params.toString()}`);
   };
 
-  const handlePhotos = () => {
+  const handlePhotoStudio = () => {
     if (!item) return;
     navigate(`/vintography?itemId=${item.id}`);
   };
@@ -258,7 +259,7 @@ export default function ItemDetail() {
           <Button variant="outline" size="sm" onClick={handleOptimise}>
             <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Improve
           </Button>
-          <Button variant="outline" size="sm" onClick={handlePhotos} className="hidden sm:flex">
+          <Button variant="outline" size="sm" onClick={() => setActiveTab("photos")} className="hidden sm:flex">
             <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> Photos
           </Button>
           {item.vinted_url && (
@@ -273,8 +274,8 @@ export default function ItemDetail() {
               <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handlePhotos} className="sm:hidden">
-                <ImageIcon className="w-3.5 h-3.5 mr-2" /> Edit Photos
+              <DropdownMenuItem onClick={() => setActiveTab("photos")} className="sm:hidden">
+                <ImageIcon className="w-3.5 h-3.5 mr-2" /> Photos
               </DropdownMenuItem>
               {item.vinted_url && (
                 <DropdownMenuItem asChild className="sm:hidden">
@@ -308,7 +309,7 @@ export default function ItemDetail() {
               onClick={() => {
                 if (nextAction.action === "price") handlePriceCheck();
                 else if (nextAction.action === "optimise") handleOptimise();
-                else if (nextAction.action === "photos") handlePhotos();
+                else if (nextAction.action === "photos") setActiveTab("photos");
               }}
             >
               <nextAction.icon className="w-3.5 h-3.5 mr-1.5" />
@@ -319,7 +320,7 @@ export default function ItemDetail() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="price">Price</TabsTrigger>
@@ -444,7 +445,7 @@ export default function ItemDetail() {
               {[
                 { label: "Priced", done: !!item.last_price_check_at, icon: Search },
                 { label: "Optimised", done: !!item.last_optimised_at, icon: Sparkles },
-                { label: "Photos", done: !!item.last_photo_edit_at, icon: ImageIcon },
+                { label: "Photos", done: !!item.last_photo_edit_at || !!item.image_url, icon: ImageIcon },
                 { label: "Listed", done: item.status === "active" || item.status === "sold", icon: Package },
               ].map((step, i) => (
                 <div key={step.label} className="flex items-center gap-2 flex-1">
@@ -596,7 +597,7 @@ export default function ItemDetail() {
 
         {/* ═══ PHOTOS TAB ═══ */}
         <TabsContent value="photos" className="space-y-6">
-          <PhotosTab item={item} onEditPhotos={handlePhotos} onItemUpdate={setItem} />
+          <PhotosTab item={item} onEditPhotos={handlePhotoStudio} onItemUpdate={setItem} />
         </TabsContent>
 
         {/* ═══ ACTIVITY TAB ═══ */}
