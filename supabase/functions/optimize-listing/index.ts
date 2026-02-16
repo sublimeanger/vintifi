@@ -229,6 +229,8 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
   "detected_brand": "<detected or confirmed brand>",
   "detected_category": "<detected or confirmed category>",
   "detected_condition": "<assessed condition>",
+  "detected_colour": "<detected primary colour, e.g. Black, Navy Blue, Red>",
+  "detected_material": "<detected primary material, e.g. Cotton, Leather, Polyester>",
   "health_score": {
     "overall": <0-100>,
     "title_score": <0-25>,

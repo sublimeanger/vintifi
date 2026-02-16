@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Sparkles, Copy, Check, Save,
   ImagePlus, X, Camera, Globe, Languages, ArrowRight,
-  Search, ShoppingBag, Link, ExternalLink,
+  Search, ShoppingBag, Link, ExternalLink, Tag,
 } from "lucide-react";
 import { JourneyBanner } from "@/components/JourneyBanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -41,6 +41,8 @@ type OptimiseResult = {
   detected_brand: string;
   detected_category: string;
   detected_condition: string;
+  detected_colour: string;
+  detected_material: string;
   health_score: HealthScore;
   improvements: string[];
   style_notes: string;
@@ -191,6 +193,8 @@ export default function OptimizeListing() {
         if (data.detected_brand) updatePayload.brand = data.detected_brand;
         if (data.detected_category) updatePayload.category = data.detected_category;
         if (data.detected_condition) updatePayload.condition = data.detected_condition;
+        if (data.detected_colour) updatePayload.colour = data.detected_colour;
+        if (data.detected_material) updatePayload.material = data.detected_material;
 
         await supabase
           .from("listings")
@@ -234,6 +238,8 @@ export default function OptimizeListing() {
         brand: result.detected_brand || brand || null,
         category: result.detected_category || category || null,
         condition: result.detected_condition || condition || null,
+        colour: result.detected_colour || null,
+        material: result.detected_material || null,
         size: size || null,
         health_score: result.health_score.overall,
         image_url: photoPreviewUrls[0] || null,
@@ -493,6 +499,20 @@ export default function OptimizeListing() {
                   ))}
                 </div>
               </Card>
+
+              {/* Detected Metadata */}
+              {(result.detected_brand || result.detected_colour || result.detected_material) && (
+                <Card className="p-4 sm:p-6">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Detected Details</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {result.detected_brand && <Badge variant="secondary"><Tag className="w-3 h-3 mr-1" />{result.detected_brand}</Badge>}
+                    {result.detected_category && <Badge variant="secondary">{result.detected_category}</Badge>}
+                    {result.detected_condition && <Badge variant="secondary">{result.detected_condition}</Badge>}
+                    {result.detected_colour && <Badge variant="secondary">{result.detected_colour}</Badge>}
+                    {result.detected_material && <Badge variant="secondary">{result.detected_material}</Badge>}
+                  </div>
+                </Card>
+              )}
 
               {/* Improvements & Style */}
               {result.improvements.length > 0 && (
