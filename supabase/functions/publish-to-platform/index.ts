@@ -252,12 +252,16 @@ function buildAspects(listing: any): Record<string, string[]> {
 }
 
 function mapConditionToEbay(condition: string | null): string {
-  const map: Record<string, string> = {
-    "new": "NEW", "new with tags": "NEW_WITH_TAGS", "new without tags": "NEW_WITHOUT_TAGS",
-    "excellent": "USED_EXCELLENT", "very good": "USED_VERY_GOOD",
-    "good": "USED_GOOD", "satisfactory": "USED_ACCEPTABLE",
-  };
-  return map[(condition || "").toLowerCase()] || "USED_GOOD";
+  // eBay clothing categories only support NEW, NEW_WITH_TAGS, NEW_WITHOUT_TAGS,
+  // and USED_EXCELLENT. Other used grades (USED_VERY_GOOD, USED_GOOD, USED_ACCEPTABLE)
+  // are NOT valid for most clothing/fashion categories and cause 400 errors.
+  // Safe mapping: all used conditions → USED_EXCELLENT
+  const c = (condition || "").toLowerCase();
+  if (c === "new") return "NEW";
+  if (c === "new with tags" || c === "nwt") return "NEW_WITH_TAGS";
+  if (c === "new without tags" || c === "nwot") return "NEW_WITHOUT_TAGS";
+  // All used conditions map to USED_EXCELLENT (universally accepted)
+  return "USED_EXCELLENT";
 }
 
 // ─── AI-Powered eBay Category Detection ───
