@@ -1,84 +1,88 @@
 
 
-## Fix: eBay "Location information not found" Error
+## Fix: Send ALL Listing Images to eBay
 
-### Root Cause
+### Problem Found
 
-The `publish-to-platform` edge function creates an offer with `merchantLocationKey: "default"` (line 170), but never creates that merchant location in the eBay Inventory API first. eBay requires at least one merchant location to exist before offers can reference it.
+The `publish-to-platform` edge function currently only sends **1 image** to eBay, even when the listing has multiple photos stored in the `images` JSONB column.
+
+**Current code (line 154):**
+```
+imageUrls: listing.image_url ? [listing.image_url] : []
+```
+
+Your M&S Turquoise blouse has **5 photos** in the database, but only the first one would be sent to eBay. eBay supports up to 12 images per listing, and more photos significantly increase sell-through rates.
+
+### What the Data Looks Like
+
+| Column | Content |
+|--------|---------|
+| `image_url` | Single URL (the primary/hero image) |
+| `images` | JSONB array of ALL image URLs (including edited/optimised photos from Vintography) |
 
 ### The Fix
 
 **File: `supabase/functions/publish-to-platform/index.ts`**
 
-Add a step **before** the offer creation (Step 2) that ensures the merchant location exists. This uses eBay's `createInventoryLocation` endpoint:
+Replace the single-image line with logic that:
 
-1. **Add a new `ensureMerchantLocation` function** that:
-   - Calls `GET /sell/inventory/v1/location/default` to check if "default" already exists
-   - If it returns 404, calls `PUT /sell/inventory/v1/location/default` to create it with:
-     - `location.country: "GB"`
-     - `location.postalCode` from the seller's profile (fallback to a generic UK value like "SW1A 1AA")
-     - `name: "Default Location"`
-     - `merchantLocationStatus: "ENABLED"`
-     - `locationTypes: ["WAREHOUSE"]`
-   - If it already exists (200/204), does nothing
+1. Reads the `images` JSONB array first (this contains all photos, including any Vintography-edited versions)
+2. Falls back to `image_url` if `images` is empty
+3. Caps at 12 images (eBay's maximum)
+4. Deduplicates URLs in case `image_url` overlaps with `images`
 
-2. **Call `ensureMerchantLocation`** in `publishToEbay` right before Step 2 (offer creation), passing the access token
-
-3. **Optional profile enhancement**: Store the seller's postcode in the `platform_connections.auth_data` JSONB during eBay OAuth, so the location uses their real postcode. For now, use a sensible UK default.
-
-### Code Shape
-
+**Before:**
 ```typescript
-async function ensureMerchantLocation(accessToken: string) {
-  const checkRes = await fetch(
-    "https://api.ebay.com/sell/inventory/v1/location/default",
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (checkRes.ok) return; // already exists
+imageUrls: listing.image_url ? [listing.image_url] : [],
+```
 
-  const createRes = await fetch(
-    "https://api.ebay.com/sell/inventory/v1/location/default",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        location: {
-          address: {
-            postalCode: "SW1A 1AA",
-            country: "GB",
-          },
-        },
-        name: "Default Location",
-        merchantLocationStatus: "ENABLED",
-        locationTypes: ["WAREHOUSE"],
-      }),
+**After:**
+```typescript
+imageUrls: buildImageUrls(listing),
+```
+
+**New helper function:**
+```typescript
+function buildImageUrls(listing: any): string[] {
+  const urls: string[] = [];
+
+  // Prefer the images array (includes Vintography edits)
+  if (Array.isArray(listing.images)) {
+    for (const u of listing.images) {
+      if (typeof u === "string" && u.startsWith("http")) urls.push(u);
     }
-  );
-  if (!createRes.ok && createRes.status !== 409) {
-    throw new Error(
-      `eBay location setup failed [${createRes.status}]: ${await createRes.text()}`
-    );
   }
+
+  // Fallback to image_url if images array was empty
+  if (urls.length === 0 && listing.image_url) {
+    urls.push(listing.image_url);
+  }
+
+  // Deduplicate and cap at 12 (eBay max)
+  return [...new Set(urls)].slice(0, 12);
 }
 ```
 
-Then in `publishToEbay`, between Step 1 and Step 2:
-```typescript
-// Step 1.5: Ensure merchant location exists
-await ensureMerchantLocation(accessToken);
-```
+### Image Priority Logic
 
-### Why This Works
-- eBay's Inventory API requires a location before offers can be created
-- The location only needs to be created once per seller account — subsequent publishes will see it already exists and skip
-- Using `"default"` as the key matches the `merchantLocationKey` already referenced in the offer payload
-- 409 (Conflict) is handled gracefully in case of race conditions
+The `images` array is the source of truth because:
+- When importing from Vinted, all scraped photos go into `images`
+- When using Vintography (Photo Studio), edited photos are appended to `images`
+- `image_url` is just the hero/thumbnail and is always also in `images`
 
-### Files Changed
+This means if a user has enhanced their photos through Vintography, the **optimised versions** will automatically be sent to eBay.
+
+### Also Updating: ebay-preview Validation
+
+**File: `supabase/functions/ebay-preview/index.ts`**
+
+Add an image count warning to the preview so users see photo status before publishing:
+- 0 photos: warning "No photos — eBay listings without photos rarely sell"
+- 1-2 photos: warning "Only X photos — eBay recommends 3+ for best results"
+
+### Summary of Changes
+
 | File | Change |
 |------|--------|
-| `supabase/functions/publish-to-platform/index.ts` | Add `ensureMerchantLocation` function, call it before offer creation |
-
+| `supabase/functions/publish-to-platform/index.ts` | Add `buildImageUrls` helper, use it in inventory item payload to send all images (up to 12) |
+| `supabase/functions/ebay-preview/index.ts` | Add image count to preview warnings |
