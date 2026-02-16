@@ -18,8 +18,6 @@ verify_jwt = false
 [functions.fetch-trends]
 verify_jwt = false
 
-[functions.lobstr-sync]
-verify_jwt = false
 
 [functions.arbitrage-scan]
 verify_jwt = false
@@ -60,8 +58,8 @@ verify_jwt = false
 [functions.connect-ebay]
 verify_jwt = false
 
-[functions.sync-platform-status]
-verify_jwt = false
+
+[functions.vintography]
 
 [functions.vintography]
 verify_jwt = false
@@ -70,4 +68,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.scrape-vinted-url]
+verify_jwt = false
+
+[functions.buy-credits]
+verify_jwt = false
+
+[functions.ebay-preview]
 verify_jwt = false
