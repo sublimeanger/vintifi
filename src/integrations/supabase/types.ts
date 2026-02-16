@@ -485,12 +485,14 @@ export type Database = {
           display_name: string | null
           experience_level: string | null
           id: string
+          milestones_shown: string[] | null
           onboarding_completed: boolean
           primary_goal: string | null
           referral_code: string | null
           selling_categories: string[] | null
           subscription_tier: string
           timezone: string
+          tour_completed: boolean | null
           updated_at: string
           user_id: string
           weekly_digest_enabled: boolean
@@ -501,12 +503,14 @@ export type Database = {
           display_name?: string | null
           experience_level?: string | null
           id?: string
+          milestones_shown?: string[] | null
           onboarding_completed?: boolean
           primary_goal?: string | null
           referral_code?: string | null
           selling_categories?: string[] | null
           subscription_tier?: string
           timezone?: string
+          tour_completed?: boolean | null
           updated_at?: string
           user_id: string
           weekly_digest_enabled?: boolean
@@ -517,12 +521,14 @@ export type Database = {
           display_name?: string | null
           experience_level?: string | null
           id?: string
+          milestones_shown?: string[] | null
           onboarding_completed?: boolean
           primary_goal?: string | null
           referral_code?: string | null
           selling_categories?: string[] | null
           subscription_tier?: string
           timezone?: string
+          tour_completed?: boolean | null
           updated_at?: string
           user_id?: string
           weekly_digest_enabled?: boolean

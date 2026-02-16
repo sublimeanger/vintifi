@@ -73,7 +73,6 @@ const navSections = [
   {
     label: "Account",
     items: [
-      { icon: CreditCard, label: "Billing", path: "/settings" },
       { icon: Settings, label: "Settings", path: "/settings" },
     ],
   },
@@ -93,7 +92,7 @@ type PriceReport = {
 
 const metricConfig = [
   { icon: Package, label: "Active Listings", color: "text-primary", border: "border-l-primary", tint: "border-primary/10 bg-primary/[0.03]", path: "/listings" },
-  { icon: DollarSign, label: "Portfolio Value", color: "text-success", border: "border-l-success", tint: "border-success/10 bg-success/[0.03]", path: "/portfolio" },
+  { icon: DollarSign, label: "Portfolio Value", color: "text-success", border: "border-l-success", tint: "border-success/10 bg-success/[0.03]", path: "/analytics" },
   { icon: ShoppingBag, label: "Sold This Week", color: "text-accent", border: "border-l-accent", tint: "border-accent/10 bg-accent/[0.03]", path: "/analytics" },
   { icon: Zap, label: "Monthly Profit", color: "text-primary", border: "border-l-primary", tint: "border-primary/10 bg-primary/[0.03]", path: "/analytics" },
 ];

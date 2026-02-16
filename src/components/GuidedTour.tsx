@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { X, ChevronRight, ChevronLeft, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_KEY = "vintifi_tour_completed";
 
@@ -41,16 +43,23 @@ type Position = { top: number; left: number; width: number; height: number };
 
 export function GuidedTour() {
   const isMobile = useIsMobile();
+  const { profile, user, refreshProfile } = useAuth();
   const [active, setActive] = useState(false);
   const [step, setStep] = useState(0);
   const [pos, setPos] = useState<Position | null>(null);
   const rafRef = useRef<number>();
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY) || isMobile) return;
+    if (isMobile || !profile || !user) return;
+    // Check DB first (authoritative), localStorage as fast cache
+    if (profile.tour_completed || localStorage.getItem(STORAGE_KEY)) {
+      // Ensure localStorage is in sync
+      localStorage.setItem(STORAGE_KEY, "true");
+      return;
+    }
     const timer = setTimeout(() => setActive(true), 600);
     return () => clearTimeout(timer);
-  }, [isMobile]);
+  }, [isMobile, profile, user]);
 
   const updatePosition = useCallback(() => {
     if (!active) return;
@@ -73,10 +82,17 @@ export function GuidedTour() {
     };
   }, [updatePosition]);
 
-  const finish = useCallback(() => {
+  const finish = useCallback(async () => {
     localStorage.setItem(STORAGE_KEY, "true");
     setActive(false);
-  }, []);
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({ tour_completed: true } as any)
+        .eq("user_id", user.id);
+      refreshProfile();
+    }
+  }, [user, refreshProfile]);
 
   const next = () => {
     if (step < TOUR_STEPS.length - 1) setStep(step + 1);

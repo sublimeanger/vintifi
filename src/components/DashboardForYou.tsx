@@ -103,9 +103,9 @@ export function DashboardForYou() {
       if (goal === "sell_faster" && (listingCount || 0) >= 5) {
         result.push({
           icon: Sparkles,
-          title: "Check your portfolio health",
+          title: "Check your inventory health",
           description: "Find overpriced and stale listings that need attention.",
-          path: "/portfolio",
+          path: "/dead-stock",
           color: "text-success",
           bg: "bg-success/10",
         });

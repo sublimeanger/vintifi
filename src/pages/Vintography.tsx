@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
   Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock, RefreshCw,
-  ChevronLeft, Ghost, LayoutGrid, Box,
+  ChevronLeft, Ghost, LayoutGrid, Box, Search,
 } from "lucide-react";
 
 import { CreditBar } from "@/components/vintography/CreditBar";
@@ -453,6 +453,10 @@ export default function Vintography() {
                     <Button variant="outline" onClick={() => navigate(`/optimize?photo=${encodeURIComponent(processedUrl)}`)}
                       className="h-12 sm:h-10 active:scale-95 transition-transform">
                       <ChevronRight className="w-4 h-4 mr-2" /> Use in Listing
+                    </Button>
+                    <Button variant="outline" onClick={() => navigate(`/price-check`)}
+                      className="h-12 sm:h-10 active:scale-95 transition-transform">
+                      <Search className="w-4 h-4 mr-2" /> Price Check
                     </Button>
                   </>
                 )}

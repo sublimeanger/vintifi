@@ -131,10 +131,10 @@ export function DashboardIntelligence() {
   // Always show portfolio optimiser suggestion if there are any active listings
   attentionCards.push({
     icon: Target,
-    label: "Portfolio Health",
+    label: "Inventory Health",
     value: "Check",
-    description: "Run the AI optimiser to find underpriced and overpriced listings",
-    path: "/portfolio",
+    description: "Find stale, underpriced, and overpriced listings to fix",
+    path: "/dead-stock",
     color: "text-success",
     bg: "bg-success/10",
     border: "border-success/20",

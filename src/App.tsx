@@ -20,17 +20,14 @@ import SettingsPage from "./pages/SettingsPage";
 import OptimizeListing from "./pages/OptimizeListing";
 import TrendRadar from "./pages/TrendRadar";
 import ArbitrageScanner from "./pages/ArbitrageScanner";
-import { Navigate as Nav } from "react-router-dom";
+
 import CompetitorTracker from "./pages/CompetitorTracker";
 import DeadStock from "./pages/DeadStock";
 import Analytics from "./pages/Analytics";
 import RelistScheduler from "./pages/RelistScheduler";
-import PortfolioOptimizer from "./pages/PortfolioOptimizer";
-import SeasonalCalendar from "./pages/SeasonalCalendar";
 import CharityBriefing from "./pages/CharityBriefing";
 import BulkOptimize from "./pages/BulkOptimize";
 import ClearanceRadar from "./pages/ClearanceRadar";
-import NicheFinder from "./pages/NicheFinder";
 import PlatformConnections from "./pages/PlatformConnections";
 import CrossListings from "./pages/CrossListings";
 import Vintography from "./pages/Vintography";
@@ -79,12 +76,9 @@ const App = () => (
             <Route path="/dead-stock" element={<ProtectedRoute><OnboardingGuard><DeadStock /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><OnboardingGuard><Analytics /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/relist" element={<ProtectedRoute><OnboardingGuard><RelistScheduler /></OnboardingGuard></ProtectedRoute>} />
-            <Route path="/portfolio" element={<ProtectedRoute><OnboardingGuard><PortfolioOptimizer /></OnboardingGuard></ProtectedRoute>} />
-            <Route path="/seasonal" element={<ProtectedRoute><OnboardingGuard><SeasonalCalendar /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/charity-briefing" element={<ProtectedRoute><OnboardingGuard><CharityBriefing /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/bulk-optimize" element={<ProtectedRoute><OnboardingGuard><BulkOptimize /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/clearance-radar" element={<ProtectedRoute><OnboardingGuard><ClearanceRadar /></OnboardingGuard></ProtectedRoute>} />
-            <Route path="/niche-finder" element={<ProtectedRoute><OnboardingGuard><NicheFinder /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/platforms" element={<ProtectedRoute><OnboardingGuard><PlatformConnections /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/cross-listings" element={<ProtectedRoute><OnboardingGuard><CrossListings /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/vintography" element={<ProtectedRoute><OnboardingGuard><Vintography /></OnboardingGuard></ProtectedRoute>} />

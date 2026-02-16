@@ -14,6 +14,8 @@ type Profile = {
   subscription_tier: string;
   onboarding_completed: boolean;
   timezone: string;
+  tour_completed: boolean;
+  milestones_shown: string[];
 };
 
 type UsageCredits = {
