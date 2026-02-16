@@ -1,147 +1,168 @@
 
 
-# Full-Scale Implementation: Hybrid Scraping + CSV Import
+# Comprehensive Cohesion Audit and Fix Plan
 
-## Summary
-
-This plan covers three major changes:
-
-1. **Remove the broken Vinted URL import** and replace it with a **CSV/manual import** system
-2. **Upgrade Price Check and Trends** to use the Apify `kazkn/vinted-smart-scraper` actor for structured Vinted data
-3. **Keep Firecrawl for Arbitrage Scanner** (cross-platform searches) while adding Apify for the Vinted pricing baseline -- creating a **hybrid model**
-
----
-
-## Part 1: Replace Vinted Import with CSV Import
-
-The Apify `pintostudio/vinted-seller-products` actor is broken and unmaintained. Instead of trying to fix automated wardrobe scraping, we replace it with a reliable CSV import.
-
-### Files to Change
-
-| File | Action |
-|------|--------|
-| `supabase/functions/import-wardrobe/index.ts` | **Rewrite** -- accept CSV data (JSON array) instead of Apify scraping |
-| `src/components/ImportWardrobeModal.tsx` | **Rewrite** -- CSV file upload with drag-and-drop, column mapping preview, and template download |
-| `src/pages/Listings.tsx` | Minor update -- change button label from "Import from Vinted" to "Import" |
-
-### How CSV Import Works
-
-1. User downloads a CSV template (Title, Brand, Category, Size, Condition, Price, Purchase Price, Vinted URL)
-2. User fills it in (or exports from a spreadsheet they already maintain)
-3. User uploads the CSV file in the modal
-4. Frontend parses the CSV, shows a preview table of the first 5 rows
-5. Frontend sends the parsed rows to the `import-wardrobe` edge function as a JSON array
-6. Edge function validates, deduplicates by `vinted_url`, and batch-inserts into `listings`
-7. Same tier-based limits apply (Pro: 200, Business: 1000, Scale: unlimited)
-
-### Template CSV Format
+## Full User Flow Map (Current State)
 
 ```text
-Title,Brand,Category,Size,Condition,Price,Purchase Price,Vinted URL
-"Nike Air Force 1","Nike","Trainers","UK 9","Good","25.00","12.00","https://www.vinted.co.uk/items/123456"
+Landing (/) --> Auth (/auth) --> Onboarding (4 steps) --> Welcome (/welcome) --> Dashboard (/dashboard)
+                                                                                      |
+                                            +------------------------------------------+
+                                            |
+                        +-------------------+-------------------+-------------------+
+                        |                   |                   |                   |
+                   Price Check         Optimise            Trends             Arbitrage
+                        |                   |                   |                   |
+                   [Report]            [Result]            [Cards]           [Opportunities]
+                        |                   |                   |                   |
+                   Save to             Save to            Price Check          Price Check
+                   Inventory           Inventory                               
+                        |                   |
+                   Optimise            Vintography
+                        |                   |
+                   Vintography         Price Check
+                        |                   |
+                   Inventory           Inventory
 ```
 
 ---
 
-## Part 2: Upgrade Price Check with Apify (Hybrid)
+## BUGS FOUND
 
-Currently `price-check` uses Firecrawl `/v1/search` with `site:vinted.co.uk` queries, which returns web snippets that the AI must interpret. This works but produces estimated data.
+### BUG 1: Guided Tour Reappears (Critical)
+**File**: `src/components/GuidedTour.tsx`
+**Problem**: Tour dismissal is stored in `localStorage` under key `vintifi_tour_completed`. This is fragile -- it resets when browser data is cleared, on different devices, or when the preview iframe has separate storage from the published app. This is why the tour keeps restarting.
+**Fix**: Add a `tour_completed` boolean column to the `profiles` table. The GuidedTour reads from `profile.tour_completed` (via AuthContext) as the authoritative source, with localStorage as a fast cache. The `finish()` function updates both the database and localStorage. The Settings page "Restart Tour" button resets the DB field.
 
-### New Flow
+### BUG 2: Feature Unlock Toasts Use localStorage (Same Problem)
+**File**: `src/hooks/useFeatureUnlocks.ts`
+**Problem**: Milestone unlock toasts (e.g., "You've unlocked Arbitrage Scanner!") are tracked via localStorage keys like `unlock_arbitrage_{userId}`. Same fragility as the tour -- these milestones will re-trigger on new browsers/devices.
+**Fix**: Track unlocked milestones in the database. Add a `milestones_shown` text array column to `profiles`. Check this array instead of localStorage.
 
-1. User submits brand/category/condition (or a Vinted URL)
-2. Edge function calls Apify `kazkn/vinted-smart-scraper` with mode `SEARCH` to get **structured** Vinted listing data (exact prices, conditions, view counts)
-3. Structured results are passed to the AI for analysis (much better input = much better output)
-4. Falls back to Firecrawl search if Apify fails or times out
+### BUG 3: Dead Routes in App.tsx
+**File**: `src/App.tsx` (lines 82-83, 87, 93-95)
+**Problem**: Three routes are defined TWICE -- first as actual pages, then as redirects. React Router matches the first definition, so the redirects on lines 93-95 are unreachable dead code:
+- `/portfolio` renders `PortfolioOptimizer` (line 82) -- redirect to `/dead-stock` on line 93 never fires
+- `/seasonal` renders `SeasonalCalendar` (line 83) -- redirect to `/trends` on line 94 never fires
+- `/niche-finder` renders `NicheFinder` (line 87) -- redirect to `/trends` on line 95 never fires
 
-### Files to Change
+**Fix**: Remove the standalone page routes (lines 82, 83, 87) and keep only the redirects. These features were merged into other pages (Portfolio into Dead Stock, Seasonal and Niches into Trends tabs).
 
-| File | Action |
-|------|--------|
-| `supabase/functions/price-check/index.ts` | **Rewrite data-fetching layer** -- primary: Apify search, fallback: Firecrawl |
+### BUG 4: DashboardIntelligence Links to Dead `/portfolio` Route
+**File**: `src/components/DashboardIntelligence.tsx` (line 137)
+**Problem**: The "Portfolio Health" attention card always shows and links to `/portfolio`, which (once Bug 3 is fixed) will redirect to `/dead-stock`. But the intent is different -- Portfolio Optimiser analyses pricing, while Dead Stock handles stale inventory.
+**Fix**: Change the path to `/dead-stock` and update the label to "Inventory Health" to match the sidebar label. Update the description too.
 
-### Apify Actor Details
+### BUG 5: Dashboard Metric Card Links to Dead `/portfolio`
+**File**: `src/pages/Dashboard.tsx` (line 96)
+**Problem**: The "Portfolio Value" metric card links to `/portfolio` (dead route).
+**Fix**: Change to `/analytics` since the P&L Analytics page is the right destination for portfolio value context.
 
-- **Actor**: `kazkn/vinted-smart-scraper`
-- **Mode**: `SEARCH`
-- **Input**: `{ mode: "SEARCH", searchQuery: "Nike Air Force 1", country: "uk", maxItems: 20 }`
-- **Output**: Structured array with `title`, `price`, `brand_title`, `size_title`, `status`, `url`, `photo.url`, `view_count`, `favourite_count`
-- **Cost**: ~$0.01 per 1,000 results
+### BUG 6: DashboardForYou Links to Dead `/portfolio`
+**File**: `src/components/DashboardForYou.tsx` (line ~result.push with path `/portfolio`)
+**Problem**: The "Check your portfolio health" suggestion links to `/portfolio`.
+**Fix**: Change to `/dead-stock`.
 
-### Key Change in AI Prompt
+---
 
-Instead of feeding the AI vague markdown snippets, we feed it structured data:
+## COHESION ISSUES FOUND
 
-```text
-Comparable items (structured data from Vinted):
-1. Nike Air Force 1 White | Price: £28.00 | Condition: Good | Views: 142 | Favourites: 8 | Status: Active
-2. Nike AF1 Triple White | Price: £35.00 | Condition: New with tags | Views: 89 | Favourites: 12 | Status: Sold
-...
+### ISSUE 1: No "Workflow Funnels" for Common User Journeys
+**Problem**: The spec calls for users to "funnel themselves into common workflows." Currently, a user who wants to sell something intelligently has to figure out the right sequence themselves. There's no guided workflow for the most common scenario: "I have an item, I want to sell it smart."
+
+**The ideal "Sell Smart" workflow is**:
+1. Price Check (what's it worth?)
+2. Optimise Listing (write the perfect title/description)
+3. Enhance Photos (Vintography)
+4. Add to Inventory (save it)
+5. Publish (list on Vinted)
+
+The JourneyBanner on Price Check and Optimise pages partially does this, but there are gaps:
+- The Welcome page doesn't mention the Optimiser or Vintography at all
+- Vintography has no JourneyBanner connecting to the next step
+- There's no reverse link from Inventory back to "optimise this item"
+
+**Fix**: Add a JourneyBanner to Vintography results. Ensure the Welcome page mentions the full workflow, not just price checking. These are small additions.
+
+### ISSUE 2: Welcome Page is Too Narrow
+**File**: `src/pages/Welcome.tsx`
+**Problem**: The Welcome page only offers "Paste a Vinted URL for a price check" or shows existing items. For a new user with NO items and NO Vinted URL, the page feels like a dead end. They have to skip to the dashboard and figure things out.
+**Fix**: Add a third option: "Or explore trending items to find what to sell" with a link to Trends. This gives every user type an entry point: sellers with items (price check), sellers with URLs (paste URL), and new sellers looking for ideas (trends).
+
+### ISSUE 3: Charity Briefing Not Connected to Inventory
+**File**: `src/pages/CharityBriefing.tsx`
+**Problem**: The Charity Briefing generates a sourcing list (what to look for at charity shops), but after the user finds those items, there's no CTA to add them to inventory or run a price check. The briefing items have `max_buy_price` and `estimated_sell_price` but no "Save to Watchlist" or "Price Check This" action.
+**Fix**: Add a "Price Check" button on each briefing item that pre-fills brand/category. Add a "Save to Sourcing List" action that creates a listing with status "watchlist".
+
+### ISSUE 4: Arbitrage Results Don't Connect Forward
+**File**: `src/pages/ArbitrageScanner.tsx`
+**Problem**: Arbitrage opportunities show source prices and estimated Vinted sell prices, but there's no CTA to save the item to inventory or optimise a listing for it. The user sees a deal, then has to manually go create a listing.
+**Fix**: Add "Save to Inventory" and "Create Listing" CTAs on arbitrage opportunity cards.
+
+### ISSUE 5: Sidebar Has Duplicate "Billing" and "Settings" Links
+**File**: `src/pages/Dashboard.tsx` (lines 76-78)
+**Problem**: The Account section has both "Billing" and "Settings" -- but they both navigate to `/settings`. Redundant.
+**Fix**: Remove the "Billing" entry since Settings already has the subscription section prominently displayed.
+
+---
+
+## IMPLEMENTATION PLAN
+
+### Step 1: Database Migration
+Add two columns to the `profiles` table:
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS tour_completed boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS milestones_shown text[] DEFAULT '{}';
 ```
 
-This gives the AI real prices and real engagement metrics to work with, dramatically improving accuracy.
+### Step 2: Update AuthContext Profile Type
+Add `tour_completed` and `milestones_shown` to the Profile type definition so they're available app-wide.
 
----
+### Step 3: Fix GuidedTour (Database-backed)
+- Read `profile.tour_completed` from AuthContext instead of localStorage
+- On `finish()`, update DB (`profiles.tour_completed = true`) AND set localStorage cache
+- On mount: if `profile.tour_completed === true`, don't show. If `false`, check localStorage cache as fallback for speed, then show if neither says completed.
+- Keep mobile exclusion logic.
 
-## Part 3: Hybrid Arbitrage Scanner
+### Step 4: Fix useFeatureUnlocks (Database-backed)
+- Read `profile.milestones_shown` from AuthContext
+- On unlock, update DB (append to array) AND set localStorage
+- Prevents re-showing milestones across devices
 
-The Arbitrage Scanner already uses Firecrawl to search eBay, Depop, Facebook Marketplace, and Gumtree. This is the right tool for cross-platform searching. The upgrade adds Apify for the **Vinted baseline pricing** so the AI has real Vinted prices to compare against (instead of guessing).
+### Step 5: Fix Settings Tour Reset
+Change the "Restart Tour" button to update `profiles.tour_completed = false` in the database and clear localStorage.
 
-### New Flow
+### Step 6: Fix App.tsx Dead Routes
+Remove lines 82, 83, 87 (standalone page routes for `/portfolio`, `/seasonal`, `/niche-finder`). Keep only the redirect routes on lines 93-95. Also remove unused imports for `PortfolioOptimizer`, `SeasonalCalendar`, `NicheFinder`.
 
-1. User enters brand/category
-2. **Firecrawl** searches eBay, Depop, Facebook Marketplace, Gumtree (unchanged -- this works well)
-3. **Apify** searches Vinted for the same item to get real sell prices (new)
-4. Both datasets are passed to the AI, which now has **actual source prices AND actual Vinted prices** to calculate real arbitrage margins
-5. Falls back to Firecrawl-only Vinted search if Apify fails
+### Step 7: Fix All `/portfolio` Links
+- `DashboardIntelligence.tsx` line 137: `/portfolio` to `/dead-stock`, update label to "Inventory Health"
+- `DashboardForYou.tsx`: `/portfolio` to `/dead-stock`
+- `Dashboard.tsx` line 96: `/portfolio` to `/analytics`
+- `useFeatureUnlocks.ts` line 9: `/portfolio` to `/dead-stock`
 
-### Files to Change
+### Step 8: Remove Duplicate Sidebar Entry
+Remove the "Billing" nav item from Dashboard sidebar (lines 76-77), keeping only "Settings".
 
-| File | Action |
+### Step 9: Enhance Welcome Page
+Add a third option below the URL input: "Or explore what's trending right now" linking to `/trends`. This ensures no user hits a dead end.
+
+### Step 10: Add Vintography JourneyBanner
+After Vintography produces a result, add a JourneyBanner showing the next step (Save to Inventory / Price Check).
+
+## Files Changed Summary
+
+| File | Change |
 |------|--------|
-| `supabase/functions/arbitrage-scan/index.ts` | **Update** -- replace `searchVinted()` Firecrawl function with Apify `kazkn/vinted-smart-scraper` SEARCH mode, keep Firecrawl fallback |
-
-### What Changes in the Prompt
-
-The Vinted reference section changes from vague snippets to structured data:
-
-```text
-## Vinted Reference Prices (Real Data)
-1. Nike Air Force 1 | £28.00 | Good | 142 views | Active
-2. Nike AF1 White | £35.00 | New with tags | 89 views | Sold in 3 days
-```
-
----
-
-## Part 4: Trends -- No Change Needed
-
-The `fetch-trends` edge function already reads from the `trends` table (populated by `lobstr-sync`). The Lobstr.io integration for trend data collection is separate from the Apify actor and works independently. No changes needed here.
-
----
-
-## Implementation Sequence
-
-1. **CSV Import** (Part 1) -- rewrite `import-wardrobe` edge function and modal
-2. **Price Check upgrade** (Part 2) -- add Apify primary + Firecrawl fallback
-3. **Arbitrage hybrid** (Part 3) -- add Apify for Vinted baseline in arbitrage scanner
-4. **Deploy and test** all three edge functions
-5. **Delete** the `APIFY_API_TOKEN` secret reference to `pintostudio` actor (we reuse the same token for `kazkn/vinted-smart-scraper`)
-
----
-
-## Secrets Required
-
-- `APIFY_API_TOKEN` -- already configured, reused for the new actor
-- `FIRECRAWL_API_KEY` -- already configured, kept for cross-platform arbitrage + fallback
-- No new secrets needed
-
----
-
-## Technical Notes
-
-- The `kazkn/vinted-smart-scraper` actor supports `.co.uk` natively (no URL hacking needed)
-- Apify calls use `run-sync-get-dataset-items` endpoint with 120s timeout for search mode (much faster than seller scraping)
-- CSV parsing happens client-side using a lightweight parser (no new dependency -- we use the native `FileReader` API + simple comma splitting)
-- All existing UI components, types, and database schema remain unchanged
-- The `import-wardrobe` edge function entry in `supabase/config.toml` stays as-is
+| `profiles` table (migration) | Add `tour_completed` boolean, `milestones_shown` text array |
+| `src/contexts/AuthContext.tsx` | Add 2 fields to Profile type |
+| `src/components/GuidedTour.tsx` | Read from profile DB, update DB on finish |
+| `src/hooks/useFeatureUnlocks.ts` | Read from profile DB, update DB on unlock |
+| `src/pages/SettingsPage.tsx` | Tour reset updates DB |
+| `src/App.tsx` | Remove 3 dead routes + unused imports |
+| `src/components/DashboardIntelligence.tsx` | Fix `/portfolio` link |
+| `src/components/DashboardForYou.tsx` | Fix `/portfolio` link |
+| `src/pages/Dashboard.tsx` | Fix metric card link, remove duplicate sidebar entry |
+| `src/pages/Welcome.tsx` | Add "explore trends" fallback option |
+| `src/pages/Vintography.tsx` | Add JourneyBanner after results |
 
