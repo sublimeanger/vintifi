@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
-import { ImageIcon, GripVertical, Save, Loader2 } from "lucide-react";
+import { ImageIcon, GripVertical, Save, Loader2, Plus, Upload } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -102,7 +102,9 @@ function SortableThumbnail({
 export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Build unified photo array: image_url first, then images array
   const rawImages = Array.isArray(item.images) ? (item.images as string[]) : [];
@@ -120,6 +122,54 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+
+  const handleUploadPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !user) return;
+    setUploading(true);
+    try {
+      const newUrls: string[] = [];
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) continue;
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `${user.id}/${item.id}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("listing-photos")
+          .upload(path, file, { upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage
+          .from("listing-photos")
+          .getPublicUrl(path);
+        newUrls.push(urlData.publicUrl);
+      }
+      if (newUrls.length === 0) return;
+
+      const updatedPhotos = [...photos, ...newUrls];
+      const newImageUrl = updatedPhotos[0] || null;
+      const newImagesArray = updatedPhotos.slice(1);
+
+      const { error } = await supabase
+        .from("listings")
+        .update({ image_url: newImageUrl, images: newImagesArray })
+        .eq("id", item.id)
+        .eq("user_id", user.id);
+      if (error) throw error;
+
+      setPhotos(updatedPhotos);
+      onItemUpdate((prev: any) => ({
+        ...prev,
+        image_url: newImageUrl,
+        images: newImagesArray,
+      }));
+      toast.success(`${newUrls.length} photo${newUrls.length > 1 ? "s" : ""} uploaded`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Upload failed: " + (err.message || "Unknown error"));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -182,18 +232,26 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
   if (photos.length === 0) {
     return (
       <>
+        <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUploadPhotos} />
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Photos</h3>
-          <Button size="sm" onClick={onEditPhotos}>
-            <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> Edit in Photo Studio
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              {uploading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1.5" />}
+              Upload
+            </Button>
+            <Button size="sm" onClick={onEditPhotos}>
+              <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> Photo Studio
+            </Button>
+          </div>
         </div>
         <Card className="p-10 text-center">
           <ImageIcon className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
           <p className="text-sm font-medium mb-1">No photos yet</p>
-          <p className="text-xs text-muted-foreground mb-4">Use Photo Studio to enhance your item photos.</p>
-          <Button onClick={onEditPhotos}>
-            <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> Open Photo Studio
+          <p className="text-xs text-muted-foreground mb-4">Upload photos or use Photo Studio to enhance them.</p>
+          <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            {uploading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
+            Add Photos
           </Button>
         </Card>
       </>
@@ -205,6 +263,7 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
 
   return (
     <>
+      <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUploadPhotos} />
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Photos ({photos.length})</h3>
         <div className="flex items-center gap-2">
@@ -214,6 +273,10 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
               Save Order
             </Button>
           )}
+          <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            {uploading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
+            Add
+          </Button>
           <Button size="sm" variant="outline" onClick={onEditPhotos}>
             <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> Photo Studio
           </Button>
