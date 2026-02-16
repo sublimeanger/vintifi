@@ -97,7 +97,7 @@ function getDaysListed(createdAt: string): number {
 }
 
 type EbayStatus = {
-  status: "not_connected" | "not_listed" | "draft" | "listed" | "sold";
+  status: "not_connected" | "not_listed" | "draft" | "listed" | "sold" | "error";
   platform_url?: string;
   cross_listing_id?: string;
 };
@@ -247,7 +247,7 @@ export default function ItemDetail() {
     } else {
       const cl = crossListRes.data;
       setEbay({
-        status: cl.status === "published" ? "listed" : cl.status === "sold" ? "sold" : "draft",
+        status: cl.status === "published" ? "listed" : cl.status === "sold" ? "sold" : cl.status === "error" ? "error" : "not_listed",
         platform_url: cl.platform_url || undefined,
         cross_listing_id: cl.id,
       });
@@ -542,6 +542,8 @@ export default function ItemDetail() {
                 <Badge variant="outline" className="bg-success/10 text-success border-success/20 text-[10px]">Listed</Badge>
               ) : ebay.status === "sold" ? (
                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px]">Sold</Badge>
+              ) : ebay.status === "error" ? (
+                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]">Error</Badge>
               ) : (
                 <Badge variant="outline" className="text-[10px]">Not Listed</Badge>
               )}
@@ -573,6 +575,8 @@ export default function ItemDetail() {
                   </Button>
                 )}
               </div>
+            ) : ebay.status === "error" ? (
+              <p className="text-xs text-destructive">Publishing failed. Please check the item details and try again from a new listing.</p>
             ) : (
               <p className="text-xs text-muted-foreground">Sold on eBay.</p>
             )}
