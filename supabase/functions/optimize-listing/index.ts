@@ -179,20 +179,22 @@ serve(async (req) => {
     // Re-read photoUrls after potential Vinted scrape enrichment
     const finalPhotoUrls = body.photoUrls || photoUrls || [];
 
-    // Check optimisation credits
+    // Check credits (unified pool)
     const creditsRes = await fetch(
-      `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}&select=optimizations_used,credits_limit`,
+      `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}&select=price_checks_used,optimizations_used,vintography_used,credits_limit`,
       { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
     );
     const creditsData = await creditsRes.json();
     if (creditsData.length > 0) {
       const c = creditsData[0];
-      const optimLimit = Math.floor(c.credits_limit * 0.6);
-      if (c.optimizations_used >= optimLimit) {
-        return new Response(
-          JSON.stringify({ error: "Monthly optimisation limit reached. Upgrade your plan for more." }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      if (c.credits_limit < 999) {
+        const totalUsed = (c.price_checks_used || 0) + (c.optimizations_used || 0) + (c.vintography_used || 0);
+        if (totalUsed >= c.credits_limit) {
+          return new Response(
+            JSON.stringify({ error: "Monthly credit limit reached. Upgrade your plan for more." }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
     }
 

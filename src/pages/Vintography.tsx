@@ -209,7 +209,8 @@ export default function Vintography() {
     });
     if (error) throw error;
     if (data?.error) { toast.error(data.error); return null; }
-    toast.success(`Done! ${data.credits_used}/${data.credits_limit} edits used this month.`);
+    const isUnlimited = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+    toast.success(isUnlimited ? "Edit complete!" : `Done! −1 credit used`);
     refreshCredits();
     return data.processed_url;
   };

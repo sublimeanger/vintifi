@@ -155,6 +155,8 @@ export default function PriceCheck() {
       }
 
       toast.success("Price analysis complete!");
+      const isUnlimited = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+      if (!isUnlimited) toast("−1 credit used", { duration: 2000 });
     } catch (err: any) {
       toast.error(err.message || "Analysis failed. Try again.");
     } finally {

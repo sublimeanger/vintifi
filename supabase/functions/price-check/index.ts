@@ -97,19 +97,22 @@ serve(async (req) => {
     const userId = userData.id;
     if (!userId) throw new Error("Invalid user");
 
-    // Check credits
+    // Check credits (unified pool)
     const creditsRes = await fetch(
-      `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}&select=price_checks_used,credits_limit`,
+      `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}&select=price_checks_used,optimizations_used,vintography_used,credits_limit`,
       { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
     );
     const creditsData = await creditsRes.json();
     if (creditsData.length > 0) {
       const c = creditsData[0];
-      if (c.price_checks_used >= c.credits_limit) {
-        return new Response(
-          JSON.stringify({ error: "Monthly price check limit reached. Upgrade your plan for more." }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      if (c.credits_limit < 999) {
+        const totalUsed = (c.price_checks_used || 0) + (c.optimizations_used || 0) + (c.vintography_used || 0);
+        if (totalUsed >= c.credits_limit) {
+          return new Response(
+            JSON.stringify({ error: "Monthly credit limit reached. Upgrade your plan for more." }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
     }
 

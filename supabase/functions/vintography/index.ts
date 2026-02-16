@@ -111,13 +111,7 @@ const MODEL_MAP: Record<string, string> = {
   enhance: "google/gemini-2.5-flash-image",
 };
 
-// Tier limits for vintography
-const TIER_LIMITS: Record<string, number> = {
-  free: 3,
-  pro: 15,
-  business: 50,
-  scale: 999,
-};
+// Credit limits now come from usage_credits.credits_limit (unified pool)
 
 // Operations allowed per tier
 const TIER_OPERATIONS: Record<string, string[]> = {
@@ -197,17 +191,18 @@ serve(async (req) => {
 
     const { data: credits } = await adminClient
       .from("usage_credits")
-      .select("vintography_used")
+      .select("price_checks_used, optimizations_used, vintography_used, credits_limit")
       .eq("user_id", user.id)
       .single();
-    const used = credits?.vintography_used || 0;
-    const limit = TIER_LIMITS[tier] || 3;
 
-    if (used >= limit) {
-      return new Response(
-        JSON.stringify({ error: "You've used all your Vintography edits this month." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (credits && credits.credits_limit < 999) {
+      const totalUsed = (credits.price_checks_used || 0) + (credits.optimizations_used || 0) + (credits.vintography_used || 0);
+      if (totalUsed >= credits.credits_limit) {
+        return new Response(
+          JSON.stringify({ error: "Monthly credit limit reached. Upgrade your plan for more." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const { data: job, error: jobError } = await adminClient
