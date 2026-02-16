@@ -1,48 +1,68 @@
 
 
-# eBay Integration Cohesion -- Full Plan
+# Fix eBay Integration: Bugs and Cohesion
 
-## Problems to Fix
+## Problems Found
 
-1. **Broken messaging**: Settings page says "Connect your eBay, Vinted Pro, and Depop accounts" -- only eBay is supported. The "View Cross-Listings" button links to `/cross-listings` which redirects to `/listings` (confusing).
-2. **eBay is buried**: Only accessible via Settings -> eBay Connection. No visibility in the main navigation or dashboard.
-3. **No dashboard presence**: Users can't see their eBay connection status or cross-listed items at a glance.
+### Bug 1: Publish payload mismatch (ItemDetail page)
+The `handlePublishToEbay` function in `ItemDetail.tsx` (line 164) sends:
+```json
+{ "listing_id": "...", "platform": "ebay" }
+```
+But the edge function expects:
+```json
+{ "listing_id": "...", "platforms": [{ "platform": "ebay" }] }
+```
+This means clicking "List on eBay" from the item detail page **always fails**. The Listings page version (line 313) sends the correct format.
 
-## Changes
+### Bug 2: Response handling mismatch (ItemDetail page)
+After the publish call, `handlePublishToEbay` in ItemDetail reads `data.platform_url` and `data.cross_listing_id`, but the edge function returns `{ results: { ebay: { success, platform_url } } }`. So even if the payload was fixed, the success/error handling would still break.
 
-### 1. Fix Settings Page Messaging
+### Bug 3: eBay connection shows "Ready" when not connected
+On the `/platforms` page, if there's no connection, the badge says "Ready" with a green colour -- this is misleading. It should say "Not Connected" with a neutral colour.
 
-In `src/pages/SettingsPage.tsx`, update the "Cross-Platform Publishing" section:
-- Change title from "Cross-Platform Publishing" to "eBay Connection"
-- Change description from "Connect your eBay, Vinted Pro, and Depop accounts..." to "Connect your eBay seller account to publish listings with one click."
-- Remove the "View Cross-Listings" button (that route just redirects to /listings anyway)
-- Keep only the "Manage Connection" button pointing to `/platforms`
+### Bug 4: OAuth opens in new tab, user must manually refresh
+The connect flow opens eBay auth in `_blank` (new tab). After authorising, eBay redirects back to `/platforms` in that new tab. The original tab is left stale. This is confusing -- the user doesn't know which tab to use.
 
-### 2. Add eBay to Sidebar Navigation
+### UX Issues: "Alienated" feeling
+- The eBay section on the Item Detail page is buried at the bottom of the Overview tab
+- No eBay indicator on listing cards in the Listings page (can't tell what's already listed)
+- The `/platforms` page feels disconnected -- it's a standalone page with no context about what you can do once connected
 
-In `src/components/AppShellV2.tsx`, add an "eBay" item under the Tools section:
-- Icon: `ShoppingBag` (already imported)
-- Label: "eBay"
-- Path: `/platforms`
-- This makes eBay a first-class citizen in the navigation, always one click away
+## The Fix
 
-### 3. Add eBay Status Card to Dashboard
+### 1. Fix the publish payload in ItemDetail.tsx
+Change `handlePublishToEbay` to send the correct `platforms` array format and read the response correctly from `data.results.ebay`.
 
-In `src/pages/Dashboard.tsx`, add a compact eBay connection status card between the Pipeline and Next Actions sections:
-- If **not connected**: Shows "Connect eBay" with a brief value prop and a button linking to `/platforms`
-- If **connected**: Shows "eBay Connected" with a count of items listed on eBay and a quick-action button to view cross-listed items in the listings page
-- Small, unobtrusive -- fits the existing dashboard card style
+### 2. Fix the badge on PlatformConnections.tsx
+Change "Ready" to "Not Connected" and use a neutral/muted colour instead of green when there's no connection.
 
-### 4. Fix PlatformConnections Page Title
+### 3. Fix the OAuth flow
+Change `window.open(url, "_blank")` to `window.location.href = url` so the user stays in the same tab. When eBay redirects back, the existing callback handler picks up the code seamlessly. No need for "refresh this page" toast.
 
-In `src/pages/PlatformConnections.tsx`, the page already says "eBay Connection" which is correct. The `UseCaseSpotlight` description is also eBay-specific. No changes needed here.
+### 4. Add eBay badge to listing cards
+On the Listings page, query `cross_listings` for the user's eBay-listed items and show a small "eBay" badge on cards that are already published.
+
+### 5. Move eBay higher on ItemDetail
+Move the eBay status card from below the workflow card to directly after the metrics cards (above the workflow), making it more prominent.
 
 ## Technical Details
 
 **Files to modify:**
-- `src/pages/SettingsPage.tsx` -- Fix messaging (lines 237-257)
-- `src/components/AppShellV2.tsx` -- Add eBay to TOOL_ITEMS array (line 62-66)
-- `src/pages/Dashboard.tsx` -- Add eBay status card with a query to `platform_connections` and `cross_listings` tables
 
-**No backend changes needed.** All data already exists in the database -- we just need to query `platform_connections` for connection status and `cross_listings` for item counts.
+1. **`src/pages/ItemDetail.tsx`** (lines 159-178)
+   - Fix `handlePublishToEbay`: change `platform: "ebay"` to `platforms: [{ platform: "ebay", price_override: item.current_price }]`
+   - Fix response reading: use `data.results?.ebay` instead of `data` directly
+   - Move the eBay card up in the JSX (from after workflow to before workflow)
 
+2. **`src/pages/PlatformConnections.tsx`** (lines 144-156)
+   - Change the "Ready" badge to "Not Connected" with neutral styling
+   - Change `window.open(data.url, "_blank")` to `window.location.href = data.url`
+   - Remove the "Complete the authorisation in the new tab" toast
+
+3. **`src/pages/Listings.tsx`** (lines 700-730 area)
+   - Fetch eBay cross-listing IDs on page load
+   - Show a small eBay badge on cards where the listing is already published
+   - The "List on eBay" dropdown item should show "View on eBay" if already listed
+
+**No backend changes needed.** The edge functions are working correctly -- the bugs are all on the frontend side.
