@@ -195,9 +195,12 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    if (credits && credits.credits_limit < 999) {
+    const used = credits?.vintography_used || 0;
+    const limit = credits?.credits_limit ?? 5;
+
+    if (credits && limit < 999) {
       const totalUsed = (credits.price_checks_used || 0) + (credits.optimizations_used || 0) + (credits.vintography_used || 0);
-      if (totalUsed >= credits.credits_limit) {
+      if (totalUsed >= limit) {
         return new Response(
           JSON.stringify({ error: "Monthly credit limit reached. Upgrade your plan for more." }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
