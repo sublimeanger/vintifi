@@ -206,7 +206,7 @@ serve(async (req) => {
 
     userContent.push({
       type: "text",
-      text: `You are a Vinted listing optimisation expert. Analyse the provided item details and photos to create a fully optimised Vinted listing.
+      text: `You are a Vinted listing optimisation expert. Your job is to create the PERFECT Vinted listing that is ready to copy and paste directly into Vinted with zero editing needed.
 
 Item details provided by seller:
 - Brand: ${brand || "Not specified"}
@@ -216,17 +216,30 @@ Item details provided by seller:
 - Current title: ${currentTitle || "None"}
 - Current description: ${currentDescription || "None"}
 
+CRITICAL FORMATTING RULES FOR THE DESCRIPTION:
+1. Output MUST be plain text only. Vinted does NOT support markdown.
+2. NEVER use asterisks (*), bold (**), italic (_), bullet points (•/-/*), headers (#), or any markdown syntax.
+3. Use blank lines between paragraphs for spacing. That is the ONLY formatting allowed.
+4. NEVER include placeholder measurements like "Pit to pit:", "Waist:", "Length:" with blank values. Only include measurements if the seller provided them in their original description.
+5. NEVER include "please ask for measurements" or similar filler phrases.
+6. The description must be COMPLETE and FINAL — ready to paste into Vinted immediately.
+7. Keep it 150-300 words. Engaging but not waffle.
+8. Structure: Opening hook → Key features & details → Condition note → Styling suggestions → Closing CTA.
+9. Use line breaks between sections for readability on mobile.
+10. Include relevant search keywords naturally (brand name, style, colour, occasion).
+11. End with a short, friendly call to action like "Don't miss out!" or "Grab it before it's gone!"
+
 Tasks:
 1. Identify the item from photos (if provided) and seller details
 2. Generate an SEO-optimised title for Vinted search (max 100 chars, include brand, key features, size)
-3. Write a compelling description with measurements prompt, style suggestions, condition notes (200-400 words)
+3. Write a perfectly formatted plain-text description following ALL rules above
 4. Suggest optimal tags/keywords for Vinted search
 5. Rate the listing with a health score breakdown
 
 Return a JSON object (no markdown, just raw JSON) with this exact structure:
 {
   "optimised_title": "<SEO-optimised title>",
-  "optimised_description": "<full optimised description>",
+  "optimised_description": "<PLAIN TEXT description with \\n\\n for paragraph breaks. NO markdown. NO asterisks. NO placeholders.>",
   "suggested_tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "detected_brand": "<detected or confirmed brand>",
   "detected_category": "<detected or confirmed category>",
@@ -312,6 +325,19 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
         console.error("No JSON found in AI response:", content.substring(0, 200));
         throw new Error("AI returned invalid response — please try again");
       }
+    }
+
+    // Post-AI sanitisation: strip any markdown that slipped through
+    if (result.optimised_description) {
+      result.optimised_description = result.optimised_description
+        .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")  // strip bold/italic asterisks
+        .replace(/_{1,2}([^_]+)_{1,2}/g, "$1")      // strip underscores
+        .replace(/^#{1,6}\s+/gm, "")                 // strip markdown headers
+        .replace(/^[\-\*•]\s+/gm, "")                // strip bullet points
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")     // strip markdown links
+        .replace(/`([^`]+)`/g, "$1")                  // strip inline code
+        .replace(/\n{3,}/g, "\n\n")                   // normalise spacing
+        .trim();
     }
 
     // Increment optimisation usage
