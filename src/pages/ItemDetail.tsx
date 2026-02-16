@@ -247,7 +247,7 @@ export default function ItemDetail() {
     } else {
       const cl = crossListRes.data;
       setEbay({
-        status: cl.status === "published" ? "listed" : cl.status === "sold" ? "sold" : cl.status === "error" ? "error" : "not_listed",
+        status: cl.status === "published" ? "listed" : cl.status === "sold" ? "sold" : "not_listed",
         platform_url: cl.platform_url || undefined,
         cross_listing_id: cl.id,
       });
@@ -576,7 +576,13 @@ export default function ItemDetail() {
                 )}
               </div>
             ) : ebay.status === "error" ? (
-              <p className="text-xs text-destructive">Publishing failed. Please check the item details and try again from a new listing.</p>
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-destructive flex-1">Last publish failed — retry below.</p>
+                <Button size="sm" onClick={() => setEbayDialogOpen(true)} disabled={ebayPublishing}>
+                  {ebayPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ExternalLink className="w-3.5 h-3.5 mr-1.5" />}
+                  Retry eBay
+                </Button>
+              </div>
             ) : (
               <p className="text-xs text-muted-foreground">Sold on eBay.</p>
             )}
