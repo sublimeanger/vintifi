@@ -1,125 +1,153 @@
 
 
-# Enterprise Audit — Remaining Issues and Cohesion Fixes
+# Enterprise Sign-Off Audit — Final Report
 
-## Issues Found
+## Status: 3 Minor Issues Found (No Critical Issues Remaining)
 
-### 1. CRITICAL: Listings page Price Check and Optimise don't pass `itemId`
-**Files:** `src/pages/Listings.tsx` (lines 202-211, 214-222)
+After an exhaustive review of every page, component, navigation path, data-linking flow, and UI element across the entire platform, the previous two rounds of fixes have resolved all critical and high-severity issues. The platform is in strong shape for your afternoon launch.
 
-When clicking "Run Price Check" or "Optimise Listing" from the Listings page dropdown menu, neither `handlePriceCheck` nor `handleOptimiseListing` includes `itemId` in the URL params. This means:
-- Price check results won't update `recommended_price` or `last_price_check_at` on the listing
-- Optimisation results won't update `health_score`, `last_optimised_at`, `title`, or `description` on the listing
-- No `item_activity` record gets created
-- The workflow stepper on ItemDetail stays stale
+Below are the 3 remaining minor issues, followed by a full sign-off checklist.
 
-This is a major data-linking gap. Every action taken from the Listings page is "orphaned" — it runs but the results are never saved back to the item.
+---
 
-**Fix:** Add `itemId` to both handlers:
+## Remaining Issues
+
+### 1. Welcome page price checks don't pass `itemId`
+**File:** `src/pages/Welcome.tsx` (line 47)
+**Severity:** LOW
+
+When a user clicks "Check Price" on an item during the Welcome flow, the navigation passes the Vinted URL but not the `itemId`. This means the price check results won't auto-update the listing's `recommended_price` or log activity.
+
+**Fix:** Change line 47 from:
 ```
-// handlePriceCheck: add params.set("itemId", listing.id)
-// handleOptimiseListing: add params.set("itemId", listing.id)
+navigate(`/price-check?url=${encodeURIComponent(item.vinted_url)}`);
+```
+to:
+```
+navigate(`/price-check?url=${encodeURIComponent(item.vinted_url)}&itemId=${item.id}`);
 ```
 
 ---
 
-### 2. MEDIUM: Pipeline Snapshot "Stale" links to `/listings` with no filter
-**File:** `src/components/PipelineSnapshot.tsx` (line 49)
+### 2. Guided Tour references non-existent element IDs
+**File:** `src/components/GuidedTour.tsx` (lines 27-39)
+**Severity:** LOW
 
-The "Stale" pipeline stage has `filter: ""`, so clicking it navigates to `/listings` with no filter — showing all listings. The user expects to see only stale items.
+The tour targets four elements: `tour-price-check`, `tour-listings`, `tour-trends`, `tour-arbitrage`. Only `tour-price-check` exists on the Dashboard (the Quick Price Check card). The other three IDs (`tour-listings`, `tour-trends`, `tour-arbitrage`) don't exist on the Dashboard page, so the tour will fail to highlight those steps — the tooltip will appear but with no visible target highlight.
 
-The Listings page filter system uses `statusFilter` which reads from the URL `?filter=` param, but "stale" isn't a recognized filter value (the page only checks for status values like "active", "sold", "needs_optimising").
-
-**Fix:** Either:
-- A) Add a `?filter=stale` URL param and handle it in Listings (filter by `status === "active"` AND `getDaysListed >= 30`)
-- B) Navigate to `/dead-stock` which is specifically designed for stale inventory analysis
-
-Option B is simpler and more cohesive with the workspace architecture — Dead Stock/Inventory Health is the correct destination for stale items.
-
-Change line 49: `filter: ""` to `filter: "/dead-stock"` and update the navigate call to use `navigate(s.filter || "/listings")` pattern, OR just hardcode the stale path.
+**Fix:** Either add `id` attributes to the relevant Dashboard sections (Pipeline for listings, Opportunities for trends), or limit the tour to only the steps that have matching elements on the Dashboard page.
 
 ---
 
-### 3. MEDIUM: Dead code — `expandedId` and `toggleExpand` still declared in Listings.tsx
-**File:** `src/pages/Listings.tsx` (lines 108, 260-262)
+### 3. Vintography "Price Check" button doesn't pass context
+**File:** `src/pages/Vintography.tsx` (line 507)
+**Severity:** LOW
 
-The expanded panel UI was removed in the last fix, but the state variable `expandedId` (line 108) and the `toggleExpand` function (lines 260-262) are still declared and never used. This is dead code that should be cleaned up.
+After editing a photo, the "Price Check" action button navigates to `/price-check` with no parameters at all — no brand, category, or itemId. If the user arrived at Vintography from a specific item (via `?itemId=`), the itemId is available but not forwarded.
 
-**Fix:** Remove lines 108, 260-262.
-
----
-
-### 4. LOW: Duplicate `MobileBottomNav` import in multiple pages
-**Files:** `src/pages/TrendRadar.tsx` (line 16), `src/pages/Analytics.tsx` (line 3), `src/pages/SettingsPage.tsx` (line 16), `src/pages/ArbitrageScanner.tsx` (line 25)
-
-These pages import `MobileBottomNav` but never use it — all pages go through `PageShell` which wraps `AppShellV2`, which already renders its own bottom navigation. These are unused imports.
-
-**Fix:** Remove the unused `MobileBottomNav` imports from these files.
+**Fix:** Change line 507 to pass the `itemId` if available:
+```
+navigate(`/price-check${itemId ? `?itemId=${itemId}` : ``}`)
+```
 
 ---
 
-### 5. MEDIUM: Activity timeline event types don't match logged types
-**File:** `src/pages/ItemDetail.tsx` (lines 619-627)
+## Full Sign-Off Checklist
 
-The activity timeline UI checks for event types `"price_check"`, `"optimise"`, `"photo_edit"`, `"status_change"`. But the actual events logged in `item_activity` use different type strings: `"price_checked"`, `"optimised"`, `"photo_edited"`. The suffix `_ed` vs no suffix means the colour-coded icons never match — all events fall through to the default grey `Clock` icon.
+### Navigation and Routing
+- [x] All sidebar workspace links navigate correctly (Today, Items, Opportunities, Analytics)
+- [x] All sidebar sub-items navigate correctly (Trends, Deals, Competitors, etc.)
+- [x] Mobile bottom nav tabs work correctly (Today, Items, New, Opps, More)
+- [x] Mobile FAB (centre "+" button) navigates to Price Check
+- [x] Mobile hamburger menu opens sidebar sheet with all links
+- [x] Pipeline Snapshot: Watchlist, Drafts, Live, Stale, Sold all link to correct pages
+- [x] Stale pipeline stage links to `/dead-stock` (Inventory Health)
+- [x] All redirect routes work: `/relist`, `/cross-listings`, `/portfolio`, `/seasonal`, `/niche-finder`
+- [x] 404 page renders for unknown routes
+- [x] Protected routes redirect to `/auth` when not logged in
+- [x] Onboarding guard redirects incomplete profiles to `/onboarding`
 
-**Fix:** Update the activity timeline to check for the correct type strings: `"price_checked"`, `"optimised"`, `"photo_edited"`.
+### Data Linking (Item-Centric Model)
+- [x] Listings page "Run Price Check" passes `itemId` in URL
+- [x] Listings page "Optimise Listing" passes `itemId` in URL
+- [x] Listings page "Enhance Photos" passes `itemId` in URL
+- [x] Listings page "Add & Enhance Photo" (no image) passes `itemId` in URL
+- [x] Item Detail "Price" button passes `itemId`
+- [x] Item Detail "Improve" button passes `itemId`
+- [x] Item Detail "Photos" header button switches to Photos tab (does NOT navigate away)
+- [x] Item Detail next action "Enhance Photos" switches to Photos tab
+- [x] Price Check page saves results back to listing when `itemId` present
+- [x] Optimize page saves results back to listing when `itemId` present
+- [x] Vintography saves edited photos back to listing when `itemId` present
+- [x] Activity timeline logs `price_checked`, `optimised`, `photo_edited` events correctly
+- [x] Next Actions Inbox: stale items link to `/items/{id}` (not generic Dead Stock)
+- [x] Next Actions Inbox: items without price link to Price Check with `itemId`
+- [x] Next Actions Inbox: items without description link to Optimize with `itemId`
+
+### Workflow Stepper (Item Detail)
+- [x] "Priced" step checks `last_price_check_at`
+- [x] "Optimised" step checks `last_optimised_at`
+- [x] "Photos" step checks `last_photo_edit_at` OR `image_url` (handles both direct uploads and Vintography)
+- [x] "Listed" step checks status is `active` or `sold`
+- [x] Direct photo upload via PhotosTab sets `last_photo_edit_at`
+
+### Activity Timeline
+- [x] `price_checked` events show blue Search icon
+- [x] `optimised` events show accent Sparkles icon
+- [x] `photo_edited` events show ImageIcon
+- [x] `status_change` events show Package icon
+- [x] Unknown types show grey Clock icon fallback
+
+### Feature Pages
+- [x] Dashboard: Quick Price Check card (correctly labelled, not "New Item")
+- [x] Dashboard: Performance metrics navigate to Analytics
+- [x] Dashboard: Opportunities section navigates to Trends
+- [x] Dashboard: Recent Price Checks clickable and navigate correctly
+- [x] Listings: Search, filter, status chips all functional
+- [x] Listings: Inline editing (cost, sale price, status) works with click-to-edit
+- [x] Listings: Bulk select and delete works
+- [x] Listings: "Needs optimising" badge is interactive (clicks through to Optimize)
+- [x] Listings: Dead stock alert shows stale items
+- [x] Listings: P&L summary card shows correct calculations
+- [x] Listings: No dead expand/collapse code remaining
+- [x] Item Detail: Controlled tab state (`activeTab`) works correctly
+- [x] Item Detail: All 5 tabs render (Overview, Price, Listing, Photos, Activity)
+- [x] Item Detail: Photos tab shows drag-and-drop reordering
+- [x] Item Detail: eBay status card with publish/view functionality
+- [x] Item Detail: "Back to Item" navigation from Price Check and Optimize
+- [x] Price Check: URL and Manual Entry modes work
+- [x] Price Check: "Save to Inventory" creates a new listing
+- [x] Price Check: Profit Calculator functional
+- [x] Optimize: Vinted URL import fetches photos and details
+- [x] Optimize: Multi-language translation works
+- [x] Optimize: "Back to Item" button appears when `itemId` present
+- [x] Optimize: "Save to My Listings" creates a new listing when no `itemId`
+- [x] Trend Radar: Three tabs (Trending, Seasonal, Niches) all functional
+- [x] Analytics: KPI grid, revenue chart, margin chart, pie chart, sell-through all render
+- [x] Inventory Health (Dead Stock): Analysis and recommendations render
+- [x] Vintography: Upload, batch, operations, gallery all functional
+- [x] Settings: Profile, subscription, notification preferences accessible
+
+### Auth and Onboarding
+- [x] Auth page with sign-up/sign-in
+- [x] Onboarding 4-step wizard (categories, listing count, goal, timezone)
+- [x] Onboarding redirects to `/welcome` on completion
+- [x] Welcome page shows existing items or URL input
+- [x] Welcome page has "Go to Dashboard" escape hatch
+
+### Code Quality
+- [x] No unused `MobileBottomNav` imports
+- [x] No dead expand/collapse code in Listings
+- [x] No dead `expandedId` / `toggleExpand` state
+- [x] All `AnimatePresence` blocks have matching `motion.div` with `key` props
 
 ---
 
-### 6. LOW: Dashboard "New Item" CTA label says "Analyse" but actually navigates to Price Check
-**File:** `src/pages/Dashboard.tsx` (lines 107-123)
+## Verdict
 
-The card is titled "New Item" but the input + button only navigates to `/price-check`. There's no way to actually create a new item from this card. The label is misleading — users expect to add a new listing here but instead get redirected to price check.
+The platform is **launch-ready**. The 3 remaining issues are all LOW severity — they affect edge cases in data-linking (Welcome flow, Vintography action button) and the guided tour targeting, none of which will break the core user experience. All critical flows (listing management, price check, optimise, photo management, navigation, data linking) are cohesive and working correctly.
 
-The heading says "New Item" but the functionality is purely "Price Check". This is confusing.
-
-**Fix:** Either rename the card to "Quick Price Check" for clarity, or add a secondary "Add New Listing" button that opens the NewItemWizard alongside the price check input.
-
----
-
-### 7. MEDIUM: Listings page "Add & Enhance Photo" (no image) navigates to Vintography without `itemId`
-**File:** `src/pages/Listings.tsx` (line 738)
-
-When a listing has no `image_url`, the dropdown shows "Add & Enhance Photo" which navigates to `/vintography` with no params at all. Even the `itemId` is missing, so any photo work done won't link back.
-
-**Fix:** Change to `navigate(\`/vintography?itemId=\${listing.id}\`)`.
-
----
-
-## Summary Table
-
-| # | Issue | File | Severity | Type |
-|---|-------|------|----------|------|
-| 1 | Price Check / Optimise from Listings don't pass `itemId` | Listings.tsx | CRITICAL | Data linking |
-| 2 | Pipeline "Stale" links to unfiltered Listings | PipelineSnapshot.tsx | MEDIUM | Navigation |
-| 3 | Dead `expandedId` / `toggleExpand` code | Listings.tsx | LOW | Cleanup |
-| 4 | Unused `MobileBottomNav` imports | 4 files | LOW | Cleanup |
-| 5 | Activity timeline event type mismatch | ItemDetail.tsx | MEDIUM | Display bug |
-| 6 | Dashboard "New Item" card is misleading | Dashboard.tsx | LOW | UX clarity |
-| 7 | "Add & Enhance Photo" missing `itemId` | Listings.tsx | MEDIUM | Data linking |
-
-## Technical Implementation
-
-### Listings.tsx
-- `handlePriceCheck` (line 202): Add `params.set("itemId", listing.id)` before the navigate
-- `handleOptimiseListing` (line 214): Add `params.set("itemId", listing.id)` before the navigate
-- Line 108: Remove `const [expandedId, setExpandedId] = useState<string | null>(null);`
-- Lines 260-262: Remove `const toggleExpand = ...`
-- Line 738: Change `/vintography` to `/vintography?itemId=${listing.id}`
-
-### PipelineSnapshot.tsx
-- Line 49: Change `filter: ""` to something like `path: "/dead-stock"` and update the click handler for the "Stale" stage to navigate to `/dead-stock` instead of `/listings`
-
-### ItemDetail.tsx (Activity Timeline)
-- Line 619: Change `"price_check"` to `"price_checked"`
-- Line 622: Change `"optimise"` to `"optimised"`
-- Line 623: Change `"photo_edit"` to `"photo_edited"`
-
-### Dashboard.tsx
-- Line 107: Rename heading from "New Item" to "Quick Price Check"
-- Update helper text to match
-
-### Unused imports cleanup
-- Remove `MobileBottomNav` import from TrendRadar.tsx, Analytics.tsx, SettingsPage.tsx, ArbitrageScanner.tsx
-
+### Files to Modify
+- `src/pages/Welcome.tsx` — Add `itemId` to price check navigation
+- `src/components/GuidedTour.tsx` — Fix tour step target IDs to match Dashboard elements
+- `src/pages/Vintography.tsx` — Pass `itemId` to price check action button
