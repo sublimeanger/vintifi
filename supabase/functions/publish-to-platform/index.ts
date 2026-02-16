@@ -160,6 +160,9 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
     throw new Error(`eBay inventory creation failed [${inventoryRes.status}]: ${await inventoryRes.text()}`);
   }
 
+  // Step 1.5: Ensure merchant location exists
+  await ensureMerchantLocation(accessToken);
+
   // Step 2: Create offer
   const offerRes = await fetch("https://api.ebay.com/sell/inventory/v1/offer", {
     method: "POST",
@@ -322,6 +325,42 @@ function quickFallbackCategory(listing: any): string {
   const cat = (listing.category || "").toLowerCase();
   for (const [key, id] of Object.entries(EBAY_CATEGORY_FALLBACKS)) {
     if (cat.includes(key) || key.includes(cat)) return id;
+}
+
+// ─── Ensure eBay Merchant Location Exists ───
+async function ensureMerchantLocation(accessToken: string) {
+  const checkRes = await fetch(
+    "https://api.ebay.com/sell/inventory/v1/location/default",
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (checkRes.ok) return; // already exists
+
+  const createRes = await fetch(
+    "https://api.ebay.com/sell/inventory/v1/location/default",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        location: {
+          address: {
+            postalCode: "SW1A 1AA",
+            country: "GB",
+          },
+        },
+        name: "Default Location",
+        merchantLocationStatus: "ENABLED",
+        locationTypes: ["WAREHOUSE"],
+      }),
+    }
+  );
+  if (!createRes.ok && createRes.status !== 409) {
+    const errorText = await createRes.text();
+    console.error(`eBay location setup failed [${createRes.status}]: ${errorText}`);
+    throw new Error(`eBay location setup failed [${createRes.status}]: ${errorText}`);
   }
+}
   return "11450";
 }
