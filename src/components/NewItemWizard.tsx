@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Link2, Camera, Pencil, ArrowRight, ArrowLeft, Loader2,
-  Plus, Check, Sparkles, Package, Upload, X,
+  Plus, Check, Sparkles, Package, Upload, X, Zap,
 } from "lucide-react";
 
 type EntryMethod = "url" | "photo" | "manual";
@@ -100,7 +100,6 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
     onOpenChange(v);
   };
 
-  // Photo upload
   const uploadPhotos = async (files: File[]): Promise<string[]> => {
     if (!user) return [];
     setUploading(true);
@@ -183,7 +182,6 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
       toast.error("Upload at least one photo");
       return;
     }
-    // Auto-detect from URL before moving to details
     if (data.method === "url" && data.url.includes("vinted")) {
       await scrapeVintedUrl(data.url.trim());
     }
@@ -203,13 +201,11 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
 
     setSaving(true);
     try {
-      // Upload local photos if any
       let uploadedUrls: string[] = [];
       if (data.photos.length > 0) {
         uploadedUrls = await uploadPhotos(data.photos);
       }
 
-      // Merge uploaded URLs with scraped external URLs (deduplicated)
       const scrapedUrls = data.photoUrls.filter(u => u.startsWith("http") && !u.startsWith("blob:"));
       const allImages = [...new Set([...uploadedUrls, ...scrapedUrls])];
 
@@ -266,15 +262,13 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
         {/* Progress dots */}
         {step !== "done" && (
           <div className="flex items-center justify-center gap-2 pb-2">
-            {["method", "input", "details"].map((s, i) => {
+            {["method", "input", "details"].map((s) => {
               const steps = data.method === "manual" ? ["method", "details"] : ["method", "input", "details"];
               const currentIdx = steps.indexOf(step);
               const thisIdx = steps.indexOf(s);
               if (thisIdx === -1) return null;
               return (
-                <div key={s} className={`w-2 h-2 rounded-full transition-colors ${
-                  thisIdx <= currentIdx ? "bg-primary" : "bg-muted"
-                }`} />
+                <div key={s} className={`w-2 h-2 rounded-full transition-colors ${thisIdx <= currentIdx ? "bg-primary" : "bg-muted"}`} />
               );
             })}
           </div>
@@ -577,6 +571,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
               </div>
 
               <div className="flex flex-col gap-2">
+                {/* Primary CTA: View Item (always the main action) */}
                 {createdItemId && (
                   <Button
                     onClick={() => { handleClose(false); navigate(`/items/${createdItemId}`); }}
@@ -585,19 +580,29 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                     <Package className="w-4 h-4 mr-2" /> View Item
                   </Button>
                 )}
+                {/* Secondary: Price Check — the recommended next step */}
                 {createdItemId && (
                   <Button
                     variant="outline"
-                    onClick={() => { handleClose(false); navigate(`/price-check?itemId=${createdItemId}&brand=${encodeURIComponent(data.brand)}&category=${encodeURIComponent(data.category)}&condition=${encodeURIComponent(data.condition)}`); }}
+                    onClick={() => {
+                      handleClose(false);
+                      const params = new URLSearchParams();
+                      params.set("itemId", createdItemId);
+                      if (data.brand) params.set("brand", data.brand);
+                      if (data.category) params.set("category", data.category);
+                      if (data.condition) params.set("condition", data.condition);
+                      if (data.url) params.set("url", data.url);
+                      navigate(`/price-check?${params.toString()}`);
+                    }}
                     className="w-full h-11 active:scale-95 transition-transform"
                   >
-                    <Sparkles className="w-4 h-4 mr-2" /> Run Price Check
+                    <Zap className="w-4 h-4 mr-2" /> Run Price Check
                   </Button>
                 )}
                 <Button
                   variant="ghost"
                   onClick={reset}
-                  className="w-full h-11 active:scale-95 transition-transform"
+                  className="w-full h-11 active:scale-95 transition-transform text-muted-foreground"
                 >
                   <Plus className="w-4 h-4 mr-2" /> Add Another Item
                 </Button>
