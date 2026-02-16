@@ -164,18 +164,15 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
   // Step 1.5: Ensure merchant location exists
   await ensureMerchantLocation(accessToken);
 
-  // Step 1.6: Fetch seller's business policies (optional — may not exist)
-  const policies = await fetchSellerPolicies(accessToken);
-
-  const shippingCost = listing.shipping_cost ?? 3.99; // fallback default
+  // Step 1.6: Fetch or create seller's business policies (uses shipping cost)
+  const shippingCost = listing.shipping_cost ?? 3.99;
+  const policies = await fetchOrCreatePolicies(accessToken, shippingCost);
 
   const offerBase: Record<string, any> = {
     sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
     pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
     availableQuantity: 1, categoryId: category.id, merchantLocationKey: "default",
-    ...(Object.keys(policies).length > 0
-      ? { listingPolicies: policies }
-      : {}),
+    listingPolicies: policies,
   };
 
   // Step 2: Check for existing offer on this SKU
@@ -421,13 +418,14 @@ async function ensureMerchantLocation(accessToken: string) {
   }
 }
 
-// ─── Fetch Seller Business Policies ───
-async function fetchSellerPolicies(accessToken: string): Promise<Record<string, string>> {
+// ─── Fetch or Create Seller Business Policies ───
+async function fetchOrCreatePolicies(accessToken: string, shippingCost: number): Promise<Record<string, string>> {
   const policies: Record<string, string> = {};
   const headers = { Authorization: `Bearer ${accessToken}`, "Accept-Language": "en-GB" };
+  const postHeaders = { ...headers, "Content-Type": "application/json" };
   const baseUrl = "https://api.ebay.com/sell/account/v1";
 
-  // Fetch fulfillment, payment, and return policies in parallel
+  // Fetch existing policies in parallel
   const [fulfillRes, paymentRes, returnRes] = await Promise.all([
     fetch(`${baseUrl}/fulfillment_policy?marketplace_id=EBAY_GB`, { headers }),
     fetch(`${baseUrl}/payment_policy?marketplace_id=EBAY_GB`, { headers }),
@@ -436,39 +434,98 @@ async function fetchSellerPolicies(accessToken: string): Promise<Record<string, 
 
   if (fulfillRes.ok) {
     const data = await fulfillRes.json();
-    const defaultPolicy = data.fulfillmentPolicies?.find((p: any) =>
-      p.categoryTypes?.some((ct: any) => ct.default === true)
-    ) || data.fulfillmentPolicies?.[0];
-    if (defaultPolicy?.fulfillmentPolicyId) {
-      policies.fulfillmentPolicyId = defaultPolicy.fulfillmentPolicyId;
-    }
+    const p = data.fulfillmentPolicies?.find((p: any) => p.categoryTypes?.some((ct: any) => ct.default === true)) || data.fulfillmentPolicies?.[0];
+    if (p?.fulfillmentPolicyId) policies.fulfillmentPolicyId = p.fulfillmentPolicyId;
   }
-
   if (paymentRes.ok) {
     const data = await paymentRes.json();
-    const defaultPolicy = data.paymentPolicies?.find((p: any) =>
-      p.categoryTypes?.some((ct: any) => ct.default === true)
-    ) || data.paymentPolicies?.[0];
-    if (defaultPolicy?.paymentPolicyId) {
-      policies.paymentPolicyId = defaultPolicy.paymentPolicyId;
-    }
+    const p = data.paymentPolicies?.find((p: any) => p.categoryTypes?.some((ct: any) => ct.default === true)) || data.paymentPolicies?.[0];
+    if (p?.paymentPolicyId) policies.paymentPolicyId = p.paymentPolicyId;
   }
-
   if (returnRes.ok) {
     const data = await returnRes.json();
-    const defaultPolicy = data.returnPolicies?.find((p: any) =>
-      p.categoryTypes?.some((ct: any) => ct.default === true)
-    ) || data.returnPolicies?.[0];
-    if (defaultPolicy?.returnPolicyId) {
-      policies.returnPolicyId = defaultPolicy.returnPolicyId;
+    const p = data.returnPolicies?.find((p: any) => p.categoryTypes?.some((ct: any) => ct.default === true)) || data.returnPolicies?.[0];
+    if (p?.returnPolicyId) policies.returnPolicyId = p.returnPolicyId;
+  }
+
+  // Auto-create any missing policies
+  if (!policies.fulfillmentPolicyId) {
+    console.log("Creating eBay fulfillment policy with shipping cost:", shippingCost);
+    const res = await fetch(`${baseUrl}/fulfillment_policy`, {
+      method: "POST", headers: postHeaders,
+      body: JSON.stringify({
+        name: "Vintifi Standard Shipping",
+        marketplaceId: "EBAY_GB",
+        categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES", default: true }],
+        handlingTime: { value: 3, unit: "DAY" },
+        shippingOptions: [{
+          optionType: "DOMESTIC",
+          costType: "FLAT_RATE",
+          shippingServices: [{
+            sortOrder: 1,
+            shippingCarrierCode: "Royal Mail",
+            shippingServiceCode: "UK_RoyalMailSecondClassStandard",
+            shippingCost: { value: shippingCost.toFixed(2), currency: "GBP" },
+            additionalShippingCost: { value: "0.00", currency: "GBP" },
+          }],
+        }],
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      policies.fulfillmentPolicyId = data.fulfillmentPolicyId;
+    } else {
+      const errText = await res.text();
+      console.error("Failed to create fulfillment policy:", errText);
+      throw new Error(`eBay requires a shipping policy. Auto-creation failed: ${errText}`);
     }
   }
 
-  // Only return policies if ALL three are present; otherwise eBay rejects partial policies
-  if (policies.fulfillmentPolicyId && policies.paymentPolicyId && policies.returnPolicyId) {
-    return policies;
+  if (!policies.paymentPolicyId) {
+    console.log("Creating eBay payment policy");
+    const res = await fetch(`${baseUrl}/payment_policy`, {
+      method: "POST", headers: postHeaders,
+      body: JSON.stringify({
+        name: "Vintifi Payment Policy",
+        marketplaceId: "EBAY_GB",
+        categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES", default: true }],
+        paymentMethods: [{ paymentMethodType: "WALLET" }],
+        immediatePay: false,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      policies.paymentPolicyId = data.paymentPolicyId;
+    } else {
+      console.error("Failed to create payment policy:", await res.text());
+    }
   }
 
-  console.log("eBay business policies incomplete — will rely on eBay defaults");
-  return {};
+  if (!policies.returnPolicyId) {
+    console.log("Creating eBay return policy");
+    const res = await fetch(`${baseUrl}/return_policy`, {
+      method: "POST", headers: postHeaders,
+      body: JSON.stringify({
+        name: "Vintifi Returns Policy",
+        marketplaceId: "EBAY_GB",
+        categoryTypes: [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES", default: true }],
+        returnsAccepted: true,
+        returnPeriod: { value: 30, unit: "DAY" },
+        refundMethod: "MONEY_BACK",
+        returnShippingCostPayer: "BUYER",
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      policies.returnPolicyId = data.returnPolicyId;
+    } else {
+      console.error("Failed to create return policy:", await res.text());
+    }
+  }
+
+  if (!policies.fulfillmentPolicyId) {
+    throw new Error("Could not find or create an eBay shipping policy. Please create one in eBay Seller Hub.");
+  }
+
+  return policies;
 }
