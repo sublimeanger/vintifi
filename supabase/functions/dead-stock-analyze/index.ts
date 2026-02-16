@@ -94,7 +94,7 @@ Return JSON with this structure:
       "listing_title": "<title>",
       "action": "price_reduction" | "bundle" | "crosslist" | "relist" | "donate",
       "priority": "high" | "medium" | "low",
-      "suggested_price": <number or null>,
+      "suggested_price": <number or null — MUST be LOWER than current price for price_reduction actions>,
       "price_reduction_schedule": [
         {"week": 1, "price": <number>, "reason": "<why>"},
         {"week": 2, "price": <number>, "reason": "<why>"}
@@ -137,6 +137,27 @@ Return JSON with this structure:
     } catch {
       console.error("Failed to parse AI response:", content);
       throw new Error("AI returned invalid response");
+    }
+
+    // Post-AI validation: sanity-check suggested_price and estimated_days_to_sell
+    for (const r of (result.recommendations || [])) {
+      const listing = deadStock[r.listing_index - 1];
+      if (listing && r.suggested_price != null) {
+        const currentPrice = listing.current_price || 0;
+        // Reject prices > 2x current or negative
+        if (r.suggested_price > currentPrice * 2 || r.suggested_price <= 0) {
+          console.log(`Rejecting suggested_price £${r.suggested_price} for "${listing.title}" (current £${currentPrice})`);
+          r.suggested_price = null;
+        }
+        // For price_reduction, must be lower than current
+        if (r.action === "price_reduction" && r.suggested_price != null && r.suggested_price >= currentPrice) {
+          r.suggested_price = Math.round(currentPrice * 0.8 * 100) / 100;
+        }
+      }
+      // Clamp estimated_days_to_sell
+      if (r.estimated_days_to_sell != null) {
+        r.estimated_days_to_sell = Math.max(1, Math.min(90, r.estimated_days_to_sell));
+      }
     }
 
     // Attach listing IDs to recommendations

@@ -314,6 +314,21 @@ Guidelines:
       throw new Error("Failed to parse competitor analysis");
     }
 
+    // Post-AI validation: overwrite avg_price with real computed value from listings
+    if (listings.length > 0) {
+      const realPrices = listings
+        .map((l: any) => parseFloat(l.price || l.total_price || 0))
+        .filter((p: number) => p > 0);
+      if (realPrices.length > 0) {
+        const realAvg = Math.round((realPrices.reduce((a: number, b: number) => a + b, 0) / realPrices.length) * 100) / 100;
+        if (analysis.avg_price && Math.abs(analysis.avg_price - realAvg) / realAvg > 0.3) {
+          console.log(`Correcting avg_price: AI said £${analysis.avg_price}, real computed £${realAvg}`);
+        }
+        analysis.avg_price = realAvg;
+        analysis.listing_count = listings.length;
+      }
+    }
+
     // ── Persist results ──
     if (competitor_id) {
       // Update competitor profile with latest data

@@ -86,7 +86,9 @@ For each item provide:
 - A suggested new price (null if well-priced)
 - A confidence score (0-100)
 - A brief reason explaining the recommendation
-- An action: "reduce_price", "increase_price", "relist", "bundle", "keep" `,
+- An action: "reduce_price", "increase_price", "relist", "bundle", "keep"
+
+IMPORTANT: If you cannot determine a confident market price for an item, set suggested_price to null rather than guessing. Do NOT invent prices without market evidence.`,
           },
           {
             role: "user",
@@ -169,6 +171,19 @@ For each item provide:
     // Enrich recommendations with listing data
     const listingsMap: Record<string, any> = {};
     listings.forEach(l => { listingsMap[l.id] = l; });
+
+    // Post-AI validation: reject obviously wrong suggested_price values
+    for (const r of result.recommendations) {
+      const listing = listingsMap[r.listing_id];
+      if (r.suggested_price != null && listing?.current_price) {
+        const ratio = r.suggested_price / listing.current_price;
+        if (ratio > 3 || ratio < 0.2 || r.suggested_price <= 0) {
+          console.log(`Rejecting suggested_price £${r.suggested_price} for "${listing.title}" (current £${listing.current_price})`);
+          r.suggested_price = null;
+          r.confidence = Math.min(r.confidence, 30);
+        }
+      }
+    }
 
     const enriched = result.recommendations.map((r: any) => ({
       ...r,
