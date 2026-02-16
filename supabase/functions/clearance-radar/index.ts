@@ -101,7 +101,7 @@ async function scrapeVintedBaseline(apiToken: string, query: string): Promise<an
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ search: query, maxItems: 20, country: "uk" }),
+      body: JSON.stringify({ search: query, maxItems: 25, country: "uk" }),
     });
     if (!res.ok) { console.error(`Apify baseline failed: ${res.status}`); return []; }
     const data = await res.json();
@@ -122,7 +122,7 @@ async function scrapeRetailer(apiKey: string, retailerId: string, config: Retail
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           url: saleUrl,
-          formats: [{ type: "json", schema: PRODUCT_EXTRACT_SCHEMA, prompt: `Extract product listings from this sale/clearance page. ${searchSuffix ? `Focus on items matching: ${searchSuffix}.` : ""} Return up to 10 products with their sale prices in GBP.` }],
+          formats: [{ type: "json", schema: PRODUCT_EXTRACT_SCHEMA, prompt: `Extract product listings from this sale/clearance page. ${searchSuffix ? `Focus on items matching: ${searchSuffix}.` : ""} Return up to 20 products with their sale prices in GBP.` }],
           onlyMainContent: true,
           waitFor: 3000,
         }),
@@ -151,7 +151,7 @@ async function scrapeRetailer(apiKey: string, retailerId: string, config: Retail
     }
   }
 
-  return { retailer: retailerId, products: allProducts.slice(0, 8) };
+  return { retailer: retailerId, products: allProducts.slice(0, 15) };
 }
 
 serve(async (req) => {
@@ -230,7 +230,7 @@ serve(async (req) => {
     }).join("\n\n");
 
     const vintedContext = vintedItems.length > 0
-      ? vintedItems.slice(0, 15).map((item: any) => {
+      ? vintedItems.slice(0, 20).map((item: any) => {
           const b = item.brand || item.brand_title || "";
           const price = item.price || item.total_price || "?";
           const title = item.title || "";
@@ -264,7 +264,7 @@ Return a JSON array of opportunities. Each object must have:
 - ai_notes: 1-2 sentence explanation of why this is a good flip
 
 Only include items with profit margin >= ${min_margin}%.
-Return max 12 opportunities ranked by margin descending.
+Return max 20 opportunities ranked by margin descending.
 If none found, return [].
 Return ONLY the JSON array.`;
 
