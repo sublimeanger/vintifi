@@ -44,7 +44,7 @@ export default function Welcome() {
 
   const handlePriceCheck = (item: ImportedItem) => {
     if (item.vinted_url) {
-      navigate(`/price-check?url=${encodeURIComponent(item.vinted_url)}`);
+      navigate(`/price-check?url=${encodeURIComponent(item.vinted_url)}&itemId=${item.id}`);
     } else {
       navigate("/price-check");
     }

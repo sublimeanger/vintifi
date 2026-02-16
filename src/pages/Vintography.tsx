@@ -504,7 +504,7 @@ export default function Vintography() {
                           className="h-12 sm:h-10 active:scale-95 transition-transform">
                           <ChevronRight className="w-4 h-4 mr-2" /> Use in Listing
                         </Button>
-                        <Button variant="outline" onClick={() => navigate(`/price-check`)}
+                        <Button variant="outline" onClick={() => navigate(`/price-check${itemId ? `?itemId=${itemId}` : ``}`)}
                           className="h-12 sm:h-10 active:scale-95 transition-transform">
                           <Search className="w-4 h-4 mr-2" /> Price Check
                         </Button>
