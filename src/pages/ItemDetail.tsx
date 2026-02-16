@@ -52,6 +52,8 @@ type Listing = {
   last_optimised_at: string | null;
   last_photo_edit_at: string | null;
   source_type: string | null;
+  colour: string | null;
+  material: string | null;
 };
 
 type PriceReport = {
@@ -646,13 +648,18 @@ export default function ItemDetail() {
           onOpenChange={setEbayDialogOpen}
           listing={item}
           publishing={ebayPublishing}
-          onPublish={() => {
+          onPublish={(editedListing) => {
+            setItem(editedListing as Listing);
             setEbayDialogOpen(false);
             handlePublishToEbay();
           }}
           onOptimise={() => {
             setEbayDialogOpen(false);
             handleOptimise();
+          }}
+          onSave={async (updates) => {
+            await supabase.from("listings").update(updates as any).eq("id", item.id);
+            setItem((prev) => prev ? { ...prev, ...updates } : prev);
           }}
         />
       )}

@@ -291,6 +291,7 @@ export type Database = {
         Row: {
           brand: string | null
           category: string | null
+          colour: string | null
           condition: string | null
           created_at: string
           current_price: number | null
@@ -304,6 +305,7 @@ export type Database = {
           last_optimised_at: string | null
           last_photo_edit_at: string | null
           last_price_check_at: string | null
+          material: string | null
           purchase_price: number | null
           recommended_price: number | null
           sale_price: number | null
@@ -321,6 +323,7 @@ export type Database = {
         Insert: {
           brand?: string | null
           category?: string | null
+          colour?: string | null
           condition?: string | null
           created_at?: string
           current_price?: number | null
@@ -334,6 +337,7 @@ export type Database = {
           last_optimised_at?: string | null
           last_photo_edit_at?: string | null
           last_price_check_at?: string | null
+          material?: string | null
           purchase_price?: number | null
           recommended_price?: number | null
           sale_price?: number | null
@@ -351,6 +355,7 @@ export type Database = {
         Update: {
           brand?: string | null
           category?: string | null
+          colour?: string | null
           condition?: string | null
           created_at?: string
           current_price?: number | null
@@ -364,6 +369,7 @@ export type Database = {
           last_optimised_at?: string | null
           last_photo_edit_at?: string | null
           last_price_check_at?: string | null
+          material?: string | null
           purchase_price?: number | null
           recommended_price?: number | null
           sale_price?: number | null
