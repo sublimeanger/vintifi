@@ -85,14 +85,53 @@ export default function PriceCheck() {
   const [report, setReport] = useState<PriceReport | null>(null);
   const [inputMode, setInputMode] = useState<"url" | "manual">(hasManualParams ? "manual" : "url");
   const [yourCost, setYourCost] = useState("");
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const [checkingCache, setCheckingCache] = useState(false);
 
+  // Check for cached report instead of auto-running
   useEffect(() => {
     const urlParam = searchParams.get("url");
     if (urlParam) {
       setUrl(urlParam);
-      handleAnalyze(urlParam);
+      checkForCachedReport(urlParam);
     }
   }, []);
+
+  const checkForCachedReport = async (vintedUrl: string) => {
+    if (!user) return;
+    setCheckingCache(true);
+    try {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from("price_reports")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("vinted_url", vintedUrl)
+        .gte("created_at", twentyFourHoursAgo)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        const cached = data[0];
+        setReport({
+          recommended_price: cached.recommended_price ?? 0,
+          confidence_score: cached.confidence_score ?? 0,
+          price_range_low: cached.price_range_low ?? 0,
+          price_range_high: cached.price_range_high ?? 0,
+          item_title: cached.item_title ?? "",
+          item_brand: cached.item_brand ?? "",
+          comparable_items: (cached.comparable_items as any) ?? [],
+          ai_insights: cached.ai_insights ?? "",
+          price_distribution: (cached.price_distribution as any) ?? [],
+        });
+        setCachedAt(cached.created_at);
+      }
+    } catch (e) {
+      console.error("Cache check failed:", e);
+    } finally {
+      setCheckingCache(false);
+    }
+  };
 
   const handleAnalyze = async (overrideUrl?: string) => {
     const targetUrl = overrideUrl || url;
@@ -114,6 +153,7 @@ export default function PriceCheck() {
 
     setLoading(true);
     setReport(null);
+    setCachedAt(null);
     setYourCost("");
 
     try {
@@ -123,6 +163,7 @@ export default function PriceCheck() {
           brand: inputMode === "manual" ? brand : undefined,
           category: inputMode === "manual" ? category : undefined,
           condition: inputMode === "manual" ? condition : undefined,
+          itemId: itemId || undefined,
         },
       });
 
@@ -287,7 +328,32 @@ export default function PriceCheck() {
         )}
       </Card>
 
+      {/* Cache banner */}
+      {cachedAt && report && !loading && (
+        <Card className="p-3 sm:p-4 mb-3 sm:mb-5 border-accent/30 bg-accent/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm">
+            <Clock className="w-4 h-4 text-accent shrink-0" />
+            <span className="text-muted-foreground">
+              Showing cached report from{" "}
+              <span className="font-medium text-foreground">
+                {new Date(cachedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              </span>
+              . No credit used.
+            </span>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => handleAnalyze()} disabled={loading} className="shrink-0">
+            <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Re-run (1 credit)
+          </Button>
+        </Card>
+      )}
+
       {/* Loading State */}
+      {checkingCache && !report && !loading && (
+        <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-sm">Checking for cached report…</span>
+        </div>
+      )}
       {loading && <PriceReportSkeleton />}
 
       {/* Report */}
