@@ -51,7 +51,7 @@ serve(async (req) => {
       .from("platform_connections").select("*").eq("user_id", user.id).eq("status", "active").eq("platform", "ebay");
 
     const ebayConn = (connections || [])[0];
-    const results: Record<string, { success: boolean; error?: string; platform_url?: string }> = {};
+    const results: Record<string, { success: boolean; error?: string; platform_url?: string; categoryName?: string }> = {};
 
     for (const { platform, price_override } of platforms) {
       if (platform !== "ebay") {
@@ -95,7 +95,7 @@ serve(async (req) => {
           details: { platform: "ebay", listing_id, platform_url: publishResult.platform_url },
         });
 
-        results.ebay = { success: true, platform_url: publishResult.platform_url };
+        results.ebay = { success: true, platform_url: publishResult.platform_url, categoryName: publishResult.categoryName };
       } catch (err: any) {
         await supabase.from("cross_listings").upsert(
           { listing_id, user_id: user.id, platform: "ebay", status: "error", sync_error: err.message, last_synced_at: new Date().toISOString() },
@@ -132,7 +132,10 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
   const sku = `vintifi-${listing.id.slice(0, 8)}`;
 
   // Detect eBay category via AI
-  const categoryId = await detectEbayCategory(listing);
+  const category = await detectEbayCategory(listing);
+
+  // Build aspects from listing fields
+  const aspects = buildAspects(listing);
 
   // Step 1: Create inventory item
   const inventoryRes = await fetch(
@@ -148,6 +151,7 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
           description: listing.description || listing.title,
           brand: listing.brand || "Unbranded",
           imageUrls: listing.image_url ? [listing.image_url] : [],
+          aspects,
         },
       }),
     }
@@ -163,7 +167,7 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
     body: JSON.stringify({
       sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
       pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
-      availableQuantity: 1, categoryId, merchantLocationKey: "default",
+      availableQuantity: 1, categoryId: category.id, merchantLocationKey: "default",
     }),
   });
   if (!offerRes.ok) throw new Error(`eBay offer creation failed [${offerRes.status}]: ${await offerRes.text()}`);
@@ -181,7 +185,18 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
   return {
     platform_listing_id: publishData.listingId,
     platform_url: `https://www.ebay.co.uk/itm/${publishData.listingId}`,
+    categoryName: category.name,
   };
+}
+
+function buildAspects(listing: any): Record<string, string[]> {
+  const aspects: Record<string, string[]> = {};
+  if (listing.brand) aspects["Brand"] = [listing.brand];
+  if (listing.size) aspects["Size"] = [listing.size];
+  if (listing.colour) aspects["Colour"] = [listing.colour];
+  if (listing.material) aspects["Material"] = [listing.material];
+  if (listing.condition) aspects["Condition Description"] = [listing.condition];
+  return aspects;
 }
 
 function mapConditionToEbay(condition: string | null): string {
@@ -194,7 +209,6 @@ function mapConditionToEbay(condition: string | null): string {
 }
 
 // ─── AI-Powered eBay Category Detection ───
-// Common eBay UK clothing/fashion category IDs for fast fallback
 const EBAY_CATEGORY_FALLBACKS: Record<string, string> = {
   "women's clothing": "15724", "men's clothing": "1059",
   "women's shoes": "3034", "men's shoes": "93427",
@@ -209,11 +223,23 @@ const EBAY_CATEGORY_FALLBACKS: Record<string, string> = {
   "suits": "3001", "swimwear": "15690",
 };
 
-async function detectEbayCategory(listing: any): Promise<string> {
+// Reverse lookup: category ID → human-readable name
+const EBAY_CATEGORY_NAMES: Record<string, string> = Object.fromEntries(
+  Object.entries(EBAY_CATEGORY_FALLBACKS).map(([name, id]) => [id, name.split("'").map(s => s.charAt(0).toUpperCase() + s.slice(1)).join("'")])
+);
+// Add generic fallback
+EBAY_CATEGORY_NAMES["11450"] = "Clothing, Shoes & Accessories";
+
+function getCategoryName(id: string): string {
+  return EBAY_CATEGORY_NAMES[id] || "Clothing, Shoes & Accessories";
+}
+
+async function detectEbayCategory(listing: any): Promise<{ id: string; name: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     console.warn("No LOVABLE_API_KEY — using fallback category");
-    return quickFallbackCategory(listing);
+    const id = quickFallbackCategory(listing);
+    return { id, name: getCategoryName(id) };
   }
 
   try {
@@ -271,18 +297,24 @@ Return ONLY the numeric category ID, nothing else.`;
 
     if (!aiRes.ok) {
       console.warn("AI category detection failed, using fallback");
-      return quickFallbackCategory(listing);
+      const id = quickFallbackCategory(listing);
+      return { id, name: getCategoryName(id) };
     }
 
     const aiData = await aiRes.json();
     const raw = (aiData.choices?.[0]?.message?.content || "").trim();
     const idMatch = raw.match(/\d{3,6}/);
-    if (idMatch) return idMatch[0];
+    if (idMatch) {
+      const id = idMatch[0];
+      return { id, name: getCategoryName(id) };
+    }
 
-    return quickFallbackCategory(listing);
+    const id = quickFallbackCategory(listing);
+    return { id, name: getCategoryName(id) };
   } catch (err) {
     console.error("Category detection error:", err);
-    return quickFallbackCategory(listing);
+    const id = quickFallbackCategory(listing);
+    return { id, name: getCategoryName(id) };
   }
 }
 
@@ -291,5 +323,5 @@ function quickFallbackCategory(listing: any): string {
   for (const [key, id] of Object.entries(EBAY_CATEGORY_FALLBACKS)) {
     if (cat.includes(key) || key.includes(cat)) return id;
   }
-  return "11450"; // Generic clothing fallback
+  return "11450";
 }

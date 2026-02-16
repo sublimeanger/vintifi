@@ -1,164 +1,89 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Sparkles,
-  ExternalLink,
-  Loader2,
-  Image as ImageIcon,
-  FileText,
-  Tag,
-  PoundSterling,
-  Ruler,
-  ShieldCheck,
-} from "lucide-react";
+import { Sparkles, ExternalLink, Loader2, Save, Tag as TagIcon } from "lucide-react";
+import { CheckRow } from "@/components/ebay-publish/CheckRow";
+import { runChecks } from "@/components/ebay-publish/checks";
+import { supabase } from "@/integrations/supabase/client";
+import type { Listing, EbayPreview, EbayPublishDialogProps } from "@/components/ebay-publish/types";
 
-type Listing = {
-  id: string;
-  title: string;
-  description: string | null;
-  brand: string | null;
-  category: string | null;
-  size: string | null;
-  condition: string | null;
-  current_price: number | null;
-  health_score: number | null;
-  image_url: string | null;
-  images: unknown;
-  last_optimised_at: string | null;
-};
+export type { Listing } from "@/components/ebay-publish/types";
 
-type CheckResult = {
-  label: string;
-  status: "pass" | "warn" | "fail";
-  detail: string;
-  icon: typeof Tag;
-};
+export function EbayPublishDialog({
+  open, onOpenChange, listing, publishing, onPublish, onOptimise, onSave,
+}: EbayPublishDialogProps) {
+  const [editedListing, setEditedListing] = useState<Listing>(listing);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [pendingEdits, setPendingEdits] = useState<Partial<Listing>>({});
+  const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState<EbayPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-function runChecks(item: Listing): CheckResult[] {
-  const checks: CheckResult[] = [];
+  // Reset state when listing changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      setEditedListing(listing);
+      setPendingEdits({});
+      setEditingField(null);
+      fetchPreview(listing.id);
+    }
+  }, [open, listing.id]);
 
-  // Title length (eBay max 80 chars)
-  const titleLen = (item.title || "").length;
-  checks.push({
-    label: "Title",
-    icon: Tag,
-    ...(titleLen === 0
-      ? { status: "fail", detail: "Missing — eBay requires a title" }
-      : titleLen > 80
-        ? { status: "warn", detail: `${titleLen} chars — eBay truncates at 80. Consider shortening.` }
-        : titleLen < 20
-          ? { status: "warn", detail: `Only ${titleLen} chars — longer titles rank better on eBay.` }
-          : { status: "pass", detail: `${titleLen} chars — good length` }),
-  });
+  const fetchPreview = async (listingId: string) => {
+    setPreviewLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ebay-preview", {
+        body: { listing_id: listingId },
+      });
+      if (!error && data) {
+        setPreview(data as EbayPreview);
+      }
+    } catch {
+      // Preview is non-critical
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
-  // Description
-  const descLen = (item.description || "").length;
-  checks.push({
-    label: "Description",
-    icon: FileText,
-    ...(descLen === 0
-      ? { status: "fail", detail: "Missing — listings without descriptions get far fewer bids." }
-      : descLen < 50
-        ? { status: "warn", detail: "Very short — consider adding more detail for eBay buyers." }
-        : { status: "pass", detail: `${descLen} chars — good` }),
-  });
-
-  // Price
-  checks.push({
-    label: "Price",
-    icon: PoundSterling,
-    ...(item.current_price == null || item.current_price <= 0
-      ? { status: "fail", detail: "No price set — required for eBay." }
-      : { status: "pass", detail: `£${item.current_price.toFixed(2)}` }),
-  });
-
-  // Condition
-  checks.push({
-    label: "Condition",
-    icon: ShieldCheck,
-    ...(!item.condition
-      ? { status: "fail", detail: "Missing — eBay requires a condition." }
-      : { status: "pass", detail: item.condition }),
-  });
-
-  // Photos
-  const imageCount = Array.isArray(item.images) ? (item.images as string[]).length : item.image_url ? 1 : 0;
-  checks.push({
-    label: "Photos",
-    icon: ImageIcon,
-    ...(imageCount === 0
-      ? { status: "fail", detail: "No photos — eBay listings without photos rarely sell." }
-      : imageCount < 3
-        ? { status: "warn", detail: `Only ${imageCount} photo${imageCount > 1 ? "s" : ""} — eBay recommends 3+.` }
-        : { status: "pass", detail: `${imageCount} photos` }),
-  });
-
-  // Brand
-  checks.push({
-    label: "Brand",
-    icon: Tag,
-    ...(!item.brand
-      ? { status: "warn", detail: "Not set — will default to 'Unbranded' on eBay." }
-      : { status: "pass", detail: item.brand }),
-  });
-
-  // Size
-  checks.push({
-    label: "Size",
-    icon: Ruler,
-    ...(!item.size
-      ? { status: "warn", detail: "Not set — buyers often filter by size." }
-      : { status: "pass", detail: item.size }),
-  });
-
-  // Optimisation
-  checks.push({
-    label: "AI Optimised",
-    icon: Sparkles,
-    ...(!item.last_optimised_at
-      ? { status: "warn", detail: "Not optimised — AI-improved listings sell 2× faster." }
-      : { status: "pass", detail: "Listing has been AI-optimised" }),
-  });
-
-  return checks;
-}
-
-const statusIcon = {
-  pass: <CheckCircle2 className="w-4 h-4 text-success shrink-0" />,
-  warn: <AlertTriangle className="w-4 h-4 text-warning shrink-0" />,
-  fail: <XCircle className="w-4 h-4 text-destructive shrink-0" />,
-};
-
-interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  listing: Listing;
-  publishing: boolean;
-  onPublish: () => void;
-  onOptimise: () => void;
-}
-
-export function EbayPublishDialog({ open, onOpenChange, listing, publishing, onPublish, onOptimise }: Props) {
-  const checks = runChecks(listing);
+  const checks = useMemo(() => runChecks(editedListing), [editedListing]);
   const fails = checks.filter((c) => c.status === "fail");
   const warns = checks.filter((c) => c.status === "warn");
   const passes = checks.filter((c) => c.status === "pass");
-
   const hasBlockers = fails.length > 0;
-  const needsOptimisation = !listing.last_optimised_at;
+  const needsOptimisation = !editedListing.last_optimised_at;
   const score = Math.round((passes.length / checks.length) * 100);
+  const hasPendingEdits = Object.keys(pendingEdits).length > 0;
+
+  const getEditValue = (field: string): string => {
+    const val = (editedListing as any)[field];
+    if (val == null) return "";
+    return String(val);
+  };
+
+  const handleEditChange = (field: string, value: string) => {
+    const parsed = field === "current_price" ? (value ? parseFloat(value) : null) : (value || null);
+    setEditedListing((prev) => ({ ...prev, [field]: parsed }));
+    setPendingEdits((prev) => ({ ...prev, [field]: parsed }));
+  };
+
+  const handleSave = async () => {
+    if (!hasPendingEdits) return;
+    setSaving(true);
+    try {
+      await onSave(pendingEdits);
+      setPendingEdits({});
+      setEditingField(null);
+      // Re-fetch preview with updated data
+      fetchPreview(editedListing.id);
+    } catch {
+      // error handled by parent
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -176,6 +101,21 @@ export function EbayPublishDialog({ open, onOpenChange, listing, publishing, onP
           </DialogDescription>
         </DialogHeader>
 
+        {/* Category Preview */}
+        <div className="flex items-center gap-2 px-1">
+          <TagIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground">eBay Category:</span>
+          {previewLoading ? (
+            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+          ) : preview ? (
+            <Badge variant="secondary" className="text-xs font-medium">
+              {preview.categoryName}
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground italic">Detecting…</span>
+          )}
+        </div>
+
         {/* Score bar */}
         <div className="flex items-center gap-3 px-1">
           <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
@@ -190,27 +130,50 @@ export function EbayPublishDialog({ open, onOpenChange, listing, publishing, onP
         </div>
 
         {/* Checks */}
-        <div className="space-y-1.5 max-h-64 overflow-y-auto">
+        <div className="space-y-1 max-h-64 overflow-y-auto">
           {[...fails, ...warns, ...passes].map((check) => (
-            <div key={check.label} className="flex items-start gap-2.5 py-1.5 px-1">
-              {statusIcon[check.status]}
-              <div className="min-w-0">
-                <p className="text-sm font-medium leading-tight">{check.label}</p>
-                <p className="text-xs text-muted-foreground">{check.detail}</p>
-              </div>
-            </div>
+            <CheckRow
+              key={check.field}
+              check={check}
+              editingField={editingField}
+              onStartEdit={setEditingField}
+              editValue={getEditValue(check.field)}
+              onEditChange={(val) => handleEditChange(check.field, val)}
+            />
           ))}
         </div>
 
+        {/* Aspects preview */}
+        {preview && Object.keys(preview.aspects).length > 0 && (
+          <div className="px-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">
+              Item Specifics sent to eBay
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {Object.entries(preview.aspects).map(([key, values]) => (
+                <Badge key={key} variant="outline" className="text-[10px]">
+                  {key}: {values.join(", ")}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          {needsOptimisation && (
+          {hasPendingEdits && (
+            <Button variant="outline" onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+              Save Changes
+            </Button>
+          )}
+          {needsOptimisation && !hasPendingEdits && (
             <Button variant="outline" onClick={onOptimise} className="w-full sm:w-auto">
               <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Optimise First
             </Button>
           )}
           <Button
-            onClick={onPublish}
-            disabled={hasBlockers || publishing}
+            onClick={() => onPublish(editedListing)}
+            disabled={hasBlockers || publishing || hasPendingEdits}
             className="w-full sm:w-auto"
           >
             {publishing ? (
@@ -218,7 +181,7 @@ export function EbayPublishDialog({ open, onOpenChange, listing, publishing, onP
             ) : (
               <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
             )}
-            {hasBlockers ? "Fix Issues First" : warns.length > 0 ? "Publish Anyway" : "Publish to eBay"}
+            {hasBlockers ? "Fix Issues First" : hasPendingEdits ? "Save First" : warns.length > 0 ? "Publish Anyway" : "Publish to eBay"}
           </Button>
         </DialogFooter>
       </DialogContent>
