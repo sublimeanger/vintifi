@@ -125,7 +125,7 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
     `https://api.ebay.com/sell/inventory/v1/inventory_item/${sku}`,
     {
       method: "PUT",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB" },
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB", "Accept-Language": "en-GB" },
       body: JSON.stringify({
         availability: { shipToLocationAvailability: { quantity: 1 } },
         condition: mapConditionToEbay(listing.condition),
@@ -145,7 +145,7 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
   // Step 2: Create offer
   const offerRes = await fetch("https://api.ebay.com/sell/inventory/v1/offer", {
     method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB" },
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB", "Accept-Language": "en-GB" },
     body: JSON.stringify({
       sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
       pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
@@ -159,7 +159,7 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
   // Step 3: Publish offer
   const publishRes = await fetch(
     `https://api.ebay.com/sell/inventory/v1/offer/${offerData.offerId}/publish`,
-    { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" } }
+    { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Content-Language": "en-GB", "Accept-Language": "en-GB" } }
   );
   if (!publishRes.ok) throw new Error(`eBay publish failed [${publishRes.status}]: ${await publishRes.text()}`);
 
