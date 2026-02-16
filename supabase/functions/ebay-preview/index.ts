@@ -74,6 +74,10 @@ serve(async (req) => {
     if (!listing.condition) warnings.push("Condition is missing — required by eBay");
     if ((listing.title || "").length > 80) warnings.push("Title exceeds 80 chars — eBay will truncate");
 
+    const imgCount = Array.isArray(listing.images) ? listing.images.filter((u: any) => typeof u === "string" && u.startsWith("http")).length : (listing.image_url ? 1 : 0);
+    if (imgCount === 0) warnings.push("No photos — eBay listings without photos rarely sell");
+    else if (imgCount < 3) warnings.push(`Only ${imgCount} photo${imgCount === 1 ? "" : "s"} — eBay recommends 3+ for best results`);
+
     return new Response(JSON.stringify({
       categoryId: category.id,
       categoryName: category.name,

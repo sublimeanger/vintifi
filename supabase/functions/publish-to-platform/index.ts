@@ -151,7 +151,7 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
           description: listing.description || listing.title,
           brand: listing.brand || "Unbranded",
           mpn: "Does Not Apply",
-          imageUrls: listing.image_url ? [listing.image_url] : [],
+          imageUrls: buildImageUrls(listing),
           aspects,
         },
       }),
@@ -191,6 +191,19 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
     platform_url: `https://www.ebay.co.uk/itm/${publishData.listingId}`,
     categoryName: category.name,
   };
+}
+
+function buildImageUrls(listing: any): string[] {
+  const urls: string[] = [];
+  if (Array.isArray(listing.images)) {
+    for (const u of listing.images) {
+      if (typeof u === "string" && u.startsWith("http")) urls.push(u);
+    }
+  }
+  if (urls.length === 0 && listing.image_url) {
+    urls.push(listing.image_url);
+  }
+  return [...new Set(urls)].slice(0, 12);
 }
 
 function buildAspects(listing: any): Record<string, string[]> {
