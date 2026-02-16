@@ -1,118 +1,118 @@
 
-# Nav Rename, Competitor Check, and Clearance Radar Upgrade
+# Competitor Tracker — Enterprise Deep-Dive Upgrade
 
-## 1. Rename "In-Store List" to "Charity Shop Briefing"
+## Problems Identified
 
-**File:** `src/components/AppShellV2.tsx` (line 49)
+1. **No Vinted profile scraping**: The add form asks for manual text fields (name, username, query, category) but never actually scrapes a Vinted seller profile. The Apify actor has a dedicated `SELLER_PROFILE` mode that takes a Vinted member URL and returns full seller data (rating, reviews, followers, sold items, verification status) — this is completely unused.
 
-Change the label from `"In-Store List"` to `"Charity Shop Briefing"`. One-line change.
+2. **Competitor cards are not clickable**: After scanning, the card just sits there showing avg price and listing count. No way to drill into results, see the seller's top items, read the AI summary, or visit their Vinted profile.
 
----
+3. **Weak data model**: The `competitor_profiles` table only stores `avg_price`, `listing_count`, and `price_trend`. There's no room for seller profile data (rating, followers, sold count, profile URL, profile photo), scan summaries, or top items from the last scan.
 
-## 2. Competitor Tracker Status
+4. **Generic search, not seller intelligence**: The edge function does a generic Apify SEARCH with the username as a keyword. This returns random items matching that text, not the actual seller's listings. The intelligence is fabricated by the AI from irrelevant search results.
 
-The Competitor Tracker is fully functional. It has:
-- Database tables (`competitor_profiles`, `competitor_alerts`) with data
-- A working edge function (`competitor-scan`) that uses Apify for Vinted data and AI for analysis
-- Full frontend UI with add, delete, scan, and alert management
-- Tier gating (Pro+ required)
-
-If scans are returning unhelpful results, the improvement would be to refine the Apify search query construction and AI prompt — but the infrastructure works. No changes needed unless you're seeing a specific error.
+5. **No scan history**: Each scan overwrites the previous data. There's no way to see how a competitor's metrics changed over time.
 
 ---
 
-## 3. Clearance Radar — Major Upgrade
+## Upgrade Plan
 
-### Current Problems
-- Firecrawl `site:` searches return generic page snippets, not structured product data with prices
-- The AI is guessing clearance prices from vague search descriptions — very unreliable
-- No persistent results (everything disappears on page refresh)
-- Only 6 retailers, all hardcoded
-- No product images, no direct buy links with confidence
-- No saved opportunities or alert system
+### A. Database Migration
 
-### Upgrade Plan
-
-#### A. Better Retailer Coverage (12+ retailers)
-
-Expand from 6 to 12+ UK retailers with proper clearance/sale page URLs that Firecrawl can actually scrape:
-
-```text
-ASOS Outlet       -> asos.com/women/sale/ + /men/sale/
-End Clothing      -> endclothing.com/gb/sale
-TK Maxx           -> tkmaxx.com (search API)
-Nike Clearance    -> nike.com/gb/w/sale
-Adidas Outlet     -> adidas.co.uk/outlet
-ZARA Sale         -> zara.com/uk/en/sale
-NEW: H&M Sale     -> hm.com/en_gb/sale
-NEW: Uniqlo Sale  -> uniqlo.com/uk/en/spl/sale
-NEW: COS Sale     -> cos.com/en_gbp/sale
-NEW: Depop        -> depop.com (cross-platform)
-NEW: Vinted itself -> vinted.co.uk (buy low, relist optimised)
-NEW: Ralph Lauren -> ralphlauren.co.uk/sale
-```
-
-#### B. Structured Scraping with Firecrawl Extract Mode
-
-Instead of generic `search` calls, use Firecrawl's `/v1/scrape` endpoint targeting actual sale/clearance pages with structured extraction. This returns real product titles, prices, and URLs rather than vague search snippets.
-
-The edge function will:
-1. Scrape each retailer's sale page URL directly (not search)
-2. Use Firecrawl's `extract` format with a schema to pull structured product data (title, price, brand, URL, image)
-3. Run a parallel Apify scrape for Vinted baseline prices
-4. Send both datasets to AI for cross-referencing and margin calculation
-
-#### C. Save Opportunities to Database
-
-Create an `clearance_opportunities` table to persist results:
+Add new columns to `competitor_profiles` to store real seller intelligence:
 
 ```sql
-CREATE TABLE public.clearance_opportunities (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  retailer TEXT NOT NULL,
-  item_title TEXT NOT NULL,
-  item_url TEXT,
-  image_url TEXT,
-  sale_price DECIMAL,
-  vinted_resale_price DECIMAL,
-  estimated_profit DECIMAL,
-  profit_margin DECIMAL,
-  brand TEXT,
-  category TEXT,
-  ai_notes TEXT,
-  status TEXT DEFAULT 'new',  -- new / saved / purchased / listed / expired
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- RLS: users see only their own
-ALTER TABLE public.clearance_opportunities ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users manage own clearance opportunities"
-  ON public.clearance_opportunities FOR ALL USING (auth.uid() = user_id);
+ALTER TABLE public.competitor_profiles
+  ADD COLUMN IF NOT EXISTS vinted_profile_url text,
+  ADD COLUMN IF NOT EXISTS profile_photo_url text,
+  ADD COLUMN IF NOT EXISTS seller_rating numeric,
+  ADD COLUMN IF NOT EXISTS follower_count integer,
+  ADD COLUMN IF NOT EXISTS total_items_sold integer,
+  ADD COLUMN IF NOT EXISTS verification_status text,
+  ADD COLUMN IF NOT EXISTS top_items jsonb DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS ai_summary text,
+  ADD COLUMN IF NOT EXISTS last_scan_data jsonb;
 ```
 
-#### D. Upgraded Frontend
+Create a `competitor_scans` table for scan history:
 
-The ClearanceRadar page gets these improvements:
+```sql
+CREATE TABLE public.competitor_scans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  competitor_id UUID NOT NULL REFERENCES public.competitor_profiles(id) ON DELETE CASCADE,
+  avg_price numeric,
+  listing_count integer,
+  seller_rating numeric,
+  follower_count integer,
+  total_items_sold integer,
+  price_trend text,
+  top_items jsonb DEFAULT '[]',
+  ai_summary text,
+  raw_data jsonb,
+  created_at timestamptz DEFAULT now()
+);
 
-1. **Saved opportunities tab**: Toggle between "New Scan" and "Saved" views. Saved opportunities persist and can be marked as purchased/listed/expired.
-2. **Better result cards**: Show retailer logo/colour, estimated profit prominently, direct "Buy Now" link, "Save" button to persist, "Create Listing" shortcut.
-3. **Summary stats**: Total potential profit, average margin, best retailer, and scan timestamp.
-4. **Scan history**: Show when the last scan was run and how many opportunities were found.
-5. **Status tracking**: Mark opportunities as "Purchased" or "Listed" to track your flip pipeline.
+ALTER TABLE public.competitor_scans ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage own scans"
+  ON public.competitor_scans FOR ALL USING (auth.uid() = user_id);
+```
 
-#### E. Upgraded Edge Function
+### B. Edge Function: Real Seller Intelligence (`competitor-scan`)
 
-**File:** `supabase/functions/clearance-radar/index.ts`
+Complete rewrite with three intelligence modes:
 
-Major rewrite:
-- Use Firecrawl `/v1/scrape` with `extract` schema instead of `/v1/search`
-- Target actual retailer sale page URLs
-- Extract structured product data (title, price, brand, image URL, product URL)
-- Cross-reference with Apify Vinted data for resale baselines
-- AI analyses structured data instead of guessing from snippets
-- Optionally save results to `clearance_opportunities` table
-- Return image URLs for display in the frontend
+**Mode 1 — Seller Profile scan** (when `vinted_profile_url` is provided):
+- Use Apify `SELLER_PROFILE` mode with the member URL to get real seller data: rating, followers, sold count, verification status, profile photo
+- Use Apify `SEARCH` mode filtered to that seller's username to get their current active listings with prices, views, and favourites
+- AI analyses the full dataset and generates a competitive intelligence summary
+
+**Mode 2 — Niche/keyword scan** (when only `search_query` is provided):
+- Use Apify `SEARCH` mode with the query (current behaviour, but improved)
+- AI identifies dominant sellers within that niche, pricing patterns, and competitive density
+
+**Mode 3 — Combined** (both URL and query):
+- Scrape the seller profile AND search their niche to provide contextual positioning
+
+The AI prompt will be significantly upgraded to produce richer analysis including: seller strength assessment, pricing strategy detection, threat level rating, and specific actionable recommendations.
+
+All scan results are saved to `competitor_scans` for history tracking.
+
+### C. Frontend: Smart Add Flow
+
+Replace the current dumb text-field form with an intelligent add flow:
+
+1. **URL-first input**: Primary input is a single field: "Paste a Vinted seller profile URL or enter a search query". The system detects whether it's a URL (contains `vinted.` and `/member/`) or a search query.
+
+2. **Auto-populate from URL**: When a Vinted profile URL is pasted, the system immediately calls the edge function in "preview" mode to fetch the seller's name, photo, rating, and item count. The form auto-fills with real data before saving.
+
+3. **Fallback to manual**: If no URL, the user can still enter a search query / niche keyword to track. The category field remains optional.
+
+### D. Frontend: Clickable Competitor Detail View
+
+Competitor cards become clickable and expand into a rich detail view:
+
+1. **Expandable card**: Clicking a competitor card expands it inline (or navigates to a detail section) showing:
+   - Seller profile header: photo, name, rating stars, follower count, items sold, verification badge
+   - Link to their Vinted profile (opens in new tab)
+   - AI intelligence summary from the last scan
+   - Top items grid: 3-6 items with thumbnails, prices, and links
+   - Price trend sparkline from scan history
+   - All alerts for this competitor
+
+2. **Scan history chart**: A small line chart showing avg_price and listing_count over time from `competitor_scans`.
+
+3. **Quick actions**: "Scan Now", "View on Vinted", "Price Check This Niche", "Delete"
+
+### E. Smarter AI Prompt
+
+The upgraded AI prompt will:
+- Receive structured seller profile data (not just search snippets)
+- Produce a threat assessment: "High Threat — this seller dominates your niche with 340 listings and a 4.9 rating"
+- Identify their pricing strategy: "Prices 15% below market average, likely competing on volume"
+- Suggest counter-strategies: "Consider bundling or premium positioning to differentiate"
+- Score the competitive threat on a 1-10 scale
+- Identify their best-selling categories and price ranges
 
 ---
 
@@ -120,9 +120,6 @@ Major rewrite:
 
 | File | Change |
 |------|--------|
-| `src/components/AppShellV2.tsx` | Rename "In-Store List" to "Charity Shop Briefing" |
-| Database migration | Create `clearance_opportunities` table with RLS |
-| `supabase/functions/clearance-radar/index.ts` | Major rewrite: structured scraping, better retailers, persistent results |
-| `src/pages/ClearanceRadar.tsx` | Add saved opportunities, better cards, status tracking, scan history |
-
-No changes to the Competitor Tracker — it's functional as-is.
+| Database migration | Add profile columns to `competitor_profiles`, create `competitor_scans` table |
+| `supabase/functions/competitor-scan/index.ts` | Full rewrite: SELLER_PROFILE mode, scan history, richer AI analysis |
+| `src/pages/CompetitorTracker.tsx` | URL-first add flow, expandable detail cards, scan history, seller profile display |
