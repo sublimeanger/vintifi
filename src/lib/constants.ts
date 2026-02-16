@@ -62,7 +62,7 @@ export const STRIPE_TIERS = {
     annual_price_id: "price_1T1SOJ4qASjubvn3G45U5qiV",
     annual_price: 479.88,
     product_id: "prod_TzRGaCd7E9PYRx",
-    credits: 999,
+    credits: -1,
     features: [
       "Unlimited credits",
       "Everything in Business",

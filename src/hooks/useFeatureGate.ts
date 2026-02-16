@@ -62,16 +62,14 @@ export function useFeatureGate(feature: FeatureKey) {
   const requiredTierLevel = TIER_ORDER[config.minTier] ?? 0;
 
   const tierAllowed = userTierLevel >= requiredTierLevel;
+  const isUnlimited = userTier === "scale" || (credits?.credits_limit ?? 0) >= 999;
 
   let creditsRemaining = Infinity;
   let creditsExhausted = false;
 
-  if (config.usesCredits && credits) {
-    if (config.creditType === "price_checks") {
-      creditsRemaining = Math.max(0, credits.credits_limit - credits.price_checks_used);
-    } else if (config.creditType === "optimizations") {
-      creditsRemaining = Math.max(0, credits.credits_limit - credits.optimizations_used);
-    }
+  if (config.usesCredits && credits && !isUnlimited) {
+    const totalUsed = credits.price_checks_used + credits.optimizations_used + credits.vintography_used;
+    creditsRemaining = Math.max(0, credits.credits_limit - totalUsed);
     creditsExhausted = creditsRemaining <= 0;
   }
 

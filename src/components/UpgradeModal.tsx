@@ -119,7 +119,7 @@ export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits 
                         <Badge className="text-[9px] py-0 bg-primary text-primary-foreground">Required</Badge>
                       )}
                     </div>
-                    <p className="text-[10px] text-muted-foreground">{t.credits === 999 ? "Unlimited" : t.credits} credits/mo</p>
+                    <p className="text-[10px] text-muted-foreground">{t.credits === -1 || t.credits >= 999 ? "Unlimited" : t.credits} credits/mo</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

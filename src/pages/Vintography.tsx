@@ -41,7 +41,7 @@ const operations: { id: Operation; icon: typeof ImageOff; label: string; desc: s
 const panelTransition = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.2 } };
 
 export default function Vintography() {
-  const { user, credits, refreshCredits } = useAuth();
+  const { user, profile, credits, refreshCredits } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,6 +74,7 @@ export default function Vintography() {
 
   const vintographyUsed = (credits as any)?.vintography_used ?? 0;
   const creditsLimit = credits?.credits_limit ?? 5;
+  const isUnlimited = (profile as any)?.subscription_tier === "scale" || creditsLimit >= 999;
 
   useEffect(() => {
     const imageUrl = searchParams.get("image_url");
@@ -360,7 +361,7 @@ export default function Vintography() {
       <FeatureGate feature="vintography">
         <div className="space-y-4 sm:space-y-6">
           
-          <CreditBar used={vintographyUsed} limit={creditsLimit} />
+          <CreditBar used={vintographyUsed} limit={creditsLimit} unlimited={isUnlimited} />
 
           {!originalUrl ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
