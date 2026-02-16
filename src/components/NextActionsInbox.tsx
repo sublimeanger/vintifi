@@ -49,7 +49,7 @@ export function NextActionsInbox() {
           image_url: item.image_url,
           action: "needs_price",
           actionLabel: "Price Check",
-          actionPath: `/price-check?title=${encodeURIComponent(item.title)}`,
+          actionPath: `/price-check?title=${encodeURIComponent(item.title)}&itemId=${item.id}`,
           icon: Search,
           priority: 1,
         });
@@ -96,7 +96,7 @@ export function NextActionsInbox() {
             image_url: item.image_url,
             action: "needs_optimise",
             actionLabel: "Improve",
-            actionPath: `/optimize?title=${encodeURIComponent(item.title)}`,
+            actionPath: `/optimize?title=${encodeURIComponent(item.title)}&itemId=${item.id}`,
             icon: Sparkles,
             priority: 3,
           });
