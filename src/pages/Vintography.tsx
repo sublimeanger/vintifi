@@ -46,6 +46,8 @@ export default function Vintography() {
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const itemId = searchParams.get("itemId");
+
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [selectedOp, setSelectedOp] = useState<Operation>("remove_bg");
@@ -126,6 +128,42 @@ export default function Vintography() {
 
   const opLabel = (op: string) => operations.find((o) => o.id === op)?.label || op;
 
+  // Update the linked item's photo metadata when processing completes
+  const updateLinkedItem = async (newProcessedUrl: string) => {
+    if (!itemId || !user) return;
+    try {
+      // Fetch current images array
+      const { data: listing } = await supabase
+        .from("listings")
+        .select("images")
+        .eq("id", itemId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const existingImages = Array.isArray(listing?.images) ? (listing.images as string[]) : [];
+      const updatedImages = [...existingImages, newProcessedUrl];
+
+      await supabase
+        .from("listings")
+        .update({
+          last_photo_edit_at: new Date().toISOString(),
+          images: updatedImages as any,
+          image_url: existingImages.length === 0 ? newProcessedUrl : undefined,
+        })
+        .eq("id", itemId)
+        .eq("user_id", user.id);
+
+      await supabase.from("item_activity").insert({
+        user_id: user.id,
+        listing_id: itemId,
+        type: "photo_edited",
+        payload: { operation: selectedOp, processed_url: newProcessedUrl },
+      });
+    } catch (err) {
+      console.error("Failed to update linked item:", err);
+    }
+  };
+
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!user) return null;
     if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return null; }
@@ -205,6 +243,7 @@ export default function Vintography() {
         });
         // Optimistic gallery update
         fetchGallery();
+        await updateLinkedItem(result);
       }
     } catch (err: any) {
       toast.error(err.message || "Processing failed. Try again.");
@@ -224,6 +263,7 @@ export default function Vintography() {
         });
         setProcessedUrl(result);
         fetchGallery();
+        await updateLinkedItem(result);
       }
     } catch (err: any) { toast.error(err.message || "Processing failed"); }
     finally { setProcessing(false); }
@@ -247,6 +287,7 @@ export default function Vintography() {
       setVariations([currentUrl]);
       setCurrentVariation(0);
       fetchGallery();
+      await updateLinkedItem(currentUrl);
     } catch (err: any) { toast.error(err.message || "Preset failed"); }
     finally { setProcessing(false); }
   };
@@ -452,14 +493,23 @@ export default function Vintography() {
                     <Button variant="outline" onClick={handleDownload} className="h-12 sm:h-10 active:scale-95 transition-transform">
                       <Download className="w-4 h-4 mr-2" /> Download
                     </Button>
-                    <Button variant="outline" onClick={() => navigate(`/optimize?photo=${encodeURIComponent(processedUrl)}`)}
-                      className="h-12 sm:h-10 active:scale-95 transition-transform">
-                      <ChevronRight className="w-4 h-4 mr-2" /> Use in Listing
-                    </Button>
-                    <Button variant="outline" onClick={() => navigate(`/price-check`)}
-                      className="h-12 sm:h-10 active:scale-95 transition-transform">
-                      <Search className="w-4 h-4 mr-2" /> Price Check
-                    </Button>
+                    {itemId ? (
+                      <Button onClick={() => navigate(`/items/${itemId}`)}
+                        className="h-12 sm:h-10 font-semibold active:scale-95 transition-transform">
+                        <ChevronRight className="w-4 h-4 mr-2" /> Back to Item
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="outline" onClick={() => navigate(`/optimize?photo=${encodeURIComponent(processedUrl)}`)}
+                          className="h-12 sm:h-10 active:scale-95 transition-transform">
+                          <ChevronRight className="w-4 h-4 mr-2" /> Use in Listing
+                        </Button>
+                        <Button variant="outline" onClick={() => navigate(`/price-check`)}
+                          className="h-12 sm:h-10 active:scale-95 transition-transform">
+                          <Search className="w-4 h-4 mr-2" /> Price Check
+                        </Button>
+                      </>
+                    )}
                   </>
                 )}
                 <Button variant="ghost" onClick={() => { setOriginalUrl(null); setProcessedUrl(null); setVariations([]); setBatchItems([]); }}
