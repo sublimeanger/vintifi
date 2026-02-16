@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HealthScoreGauge } from "@/components/HealthScoreGauge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
+
 import { PageShell } from "@/components/PageShell";
 import { FeatureGate } from "@/components/FeatureGate";
 
@@ -331,15 +331,8 @@ export default function OptimizeListing() {
       maxWidth="max-w-6xl"
     >
       <FeatureGate feature="optimize_listing">
-      
-      <UseCaseSpotlight
-        featureKey="optimize-listing"
-        icon={Sparkles}
-        scenario="Your listing has been up for 2 weeks with zero interest..."
-        description="The title is generic, the description is thin, and you're invisible in Vinted's search results."
-        outcome="The AI rewrites your title with high-traffic keywords and your views jump 4x overnight."
-        tip="Upload photos too — the AI can detect brand, condition, and suggest the perfect category."
-      />
+
+
 
       <div className={`grid gap-4 sm:gap-6 ${result ? "lg:grid-cols-2" : "max-w-2xl mx-auto"}`}>
         {/* Input Panel */}

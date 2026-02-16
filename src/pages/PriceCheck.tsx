@@ -18,8 +18,6 @@ import {
   ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag, Eye,
   ArrowRightLeft, Camera, Clock, Flame, Calculator, PoundSterling, Tag, ChevronDown,
 } from "lucide-react";
-import { JourneyBanner } from "@/components/JourneyBanner";
-import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { PriceReportSkeleton } from "@/components/LoadingSkeletons";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -251,16 +249,6 @@ export default function PriceCheck() {
       subtitle={credits ? (((profile as any)?.subscription_tier === "scale" || credits.credits_limit >= 999) ? "Unlimited checks" : `${credits.credits_limit - (credits.price_checks_used + credits.optimizations_used + credits.vintography_used)} credits remaining`) : ""}
       maxWidth="max-w-4xl"
     >
-      
-
-      <UseCaseSpotlight
-        featureKey="price-check"
-        icon={Search}
-        scenario="You found a pair of Dr. Martens 1460s at a car boot sale for £8..."
-        description="But you have no idea what they're actually worth on Vinted. Price too high and it'll sit for weeks. Too low and you're leaving money on the table."
-        outcome="Price Check reveals they sell for £45–55 on Vinted. You list at £49 and sell within 3 days."
-        tip="Check sold items, not just active listings — sold prices show what buyers actually pay."
-      />
 
       {/* Input Section */}
       <Card className="p-4 sm:p-6 mb-5 sm:mb-8 border-border/50">
@@ -717,19 +705,28 @@ export default function PriceCheck() {
             </Button>
           </div>
 
-          {/* Journey Banner — with itemId threading */}
-          <JourneyBanner
-            title="Listing Lifecycle"
-            steps={[
-              { label: "Price Check", path: "/price-check", icon: Search, completed: true },
-              { label: "Optimise", path: `/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}${itemId ? `&itemId=${itemId}` : ""}`, icon: Sparkles },
-              { label: "Enhance Photos", path: `/vintography${itemId ? `?itemId=${itemId}` : ""}`, icon: Camera },
-              { label: "Inventory", path: "/listings", icon: ShoppingBag },
-            ]}
-            nextLabel="Optimise This Listing"
-            nextPath={`/optimize?brand=${encodeURIComponent(brand)}&title=${encodeURIComponent(`${brand} ${category}`.trim())}${url ? `&vintedUrl=${encodeURIComponent(url)}` : ""}${itemId ? `&itemId=${itemId}` : ""}`}
-            nextIcon={Sparkles}
-          />
+          {/* Next step CTA */}
+          <Card className="p-4 sm:p-5 border-primary/20 bg-primary/[0.03]">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Ready to list?</p>
+                <p className="text-xs text-muted-foreground">Optimise your title, description & hashtags</p>
+              </div>
+              <Button
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (brand) params.set("brand", brand);
+                  if (category) params.set("category", category);
+                  if (url) params.set("vintedUrl", url);
+                  if (itemId) params.set("itemId", itemId);
+                  navigate(`/optimize?${params.toString()}`);
+                }}
+                className="shrink-0"
+              >
+                <Sparkles className="w-4 h-4 mr-1.5" /> Optimise Listing
+              </Button>
+            </div>
+          </Card>
         </motion.div>
       )}
 
