@@ -1,104 +1,128 @@
 
+# Nav Rename, Competitor Check, and Clearance Radar Upgrade
 
-# Add Colour and Material to AI Optimiser, Item Detail, and New Item Wizard
+## 1. Rename "In-Store List" to "Charity Shop Briefing"
 
-## Overview
+**File:** `src/components/AppShellV2.tsx` (line 49)
 
-Three changes: (1) the AI listing optimiser returns `detected_colour` and `detected_material` and saves them to the database, (2) the Item Detail Overview tab displays colour and material alongside existing fields, and (3) the New Item Wizard includes colour and material inputs.
-
----
-
-## 1. AI Listing Optimiser: Detect colour and material
-
-### Edge Function (`supabase/functions/optimize-listing/index.ts`)
-
-Update the AI prompt to include `detected_colour` and `detected_material` in the JSON output schema. Add these two fields to the expected response structure:
-
-```json
-{
-  "detected_colour": "<detected primary colour>",
-  "detected_material": "<detected primary material>"
-}
-```
-
-No model or logic changes needed -- just add the two fields to the prompt's JSON schema instruction.
-
-### Frontend (`src/pages/OptimizeListing.tsx`)
-
-**Update `OptimiseResult` type** (line 37) to add:
-- `detected_colour: string`
-- `detected_material: string`
-
-**Update the save-to-listing block** (lines 184-209): when saving optimisation results to the listings table, include `colour` and `material` from the AI response:
-
-```typescript
-if (data.detected_colour) updatePayload.colour = data.detected_colour;
-if (data.detected_material) updatePayload.material = data.detected_material;
-```
-
-**Update `handleSaveAsListing`** (line 230): include colour and material when creating a new listing from optimisation results.
-
-**Display in results panel**: Show detected colour and material in the results card alongside brand, category, and condition (the existing metadata display section).
+Change the label from `"In-Store List"` to `"Charity Shop Briefing"`. One-line change.
 
 ---
 
-## 2. Item Detail: Show colour and material in Overview tab
+## 2. Competitor Tracker Status
 
-### File: `src/pages/ItemDetail.tsx`
+The Competitor Tracker is fully functional. It has:
+- Database tables (`competitor_profiles`, `competitor_alerts`) with data
+- A working edge function (`competitor-scan`) that uses Apify for Vinted data and AI for analysis
+- Full frontend UI with add, delete, scan, and alert management
+- Tier gating (Pro+ required)
 
-**Listing tab metadata grid** (lines 571-583): Add `Colour` and `Material` to the existing grid that shows Brand, Category, Size, Condition. Change from `grid-cols-2 sm:grid-cols-4` to `grid-cols-3 sm:grid-cols-6` or keep 4 columns and add a second row. The simplest approach: expand the array to include the two new fields:
-
-```typescript
-{ label: "Colour", value: item.colour },
-{ label: "Material", value: item.material },
-```
-
-Also add colour/material badges to the status bar (line 296-299 area) if present, matching the existing brand/size/condition badges.
+If scans are returning unhelpful results, the improvement would be to refine the Apify search query construction and AI prompt — but the infrastructure works. No changes needed unless you're seeing a specific error.
 
 ---
 
-## 3. New Item Wizard: Add colour and material inputs
+## 3. Clearance Radar — Major Upgrade
 
-### File: `src/components/NewItemWizard.tsx`
+### Current Problems
+- Firecrawl `site:` searches return generic page snippets, not structured product data with prices
+- The AI is guessing clearance prices from vague search descriptions — very unreliable
+- No persistent results (everything disappears on page refresh)
+- Only 6 retailers, all hardcoded
+- No product images, no direct buy links with confidence
+- No saved opportunities or alert system
 
-**Update `WizardData` type** (line 26): Add `colour: string` and `material: string` fields.
+### Upgrade Plan
 
-**Update `initialData`** (line 41): Add `colour: ""` and `material: ""`.
+#### A. Better Retailer Coverage (12+ retailers)
 
-**Update the details step UI** (around line 438): Add a new row with Colour and Material inputs in a 2-column grid, placed between the Category/Condition row and the Description field:
+Expand from 6 to 12+ UK retailers with proper clearance/sale page URLs that Firecrawl can actually scrape:
 
-```tsx
-<div className="grid grid-cols-2 gap-3">
-  <div className="space-y-1.5">
-    <Label>Colour</Label>
-    <Input value={data.colour} onChange={...} placeholder="e.g. Black" />
-  </div>
-  <div className="space-y-1.5">
-    <Label>Material</Label>
-    <Input value={data.material} onChange={...} placeholder="e.g. Cotton" />
-  </div>
-</div>
+```text
+ASOS Outlet       -> asos.com/women/sale/ + /men/sale/
+End Clothing      -> endclothing.com/gb/sale
+TK Maxx           -> tkmaxx.com (search API)
+Nike Clearance    -> nike.com/gb/w/sale
+Adidas Outlet     -> adidas.co.uk/outlet
+ZARA Sale         -> zara.com/uk/en/sale
+NEW: H&M Sale     -> hm.com/en_gb/sale
+NEW: Uniqlo Sale  -> uniqlo.com/uk/en/spl/sale
+NEW: COS Sale     -> cos.com/en_gbp/sale
+NEW: Depop        -> depop.com (cross-platform)
+NEW: Vinted itself -> vinted.co.uk (buy low, relist optimised)
+NEW: Ralph Lauren -> ralphlauren.co.uk/sale
 ```
 
-**Update `handleSave`** (line 203): Include `colour` and `material` in the insert payload:
+#### B. Structured Scraping with Firecrawl Extract Mode
 
-```typescript
-colour: data.colour.trim() || null,
-material: data.material.trim() || null,
+Instead of generic `search` calls, use Firecrawl's `/v1/scrape` endpoint targeting actual sale/clearance pages with structured extraction. This returns real product titles, prices, and URLs rather than vague search snippets.
+
+The edge function will:
+1. Scrape each retailer's sale page URL directly (not search)
+2. Use Firecrawl's `extract` format with a schema to pull structured product data (title, price, brand, URL, image)
+3. Run a parallel Apify scrape for Vinted baseline prices
+4. Send both datasets to AI for cross-referencing and margin calculation
+
+#### C. Save Opportunities to Database
+
+Create an `clearance_opportunities` table to persist results:
+
+```sql
+CREATE TABLE public.clearance_opportunities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  retailer TEXT NOT NULL,
+  item_title TEXT NOT NULL,
+  item_url TEXT,
+  image_url TEXT,
+  sale_price DECIMAL,
+  vinted_resale_price DECIMAL,
+  estimated_profit DECIMAL,
+  profit_margin DECIMAL,
+  brand TEXT,
+  category TEXT,
+  ai_notes TEXT,
+  status TEXT DEFAULT 'new',  -- new / saved / purchased / listed / expired
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- RLS: users see only their own
+ALTER TABLE public.clearance_opportunities ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage own clearance opportunities"
+  ON public.clearance_opportunities FOR ALL USING (auth.uid() = user_id);
 ```
 
-**Update `scrapeVintedUrl`** (line 141): If the scrape response includes colour/material, prefill those fields too.
+#### D. Upgraded Frontend
+
+The ClearanceRadar page gets these improvements:
+
+1. **Saved opportunities tab**: Toggle between "New Scan" and "Saved" views. Saved opportunities persist and can be marked as purchased/listed/expired.
+2. **Better result cards**: Show retailer logo/colour, estimated profit prominently, direct "Buy Now" link, "Save" button to persist, "Create Listing" shortcut.
+3. **Summary stats**: Total potential profit, average margin, best retailer, and scan timestamp.
+4. **Scan history**: Show when the last scan was run and how many opportunities were found.
+5. **Status tracking**: Mark opportunities as "Purchased" or "Listed" to track your flip pipeline.
+
+#### E. Upgraded Edge Function
+
+**File:** `supabase/functions/clearance-radar/index.ts`
+
+Major rewrite:
+- Use Firecrawl `/v1/scrape` with `extract` schema instead of `/v1/search`
+- Target actual retailer sale page URLs
+- Extract structured product data (title, price, brand, image URL, product URL)
+- Cross-reference with Apify Vinted data for resale baselines
+- AI analyses structured data instead of guessing from snippets
+- Optionally save results to `clearance_opportunities` table
+- Return image URLs for display in the frontend
 
 ---
 
-## Files changed summary
+## Files Changed Summary
 
 | File | Change |
 |------|--------|
-| `supabase/functions/optimize-listing/index.ts` | Add `detected_colour` and `detected_material` to AI prompt JSON schema |
-| `src/pages/OptimizeListing.tsx` | Update type, save colour/material to DB, display in results |
-| `src/pages/ItemDetail.tsx` | Show colour and material in Listing tab metadata grid |
-| `src/components/NewItemWizard.tsx` | Add colour/material to WizardData, form inputs, and save payload |
+| `src/components/AppShellV2.tsx` | Rename "In-Store List" to "Charity Shop Briefing" |
+| Database migration | Create `clearance_opportunities` table with RLS |
+| `supabase/functions/clearance-radar/index.ts` | Major rewrite: structured scraping, better retailers, persistent results |
+| `src/pages/ClearanceRadar.tsx` | Add saved opportunities, better cards, status tracking, scan history |
 
-No database migration needed -- the `colour` and `material` columns already exist on the `listings` table.
-
+No changes to the Competitor Tracker — it's functional as-is.
