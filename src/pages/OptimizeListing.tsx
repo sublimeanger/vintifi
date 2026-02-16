@@ -66,7 +66,7 @@ const LANGUAGES = [
 export default function OptimizeListing() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, session, refreshCredits } = useAuth();
+  const { user, session, profile, credits, refreshCredits } = useAuth();
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [remotePhotoUrls, setRemotePhotoUrls] = useState<string[]>([]);
@@ -181,6 +181,8 @@ export default function OptimizeListing() {
       setResult(data as OptimiseResult);
       refreshCredits();
       toast.success("Listing optimised!");
+      const isUnlimited = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+      if (!isUnlimited) toast("−1 credit used", { duration: 2000 });
 
       // If opened from an item, update the listing record
       if (itemId && data?.health_score) {
