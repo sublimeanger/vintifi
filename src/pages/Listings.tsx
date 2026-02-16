@@ -386,7 +386,7 @@ export default function Listings() {
       <Button variant="outline" size="sm" onClick={handleImportClick} className="font-semibold hidden sm:flex h-9">
         <Download className="w-3.5 h-3.5 mr-1.5" /> Import
       </Button>
-      <Button variant="outline" size="icon" onClick={handleImportClick} className="sm:hidden h-10 w-10" title="Import from Vinted">
+      <Button variant="outline" size="icon" onClick={handleImportClick} className="sm:hidden h-10 w-10" title="Import CSV">
         <Download className="w-4 h-4" />
       </Button>
       <Button variant="outline" size="sm" onClick={() => navigate("/bulk-optimize")} className="font-semibold hidden sm:flex h-9">

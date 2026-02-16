@@ -5,13 +5,84 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// --- Data fetching helpers ---
+
+async function fetchViaApify(searchQuery: string, apifyToken: string): Promise<any[] | null> {
+  try {
+    const actorId = "kazkn~vinted-smart-scraper";
+    const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyToken}&timeout=120`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "SEARCH",
+        searchQuery: searchQuery.substring(0, 100),
+        country: "uk",
+        maxItems: 20,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Apify error:", res.status, await res.text());
+      return null;
+    }
+
+    const items = await res.json();
+    if (!Array.isArray(items) || items.length === 0) return null;
+    return items;
+  } catch (e) {
+    console.error("Apify fetch failed:", e);
+    return null;
+  }
+}
+
+async function fetchViaFirecrawl(searchQuery: string, firecrawlKey: string): Promise<any[]> {
+  const res = await fetch("https://api.firecrawl.dev/v1/search", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: `site:vinted.co.uk ${searchQuery.substring(0, 200)}`,
+      limit: 10,
+      scrapeOptions: { formats: ["markdown"] },
+    }),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.data || [];
+}
+
+function formatApifyComparables(items: any[]): string {
+  return items
+    .map((item: any, i: number) => {
+      const title = item.title || "Unknown";
+      const price = item.price != null ? `£${item.price}` : "N/A";
+      const brand = item.brand_title || item.brand || "Unknown";
+      const size = item.size_title || "";
+      const views = item.view_count ?? "N/A";
+      const favs = item.favourite_count ?? "N/A";
+      const status = item.status || "active";
+      const url = item.url || "";
+      const condition = item.status_label || "Unknown";
+      return `${i + 1}. ${title} | Brand: ${brand} | Price: ${price} | Size: ${size} | Condition: ${condition} | Views: ${views} | Favourites: ${favs} | Status: ${status} | URL: ${url}`;
+    })
+    .join("\n");
+}
+
+function formatFirecrawlComparables(items: any[]): string {
+  return items
+    .map((r: any, i: number) => `${i + 1}. ${r.title || r.url}: ${r.markdown?.substring(0, 200) || "No details"}`)
+    .join("\n");
+}
+
+// --- Main handler ---
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { url, brand, category, condition } = await req.json();
 
-    // Auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Not authenticated");
 
@@ -42,47 +113,64 @@ serve(async (req) => {
       }
     }
 
-    // Build search query for Firecrawl
+    // Build search query
     let searchQuery = "";
     if (url && url.includes("vinted")) {
+      // Extract item details from URL via Firecrawl scrape for context
       const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
-      if (!firecrawlKey) throw new Error("Firecrawl not configured");
-
-      const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
-      });
-      const scrapeData = await scrapeRes.json();
-      const markdown = scrapeData.data?.markdown || scrapeData.markdown || "";
-      searchQuery = `vinted ${markdown.substring(0, 300)}`;
+      if (firecrawlKey) {
+        try {
+          const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+          });
+          const scrapeData = await scrapeRes.json();
+          const markdown = scrapeData.data?.markdown || scrapeData.markdown || "";
+          searchQuery = markdown.substring(0, 300);
+        } catch {
+          searchQuery = url;
+        }
+      } else {
+        searchQuery = url;
+      }
     } else {
-      searchQuery = `vinted ${brand || ""} ${category || ""} ${condition || ""}`.trim();
+      searchQuery = [brand, category, condition].filter(Boolean).join(" ");
     }
 
-    // Search for comparable items using Firecrawl
+    // --- Hybrid data fetching: Apify primary, Firecrawl fallback ---
+    const apifyToken = Deno.env.get("APIFY_API_TOKEN");
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
-    if (!firecrawlKey) throw new Error("Firecrawl not configured");
 
-    const searchRes = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: searchQuery.substring(0, 200),
-        limit: 10,
-        scrapeOptions: { formats: ["markdown"] },
-      }),
-    });
-    const searchData = await searchRes.json();
-    const comparables = searchData.data || [];
+    let comparablesSummary = "";
+    let dataSource = "none";
 
-    const comparablesSummary = comparables
-      .map((r: any, i: number) => `${i + 1}. ${r.title || r.url}: ${r.markdown?.substring(0, 200) || "No details"}`)
-      .join("\n");
+    if (apifyToken) {
+      const apifyItems = await fetchViaApify(searchQuery, apifyToken);
+      if (apifyItems && apifyItems.length > 0) {
+        comparablesSummary = formatApifyComparables(apifyItems);
+        dataSource = "apify";
+        console.log(`Apify returned ${apifyItems.length} structured results`);
+      }
+    }
+
+    // Fallback to Firecrawl if Apify failed or not configured
+    if (!comparablesSummary && firecrawlKey) {
+      const fcItems = await fetchViaFirecrawl(searchQuery, firecrawlKey);
+      if (fcItems.length > 0) {
+        comparablesSummary = formatFirecrawlComparables(fcItems);
+        dataSource = "firecrawl";
+        console.log(`Firecrawl fallback returned ${fcItems.length} results`);
+      }
+    }
 
     // AI Analysis
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI not configured");
+
+    const dataSourceNote = dataSource === "apify"
+      ? "The comparable items below are STRUCTURED DATA from Vinted with exact prices, view counts, and favourite counts. Use these real numbers for your analysis."
+      : "The comparable items below are web search snippets. Estimate prices and metrics from the text.";
 
     const aiPrompt = `You are a Vinted pricing analyst specialising in the UK secondhand market. Analyse the following market data and provide a comprehensive pricing report.
 
@@ -92,18 +180,20 @@ Item being priced:
 - Category: ${category || "Unknown"}  
 - Condition: ${condition || "Unknown"}
 
+${dataSourceNote}
+
 Comparable items found on the market:
 ${comparablesSummary || "No comparables found"}
 
 IMPORTANT INSTRUCTIONS:
-1. DIFFERENTIATE between NEW and USED items. New items (with or without tags) command significantly higher prices. Separate your analysis accordingly.
+1. DIFFERENTIATE between NEW and USED items. New items (with or without tags) command significantly higher prices.
 2. Calculate RESELLER buy/sell prices:
-   - "buy_price_good": A great sourcing price (the item would be a steal at this price, giving 50%+ margin after fees)
-   - "buy_price_max": The absolute maximum to pay and still profit (assumes ~5% Vinted buyer protection fee + £3-5 shipping + minimum 40% margin on resale)
-   - "estimated_resale": The realistic sell price on Vinted (this should equal or be close to recommended_price)
-3. Estimate DEMAND LEVEL based on how many sold vs active listings you see. Many sold items = high demand. Many active, few sold = low demand.
-4. Provide CONDITION PRICE BREAKDOWN showing average prices for each condition grade you can infer from the data.
-5. Calculate FEES: estimated_fees is ~5% of the resale price (Vinted buyer protection), estimated_shipping is £3-5 based on item category weight.
+   - "buy_price_good": A great sourcing price (50%+ margin after fees)
+   - "buy_price_max": Max price to pay and still profit (40%+ margin on resale)
+   - "estimated_resale": Realistic sell price on Vinted
+3. Estimate DEMAND LEVEL based on views, favourites, and sold vs active ratio.
+4. Provide CONDITION PRICE BREAKDOWN.
+5. Calculate FEES: estimated_fees ~5% of resale, estimated_shipping £3-5.
 6. net_profit_estimate = estimated_resale - estimated_fees - estimated_shipping
 
 Return a JSON object (no markdown, just raw JSON) with this exact structure:
@@ -133,7 +223,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
   "comparable_items": [
     {"title": "<item title>", "price": <number>, "sold": <boolean>, "days_listed": <number or null>, "condition": "<condition grade>"}
   ],
-  "ai_insights": "<2-3 paragraphs explaining the pricing rationale, explicitly addressing new vs used price differences and reseller opportunity>",
+  "ai_insights": "<2-3 paragraphs explaining the pricing rationale>",
   "price_distribution": [
     {"range": "£0-5", "count": <number>},
     {"range": "£5-10", "count": <number>},

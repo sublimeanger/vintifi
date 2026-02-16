@@ -29,14 +29,6 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const apifyToken = Deno.env.get("APIFY_API_TOKEN");
-
-    if (!apifyToken) {
-      return new Response(JSON.stringify({ error: "Apify API token not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     // Auth the user
     const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -61,90 +53,31 @@ serve(async (req) => {
     const tier = profile?.subscription_tier || "free";
     if (tier === "free") {
       return new Response(
-        JSON.stringify({ error: "Wardrobe import requires a Pro plan or above." }),
+        JSON.stringify({ error: "CSV import requires a Pro plan or above." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const maxItems = TIER_LIMITS[tier] || 200;
 
-    const { profileUrl } = await req.json();
-    if (!profileUrl || typeof profileUrl !== "string") {
-      return new Response(JSON.stringify({ error: "Missing profileUrl" }), {
+    const { items: csvItems } = await req.json();
+    if (!Array.isArray(csvItems) || csvItems.length === 0) {
+      return new Response(JSON.stringify({ error: "No items provided. Upload a CSV with at least one row." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Validate Vinted profile URL
-    const vintedUrlRegex = /^https?:\/\/www\.vinted\.(co\.uk|fr|de|nl|es|it|pt|pl|be|at|cz|lt|se|hu|ro|sk|hr|fi|dk|bg|gr|ee|lv|lu|ie|si|no)\/(member|membre|mitglied)\/\d+/i;
-    if (!vintedUrlRegex.test(profileUrl)) {
+    if (csvItems.length > maxItems) {
       return new Response(
-        JSON.stringify({ error: "Invalid Vinted profile URL. Example: https://www.vinted.co.uk/member/12345678" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: `Your ${tier} plan supports up to ${maxItems} items per import. You sent ${csvItems.length}.` }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // The Apify actor only accepts vinted.[2-3 letter TLD] URLs.
-    // Extract country code from the original URL for the actor's country parameter.
-    const domainMatch = profileUrl.match(/www\.vinted\.([a-z.]+)\//i);
-    const rawTld = domainMatch?.[1] || "fr";
-    // Map .co.uk -> "fr" (actor doesn't support .co.uk), otherwise use the TLD directly
-    const countryCode = rawTld === "co.uk" ? "fr" : rawTld;
-    
-    // Build a clean seller URL the actor will accept
-    const memberIdMatch = profileUrl.match(/\/(?:member|membre|mitglied)\/(\d+)/);
-    const memberId = memberIdMatch?.[1];
-    if (!memberId) {
-      return new Response(
-        JSON.stringify({ error: "Could not extract member ID from URL." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    const apifySellerUrl = `https://www.vinted.${countryCode}/member/${memberId}`;
+    console.log(`CSV import for user ${user.id}, tier: ${tier}, rows: ${csvItems.length}`);
 
-    console.log(`Starting wardrobe import for user ${user.id}, URL: ${profileUrl}, apifyUrl: ${apifySellerUrl}, country: ${countryCode}, tier: ${tier}, limit: ${maxItems}`);
-
-    // Call Apify actor synchronously
-    const actorId = "pintostudio~vinted-seller-products";
-    const apifyUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyToken}&timeout=300`;
-
-    const apifyResponse = await fetch(apifyUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sellerUrl: apifySellerUrl,
-        country: countryCode,
-        maxItems: maxItems,
-      }),
-    });
-
-    if (!apifyResponse.ok) {
-      const errText = await apifyResponse.text();
-      console.error("Apify error:", apifyResponse.status, errText);
-      // Surface the actual error for debugging
-      let detail = "Failed to fetch wardrobe from Vinted.";
-      try {
-        const parsed = JSON.parse(errText);
-        if (parsed?.error?.message) detail = parsed.error.message;
-      } catch {}
-      return new Response(
-        JSON.stringify({ error: detail }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const items = await apifyResponse.json();
-    if (!Array.isArray(items) || items.length === 0) {
-      return new Response(
-        JSON.stringify({ imported: 0, skipped: 0, message: "No items found on this profile." }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Apify returned ${items.length} items`);
-
-    // Fetch existing vinted_urls for this user to skip duplicates
+    // Fetch existing vinted_urls for deduplication
     const { data: existingListings } = await supabaseAdmin
       .from("listings")
       .select("vinted_url")
@@ -153,50 +86,41 @@ serve(async (req) => {
 
     const existingUrls = new Set((existingListings || []).map((l: any) => l.vinted_url));
 
-    // Map and insert
     let imported = 0;
     let skipped = 0;
     const errors: string[] = [];
     const batchSize = 50;
     const toInsert: any[] = [];
 
-    for (const item of items) {
-      const itemUrl = item.url || null;
-      if (itemUrl && existingUrls.has(itemUrl)) {
+    for (let i = 0; i < csvItems.length; i++) {
+      const item = csvItems[i];
+      const title = (item.title || item.Title || "").trim();
+      if (!title) {
+        errors.push(`Row ${i + 1}: Missing title, skipped.`);
         skipped++;
         continue;
       }
 
-      // Determine status
-      let status = "active";
-      if (item.is_closed === true || item.status === "closed") {
-        status = "sold";
-      } else if (item.is_reserved === true) {
-        status = "reserved";
+      const vintedUrl = (item.vinted_url || item["Vinted URL"] || item.url || "").trim() || null;
+      if (vintedUrl && existingUrls.has(vintedUrl)) {
+        skipped++;
+        continue;
       }
 
-      const price = item.total_item_price?.amount
-        ? parseFloat(item.total_item_price.amount)
-        : item.price
-          ? parseFloat(String(item.price))
-          : null;
-
-      const imageUrl = item.photos?.[0]?.url || item.photo?.url || item.image_url || null;
+      const price = parseFloat(item.price || item.Price || item.current_price || "0") || null;
+      const purchasePrice = parseFloat(item.purchase_price || item["Purchase Price"] || "0") || null;
 
       toInsert.push({
         user_id: user.id,
-        title: item.title || "Untitled Item",
-        brand: item.brand_title || item.brand || null,
+        title,
+        brand: (item.brand || item.Brand || "").trim() || null,
+        category: (item.category || item.Category || "").trim() || null,
+        size: (item.size || item.Size || "").trim() || null,
+        condition: (item.condition || item.Condition || "").trim() || null,
         current_price: price,
-        size: item.size_title || item.size || null,
-        condition: item.status_label || item.condition || null,
-        description: item.description || null,
-        image_url: imageUrl,
-        vinted_url: itemUrl,
-        views_count: item.view_count || item.views || 0,
-        favourites_count: item.favourite_count || item.favorites || 0,
-        category: item.catalog_title || item.category || null,
-        status,
+        purchase_price: purchasePrice,
+        vinted_url: vintedUrl,
+        status: "active",
       });
     }
 
@@ -216,15 +140,15 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Import complete: ${imported} imported, ${skipped} skipped, ${errors.length} errors`);
+    console.log(`CSV import complete: ${imported} imported, ${skipped} skipped, ${errors.length} errors`);
 
     return new Response(
       JSON.stringify({
         imported,
         skipped,
-        total: items.length,
+        total: csvItems.length,
         errors: errors.length > 0 ? errors : undefined,
-        message: `Successfully imported ${imported} item${imported !== 1 ? "s" : ""}${skipped > 0 ? `, ${skipped} already existed` : ""}.`,
+        message: `Successfully imported ${imported} item${imported !== 1 ? "s" : ""}${skipped > 0 ? `, ${skipped} skipped` : ""}.`,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

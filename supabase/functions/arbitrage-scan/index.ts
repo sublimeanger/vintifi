@@ -37,7 +37,37 @@ async function searchPlatform(platform: { name: string; query: string }, searchT
   }
 }
 
-async function searchVinted(searchTerm: string, apiKey: string) {
+async function searchVintedApify(searchTerm: string, apifyToken: string): Promise<any[] | null> {
+  try {
+    const actorId = "kazkn~vinted-smart-scraper";
+    const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyToken}&timeout=120`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "SEARCH",
+        searchQuery: searchTerm.substring(0, 100),
+        country: "uk",
+        maxItems: 15,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Apify Vinted search error:", res.status);
+      return null;
+    }
+
+    const items = await res.json();
+    if (!Array.isArray(items) || items.length === 0) return null;
+    return items;
+  } catch (e) {
+    console.error("Apify Vinted search failed:", e);
+    return null;
+  }
+}
+
+async function searchVintedFirecrawl(searchTerm: string, apiKey: string): Promise<any[]> {
   try {
     const res = await fetch("https://api.firecrawl.dev/v1/search", {
       method: "POST",
@@ -80,12 +110,12 @@ Analyse and return a JSON array of arbitrage opportunities. For each opportunity
 - category: item category
 - condition: estimated condition (New / Like New / Good / Fair)
 - ai_notes: 1-2 sentence explanation of why this is a good flip
-- deal_score: integer 1-100 rating the overall quality (consider margin, demand, brand heat, condition, sell speed)
-- risk_level: "low" / "medium" / "high" - risk of the item NOT selling on Vinted
+- deal_score: integer 1-100 rating the overall quality
+- risk_level: "low" / "medium" / "high"
 - estimated_days_to_sell: estimated days to sell on Vinted (integer)
-- demand_indicator: "hot" / "warm" / "cold" - current UK demand level
-- suggested_listing_title: an SEO-optimised Vinted listing title ready to copy-paste
-- shipping_estimate: estimated UK shipping cost in GBP (typically 2.50-5.00 for clothing, 5-10 for shoes/heavy)
+- demand_indicator: "hot" / "warm" / "cold"
+- suggested_listing_title: an SEO-optimised Vinted listing title
+- shipping_estimate: estimated UK shipping cost in GBP
 - net_profit: estimated_profit minus shipping_estimate minus 0 (Vinted has no seller fees)
 
 Only include opportunities with profit margin >= ${minMargin}%.
@@ -102,6 +132,7 @@ serve(async (req) => {
   try {
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -150,11 +181,40 @@ serve(async (req) => {
       ? ALL_PLATFORMS.filter(p => platforms.includes(p.name))
       : ALL_PLATFORMS;
 
-    // Search all selected platforms + Vinted in parallel
-    const [platformResults, vintedResults] = await Promise.all([
-      Promise.all(selectedPlatforms.map(p => searchPlatform(p, searchTerm, FIRECRAWL_API_KEY))),
-      searchVinted(searchTerm, FIRECRAWL_API_KEY),
-    ]);
+    // Search all source platforms via Firecrawl (parallel)
+    const platformResultsPromise = Promise.all(selectedPlatforms.map(p => searchPlatform(p, searchTerm, FIRECRAWL_API_KEY)));
+
+    // Search Vinted via Apify (primary) with Firecrawl fallback
+    const vintedPromise = (async () => {
+      if (APIFY_API_TOKEN) {
+        const apifyItems = await searchVintedApify(searchTerm, APIFY_API_TOKEN);
+        if (apifyItems && apifyItems.length > 0) {
+          console.log(`Apify returned ${apifyItems.length} Vinted results (structured)`);
+          // Format as structured data for the AI
+          return apifyItems
+            .map((item: any, i: number) => {
+              const title = item.title || "Unknown";
+              const price = item.price != null ? `£${item.price}` : "N/A";
+              const views = item.view_count ?? "N/A";
+              const favs = item.favourite_count ?? "N/A";
+              const status = item.status || "active";
+              const condition = item.status_label || "Unknown";
+              return `  ${i + 1}. ${title} | ${price} | ${condition} | ${views} views | ${favs} favs | ${status}`;
+            })
+            .join("\n");
+        }
+      }
+      // Fallback to Firecrawl
+      console.log("Falling back to Firecrawl for Vinted search");
+      const fcResults = await searchVintedFirecrawl(searchTerm, FIRECRAWL_API_KEY);
+      return fcResults.slice(0, 8).map((r: any) => {
+        const title = r.title || "";
+        const desc = r.description || r.markdown?.slice(0, 200) || "";
+        return `  - ${title} | ${desc}`;
+      }).join("\n");
+    })();
+
+    const [platformResults, vintedSummary] = await Promise.all([platformResultsPromise, vintedPromise]);
 
     // Build context for AI
     const platformSummary = platformResults
@@ -168,12 +228,6 @@ serve(async (req) => {
         return `## ${p.platform}\n${items || "  No results found"}`;
       })
       .join("\n\n");
-
-    const vintedSummary = vintedResults.slice(0, 8).map((r: any) => {
-      const title = r.title || "";
-      const desc = r.description || r.markdown?.slice(0, 200) || "";
-      return `  - ${title} | ${desc}`;
-    }).join("\n");
 
     const prompt = buildPrompt(searchTerm, min_profit_margin, platformSummary, vintedSummary);
 
