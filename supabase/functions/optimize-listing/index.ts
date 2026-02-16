@@ -206,7 +206,7 @@ serve(async (req) => {
 
     userContent.push({
       type: "text",
-      text: `You are a Vinted listing optimisation expert. Your job is to create the PERFECT Vinted listing that is ready to copy and paste directly into Vinted with zero editing needed.
+      text: `You are an elite Vinted listing copywriter. You have studied thousands of top-performing Vinted listings and know exactly what converts browsers into buyers. Your job is to create a PERFECT, Vinted-ready listing pack.
 
 Item details provided by seller:
 - Brand: ${brand || "Not specified"}
@@ -216,51 +216,99 @@ Item details provided by seller:
 - Current title: ${currentTitle || "None"}
 - Current description: ${currentDescription || "None"}
 
-CRITICAL FORMATTING RULES FOR THE DESCRIPTION:
+═══════════════════════════════════════════
+TITLE FORMULA (max 100 chars)
+═══════════════════════════════════════════
+Vinted's search algorithm weights the first 5 words most heavily. Follow this exact pattern:
+[Brand] [Item Type] [Key Detail/Colour] [Size] [Condition Word]
+
+Examples of perfect titles:
+- "Nike Air Max 90 White UK 9 Excellent"
+- "Levi's 501 Straight Jeans W32 L32 Like New"
+- "Zara Oversized Wool Coat Black M Brand New"
+- "Adidas Originals Hoodie Grey XL Great Condition"
+
+Rules:
+- Never use ALL CAPS
+- No special characters or emojis
+- Include brand name first ALWAYS
+- Include size in format buyers search for (UK 9, M, W32, etc.)
+- End with a condition keyword (Brand New / Excellent / Great Condition / Good / Well Worn)
+
+═══════════════════════════════════════════
+DESCRIPTION STRUCTURE (150-250 words, plain text ONLY)
+═══════════════════════════════════════════
+The description MUST follow this exact structure with blank lines between sections:
+
+SECTION 1 - HOOK (1-2 lines):
+A compelling opening that creates desire. What makes this item special? Reference the brand's reputation, the item's rarity, versatility, or current trend relevance. Make the buyer picture themselves wearing it.
+
+SECTION 2 - KEY DETAILS (3-5 lines):
+List the essential details in a clean, scannable format:
+Brand: [brand]
+Size: [size with fit guidance like "fits true to size" or "oversized fit"]
+Colour: [colour]
+Material: [material if known]
+Only include measurements if the seller provided them. NEVER add placeholder measurements.
+
+SECTION 3 - CONDITION (1-2 lines):
+Honest condition assessment. Be specific: "Worn twice", "Minor pilling on cuffs", "Tags still attached". Honesty builds trust and reduces returns/disputes.
+
+SECTION 4 - SHIPPING & CARE (1 line):
+"Shipped with care within 1-2 days of purchase."
+
+SECTION 5 - HASHTAG BLOCK (on its own line):
+A block of 10-15 hashtags. This is critical for Vinted discoverability.
+Mix these categories:
+- Brand hashtags: #nike #nikevintage #nikeair
+- Category hashtags: #trainers #sneakers #shoes
+- Style hashtags: #streetwear #casual #retro
+- Trend hashtags: #y2k #gorpcore #quietluxury (only if genuinely relevant)
+- Condition hashtags: #likenew #preloved
+- General: #vinteduk #vintedfind
+
+CRITICAL FORMATTING RULES:
 1. Output MUST be plain text only. Vinted does NOT support markdown.
-2. NEVER use asterisks (*), bold (**), italic (_), bullet points (•/-/*), headers (#), or any markdown syntax.
-3. Use blank lines between paragraphs for spacing. That is the ONLY formatting allowed.
-4. NEVER include placeholder measurements like "Pit to pit:", "Waist:", "Length:" with blank values. Only include measurements if the seller provided them in their original description.
-5. NEVER include "please ask for measurements" or similar filler phrases.
-6. The description must be COMPLETE and FINAL — ready to paste into Vinted immediately.
-7. Keep it 150-300 words. Engaging but not waffle.
-8. Structure: Opening hook → Key features & details → Condition note → Styling suggestions → Closing CTA.
-9. Use line breaks between sections for readability on mobile.
-10. Include relevant search keywords naturally (brand name, style, colour, occasion).
-11. End with a short, friendly call to action like "Don't miss out!" or "Grab it before it's gone!"
+2. NEVER use asterisks (*), bold (**), italic (_), bullet points (•/-/*), headers (#), or any markdown.
+3. Use blank lines between sections for spacing. That is the ONLY formatting allowed.
+4. NEVER include placeholder measurements with blank values.
+5. The description must be COMPLETE and FINAL — ready to paste into Vinted immediately.
+6. Hashtags go at the END of the description, separated by a blank line.
 
-Tasks:
-1. Identify the item from photos (if provided) and seller details
-2. Generate an SEO-optimised title for Vinted search (max 100 chars, include brand, key features, size)
-3. Write a perfectly formatted plain-text description following ALL rules above
-4. Suggest optimal tags/keywords for Vinted search
-5. Rate the listing with a health score breakdown
+═══════════════════════════════════════════
+HASHTAGS (separate field)
+═══════════════════════════════════════════
+Generate 10-15 hashtags as a separate array. These same hashtags should appear in the description too.
+Mix: brand tags, category tags, style/trend tags, condition tags, and general discovery tags.
+Each hashtag should start with # and be lowercase with no spaces.
 
+═══════════════════════════════════════════
+OUTPUT FORMAT
+═══════════════════════════════════════════
 Return a JSON object (no markdown, just raw JSON) with this exact structure:
 {
-  "optimised_title": "<SEO-optimised title>",
-  "optimised_description": "<PLAIN TEXT description with \\n\\n for paragraph breaks. NO markdown. NO asterisks. NO placeholders.>",
+  "optimised_title": "<title following the formula above>",
+  "optimised_description": "<PLAIN TEXT description following the structure above with \\n\\n for section breaks. Hashtags included at the end.>",
+  "hashtags": ["#brand", "#category", "#style", ...],
   "suggested_tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "detected_brand": "<detected or confirmed brand>",
   "detected_category": "<detected or confirmed category>",
   "detected_condition": "<assessed condition>",
-  "detected_colour": "<detected primary colour, e.g. Black, Navy Blue, Red>",
-  "detected_material": "<detected primary material, e.g. Cotton, Leather, Polyester>",
+  "detected_colour": "<detected primary colour>",
+  "detected_material": "<detected primary material>",
   "health_score": {
     "overall": <0-100>,
     "title_score": <0-25>,
     "description_score": <0-25>,
     "photo_score": <0-25>,
     "completeness_score": <0-25>,
-    "title_feedback": "<specific improvement tip>",
-    "description_feedback": "<specific improvement tip>",
-    "photo_feedback": "<specific improvement tip>",
-    "completeness_feedback": "<specific improvement tip>"
+    "title_feedback": "<specific tip>",
+    "description_feedback": "<specific tip>",
+    "photo_feedback": "<specific tip>",
+    "completeness_feedback": "<specific tip>"
   },
-  "improvements": [
-    "<specific improvement made>"
-  ],
-  "style_notes": "<brief style/trend context for this item>"
+  "improvements": ["<specific improvement made>"],
+  "style_notes": "<brief style/trend context>"
 }`,
     });
 
