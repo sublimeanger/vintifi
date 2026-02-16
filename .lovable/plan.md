@@ -1,99 +1,125 @@
 
-# Enterprise End-to-End Audit — Issues and Fixes
 
-## Critical Issues Found
+# Enterprise Audit — Remaining Issues and Cohesion Fixes
 
-### 1. "Photos" button navigates away from the item (THE BUG YOU REPORTED)
-**File:** `src/pages/ItemDetail.tsx` (line 213-216, 261-263)
+## Issues Found
 
-The header "Photos" button calls `handlePhotos()` which navigates to `/vintography?itemId=...` (the Photo Studio upload page). But the Item Detail page already has a **Photos tab** (line 327) with a fully functional `PhotosTab` component that shows the listing's actual uploaded photos with drag-and-drop reordering.
+### 1. CRITICAL: Listings page Price Check and Optimise don't pass `itemId`
+**Files:** `src/pages/Listings.tsx` (lines 202-211, 214-222)
 
-**Fix:** Change the header "Photos" button to switch to the Photos tab instead of navigating away. Only the "Photo Studio" button inside the Photos tab should navigate to Vintography.
+When clicking "Run Price Check" or "Optimise Listing" from the Listings page dropdown menu, neither `handlePriceCheck` nor `handleOptimiseListing` includes `itemId` in the URL params. This means:
+- Price check results won't update `recommended_price` or `last_price_check_at` on the listing
+- Optimisation results won't update `health_score`, `last_optimised_at`, `title`, or `description` on the listing
+- No `item_activity` record gets created
+- The workflow stepper on ItemDetail stays stale
 
----
+This is a major data-linking gap. Every action taken from the Listings page is "orphaned" — it runs but the results are never saved back to the item.
 
-### 2. "Enhance Photos" next action also navigates away
-**File:** `src/pages/ItemDetail.tsx` (line 90, 311)
-
-The workflow stepper's next action "Enhance Photos" (when `last_photo_edit_at` is null) triggers the same `handlePhotos()` — navigating to Vintography instead of switching to the Photos tab where users can upload and manage their listing photos.
-
-**Fix:** Change the next action for "photos" to switch to the Photos tab.
-
----
-
-### 3. Listing cards have dead expand/collapse code
-**File:** `src/pages/Listings.tsx` (line 108, 260-262, 639-644, 722, 868-966)
-
-There's an entire expanded detail panel (~100 lines of UI) with description, metadata grid, health score bar, and action buttons — but it can **never be seen**. The card's `onClick` handler (line 643) always navigates to `/items/${listing.id}`, so `toggleExpand` is never called. The ChevronDown icon (line 722) animates based on `isExpanded` but this state is always false.
-
-**Fix:** Remove the dead expand/collapse code and the ChevronDown icon. The cards already navigate to the Item Detail page on click, which is the correct behaviour. The expand panel is redundant.
+**Fix:** Add `itemId` to both handlers:
+```
+// handlePriceCheck: add params.set("itemId", listing.id)
+// handleOptimiseListing: add params.set("itemId", listing.id)
+```
 
 ---
 
-### 4. Next Actions Inbox: stale items all link to `/dead-stock` instead of the specific item
-**File:** `src/components/NextActionsInbox.tsx` (line 75)
+### 2. MEDIUM: Pipeline Snapshot "Stale" links to `/listings` with no filter
+**File:** `src/components/PipelineSnapshot.tsx` (line 49)
 
-When a listing is stale (30+ days), clicking "Review" navigates to the generic Dead Stock page rather than the specific item's detail page. This breaks the item-centric model — the user expects to land on that specific item.
+The "Stale" pipeline stage has `filter: ""`, so clicking it navigates to `/listings` with no filter — showing all listings. The user expects to see only stale items.
 
-**Fix:** Change `actionPath` to `/items/${item.id}` so stale items link to their own detail page.
+The Listings page filter system uses `statusFilter` which reads from the URL `?filter=` param, but "stale" isn't a recognized filter value (the page only checks for status values like "active", "sold", "needs_optimising").
 
----
+**Fix:** Either:
+- A) Add a `?filter=stale` URL param and handle it in Listings (filter by `status === "active"` AND `getDaysListed >= 30`)
+- B) Navigate to `/dead-stock` which is specifically designed for stale inventory analysis
 
-### 5. Listings page "Enhance Photos" dropdown doesn't link back to the listing
-**File:** `src/pages/Listings.tsx` (line 737)
+Option B is simpler and more cohesive with the workspace architecture — Dead Stock/Inventory Health is the correct destination for stale items.
 
-The dropdown menu item "Enhance Photos" navigates to `/vintography?image_url=...` — passing just the image URL but not the `itemId`. This means any photo edits in Vintography won't be linked back to the listing (the `updateLinkedItem` function in Vintography requires `itemId` to save results).
-
-**Fix:** Change to `/vintography?itemId=${listing.id}&image_url=...` so edits are linked.
-
----
-
-### 6. Workflow stepper "Photos" step only tracks Vintography edits, not direct uploads
-**File:** `src/pages/ItemDetail.tsx` (line 447)
-
-The "Photos" workflow step checks `last_photo_edit_at`, which only gets set when using Vintography. If a user uploads photos directly via the PhotosTab component, the step remains unchecked — making it look like photos haven't been added even though they have.
-
-**Fix:** The PhotosTab upload handler should also set `last_photo_edit_at` (or check for the presence of any photos instead of relying solely on this timestamp).
+Change line 49: `filter: ""` to `filter: "/dead-stock"` and update the navigate call to use `navigate(s.filter || "/listings")` pattern, OR just hardcode the stale path.
 
 ---
 
-### 7. Listings expanded panel has no "View Photos" quick action
-**File:** `src/pages/Listings.tsx` (lines 951-963)
+### 3. MEDIUM: Dead code — `expandedId` and `toggleExpand` still declared in Listings.tsx
+**File:** `src/pages/Listings.tsx` (lines 108, 260-262)
 
-The expanded detail panel (if it were reachable — see issue 3) has "Price Check" and "Optimise" buttons but no way to view or manage photos for the listing.
+The expanded panel UI was removed in the last fix, but the state variable `expandedId` (line 108) and the `toggleExpand` function (lines 260-262) are still declared and never used. This is dead code that should be cleaned up.
 
-**Note:** This becomes moot if we remove the dead expand code per issue 3, since the Item Detail page has the Photos tab.
+**Fix:** Remove lines 108, 260-262.
 
 ---
 
-## Summary of Fixes
+### 4. LOW: Duplicate `MobileBottomNav` import in multiple pages
+**Files:** `src/pages/TrendRadar.tsx` (line 16), `src/pages/Analytics.tsx` (line 3), `src/pages/SettingsPage.tsx` (line 16), `src/pages/ArbitrageScanner.tsx` (line 25)
 
-| # | Issue | File | Severity | Fix |
-|---|-------|------|----------|-----|
-| 1 | Photos button navigates to Vintography instead of Photos tab | ItemDetail.tsx | CRITICAL | Switch to Photos tab on click |
-| 2 | Next action "Enhance Photos" navigates away | ItemDetail.tsx | HIGH | Switch to Photos tab |
-| 3 | Dead expand/collapse code on listing cards | Listings.tsx | MEDIUM | Remove ~100 lines of unreachable code |
-| 4 | Stale items link to generic Dead Stock page | NextActionsInbox.tsx | MEDIUM | Link to `/items/${item.id}` |
-| 5 | Vintography dropdown missing itemId | Listings.tsx | MEDIUM | Add `itemId` to navigation URL |
-| 6 | Photo upload doesn't mark workflow step | ItemDetail.tsx / PhotosTab.tsx | MEDIUM | Set `last_photo_edit_at` on upload |
-| 7 | No photo action in expanded panel | Listings.tsx | LOW | Moot if issue 3 is fixed |
+These pages import `MobileBottomNav` but never use it — all pages go through `PageShell` which wraps `AppShellV2`, which already renders its own bottom navigation. These are unused imports.
+
+**Fix:** Remove the unused `MobileBottomNav` imports from these files.
+
+---
+
+### 5. MEDIUM: Activity timeline event types don't match logged types
+**File:** `src/pages/ItemDetail.tsx` (lines 619-627)
+
+The activity timeline UI checks for event types `"price_check"`, `"optimise"`, `"photo_edit"`, `"status_change"`. But the actual events logged in `item_activity` use different type strings: `"price_checked"`, `"optimised"`, `"photo_edited"`. The suffix `_ed` vs no suffix means the colour-coded icons never match — all events fall through to the default grey `Clock` icon.
+
+**Fix:** Update the activity timeline to check for the correct type strings: `"price_checked"`, `"optimised"`, `"photo_edited"`.
+
+---
+
+### 6. LOW: Dashboard "New Item" CTA label says "Analyse" but actually navigates to Price Check
+**File:** `src/pages/Dashboard.tsx` (lines 107-123)
+
+The card is titled "New Item" but the input + button only navigates to `/price-check`. There's no way to actually create a new item from this card. The label is misleading — users expect to add a new listing here but instead get redirected to price check.
+
+The heading says "New Item" but the functionality is purely "Price Check". This is confusing.
+
+**Fix:** Either rename the card to "Quick Price Check" for clarity, or add a secondary "Add New Listing" button that opens the NewItemWizard alongside the price check input.
+
+---
+
+### 7. MEDIUM: Listings page "Add & Enhance Photo" (no image) navigates to Vintography without `itemId`
+**File:** `src/pages/Listings.tsx` (line 738)
+
+When a listing has no `image_url`, the dropdown shows "Add & Enhance Photo" which navigates to `/vintography` with no params at all. Even the `itemId` is missing, so any photo work done won't link back.
+
+**Fix:** Change to `navigate(\`/vintography?itemId=\${listing.id}\`)`.
+
+---
+
+## Summary Table
+
+| # | Issue | File | Severity | Type |
+|---|-------|------|----------|------|
+| 1 | Price Check / Optimise from Listings don't pass `itemId` | Listings.tsx | CRITICAL | Data linking |
+| 2 | Pipeline "Stale" links to unfiltered Listings | PipelineSnapshot.tsx | MEDIUM | Navigation |
+| 3 | Dead `expandedId` / `toggleExpand` code | Listings.tsx | LOW | Cleanup |
+| 4 | Unused `MobileBottomNav` imports | 4 files | LOW | Cleanup |
+| 5 | Activity timeline event type mismatch | ItemDetail.tsx | MEDIUM | Display bug |
+| 6 | Dashboard "New Item" card is misleading | Dashboard.tsx | LOW | UX clarity |
+| 7 | "Add & Enhance Photo" missing `itemId` | Listings.tsx | MEDIUM | Data linking |
 
 ## Technical Implementation
 
-### ItemDetail.tsx
-- Add tab state: `const [activeTab, setActiveTab] = useState("overview")`
-- Make Tabs controlled: `<Tabs value={activeTab} onValueChange={setActiveTab}>`
-- Change header Photos button to `onClick={() => setActiveTab("photos")}` instead of `handlePhotos()`
-- Rename `handlePhotos` to `handlePhotoStudio` for clarity (only used by PhotosTab's "Photo Studio" button)
-- Update next action photos handler to switch tab
-
 ### Listings.tsx
-- Remove `expandedId`, `toggleExpand`, `isExpanded` state and the entire `AnimatePresence` expanded panel block (~100 lines)
-- Remove the ChevronDown icon from listing cards
-- Fix Vintography dropdown to include `itemId`
+- `handlePriceCheck` (line 202): Add `params.set("itemId", listing.id)` before the navigate
+- `handleOptimiseListing` (line 214): Add `params.set("itemId", listing.id)` before the navigate
+- Line 108: Remove `const [expandedId, setExpandedId] = useState<string | null>(null);`
+- Lines 260-262: Remove `const toggleExpand = ...`
+- Line 738: Change `/vintography` to `/vintography?itemId=${listing.id}`
 
-### NextActionsInbox.tsx
-- Change stale item `actionPath` from `/dead-stock` to `/items/${item.id}`
+### PipelineSnapshot.tsx
+- Line 49: Change `filter: ""` to something like `path: "/dead-stock"` and update the click handler for the "Stale" stage to navigate to `/dead-stock` instead of `/listings`
 
-### PhotosTab.tsx
-- After successful photo upload, also update `last_photo_edit_at` on the listing (already updates `image_url` and `images`, just needs to add the timestamp)
+### ItemDetail.tsx (Activity Timeline)
+- Line 619: Change `"price_check"` to `"price_checked"`
+- Line 622: Change `"optimise"` to `"optimised"`
+- Line 623: Change `"photo_edit"` to `"photo_edited"`
+
+### Dashboard.tsx
+- Line 107: Rename heading from "New Item" to "Quick Price Check"
+- Update helper text to match
+
+### Unused imports cleanup
+- Remove `MobileBottomNav` import from TrendRadar.tsx, Analytics.tsx, SettingsPage.tsx, ArbitrageScanner.tsx
+
