@@ -71,8 +71,8 @@ export function NextActionsInbox() {
             brand: item.brand,
             image_url: item.image_url,
             action: "stale",
-            actionLabel: "Relist",
-            actionPath: `/relist`,
+            actionLabel: "Review",
+            actionPath: `/dead-stock`,
             icon: Timer,
             priority: 2,
           });

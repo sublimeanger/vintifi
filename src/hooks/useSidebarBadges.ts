@@ -15,7 +15,7 @@ export function useSidebarBadges() {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const [staleRes, watchlistRes, relistRes, needsOptRes] = await Promise.all([
+      const [staleRes, watchlistRes, needsOptRes] = await Promise.all([
         supabase
           .from("listings")
           .select("id", { count: "exact", head: true })
@@ -27,11 +27,6 @@ export function useSidebarBadges() {
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
           .eq("status", "watchlist"),
-        supabase
-          .from("relist_schedules")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("status", "pending"),
         supabase
           .from("listings")
           .select("id", { count: "exact", head: true })
@@ -45,7 +40,6 @@ export function useSidebarBadges() {
       if (staleRes.count && staleRes.count > 0) newBadges["/dead-stock"] = staleRes.count;
       const listingsBadge = (watchlistRes.count || 0) + (needsOptRes.count || 0);
       if (listingsBadge > 0) newBadges["/listings"] = listingsBadge;
-      if (relistRes.count && relistRes.count > 0) newBadges["/relist"] = relistRes.count;
       setBadges(newBadges);
     };
 
