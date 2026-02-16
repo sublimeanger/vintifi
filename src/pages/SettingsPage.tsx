@@ -234,26 +234,17 @@ export default function SettingsPage() {
         </Section>
 
         {/* ─── Platform Connections ─── */}
-        <Section icon={Link2} title="Cross-Platform Publishing" tint="border-blue-500/5">
+        <Section icon={Link2} title="eBay Connection" tint="border-blue-500/5">
           <p className="text-xs sm:text-sm text-muted-foreground mb-4">
-            Connect your eBay, Vinted Pro, and Depop accounts to publish listings across platforms with one click.
+            Connect your eBay seller account to publish listings with one click.
           </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="h-10 active:scale-95 transition-transform text-xs sm:text-sm"
-              onClick={() => navigate("/platforms")}
-            >
-              <Link2 className="w-4 h-4 mr-2" /> Manage Connections
-            </Button>
-            <Button
-              variant="outline"
-              className="h-10 active:scale-95 transition-transform text-xs sm:text-sm"
-              onClick={() => navigate("/cross-listings")}
-            >
-              <Layers className="w-4 h-4 mr-2" /> View Cross-Listings
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            className="h-10 active:scale-95 transition-transform text-xs sm:text-sm"
+            onClick={() => navigate("/platforms")}
+          >
+            <Link2 className="w-4 h-4 mr-2" /> Manage Connection
+          </Button>
         </Section>
 
         {/* ─── Subscription ─── */}

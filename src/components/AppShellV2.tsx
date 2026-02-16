@@ -63,6 +63,7 @@ const TOOL_ITEMS: NavItem[] = [
   { icon: Search, label: "Price Check", path: "/price-check" },
   { icon: Sparkles, label: "Improve Listing", path: "/optimize" },
   { icon: ImageIcon, label: "Photo Studio", path: "/vintography" },
+  { icon: ShoppingBag, label: "eBay", path: "/platforms" },
 ];
 
 /* ── Mobile bottom nav items ── */

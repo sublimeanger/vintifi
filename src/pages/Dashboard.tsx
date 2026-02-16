@@ -12,6 +12,7 @@ import { AppShellV2 } from "@/components/AppShellV2";
 import { PipelineSnapshot } from "@/components/PipelineSnapshot";
 import { NextActionsInbox } from "@/components/NextActionsInbox";
 import { GuidedTour } from "@/components/GuidedTour";
+import { EbayStatusCard } from "@/components/EbayStatusCard";
 import { useFeatureUnlocks } from "@/hooks/useFeatureUnlocks";
 import {
   Search, Loader2, Zap, Package, DollarSign, ShoppingBag,
@@ -145,6 +146,9 @@ export default function Dashboard() {
           </h3>
           <PipelineSnapshot />
         </div>
+
+        {/* eBay Status */}
+        <EbayStatusCard />
 
         {/* B) Next Actions */}
         <div>
