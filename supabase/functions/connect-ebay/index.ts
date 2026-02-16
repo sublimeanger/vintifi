@@ -12,6 +12,57 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const url = new URL(req.url);
+
+  // --- eBay Marketplace Account Deletion: GET verification challenge ---
+  if (req.method === "GET" && url.searchParams.has("challenge_code")) {
+    try {
+      const challengeCode = url.searchParams.get("challenge_code")!;
+      const verificationToken = Deno.env.get("EBAY_VERIFICATION_TOKEN") || "";
+      const endpoint = "https://jufvrlenxbcmohpkuvlo.supabase.co/functions/v1/connect-ebay";
+
+      const encoder = new TextEncoder();
+      const data = encoder.encode(challengeCode + verificationToken + endpoint);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashHex = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      return new Response(JSON.stringify({ challengeResponse: hashHex }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (err: any) {
+      console.error("eBay challenge error:", err);
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  // --- eBay Marketplace Account Deletion: POST notification ---
+  if (req.method === "POST") {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      // No auth header = eBay deletion notification (not a user request)
+      try {
+        const body = await req.json();
+        console.log("eBay account deletion notification received:", JSON.stringify(body));
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err: any) {
+        console.error("eBay notification error:", err);
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+  }
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
