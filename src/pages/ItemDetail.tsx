@@ -161,15 +161,19 @@ export default function ItemDetail() {
     setEbayPublishing(true);
     try {
       const { data, error } = await supabase.functions.invoke("publish-to-platform", {
-        body: { listing_id: item.id, platform: "ebay" },
+        body: {
+          listing_id: item.id,
+          platforms: [{ platform: "ebay", price_override: item.current_price }],
+        },
       });
       if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      const result = data?.results?.ebay;
+      if (!result?.success) throw new Error(result?.error || "Failed to list on eBay");
       toast.success("Listed on eBay!");
       setEbay({
         status: "listed",
-        platform_url: data.platform_url || undefined,
-        cross_listing_id: data.cross_listing_id || undefined,
+        platform_url: result.platform_url || undefined,
+        cross_listing_id: result.cross_listing_id || undefined,
       });
     } catch (e: any) {
       toast.error(e.message || "Failed to publish to eBay");
@@ -379,31 +383,6 @@ export default function ItemDetail() {
             </Card>
           </div>
 
-          {/* Workflow Progress */}
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold mb-4">Item Workflow</h3>
-            <div className="flex items-center gap-2">
-              {[
-                { label: "Priced", done: !!item.last_price_check_at, icon: Search },
-                { label: "Optimised", done: !!item.last_optimised_at, icon: Sparkles },
-                { label: "Photos", done: !!item.last_photo_edit_at, icon: ImageIcon },
-                { label: "Listed", done: item.status === "active" || item.status === "sold", icon: Package },
-              ].map((step, i) => (
-                <div key={step.label} className="flex items-center gap-2 flex-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                    step.done ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {step.done ? <Check className="w-4 h-4" /> : <step.icon className="w-3.5 h-3.5" />}
-                  </div>
-                  <span className={`text-xs font-medium hidden sm:block ${step.done ? "text-foreground" : "text-muted-foreground"}`}>
-                    {step.label}
-                  </span>
-                  {i < 3 && <div className={`flex-1 h-px ${step.done ? "bg-success/40" : "bg-border"}`} />}
-                </div>
-              ))}
-            </div>
-          </Card>
-
           {/* eBay Status */}
           <Card className="p-5">
             <div className="flex items-center justify-between mb-3">
@@ -450,6 +429,31 @@ export default function ItemDetail() {
             ) : (
               <p className="text-xs text-muted-foreground">Sold on eBay.</p>
             )}
+          </Card>
+
+          {/* Workflow Progress */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold mb-4">Item Workflow</h3>
+            <div className="flex items-center gap-2">
+              {[
+                { label: "Priced", done: !!item.last_price_check_at, icon: Search },
+                { label: "Optimised", done: !!item.last_optimised_at, icon: Sparkles },
+                { label: "Photos", done: !!item.last_photo_edit_at, icon: ImageIcon },
+                { label: "Listed", done: item.status === "active" || item.status === "sold", icon: Package },
+              ].map((step, i) => (
+                <div key={step.label} className="flex items-center gap-2 flex-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                    step.done ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                  }`}>
+                    {step.done ? <Check className="w-4 h-4" /> : <step.icon className="w-3.5 h-3.5" />}
+                  </div>
+                  <span className={`text-xs font-medium hidden sm:block ${step.done ? "text-foreground" : "text-muted-foreground"}`}>
+                    {step.label}
+                  </span>
+                  {i < 3 && <div className={`flex-1 h-px ${step.done ? "bg-success/40" : "bg-border"}`} />}
+                </div>
+              ))}
+            </div>
           </Card>
         </TabsContent>
 

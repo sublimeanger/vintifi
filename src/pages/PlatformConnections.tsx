@@ -84,8 +84,7 @@ export default function PlatformConnections() {
       });
       if (error) throw error;
       if (data?.url) {
-        window.open(data.url, "_blank");
-        toast.success("Complete the authorisation in the new tab, then refresh this page.");
+        window.location.href = data.url;
       } else {
         toast.info("eBay connection requires API keys to be configured. Please contact support.");
       }
@@ -148,11 +147,11 @@ export default function PlatformConnections() {
                       : "bg-success/10 text-success border-success/20"
                     : hasError
                       ? "bg-destructive/10 text-destructive border-destructive/20"
-                      : "bg-success/10 text-success border-success/20"
+                      : "bg-muted text-muted-foreground border-border"
                 }`}>
                   {isConnected
                     ? expired ? "Token Expired" : "Connected"
-                    : hasError ? "Error" : "Ready"}
+                    : hasError ? "Error" : "Not Connected"}
                 </Badge>
               </div>
 
