@@ -65,6 +65,17 @@ serve(async (req) => {
       }
 
       try {
+        // Validate listing fields for eBay compliance
+        const validationErrors: string[] = [];
+        if (!listing.title || listing.title.length === 0) validationErrors.push("Title is required");
+        if (listing.title && listing.title.length > 80) validationErrors.push("Title must be 80 characters or fewer for eBay");
+        if (!listing.current_price || listing.current_price <= 0) validationErrors.push("A valid price is required");
+        if (!listing.condition) validationErrors.push("Condition is required");
+        if (validationErrors.length > 0) {
+          results[platform] = { success: false, error: `eBay validation failed: ${validationErrors.join("; ")}` };
+          continue;
+        }
+
         const publishResult = await publishToEbay(listing, ebayConn, price_override);
 
         await supabase.from("cross_listings").upsert(
@@ -173,7 +184,8 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
 function mapConditionToEbay(condition: string | null): string {
   const map: Record<string, string> = {
     "new": "NEW", "new with tags": "NEW_WITH_TAGS", "new without tags": "NEW_WITHOUT_TAGS",
-    "very good": "LIKE_NEW", "good": "GOOD", "satisfactory": "ACCEPTABLE",
+    "excellent": "USED_EXCELLENT", "very good": "USED_VERY_GOOD",
+    "good": "USED_GOOD", "satisfactory": "USED_ACCEPTABLE",
   };
-  return map[(condition || "").toLowerCase()] || "GOOD";
+  return map[(condition || "").toLowerCase()] || "USED_GOOD";
 }
