@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -8,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import MarketingLayout from "@/components/MarketingLayout";
 import {
   Zap, TrendingUp, Search, BarChart3, Package,
-  ArrowRight, Sparkles, Target, Globe, LineChart, ArrowDown,
+  ArrowRight, Sparkles, ArrowDown, Camera, Globe,
 } from "lucide-react";
 
 const fadeUp = {
@@ -26,10 +25,10 @@ const features = [
     badge: "Core Feature",
     title: "Price Intelligence Engine",
     headline: "Know exactly what your item is worth — in seconds",
-    desc1: "Paste any Vinted listing URL and get an AI-powered pricing report in under 8 seconds. We analyse comparable sold and active listings across the marketplace, factoring in brand desirability, condition, seasonal demand, and market saturation.",
+    desc1: "Paste any Vinted listing URL and get an AI-powered pricing report in seconds. We analyse comparable sold and active listings across the marketplace, factoring in brand desirability, condition, seasonal demand, and market saturation.",
     desc2: "Get a recommended sell price with confidence scoring, price distribution charts, average days-to-sell data, and plain-English AI insights explaining the market dynamics behind every recommendation.",
-    stat: "32%",
-    statLabel: "average revenue increase for sellers using Price Check",
+    stat: "Saves hours",
+    statLabel: "of manual price research per week",
     mockTitle: "Price Intelligence Report",
     mockContent: (
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -53,10 +52,10 @@ const features = [
     badge: "AI-Powered",
     title: "AI Listing Optimiser",
     headline: "Listings that sell themselves — written by AI",
-    desc1: "Upload your photos and provide minimal details. Our AI analyses images via GPT-4o vision to identify items, detect brand markers, assess condition, and generate complete, SEO-optimised listings engineered for Vinted's search algorithm.",
+    desc1: "Upload your photos and provide minimal details. Our AI analyses images to identify items, detect brand markers, assess condition, and generate complete, SEO-optimised listings engineered for Vinted's search algorithm.",
     desc2: "Every listing gets a Health Score out of 100 measuring title keywords, description quality, photo count, price competitiveness, and category accuracy. Items scoring below 60 get flagged with specific improvements.",
-    stat: "3x",
-    statLabel: "faster listing creation with AI optimisation",
+    stat: "Minutes",
+    statLabel: "not hours — to create perfect listings",
     mockTitle: "Listing Health Score",
     mockContent: (
       <div className="flex items-center gap-4 sm:gap-6">
@@ -76,14 +75,41 @@ const features = [
     ),
   },
   {
+    icon: Camera,
+    badge: "Photo Studio",
+    title: "Vintography",
+    headline: "Professional product photos — powered by AI",
+    desc1: "Transform your listing photos with AI-powered enhancements. Remove cluttered backgrounds, generate clean flat-lay mockups, and batch-process multiple images in one go.",
+    desc2: "Choose from studio backgrounds, lifestyle scenes, or transparent cuts. Every edit is saved to your gallery and can be applied directly to your listings with one click.",
+    stat: "Pro photos",
+    statLabel: "without a studio — just your phone camera",
+    mockTitle: "Photo Studio",
+    mockContent: (
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-card p-3 border border-border text-center">
+          <div className="w-full h-16 rounded bg-muted/50 flex items-center justify-center mb-2">
+            <span className="text-xs text-muted-foreground">Original</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground">Messy background</p>
+        </div>
+        <div className="rounded-lg bg-card p-3 border border-success/30 text-center">
+          <div className="w-full h-16 rounded bg-success/5 flex items-center justify-center mb-2">
+            <span className="text-xs text-success font-medium">Enhanced ✓</span>
+          </div>
+          <p className="text-[10px] text-success">Clean studio look</p>
+        </div>
+      </div>
+    ),
+  },
+  {
     icon: TrendingUp,
     badge: "Market Intel",
     title: "Trend Radar",
     headline: "Catch trends before they peak — not after",
-    desc1: "Our intelligence engine analyses search volumes, listing activity, and price movements across Vinted categories daily. The Trend Radar identifies brands, styles, and categories experiencing abnormal demand growth before they hit mainstream awareness.",
+    desc1: "Our intelligence engine analyses search volumes, listing activity, and price movements across Vinted categories. The Trend Radar identifies brands, styles, and categories experiencing abnormal demand growth before they hit mainstream awareness.",
     desc2: "Get trend cards showing percentage increases, estimated remaining trend lifespan, sourcing suggestions, and current price trajectories. The Seasonal Demand Calendar shows exactly when to list specific categories for maximum impact.",
-    stat: "5 days",
-    statLabel: "earlier trend detection than manual research",
+    stat: "Early signals",
+    statLabel: "spot demand before competitors do",
     mockTitle: "Trending Now",
     mockContent: (
       <div className="space-y-2 sm:space-y-2.5">
@@ -105,10 +131,10 @@ const features = [
     badge: "Profit Finder",
     title: "Arbitrage Scanner",
     headline: "Buy low elsewhere, sell high on Vinted",
-    desc1: "Our cross-platform scanner identifies items listed significantly below their Vinted market value on eBay, Depop, Facebook Marketplace, and retail clearance pages. Every opportunity includes estimated profit after fees, shipping, and time costs.",
-    desc2: "The Retail Clearance Radar monitors major outlet sites and cross-references sale prices against Vinted resale values. When margins exceed your threshold, you get instant sourcing alerts with everything you need to act fast.",
-    stat: "£340",
-    statLabel: "average monthly arbitrage profit per active user",
+    desc1: "Our cross-platform scanner identifies items listed significantly below their Vinted market value on eBay and other platforms. Every opportunity includes estimated profit after fees, shipping, and time costs.",
+    desc2: "The Retail Clearance Radar monitors major outlet sites and cross-references sale prices against Vinted resale values. When margins exceed your threshold, you get sourcing alerts with everything you need to act fast.",
+    stat: "Cross-platform",
+    statLabel: "profit opportunities found automatically",
     mockTitle: "Opportunity Found",
     mockContent: (
       <div className="rounded-lg bg-card p-3 sm:p-4 border border-border">
@@ -131,14 +157,44 @@ const features = [
     ),
   },
   {
+    icon: Globe,
+    badge: "Multi-Platform",
+    title: "eBay Cross-Listing",
+    headline: "Sell on eBay too — with one click",
+    desc1: "Connect your eBay account and publish your Vinted listings to eBay directly from Vintifi. Our AI adapts your listing details for eBay's format, including category mapping and pricing adjustments.",
+    desc2: "Track your cross-listed items in one unified dashboard. See which platform each item is performing best on and manage everything from a single place.",
+    stat: "2x reach",
+    statLabel: "by listing on multiple platforms simultaneously",
+    mockTitle: "Cross-Platform Status",
+    mockContent: (
+      <div className="space-y-2">
+        {[
+          { platform: "Vinted", status: "Live", price: "£24.50", color: "bg-success" },
+          { platform: "eBay", status: "Published", price: "£26.99", color: "bg-success" },
+        ].map((p) => (
+          <div key={p.platform} className="flex items-center justify-between rounded-lg bg-card p-2.5 border border-border">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${p.color}`} />
+              <span className="text-sm font-medium text-foreground">{p.platform}</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>{p.status}</span>
+              <span className="font-medium text-foreground">{p.price}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
     icon: Package,
     badge: "Operations",
     title: "Smart Inventory Manager",
     headline: "Your entire reselling business — one dashboard",
     desc1: "A centralised command centre for all your active listings with real-time status, engagement metrics, and price vs. market comparisons. Colour-coded traffic lights instantly show which items are on track, need attention, or are at risk of going stale.",
-    desc2: "Built-in P&L tracking calculates net profit per item and per period. The Dead Stock Liquidation Engine identifies items that haven't sold and suggests price reductions, bundle pairings, or crosslisting actions to free up capital.",
-    stat: "4.5 hrs",
-    statLabel: "saved per week on inventory management",
+    desc2: "Built-in P&L tracking calculates net profit per item and per period. The Dead Stock engine identifies items that haven't sold and suggests price reductions, bundle pairings, or crosslisting actions to free up capital.",
+    stat: "Full control",
+    statLabel: "over your inventory, profit, and performance",
     mockTitle: "Inventory Overview",
     mockContent: (
       <div className="space-y-2">
@@ -166,20 +222,15 @@ const features = [
 export default function Features() {
   const navigate = useNavigate();
 
-  usePageMeta("Features — Vintifi", "Price intelligence, AI listings, trend radar, and arbitrage scanning. Everything you need to sell smarter on Vinted.");
+  usePageMeta("Features — Vintifi", "Price intelligence, AI listings, photo studio, trend radar, arbitrage scanning, and eBay cross-listing. Everything you need to sell smarter on Vinted.");
 
   return (
     <MarketingLayout>
       {/* Hero */}
       <section className="relative overflow-hidden py-20 sm:py-24 md:py-36">
-        {/* Gradient mesh background */}
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-primary/8 blur-[120px] float-animation" />
           <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-accent/8 blur-[100px] float-animation-delay" />
-          {/* Decorative floating dots */}
-          <div className="absolute top-[20%] left-[15%] w-2 h-2 rounded-full bg-primary/30 float-animation" />
-          <div className="absolute top-[40%] right-[20%] w-3 h-3 rounded-full bg-accent/20 float-animation-delay" />
-          <div className="absolute bottom-[30%] left-[40%] w-1.5 h-1.5 rounded-full bg-success/30 float-animation" />
         </div>
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
@@ -189,7 +240,7 @@ export default function Features() {
               <span className="text-gradient">on Vinted</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-              Five powerful modules working together to turn you into a data-driven reselling machine. No guesswork. No wasted time. Just results.
+              Seven powerful modules working together to turn you into a data-driven reselling machine. No guesswork. No wasted time. Just results.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button
@@ -213,7 +264,6 @@ export default function Features() {
           className={`py-16 sm:py-20 md:py-28 ${idx % 2 === 0 ? "bg-background" : "bg-muted/30"}`}
         >
           <div className="container mx-auto px-4">
-            {/* Step indicator */}
             <div className="flex items-center gap-3 mb-8 sm:mb-12 max-w-5xl mx-auto">
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                 <span className="font-display text-sm sm:text-base font-extrabold text-primary">{idx + 1}</span>
@@ -223,7 +273,6 @@ export default function Features() {
             </div>
 
             <div className={`flex flex-col ${idx % 2 === 0 ? "lg:flex-row" : "lg:flex-row-reverse"} items-center gap-8 sm:gap-12 lg:gap-20 max-w-5xl mx-auto`}>
-              {/* Text */}
               <motion.div
                 className="flex-1 max-w-xl"
                 initial="hidden"
@@ -251,7 +300,6 @@ export default function Features() {
                 </motion.div>
               </motion.div>
 
-              {/* Mock UI */}
               <motion.div
                 className="flex-1 w-full max-w-lg"
                 initial={{ opacity: 0, x: idx % 2 === 0 ? 60 : -60 }}
@@ -279,11 +327,7 @@ export default function Features() {
 
       {/* Bottom CTA */}
       <section className="relative py-20 sm:py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/10">
-          <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-primary/40 float-animation" />
-          <div className="absolute bottom-1/3 right-1/3 w-3 h-3 rounded-full bg-accent/30 float-animation-delay" />
-          <div className="absolute top-1/2 right-1/4 w-1.5 h-1.5 rounded-full bg-success/40 float-animation" />
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/10" />
         <div className="container mx-auto px-4 text-center relative z-10">
           <motion.div
             initial="hidden"
@@ -295,7 +339,7 @@ export default function Features() {
               Ready to level up?
             </motion.h2>
             <motion.p variants={fadeUp} className="text-muted-foreground text-base sm:text-lg mb-8 max-w-xl mx-auto">
-              Start with 5 free price checks. No credit card required. See results in under 90 seconds.
+              Start with 5 free credits. No credit card required. See results in under 90 seconds.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Check, Zap, TrendingUp, BarChart3, Shield, ArrowRight, Sparkles } from "lucide-react";
+import { Check, Zap, TrendingUp, BarChart3, Shield, ArrowRight, Sparkles, Camera, Globe } from "lucide-react";
 import { STRIPE_TIERS, TierKey } from "@/lib/constants";
 import MarketingLayout from "@/components/MarketingLayout";
 
@@ -16,15 +16,13 @@ const fadeUp = {
 };
 
 const features = [
-  { icon: Zap, title: "Instant Price Intelligence", desc: "Paste a Vinted URL and get AI-powered pricing in under 8 seconds." },
-  { icon: TrendingUp, title: "Market Trend Analysis", desc: "See real-time price distributions and comparable sold items." },
-  { icon: BarChart3, title: "Confidence Scoring", desc: "Know exactly how reliable each price recommendation is." },
-  { icon: Shield, title: "Data-Driven Decisions", desc: "Stop guessing — every price backed by market evidence." },
-  { icon: Sparkles, title: "AI Insights", desc: "Plain-English explanations of why items are priced the way they are." },
-  { icon: ArrowRight, title: "One-Click Apply", desc: "Apply recommended prices directly to your listings." },
+  { icon: Zap, title: "Instant Price Intelligence", desc: "Paste a Vinted URL and get AI-powered pricing in seconds, backed by real market data." },
+  { icon: TrendingUp, title: "Trend Radar", desc: "Spot rising brands and styles before they peak. Plan your sourcing with data, not guesswork." },
+  { icon: Sparkles, title: "AI Listing Optimiser", desc: "Generate SEO-optimised titles, descriptions, and tags. Get a health score for every listing." },
+  { icon: BarChart3, title: "Arbitrage Scanner", desc: "Find items listed below Vinted value on eBay and other platforms. See estimated profit instantly." },
+  { icon: Camera, title: "Vintography Photo Studio", desc: "AI-powered photo enhancement — background removal, flat-lay mockups, and batch editing." },
+  { icon: Globe, title: "eBay Cross-Listing", desc: "Publish your Vinted listings to eBay with one click. Reach more buyers across platforms." },
 ];
-
-const trustedBrands = ["Nike", "Zara", "Carhartt WIP", "Levi's", "Adidas", "H&M", "Dr. Martens", "Ralph Lauren"];
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -34,7 +32,6 @@ export default function Landing() {
     <MarketingLayout>
       {/* Hero */}
       <section className="relative overflow-hidden">
-        {/* Animated gradient mesh */}
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-[-10%] left-[10%] w-[500px] h-[500px] rounded-full bg-primary/8 blur-[120px] float-animation" />
           <div className="absolute bottom-[-10%] right-[10%] w-[400px] h-[400px] rounded-full bg-accent/8 blur-[100px] float-animation-delay" />
@@ -114,20 +111,6 @@ export default function Landing() {
               </div>
             </div>
           </motion.div>
-        </div>
-      </section>
-
-      {/* Trusted brands */}
-      <section className="py-10 border-t border-border/50">
-        <div className="container mx-auto px-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground text-center mb-5 font-medium">
-            Trusted by sellers of top brands
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            {trustedBrands.map((brand) => (
-              <span key={brand} className="text-sm font-semibold text-muted-foreground/60">{brand}</span>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -239,7 +222,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 text-center relative z-10">
           <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-secondary-foreground">Ready to sell smarter?</h2>
           <p className="text-secondary-foreground/70 text-base sm:text-lg mb-8 max-w-xl mx-auto">
-            Join thousands of Vinted sellers who use Vintifi to price their items perfectly.
+            Join Vinted sellers who use Vintifi to price their items perfectly and sell faster.
           </p>
           <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">
             Get Started Free

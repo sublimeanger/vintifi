@@ -1,15 +1,12 @@
-import { useEffect, useRef } from "react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
-import { motion, useInView } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import MarketingLayout from "@/components/MarketingLayout";
 import {
   ArrowRight, Link2, Brain, BarChart3,
   TrendingDown, TrendingUp, Clock, Heart, Eye,
-  Quote,
 } from "lucide-react";
 
 const fadeUp = {
@@ -17,28 +14,6 @@ const fadeUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
 };
 const stagger = { visible: { transition: { staggerChildren: 0.15 } } };
-
-function AnimatedCounter({ end, suffix = "" }: { end: number; suffix?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true });
-
-  useEffect(() => {
-    if (!inView || !ref.current) return;
-    let start = 0;
-    const duration = 1500;
-    const startTime = performance.now();
-    const animate = (now: number) => {
-      const progress = Math.min((now - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      start = Math.round(eased * end);
-      if (ref.current) ref.current.textContent = `${start}${suffix}`;
-      if (progress < 1) requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
-  }, [inView, end, suffix]);
-
-  return <span ref={ref}>0{suffix}</span>;
-}
 
 const steps = [
   {
@@ -64,13 +39,13 @@ const steps = [
     num: "02",
     icon: Brain,
     title: "AI analyses the market in seconds",
-    desc: "Our engine scrapes comparable listings, processes pricing data through AI, and cross-references trends, demand, and competition — all in under 8 seconds.",
+    desc: "Our engine scrapes comparable listings, processes pricing data through AI, and cross-references trends, demand, and competition — all in seconds.",
     mock: (
       <div className="rounded-xl bg-card border border-border p-4 sm:p-5 space-y-3">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" /> Scanning market...
         </div>
-        {["Scraping 847 comparable listings", "Analysing price distributions", "Generating AI insights"].map((t) => (
+        {["Scraping comparable listings", "Analysing price distributions", "Generating AI insights"].map((t) => (
           <div key={t} className="flex items-center gap-3">
             <div className="w-5 h-5 rounded-full bg-success/10 flex items-center justify-center">
               <div className="w-2 h-2 rounded-full bg-success" />
@@ -110,49 +85,25 @@ const steps = [
   },
 ];
 
-const testimonials = [
-  {
-    name: "Sarah K.",
-    role: "Full-Time Reseller, London",
-    quote: "I increased my monthly profit by 47% in the first month. The price intelligence alone pays for the subscription 10x over.",
-    stat: "+47%",
-    initials: "SK",
-  },
-  {
-    name: "Marcus T.",
-    role: "Side Hustler, Berlin",
-    quote: "I used to spend hours researching prices. Now I paste a URL and get better data in 8 seconds. Game changer.",
-    stat: "4hrs saved/week",
-    initials: "MT",
-  },
-  {
-    name: "Emma L.",
-    role: "Vintage Specialist, Paris",
-    quote: "The trend radar helped me spot the vintage Carhartt wave early. I sourced 30 jackets and sold them all within two weeks.",
-    stat: "£2,400 profit",
-    initials: "EL",
-  },
-];
-
 const beforeAfter = {
   before: [
     { icon: Clock, label: "Time pricing", value: "45 min/item" },
-    { icon: TrendingDown, label: "Pricing accuracy", value: "~50%" },
-    { icon: Eye, label: "Market visibility", value: "Guesswork" },
-    { icon: Heart, label: "Sell-through rate", value: "32%" },
+    { icon: TrendingDown, label: "Pricing accuracy", value: "Guesswork" },
+    { icon: Eye, label: "Market visibility", value: "None" },
+    { icon: Heart, label: "Listing quality", value: "Hit or miss" },
   ],
   after: [
-    { icon: Clock, label: "Time pricing", value: "8 seconds" },
-    { icon: TrendingUp, label: "Pricing accuracy", value: "87%+" },
+    { icon: Clock, label: "Time pricing", value: "Seconds" },
+    { icon: TrendingUp, label: "Pricing accuracy", value: "Data-backed" },
     { icon: Eye, label: "Market visibility", value: "Full data" },
-    { icon: Heart, label: "Sell-through rate", value: "68%" },
+    { icon: Heart, label: "Listing quality", value: "AI-optimised" },
   ],
 };
 
 export default function HowItWorks() {
   const navigate = useNavigate();
 
-  usePageMeta("How It Works — Vintifi", "Paste a URL, get AI pricing in 8 seconds. See how Vintifi transforms your Vinted selling with data-driven intelligence.");
+  usePageMeta("How It Works — Vintifi", "Paste a URL, get AI pricing in seconds. See how Vintifi transforms your Vinted selling with data-driven intelligence.");
 
   return (
     <MarketingLayout>
@@ -180,7 +131,6 @@ export default function HowItWorks() {
       <section className="pb-16 sm:pb-20">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="relative">
-            {/* Connecting line with pulsing dots */}
             <div className="absolute left-8 md:left-10 top-0 bottom-0 w-px bg-border hidden md:block">
               <div className="absolute top-1/4 -left-[3px] w-[7px] h-[7px] rounded-full bg-primary animate-pulse" />
               <div className="absolute top-1/2 -left-[3px] w-[7px] h-[7px] rounded-full bg-primary animate-pulse" style={{ animationDelay: "0.5s" }} />
@@ -197,14 +147,11 @@ export default function HowItWorks() {
                   viewport={{ once: true, margin: "-60px" }}
                   transition={{ delay: i * 0.15, duration: 0.6 }}
                 >
-                  {/* Number */}
                   <div className="shrink-0 relative z-10">
                     <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
                       <span className="font-display text-2xl md:text-3xl font-extrabold text-primary">{step.num}</span>
                     </div>
                   </div>
-
-                  {/* Content */}
                   <div className="flex-1 space-y-4">
                     <div className="flex items-center gap-2">
                       <step.icon className="w-5 h-5 text-primary" />
@@ -232,13 +179,11 @@ export default function HowItWorks() {
             The Vintifi Difference
           </motion.h2>
           <div className="grid md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto relative">
-            {/* Animated divider */}
             <div className="hidden md:flex absolute left-1/2 top-0 bottom-0 -translate-x-1/2 items-center z-10">
               <div className="w-10 h-10 rounded-full bg-card border-2 border-primary shadow-lg flex items-center justify-center">
                 <ArrowRight className="w-4 h-4 text-primary" />
               </div>
             </div>
-            {/* Before */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -260,14 +205,12 @@ export default function HowItWorks() {
               </Card>
             </motion.div>
 
-            {/* Mobile divider */}
             <div className="flex md:hidden items-center justify-center -my-1">
               <div className="w-8 h-8 rounded-full bg-card border-2 border-primary shadow-lg flex items-center justify-center">
                 <ArrowRight className="w-3 h-3 text-primary rotate-90" />
               </div>
             </div>
 
-            {/* After */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -292,49 +235,6 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-16 sm:py-20">
-        <div className="container mx-auto px-4">
-          <motion.h2
-            className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold text-center mb-10 sm:mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            Real Sellers, Real Results
-          </motion.h2>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
-            {testimonials.map((t, i) => (
-              <motion.div
-                key={t.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-              >
-                <Card className="p-5 sm:p-6 h-full flex flex-col relative overflow-hidden group hover:shadow-lg transition-shadow">
-                  {/* Quote watermark */}
-                  <div className="absolute top-3 right-4 text-6xl font-serif text-muted/40 leading-none select-none">"</div>
-                  <p className="text-sm text-muted-foreground leading-relaxed flex-1 mb-5 relative z-10">"{t.quote}"</p>
-                  <div className="flex items-center justify-between border-t border-border pt-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                        {t.initials}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm text-foreground">{t.name}</p>
-                        <p className="text-xs text-muted-foreground">{t.role}</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="font-bold">{t.stat}</Badge>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Bottom CTA */}
       <section className="py-20 sm:py-24">
         <div className="container mx-auto px-4 text-center">
@@ -343,7 +243,7 @@ export default function HowItWorks() {
               Ready to try it yourself?
             </motion.h2>
             <motion.p variants={fadeUp} className="text-muted-foreground text-base sm:text-lg mb-8 max-w-xl mx-auto">
-              Your first 5 price checks are free. See results in under 90 seconds.
+              Your first 5 credits are free. See results in under 90 seconds.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">
