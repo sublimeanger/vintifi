@@ -554,10 +554,10 @@ export default function Listings() {
             if (s !== "all" && count === 0) return null;
             const label = s === "needs_optimising" ? "Needs optimising" : s;
             return (
-              <button
+                <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium border transition-all active:scale-95 shrink-0 ${s !== "needs_optimising" ? "capitalize" : ""} ${
+                className={`px-3 py-2 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium border transition-all active:scale-95 shrink-0 ${s !== "needs_optimising" ? "capitalize" : ""} ${
                   statusFilter === s
                     ? s === "needs_optimising"
                       ? "bg-accent/10 text-accent border-accent/30"
@@ -723,7 +723,7 @@ export default function Listings() {
                             <div className="flex items-center gap-1 shrink-0">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-8 sm:w-8 shrink-0">
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-8 sm:w-8 shrink-0">
                                     <MoreVertical className="w-4 h-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -773,8 +773,9 @@ export default function Listings() {
                               </span>
                             )}
 
+                            {/* Cost — hidden on mobile */}
                             {editingId === listing.id && editField === "purchase_price" ? (
-                              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <div className="hidden sm:flex items-center gap-1" onClick={e => e.stopPropagation()}>
                                 <span className="text-[10px] text-muted-foreground">Cost:</span>
                                 <Input
                                   type="number"
@@ -794,7 +795,7 @@ export default function Listings() {
                               </div>
                             ) : (
                               <span
-                                className="text-[10px] sm:text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group flex items-center gap-1"
+                                className="hidden sm:flex text-[10px] sm:text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group items-center gap-1"
                                 onClick={(e) => { e.stopPropagation(); startEdit(listing.id, "purchase_price", listing.purchase_price); }}
                                 title="Tap to edit cost"
                               >
@@ -803,8 +804,9 @@ export default function Listings() {
                               </span>
                             )}
 
+                            {/* Sale price — hidden on mobile */}
                             {editingId === listing.id && editField === "sale_price" ? (
-                              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <div className="hidden sm:flex items-center gap-1" onClick={e => e.stopPropagation()}>
                                 <span className="text-[10px] text-muted-foreground">Sale:</span>
                                 <Input
                                   type="number"
@@ -824,7 +826,7 @@ export default function Listings() {
                               </div>
                             ) : (
                               <span
-                                className="text-[10px] sm:text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group flex items-center gap-1"
+                                className="hidden sm:flex text-[10px] sm:text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors group items-center gap-1"
                                 onClick={(e) => { e.stopPropagation(); startEdit(listing.id, "sale_price", listing.sale_price); }}
                                 title="Tap to edit sale price"
                               >
@@ -833,8 +835,9 @@ export default function Listings() {
                               </span>
                             )}
 
+                            {/* Profit — hidden on mobile */}
                             {profit !== null && (
-                              <span className={`text-[10px] sm:text-xs font-semibold ${profit >= 0 ? "text-success" : "text-destructive"}`}>
+                              <span className={`hidden sm:inline text-[10px] sm:text-xs font-semibold ${profit >= 0 ? "text-success" : "text-destructive"}`}>
                                 {profit >= 0 ? "+" : ""}£{profit.toFixed(2)}
                               </span>
                             )}
@@ -846,8 +849,9 @@ export default function Listings() {
                               {daysListed}d
                             </span>
 
+                            {/* Views/Favourites — hidden on mobile */}
                             {(listing.views_count || listing.favourites_count) ? (
-                              <div className="flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                              <div className="hidden sm:flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground">
                                 {listing.views_count != null && listing.views_count > 0 && (
                                   <span className="flex items-center gap-0.5">
                                     <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {listing.views_count}
