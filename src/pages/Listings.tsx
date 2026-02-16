@@ -717,10 +717,10 @@ export default function Listings() {
                     <div
                       className="p-3 sm:p-4 cursor-pointer active:bg-muted/30 transition-colors"
                       onClick={(e) => {
-                        // Don't toggle if clicking interactive elements
+                        // Don't navigate if clicking interactive elements
                         const target = e.target as HTMLElement;
                         if (target.closest("button, input, select, [role='menuitem'], [data-radix-collection-item]")) return;
-                        toggleExpand(listing.id);
+                        navigate(`/items/${listing.id}`);
                       }}
                     >
                         <div className="flex items-start gap-2.5 sm:gap-3">

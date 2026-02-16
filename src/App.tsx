@@ -31,6 +31,7 @@ import ClearanceRadar from "./pages/ClearanceRadar";
 import PlatformConnections from "./pages/PlatformConnections";
 import CrossListings from "./pages/CrossListings";
 import Vintography from "./pages/Vintography";
+import ItemDetail from "./pages/ItemDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><OnboardingGuard><Dashboard /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/price-check" element={<ProtectedRoute><OnboardingGuard><PriceCheck /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/listings" element={<ProtectedRoute><OnboardingGuard><Listings /></OnboardingGuard></ProtectedRoute>} />
+            <Route path="/items/:id" element={<ProtectedRoute><OnboardingGuard><ItemDetail /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/optimize" element={<ProtectedRoute><OnboardingGuard><OptimizeListing /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/trends" element={<ProtectedRoute><OnboardingGuard><TrendRadar /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/arbitrage" element={<ProtectedRoute><OnboardingGuard><ArbitrageScanner /></OnboardingGuard></ProtectedRoute>} />
