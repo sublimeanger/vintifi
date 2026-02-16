@@ -392,7 +392,7 @@ export default function TrendRadar() {
         </TabsContent>
       </Tabs>
 
-      <MobileBottomNav />
+      
       <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} reason="Upgrade to Pro to see all trends, get personalised insights, and unlock the full Trend Radar." tierRequired="pro" />
     </PageShell>
   );

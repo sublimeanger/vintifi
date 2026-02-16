@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
+
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
   ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag, Eye,
@@ -26,7 +26,7 @@ import {
 } from "recharts";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { UpgradeModal } from "@/components/UpgradeModal";
-import { SellSmartProgress } from "@/components/SellSmartProgress";
+
 
 type PriceReport = {
   recommended_price: number;
@@ -180,7 +180,7 @@ export default function PriceCheck() {
       subtitle={credits ? `${credits.credits_limit - credits.price_checks_used} checks remaining` : ""}
       maxWidth="max-w-4xl"
     >
-      <SellSmartProgress currentStep="price-check" className="mb-5" />
+      
 
       <UseCaseSpotlight
         featureKey="price-check"
@@ -604,7 +604,7 @@ export default function PriceCheck() {
         </motion.div>
       )}
 
-      <MobileBottomNav />
+      
       <UpgradeModal
         open={gate.upgradeOpen}
         onClose={gate.hideUpgrade}

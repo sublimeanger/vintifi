@@ -479,7 +479,7 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      <MobileBottomNav />
+      
     </PageShell>
   );
 }

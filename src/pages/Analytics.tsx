@@ -434,7 +434,7 @@ export default function Analytics() {
         </>
       )}
 
-      <MobileBottomNav />
+      
     </PageShell>
   );
 }
