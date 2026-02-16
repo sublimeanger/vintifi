@@ -108,7 +108,7 @@ export function DashboardIntelligence() {
       label: "Pending Relists",
       value: `${pendingRelists}`,
       description: `${pendingRelists} relist${pendingRelists > 1 ? "s" : ""} scheduled — review and execute`,
-      path: "/relist",
+      path: "/dead-stock",
       color: "text-accent",
       bg: "bg-accent/10",
       border: "border-accent/20",

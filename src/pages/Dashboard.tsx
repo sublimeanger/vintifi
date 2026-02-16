@@ -83,10 +83,10 @@ export default function Dashboard() {
   };
 
   const metrics = [
-    { icon: Package, label: "Active Items", value: `${activeCount}`, color: "text-primary", bg: "bg-primary/[0.06]", border: "border-l-primary" },
-    { icon: DollarSign, label: "Portfolio Value", value: `£${portfolioValue.toFixed(0)}`, color: "text-success", bg: "bg-success/[0.06]", border: "border-l-success" },
-    { icon: ShoppingBag, label: "Sold (7d)", value: `${soldThisWeek}`, color: "text-accent", bg: "bg-accent/[0.06]", border: "border-l-accent" },
-    { icon: Zap, label: "Profit (MTD)", value: `£${monthlyProfit.toFixed(0)}`, color: "text-primary", bg: "bg-primary/[0.06]", border: "border-l-primary" },
+    { icon: Package, label: "Active Items", value: `${activeCount}`, color: "text-primary", bg: "bg-primary/[0.06]", border: "border-l-primary", path: "/listings?status=active" },
+    { icon: DollarSign, label: "Portfolio Value", value: `£${portfolioValue.toFixed(0)}`, color: "text-success", bg: "bg-success/[0.06]", border: "border-l-success", path: "/analytics" },
+    { icon: ShoppingBag, label: "Sold (7d)", value: `${soldThisWeek}`, color: "text-accent", bg: "bg-accent/[0.06]", border: "border-l-accent", path: "/listings?status=sold" },
+    { icon: Zap, label: "Profit (MTD)", value: `£${monthlyProfit.toFixed(0)}`, color: "text-primary", bg: "bg-primary/[0.06]", border: "border-l-primary", path: "/analytics" },
   ];
 
   return (
@@ -128,7 +128,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
           {metrics.map((m, i) => (
             <motion.div key={m.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-              <Card className={`p-3 sm:p-4 border-l-[3px] ${m.border} ${m.bg} cursor-pointer hover:shadow-md active:scale-[0.97] transition-all`} onClick={() => navigate("/analytics")}>
+              <Card className={`p-3 sm:p-4 border-l-[3px] ${m.border} ${m.bg} cursor-pointer hover:shadow-md active:scale-[0.97] transition-all`} onClick={() => navigate(m.path)}>
                 <div className="flex items-center gap-1.5 mb-1">
                   <m.icon className={`w-3 h-3 sm:w-4 sm:h-4 ${m.color}`} />
                   <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider truncate">{m.label}</span>
