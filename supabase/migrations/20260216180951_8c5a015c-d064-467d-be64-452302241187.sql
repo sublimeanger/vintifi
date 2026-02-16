@@ -1,0 +1,1 @@
+ALTER TABLE public.listings ADD COLUMN shipping_cost DECIMAL DEFAULT NULL;
