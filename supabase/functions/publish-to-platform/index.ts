@@ -131,6 +131,9 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
   const price = priceOverride || listing.current_price || 0;
   const sku = `vintifi-${listing.id.slice(0, 8)}`;
 
+  // Detect eBay category via AI
+  const categoryId = await detectEbayCategory(listing);
+
   // Step 1: Create inventory item
   const inventoryRes = await fetch(
     `https://api.ebay.com/sell/inventory/v1/inventory_item/${sku}`,
@@ -160,7 +163,7 @@ async function publishToEbay(listing: any, connection: any, priceOverride?: numb
     body: JSON.stringify({
       sku, marketplaceId: "EBAY_GB", format: "FIXED_PRICE", listingDuration: "GTC",
       pricingSummary: { price: { value: price.toFixed(2), currency: "GBP" } },
-      availableQuantity: 1, categoryId: "11450", merchantLocationKey: "default",
+      availableQuantity: 1, categoryId, merchantLocationKey: "default",
     }),
   });
   if (!offerRes.ok) throw new Error(`eBay offer creation failed [${offerRes.status}]: ${await offerRes.text()}`);
@@ -188,4 +191,105 @@ function mapConditionToEbay(condition: string | null): string {
     "good": "USED_GOOD", "satisfactory": "USED_ACCEPTABLE",
   };
   return map[(condition || "").toLowerCase()] || "USED_GOOD";
+}
+
+// ─── AI-Powered eBay Category Detection ───
+// Common eBay UK clothing/fashion category IDs for fast fallback
+const EBAY_CATEGORY_FALLBACKS: Record<string, string> = {
+  "women's clothing": "15724", "men's clothing": "1059",
+  "women's shoes": "3034", "men's shoes": "93427",
+  "women's bags": "169291", "men's bags": "169285",
+  "women's accessories": "4251", "men's accessories": "4250",
+  "kids' clothing": "171146", "jewellery": "281",
+  "watches": "14324", "vintage clothing": "175759",
+  "sportswear": "137084", "coats & jackets": "63862",
+  "dresses": "63861", "tops": "53159", "jeans": "11483",
+  "trainers": "155202", "boots": "11498", "shirts": "57990",
+  "jumpers": "11484", "skirts": "63864", "shorts": "15689",
+  "suits": "3001", "swimwear": "15690",
+};
+
+async function detectEbayCategory(listing: any): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    console.warn("No LOVABLE_API_KEY — using fallback category");
+    return quickFallbackCategory(listing);
+  }
+
+  try {
+    const prompt = `You are an eBay category mapping expert. Given this item, return the single best eBay UK category ID (numeric string).
+
+Item: "${listing.title}"
+Brand: ${listing.brand || "Unknown"}
+Category: ${listing.category || "Unknown"}
+Size: ${listing.size || "Unknown"}
+
+Common eBay UK clothing category IDs:
+- 15724: Women's Clothing
+- 1059: Men's Clothing  
+- 63861: Dresses
+- 63862: Coats, Jackets & Waistcoats (Women)
+- 57990: Shirts & Tops (Men)
+- 53159: Tops & Shirts (Women)
+- 11483: Jeans (Men/Women)
+- 11484: Jumpers & Cardigans
+- 63864: Skirts
+- 15689: Shorts
+- 3001: Suits & Tailoring
+- 15690: Swimwear
+- 3034: Women's Shoes
+- 93427: Men's Shoes
+- 155202: Trainers
+- 11498: Boots
+- 169291: Women's Bags & Handbags
+- 169285: Men's Bags
+- 4251: Women's Accessories
+- 4250: Men's Accessories
+- 281: Jewellery
+- 14324: Watches
+- 175759: Vintage Clothing
+- 137084: Activewear
+- 171146: Kids' Clothing
+- 11450: Clothing, Shoes & Accessories (generic fallback)
+
+Return ONLY the numeric category ID, nothing else.`;
+
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: "You return only a single eBay category ID number. No explanation." },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    if (!aiRes.ok) {
+      console.warn("AI category detection failed, using fallback");
+      return quickFallbackCategory(listing);
+    }
+
+    const aiData = await aiRes.json();
+    const raw = (aiData.choices?.[0]?.message?.content || "").trim();
+    const idMatch = raw.match(/\d{3,6}/);
+    if (idMatch) return idMatch[0];
+
+    return quickFallbackCategory(listing);
+  } catch (err) {
+    console.error("Category detection error:", err);
+    return quickFallbackCategory(listing);
+  }
+}
+
+function quickFallbackCategory(listing: any): string {
+  const cat = (listing.category || "").toLowerCase();
+  for (const [key, id] of Object.entries(EBAY_CATEGORY_FALLBACKS)) {
+    if (cat.includes(key) || key.includes(cat)) return id;
+  }
+  return "11450"; // Generic clothing fallback
 }
