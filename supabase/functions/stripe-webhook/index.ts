@@ -3,12 +3,21 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const TIER_MAP: Record<string, { tier: string; credits: number }> = {
-  "prod_TyltIvYWdZReZo": { tier: "pro", credits: 25 },
-  "prod_TyltCrUUsbuddE": { tier: "business", credits: 100 },
+  // New monthly products (Feb 2026)
+  "prod_TzRG6VOJz5FeDO": { tier: "pro", credits: 50 },
+  "prod_TzRGZwyHsR06JS": { tier: "business", credits: 200 },
+  "prod_TzRGaCd7E9PYRx": { tier: "scale", credits: 999 },
+  // New annual products (Feb 2026)
+  "prod_TzRGTwzGiLqIqH": { tier: "pro", credits: 50 },
+  "prod_TzRG9zNhsXMQcm": { tier: "business", credits: 200 },
+  "prod_TzRG5YQEDZaPMd": { tier: "scale", credits: 999 },
+  // Legacy monthly products (keep for existing subscribers)
+  "prod_TyltIvYWdZReZo": { tier: "pro", credits: 50 },
+  "prod_TyltCrUUsbuddE": { tier: "business", credits: 200 },
   "prod_TyltldO5OcP5cE": { tier: "scale", credits: 999 },
-  // Annual billing products (same tiers, different billing interval)
-  "prod_Tyyp074Dme7iUa": { tier: "pro", credits: 25 },
-  "prod_TyypfEhNSNWn69": { tier: "business", credits: 100 },
+  // Legacy annual products
+  "prod_Tyyp074Dme7iUa": { tier: "pro", credits: 50 },
+  "prod_TyypfEhNSNWn69": { tier: "business", credits: 200 },
   "prod_Tyypa9CdcBcrjb": { tier: "scale", credits: 999 },
 };
 
@@ -59,13 +68,11 @@ serve(async (req) => {
         if (session.mode === "payment" && session.metadata?.type === "credit_pack") {
           const userId = session.metadata.user_id;
           if (userId) {
-            // Get the line items to determine which credit pack
             const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
             const productId = lineItems.data[0]?.price?.product as string;
             const creditsToAdd = CREDIT_PACK_MAP[productId] || 0;
 
             if (creditsToAdd > 0) {
-              // Increment the user's credits_limit
               const { data: currentCredits } = await supabase
                 .from("usage_credits")
                 .select("credits_limit")
@@ -91,7 +98,7 @@ serve(async (req) => {
           if (user) {
             const sub = await stripe.subscriptions.retrieve(session.subscription as string);
             const productId = (sub.items.data[0].price.product as string);
-            const tierInfo = TIER_MAP[productId] || { tier: "pro", credits: 25 };
+            const tierInfo = TIER_MAP[productId] || { tier: "pro", credits: 50 };
 
             await supabase.from("profiles").update({ subscription_tier: tierInfo.tier }).eq("user_id", user.id);
             await supabase.from("usage_credits").update({ credits_limit: tierInfo.credits }).eq("user_id", user.id);
@@ -110,7 +117,7 @@ serve(async (req) => {
           if (user) {
             if (sub.status === "active") {
               const productId = sub.items.data[0].price.product as string;
-              const tierInfo = TIER_MAP[productId] || { tier: "pro", credits: 25 };
+              const tierInfo = TIER_MAP[productId] || { tier: "pro", credits: 50 };
               await supabase.from("profiles").update({ subscription_tier: tierInfo.tier }).eq("user_id", user.id);
               await supabase.from("usage_credits").update({ credits_limit: tierInfo.credits }).eq("user_id", user.id);
             }

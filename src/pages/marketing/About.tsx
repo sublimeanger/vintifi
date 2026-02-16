@@ -45,7 +45,7 @@ const painPoints = [
 ];
 
 const solutionSteps = [
-  { icon: Globe, label: "Market Data", desc: "We scrape thousands of listings across Vinted and competing platforms daily." },
+  { icon: Globe, label: "Market Data", desc: "We scrape thousands of listings across Vinted and competing platforms." },
   { icon: Sparkles, label: "AI Analysis", desc: "Our AI processes pricing patterns, trend signals, and demand indicators." },
   { icon: BarChart3, label: "Actionable Insights", desc: "You get clear, plain-English recommendations you can act on immediately." },
 ];
@@ -57,10 +57,10 @@ const values = [
 ];
 
 const stats = [
-  { end: 500, suffix: "K+", label: "Prices Analysed" },
-  { end: 18, suffix: "", label: "Countries Supported" },
+  { end: 18, suffix: "", label: "Vinted Markets Supported" },
+  { end: 7, suffix: "", label: "AI-Powered Features" },
   { end: 8, suffix: "s", label: "Average Analysis Time" },
-  { end: 10, suffix: "K+", label: "Active Sellers" },
+  { end: 19, suffix: "", label: "Live Platform Features" },
 ];
 
 export default function About() {
@@ -100,7 +100,6 @@ export default function About() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            {/* Decorative quotation marks */}
             <div className="absolute -top-4 left-0 sm:left-8 text-7xl sm:text-8xl font-serif text-primary/10 leading-none select-none">"</div>
             <div className="absolute -bottom-4 right-0 sm:right-8 text-7xl sm:text-8xl font-serif text-primary/10 leading-none select-none rotate-180">"</div>
             <div className="border-l-4 border-r-4 border-primary/20 px-6 sm:px-12 py-4">
@@ -269,7 +268,7 @@ export default function About() {
               Join the movement
             </motion.h2>
             <motion.p variants={fadeUp} className="text-muted-foreground text-base sm:text-lg mb-8 max-w-xl mx-auto">
-              Thousands of sellers are already using Vintifi to transform their Vinted business.
+              Vinted sellers are using Vintifi to transform their reselling business. Start free today.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">

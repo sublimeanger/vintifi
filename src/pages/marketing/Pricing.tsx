@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -13,7 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import MarketingLayout from "@/components/MarketingLayout";
-import { Check, X, ArrowRight, Shield, Sparkles, Users } from "lucide-react";
+import { Check, ArrowRight, Shield } from "lucide-react";
 import { STRIPE_TIERS, TierKey } from "@/lib/constants";
 
 const fadeUp = {
@@ -26,26 +26,30 @@ const stagger = {
 };
 
 const comparisonFeatures = [
-  { name: "Price Checks / month", free: "5", pro: "25", business: "100", scale: "Unlimited" },
-  { name: "AI Listing Optimisations", free: "—", pro: "✓", business: "✓ Bulk", scale: "✓ Unlimited" },
-  { name: "Trend Radar", free: "Top 5", pro: "Full", business: "Full + Personal", scale: "Full + API" },
-  { name: "Arbitrage Scanner", free: "—", pro: "—", business: "✓", scale: "✓ + Alerts" },
-  { name: "Listings Tracked", free: "1", pro: "50", business: "Unlimited", scale: "Unlimited" },
-  { name: "Competitor Tracking", free: "—", pro: "—", business: "15", scale: "50" },
-  { name: "P&L Tracker", free: "—", pro: "Basic", business: "Full + Export", scale: "Full + Integrations" },
+  { name: "Credits / month", free: "5", pro: "50", business: "200", scale: "Unlimited" },
+  { name: "AI Listing Optimisation", free: "—", pro: "✓", business: "✓ + Bulk", scale: "✓ Unlimited" },
+  { name: "Vintography Photo Studio", free: "✓ (uses credits)", pro: "✓", business: "✓", scale: "✓" },
+  { name: "Trend Radar", free: "Top 5", pro: "Full", business: "Full", scale: "Full" },
+  { name: "Arbitrage Scanner", free: "—", pro: "—", business: "✓", scale: "✓" },
+  { name: "Clearance Radar", free: "—", pro: "—", business: "✓", scale: "✓" },
+  { name: "Items Tracked", free: "20", pro: "Unlimited", business: "Unlimited", scale: "Unlimited" },
+  { name: "Competitor Tracking", free: "—", pro: "3", business: "15", scale: "50" },
+  { name: "eBay Cross-Listing", free: "—", pro: "—", business: "✓", scale: "✓" },
   { name: "Multi-language Listings", free: "—", pro: "—", business: "5 languages", scale: "All" },
-  { name: "Relist Scheduler", free: "—", pro: "Manual", business: "Semi-auto", scale: "Fully automated" },
-  { name: "Support", free: "Community", pro: "Email", business: "Priority Chat", scale: "Dedicated Manager" },
-  { name: "Data Refresh", free: "Weekly", pro: "Daily", business: "Twice Daily", scale: "Real-time" },
+  { name: "P&L Tracking", free: "✓", pro: "✓", business: "✓ + CSV Export", scale: "✓ + CSV Export" },
+  { name: "Niche Finder", free: "—", pro: "✓", business: "✓", scale: "✓" },
+  { name: "AI Relist Suggestions", free: "—", pro: "✓", business: "✓", scale: "✓" },
+  { name: "Charity Sourcing Briefing", free: "—", pro: "✓", business: "✓", scale: "✓" },
+  { name: "Support", free: "Community", pro: "Email", business: "Priority", scale: "Priority (fast)" },
 ];
 
 const faqs = [
-  { q: "Can I really start for free?", a: "Absolutely. Our Free plan gives you 5 price checks per month and basic market data — no credit card required. It's enough to see the value before committing." },
-  { q: "What happens when I run out of credits?", a: "You can purchase additional credit packs starting from £2.99 for 10 credits, or upgrade to a higher plan for more monthly allowance. Your data and listings are never lost." },
+  { q: "Can I really start for free?", a: "Absolutely. Our Free plan gives you 5 credits per month for price checks and photo edits — no credit card required. It's enough to see the value before committing." },
+  { q: "What happens when I run out of credits?", a: "You can purchase additional credit packs starting from £2.99 for 10 credits, or upgrade to a higher plan for more monthly credits. Your data and listings are never lost." },
   { q: "Can I switch plans at any time?", a: "Yes! Upgrade or downgrade instantly. When upgrading, you get immediate access to new features. When downgrading, your current billing period remains active until renewal." },
   { q: "Is there a money-back guarantee?", a: "Yes — we offer a 14-day money-back guarantee on all paid plans. If you're not seeing value, contact us for a full refund, no questions asked." },
   { q: "How accurate are the price recommendations?", a: "Our AI analyses comparable sold and active listings in real-time. Confidence scores are provided with every recommendation — typically 80-95% accuracy based on data density." },
-  { q: "Do you support multiple Vinted markets?", a: "Yes! Vintifi works across 18 Vinted markets including UK, France, Germany, Netherlands, Spain, Italy, and more. Multi-language listing generation is available on Business and Scale plans." },
+  { q: "Do you support multiple Vinted markets?", a: "Yes! Vintifi works across Vinted markets including UK, France, Germany, Netherlands, Spain, Italy, and more. Multi-language listing generation is available on Business and Scale plans." },
   { q: "Is my data secure?", a: "All data is encrypted at rest and in transit. We use enterprise-grade infrastructure with EU data residency. We never share your selling data with third parties." },
   { q: "Can I cancel at any time?", a: "Yes, cancel anytime from your Settings page. You'll retain access to paid features until the end of your current billing period." },
 ];
@@ -54,7 +58,7 @@ export default function Pricing() {
   const navigate = useNavigate();
   const [annual, setAnnual] = useState(false);
 
-  usePageMeta("Pricing — Vintifi", "Simple, transparent pricing. Start free, upgrade when you're ready. Plans from £14.99/month.");
+  usePageMeta("Pricing — Vintifi", "Simple, transparent pricing. Start free, upgrade when you're ready. Plans from £9.99/month.");
 
   const tiers = Object.entries(STRIPE_TIERS) as [TierKey, (typeof STRIPE_TIERS)[TierKey]][];
 
@@ -140,16 +144,6 @@ export default function Pricing() {
                 </motion.div>
               );
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* Social proof */}
-      <section className="py-10 border-y border-border bg-muted/20">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-center gap-3 text-muted-foreground">
-            <Users className="w-5 h-5" />
-            <p className="text-sm font-medium">Trusted by <span className="text-foreground font-bold">10,000+</span> Vinted sellers across 18 countries</p>
           </div>
         </div>
       </section>
@@ -269,7 +263,7 @@ export default function Pricing() {
               Start selling smarter today
             </motion.h2>
             <motion.p variants={fadeUp} className="text-secondary-foreground/70 text-base sm:text-lg mb-8 max-w-xl mx-auto">
-              Join thousands of Vinted sellers who stopped guessing and started profiting.
+              Join Vinted sellers who stopped guessing and started profiting.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">
