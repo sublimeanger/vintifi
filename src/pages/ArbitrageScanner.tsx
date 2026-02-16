@@ -794,7 +794,7 @@ export default function ArbitrageScanner() {
         </TabsContent>
       </Tabs>
 
-      <MobileBottomNav />
+      
       </FeatureGate>
     </PageShell>
   );

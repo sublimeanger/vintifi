@@ -252,6 +252,41 @@ export type Database = {
           },
         ]
       }
+      item_activity: {
+        Row: {
+          created_at: string
+          id: string
+          listing_id: string | null
+          payload: Json | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          listing_id?: string | null
+          payload?: Json | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          listing_id?: string | null
+          payload?: Json | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_activity_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listings: {
         Row: {
           brand: string | null
@@ -265,11 +300,17 @@ export type Database = {
           health_score: number | null
           id: string
           image_url: string | null
+          images: Json | null
+          last_optimised_at: string | null
+          last_photo_edit_at: string | null
+          last_price_check_at: string | null
           purchase_price: number | null
           recommended_price: number | null
           sale_price: number | null
           size: string | null
           sold_at: string | null
+          source_meta: Json | null
+          source_type: string | null
           status: string
           title: string
           updated_at: string
@@ -289,11 +330,17 @@ export type Database = {
           health_score?: number | null
           id?: string
           image_url?: string | null
+          images?: Json | null
+          last_optimised_at?: string | null
+          last_photo_edit_at?: string | null
+          last_price_check_at?: string | null
           purchase_price?: number | null
           recommended_price?: number | null
           sale_price?: number | null
           size?: string | null
           sold_at?: string | null
+          source_meta?: Json | null
+          source_type?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -313,11 +360,17 @@ export type Database = {
           health_score?: number | null
           id?: string
           image_url?: string | null
+          images?: Json | null
+          last_optimised_at?: string | null
+          last_photo_edit_at?: string | null
+          last_price_check_at?: string | null
           purchase_price?: number | null
           recommended_price?: number | null
           sale_price?: number | null
           size?: string | null
           sold_at?: string | null
+          source_meta?: Json | null
+          source_type?: string | null
           status?: string
           title?: string
           updated_at?: string

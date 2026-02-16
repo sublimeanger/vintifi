@@ -614,7 +614,7 @@ export default function BulkOptimize() {
         )}
         </FeatureGate>
       </div>
-      <MobileBottomNav />
+      
     </div>
   );
 }

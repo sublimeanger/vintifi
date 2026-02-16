@@ -362,7 +362,7 @@ export default function PlatformConnections() {
         onConnected={fetchConnections}
       />
 
-      <MobileBottomNav />
+      
     </PageShell>
   );
 }

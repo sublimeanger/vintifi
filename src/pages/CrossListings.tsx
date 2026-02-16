@@ -342,7 +342,7 @@ export default function CrossListings() {
         </div>
       )}
 
-      <MobileBottomNav />
+      
       </FeatureGate>
     </PageShell>
   );
