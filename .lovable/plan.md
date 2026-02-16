@@ -1,41 +1,49 @@
 
 
-# Fix eBay Verification Challenge
+# eBay Integration: Current State and Next Steps
 
-## What's Wrong
+## What's Already Built
 
-When eBay sends a test notification to your endpoint, it first sends a **GET request** with a `challenge_code` parameter. Your edge function currently only handles POST requests (with auth headers), so it rejects eBay's verification request and the validation fails.
+- **All 4 eBay secrets** are configured (Client ID, Client Secret, RuName/Redirect URI, Verification Token)
+- **eBay verification endpoint** handles GET challenge and POST deletion notifications
+- **Connect eBay page** (`/platforms`) with connect/disconnect buttons
+- **Publish to eBay** edge function with full inventory/offer/publish flow
+- **"List on eBay" buttons** on both the Listings page and Item Detail page
+- **Cross-listings tracking** in the database (status, platform URL, sync log)
 
-## What I'll Do
+## What's Missing: The OAuth Callback
 
-Update `supabase/functions/connect-ebay/index.ts` to handle two extra request types **before** the existing auth logic:
+There is one **critical gap**: when eBay redirects the user back to `https://vintifi.com/platforms?code=XXXXX` after they authorise, **nothing catches that `code` parameter**. The `PlatformConnections` page doesn't read the URL, so the token exchange never happens and the connection never saves.
 
-### 1. Store your verification token as a secret
+## The Fix
 
-Add `EBAY_VERIFICATION_TOKEN` with value `vintifi-ebay-verify-2026-eewq-3343` (the token you used).
+### 1. Add OAuth callback handling to `/platforms`
 
-### 2. Handle GET requests (eBay verification challenge)
+When the PlatformConnections page loads, check for a `code` query parameter. If present:
+- Call the `connect-ebay` edge function with `{ action: "exchange_code", code: "..." }`
+- On success, show a toast ("eBay connected!") and refresh the connection status
+- Clear the `code` from the URL so it doesn't re-trigger on refresh
 
-When eBay sends a GET request with `?challenge_code=xxx`, the function will:
-- Read the `challenge_code` from the URL
-- Hash it: `SHA256(challenge_code + verificationToken + endpointURL)`
-- Return `{ "challengeResponse": "<hex hash>" }` with status 200
+### 2. Fix the eBay auth URL redirect
 
-No auth required -- this is eBay's server calling.
+The `connect-ebay` edge function currently builds the OAuth URL but the eBay Developer Portal "Accept URL" is set to `https://vintifi.com/platforms`. This is correct -- eBay will redirect back to that URL with `?code=xxx` appended. No change needed on the backend.
 
-### 3. Handle POST account deletion notifications
+## How to Test (End-to-End Flow)
 
-When eBay sends a POST with a deletion notification (no Authorization header, body contains notification data), the function will:
-- Log the notification for compliance
-- Return 200 OK
+1. Go to `/platforms` (Settings -> eBay Connection)
+2. Click **"Connect eBay"** -- this opens eBay's auth page in a new tab
+3. Sign in to eBay and authorise the app
+4. eBay redirects back to `https://vintifi.com/platforms?code=xxx`
+5. The page automatically exchanges the code for tokens and shows "Connected"
+6. Go to any listing and click **"List on eBay"** from the dropdown menu
+7. The item gets created as an eBay inventory item, an offer is made, and it's published
 
-The existing user-facing logic (get_auth_url, exchange_code) stays exactly the same.
+## Technical Details
 
-## After Deployment
+**File changes:**
+- `src/pages/PlatformConnections.tsx` -- Add a `useEffect` that reads `window.location.search` for `code`, calls `connect-ebay` with `exchange_code`, updates state, and cleans the URL with `window.history.replaceState`
 
-1. Go back to the eBay Developer Portal
-2. Make sure the endpoint is set to: `https://jufvrlenxbcmohpkuvlo.supabase.co/functions/v1/connect-ebay`
-3. Make sure the verification token is: `vintifi-ebay-verify-2026-eewq-3343`
-4. Click **"Send Test Notification"** again -- it should pass this time
-5. Your keyset gets enabled and we move on to entering your Client ID, Secret, and RuName
+**No backend changes needed** -- the `exchange_code` action already exists in the edge function and works correctly.
+
+**Note on tier gating:** The eBay connection currently requires Business tier (`tierLevel >= 2`). During testing, make sure your account is set to Business or higher, or temporarily lower the gate.
 
