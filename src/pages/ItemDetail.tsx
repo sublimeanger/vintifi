@@ -297,6 +297,8 @@ export default function ItemDetail() {
         {item.brand && <Badge variant="secondary"><Tag className="w-3 h-3 mr-1" />{item.brand}</Badge>}
         {item.size && <Badge variant="secondary"><Ruler className="w-3 h-3 mr-1" />{item.size}</Badge>}
         {item.condition && <Badge variant="secondary"><ShieldCheck className="w-3 h-3 mr-1" />{item.condition}</Badge>}
+        {item.colour && <Badge variant="secondary">{item.colour}</Badge>}
+        {item.material && <Badge variant="secondary">{item.material}</Badge>}
 
         {nextAction && (
           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="ml-auto">
@@ -568,12 +570,14 @@ export default function ItemDetail() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-border">
               {[
                 { label: "Brand", value: item.brand },
                 { label: "Category", value: item.category },
                 { label: "Size", value: item.size },
                 { label: "Condition", value: item.condition },
+                { label: "Colour", value: item.colour },
+                { label: "Material", value: item.material },
               ].map((field) => (
                 <div key={field.label}>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">{field.label}</p>

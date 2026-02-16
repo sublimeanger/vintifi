@@ -33,6 +33,8 @@ type WizardData = {
   category: string;
   size: string;
   condition: string;
+  colour: string;
+  material: string;
   description: string;
   currentPrice: string;
   purchasePrice: string;
@@ -48,6 +50,8 @@ const initialData: WizardData = {
   category: "",
   size: "",
   condition: "",
+  colour: "",
+  material: "",
   description: "",
   currentPrice: "",
   purchasePrice: "",
@@ -152,6 +156,8 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
         if (result.category) prefill.category = result.category;
         if (result.size) prefill.size = result.size;
         if (result.condition) prefill.condition = result.condition;
+        if (result.colour) prefill.colour = result.colour;
+        if (result.material) prefill.material = result.material;
         if (result.description) prefill.description = result.description;
         if (result.price != null) prefill.currentPrice = String(result.price);
         update(prefill);
@@ -208,6 +214,8 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
         category: data.category.trim() || null,
         size: data.size.trim() || null,
         condition: data.condition || null,
+        colour: data.colour.trim() || null,
+        material: data.material.trim() || null,
         current_price: data.currentPrice ? parseFloat(data.currentPrice) : null,
         purchase_price: data.purchasePrice ? parseFloat(data.purchasePrice) : null,
         vinted_url: data.url.trim() || null,
@@ -458,6 +466,27 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                     <option value="">Select...</option>
                     {conditions.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Colour</Label>
+                  <Input
+                    value={data.colour}
+                    onChange={(e) => update({ colour: e.target.value })}
+                    placeholder="e.g. Black"
+                    className="h-11 sm:h-10 text-base sm:text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Material</Label>
+                  <Input
+                    value={data.material}
+                    onChange={(e) => update({ material: e.target.value })}
+                    placeholder="e.g. Cotton"
+                    className="h-11 sm:h-10 text-base sm:text-sm"
+                  />
                 </div>
               </div>
 
