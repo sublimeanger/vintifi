@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, AlertTriangle, TrendingDown, Package,
   Layers, ExternalLink, RefreshCw, Trash2, Calendar, PoundSterling,
-  ArrowRightLeft, BarChart3, Lightbulb, Target,
+  ArrowRightLeft, BarChart3, Lightbulb, Target, Clock, Sparkles,
 } from "lucide-react";
 import { UseCaseSpotlight } from "@/components/UseCaseSpotlight";
 import { FeatureGate } from "@/components/FeatureGate";
@@ -57,6 +57,15 @@ const priorityStyles: Record<string, string> = {
   low: "bg-muted text-muted-foreground border-border",
 };
 
+type RelistReminder = {
+  listing_id: string;
+  scheduled_at: string;
+  new_price: number | null;
+  price_adjustment_percent: number | null;
+  strategy: string;
+  ai_reason: string;
+};
+
 export default function DeadStock() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -66,6 +75,9 @@ export default function DeadStock() {
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [thresholdDays, setThresholdDays] = useState(30);
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [relistReminders, setRelistReminders] = useState<RelistReminder[]>([]);
+  const [relistLoading, setRelistLoading] = useState(false);
+  const [relistGenerated, setRelistGenerated] = useState(false);
 
   const handleAnalyze = async () => {
     if (!user) return;
@@ -410,6 +422,106 @@ export default function DeadStock() {
           );
         })}
       </AnimatePresence>
+
+      {/* ═══ RELIST REMINDERS ═══ */}
+      {hasAnalyzed && recommendations.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <Card className="mt-6 sm:mt-8">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-9 h-9 rounded-xl bg-chart-5/10 flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4 text-chart-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display font-bold text-sm sm:text-base mb-1">Relist Reminders</h3>
+                  <p className="text-xs text-muted-foreground">
+                    AI-suggested optimal times to relist your stale items for maximum visibility.
+                  </p>
+                </div>
+              </div>
+
+              {!relistGenerated ? (
+                <Button
+                  onClick={async () => {
+                    if (!user) return;
+                    setRelistLoading(true);
+                    try {
+                      const staleIds = recommendations
+                        .filter((r) => r.listing_id)
+                        .map((r) => r.listing_id!);
+                      if (!staleIds.length) {
+                        toast("No items with IDs to schedule");
+                        return;
+                      }
+                      const { data, error } = await supabase.functions.invoke("relist-scheduler", {
+                        body: { action: "generate", listingIds: staleIds },
+                      });
+                      if (error) throw error;
+                      if (data.error) throw new Error(data.error);
+                      setRelistReminders(data.schedules || []);
+                      setRelistGenerated(true);
+                      toast.success(data.message || "Relist reminders generated");
+                    } catch (e: any) {
+                      toast.error(e.message || "Failed to generate relist reminders");
+                    } finally {
+                      setRelistLoading(false);
+                    }
+                  }}
+                  disabled={relistLoading}
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                >
+                  {relistLoading ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Generating...</>
+                  ) : (
+                    <><Sparkles className="w-4 h-4 mr-2" /> Generate Relist Reminders</>
+                  )}
+                </Button>
+              ) : relistReminders.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No relist suggestions available.</p>
+              ) : (
+                <div className="space-y-2">
+                  {relistReminders.map((r, i) => {
+                    const matchingRec = recommendations.find((rec) => rec.listing_id === r.listing_id);
+                    const title = matchingRec?.listing_title || "Unknown item";
+                    return (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted/80 transition-colors"
+                        onClick={() => {
+                          if (r.listing_id) navigate(`/items/${r.listing_id}`);
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-chart-5/10 flex items-center justify-center shrink-0">
+                          <RefreshCw className="w-3.5 h-3.5 text-chart-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{title}</p>
+                          <p className="text-[10px] text-muted-foreground line-clamp-1">{r.ai_reason}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-medium">
+                            {new Date(r.scheduled_at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(r.scheduled_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                          {r.new_price != null && (
+                            <p className="text-[10px] text-success font-medium">→ £{r.new_price.toFixed(0)}</p>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
       </FeatureGate>
     </PageShell>
   );
