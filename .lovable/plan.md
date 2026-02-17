@@ -1,128 +1,100 @@
 
+# Full System Audit: Cohesion Flaws, Bugs, and UX Issues
 
-# Phase E: Stunning Vinted-Ready Pack
-
-## Current State
-
-The Vinted-Ready Pack exists only inside the Photos tab (lines 692-795 of `ItemDetail.tsx`). It's a simple Card with plain text sections and basic copy buttons. Problems:
-
-1. **Hidden location**: Only visible if you navigate to the Photos tab AND the item has been optimised. Most users won't find it.
-2. **No visual impact**: Standard Card with success border tint -- looks the same as every other card on the page.
-3. **No hashtag separation**: Hashtags embedded in the description, no separate copy action.
-4. **No celebration moment**: After completing the entire 4-step workflow, there's zero fanfare.
-5. **Photo grid is tiny**: 4 thumbnails crammed into a row with no interaction.
-6. **Not on Overview tab**: The Overview tab (the first thing users see) has no pack visibility at all.
+After a thorough code review of every page, component, and data flow, here is everything that needs fixing to make the core workflow bulletproof.
 
 ---
 
-## The Redesign
+## Critical Cohesion Breaks
 
-### 1. Extract into a dedicated `VintedReadyPack` component
+### 1. NewItemWizard doesn't accept user-uploaded images from chat
+The user has provided 3 photos of a Nike crewneck. There's no way to directly use these uploaded images in the wizard -- the wizard only supports file uploads via browser or Vinted URL scraping. The photos need to be copied into the project and then uploaded through the app.
 
-Create `src/components/VintedReadyPack.tsx` as a standalone, reusable component that receives the item data and renders the premium pack. This keeps `ItemDetail.tsx` clean and allows the pack to be shown in multiple locations.
+### 2. `window.location.reload()` on Item Picker selection (2 locations)
+Both `PriceCheck.tsx` line 330 and `OptimizeListing.tsx` line 598 call `window.location.reload()` after selecting an item from the picker. This is a jarring full-page reload that destroys React state, shows a flash of white, and feels extremely broken. Should be replaced with proper React state updates.
 
-### 2. Show the Pack prominently on the Overview tab
+### 3. VintedReadyPack shows even without photos
+`ItemDetail.tsx` line 284 shows the pack whenever `last_optimised_at` is set, regardless of whether photos exist. An optimised listing with zero photos shows the pack with an empty photos section -- confusing because users expect the "Ready to Post" celebration to mean everything is complete.
 
-When all 3 workflow steps are complete (priced + optimised + photos/image exists), show the full VintedReadyPack at the TOP of the Overview tab, above the metrics cards. This is the payoff moment -- it should be the first thing the user sees.
+### 4. Bottom nav missing Price Check
+`BOTTOM_TABS` in `AppShellV2.tsx` has 5 tabs: Home, Items, Optimise, Photos, Settings. Price Check is only in the sidebar (`NAV_ITEMS`) and the hamburger menu. On mobile, there's no quick access to Price Check from the bottom nav -- the second most important feature is hidden.
 
-Also keep the existing pack in the Photos tab for users who navigate there directly.
+### 5. Photo Studio `originalUrl` guard prevents item photo load
+In `Vintography.tsx` line 115: `if (!itemId || !user || originalUrl) return;` -- the `originalUrl` check means if you navigate to Photo Studio, then go back, then return with an itemId, the photos won't reload because `originalUrl` was already set from the previous session. The guard is too aggressive.
 
-### 3. Stunning Visual Design
+### 6. Batch items created from DB photos have `file: null as any`
+`Vintography.tsx` line 144: `file: null as any` -- this violates the `BatchItem` type which expects `file: File`. If any downstream code tries to read `.file.name` or `.file.size`, it will crash. The type needs a nullable file field.
 
-The pack card gets a premium treatment:
+### 7. No "Add Item" button on Dashboard
+The Dashboard has Quick Price Check and Recent Items, but no prominent "Add Item" CTA. New users with zero items have to find the Items page first, then find the Add button. The most common starting action should be front and centre.
 
-- **Animated gradient border**: Use the existing `gradient-border` utility class (already defined in `index.css`) for an animated rainbow border that shifts colours -- this signals "something special"
-- **Celebration header**: A large "Ready to Post" header with a subtle confetti-style particle animation on first render (using framer-motion)
-- **Section cards**: Each section (Title, Description, Hashtags, Photos) gets its own mini-card inside the pack with distinct visual treatment
-- **Copy feedback**: When copying, the button transitions to a green checkmark with a satisfying animation
-- **Health score badge**: Prominent circular health score in the header area
+### 8. Optimise page `handleSaveAsListing` navigates to `/listings` not `/items/:id`
+`OptimizeListing.tsx` line 280: `navigate("/listings")` -- after saving a standalone optimisation as a new listing, the user is dumped on the full listings page. It should navigate to the newly created item detail page (like Price Check does).
 
-### 4. Hashtag Extraction
+### 9. Photos tab "Photo Studio" button doesn't pass images
+`PhotosTab.tsx` line 281: `onEditPhotos` just calls `handlePhotoStudio()` which navigates to `/vintography?itemId=${item.id}`. The Photo Studio then fetches photos from DB. But if the user just uploaded new photos via the PhotosTab upload button and hasn't saved yet, those new photos won't appear in Photo Studio because they're already saved to DB immediately. This is actually fine -- just worth noting.
 
-Parse the description to extract hashtags (lines starting with # or words prefixed with #). Display them as a separate visual row of badges/pills with their own "Copy Hashtags" button. This is critical because Vinted sellers need to paste hashtags separately.
-
-### 5. Premium Photo Strip
-
-Instead of a cramped 4-col grid:
-- Horizontal scrollable strip with larger thumbnails (aspect-square, ~80px)
-- Each thumbnail has a subtle shadow and rounded corners
-- "Download All" button with a download count badge
-- Individual photo download on tap (mobile) or hover icon (desktop)
-
-### 6. Master Actions Bar
-
-At the bottom, a sticky-feeling action bar with:
-- **"Copy Full Listing"** primary button (copies title + description + hashtags as formatted text)
-- **"Open on Vinted"** secondary button (if vinted_url exists)
-- **"Download Photos"** tertiary button
-- All three actions the user needs, in one glanceable row
-
-### 7. Animated Entrance
-
-Use `framer-motion` to animate the pack in with:
-- Staggered children: header slides in, then title card, then description, then hashtags, then photos, then action bar
-- Each with a subtle `y: 10, opacity: 0` to `y: 0, opacity: 1` transition
-- Total animation duration ~600ms so it feels snappy but polished
+### 10. No loading state for VintedReadyPack image downloads
+`VintedReadyPack.tsx` line 109-120: The download loop silently catches errors with empty catch blocks. If a photo URL is expired or CORS-blocked, the user gets no feedback.
 
 ---
 
-## Technical Details
+## UX/UI Issues
 
-### Files
+### 11. Dashboard "Needs Attention" card navigates to `/listings` without a filter
+Line 111: `onClick={() => navigate("/listings")}` -- should navigate with `?filter=needs_optimising` to show only items needing work.
 
-| File | Action |
-|------|--------|
-| `src/components/VintedReadyPack.tsx` | **NEW** -- standalone pack component |
-| `src/pages/ItemDetail.tsx` | Import and render `VintedReadyPack` on Overview tab (top) and Photos tab (replacing existing inline pack). Remove the inline pack code (lines 692-795). |
+### 12. Item Picker Dialog missing from standalone Photo Studio
+Price Check and Optimise both have "or pick from your items" links, but the Photo Studio upload zone does not. Users arriving at Photo Studio from the nav with no item context can't easily select an existing item.
 
-### Component Props
+### 13. Duplicate "Next: Optimise Listing" CTAs on PriceCheck results
+After a price report, there are TWO identical CTAs: the primary "Next: Optimise Listing" button in the actions bar (line 648-664) AND a separate "Ready to list?" card at the bottom (line 676-697). Redundant and confusing.
 
-```typescript
-interface VintedReadyPackProps {
-  item: Listing;
-  onOptimise: () => void;
-  onPhotoStudio: () => void;
-}
-```
+### 14. Auto-start on Optimise page doesn't trigger
+`OptimizeListing.tsx` lines 89-95: The auto-start `useEffect` sets `autoStartReady = true` when `remotePhotoUrls.length > 0`, but it never actually auto-triggers `handleOptimize()`. It just shows a card with a manual "Optimise Now" button. This is arguably fine (avoids accidental credit spend) but the plan said "auto-trigger after 1-second delay."
 
-### Hashtag Extraction Logic
+### 15. Listings page card click area inconsistency
+On the Listings page, clicking the listing card background navigates to item detail, but there are inline edit interactions (price, status) that intercept clicks. The tap targets are confusing on mobile.
 
-```typescript
-function extractHashtags(description: string): { cleanDescription: string; hashtags: string[] } {
-  const hashtagRegex = /#[\w]+/g;
-  const hashtags = description.match(hashtagRegex) || [];
-  // Remove the hashtag line(s) from description for clean display
-  const cleanDescription = description
-    .split('\n')
-    .filter(line => !line.trim().match(/^#[\w]+(\\s+#[\w]+)*$/))
-    .join('\n')
-    .trim();
-  return { cleanDescription, hashtags: [...new Set(hashtags)] };
-}
-```
+---
 
-### Pack Visibility Logic
+## Sprint Breakdown
 
-The pack shows when:
-- `item.last_optimised_at` is set (listing has been AI-improved)
-- AND (`item.image_url` exists OR `item.images` array has entries)
+### Sprint A: Fix Critical Cohesion (highest priority)
 
-If only optimised but no photos: show pack but with a "Add photos to complete your pack" CTA in the photos section.
-If only photos but not optimised: don't show the pack (show the existing "Next: Improve Listing" CTA instead).
+**Files:** `AppShellV2.tsx`, `PriceCheck.tsx`, `OptimizeListing.tsx`, `ItemDetail.tsx`, `Vintography.tsx`, `Dashboard.tsx`
 
-### Copy Full Listing Format
+1. **Fix `window.location.reload()`** in PriceCheck and OptimizeListing item pickers -- replace with state-driven navigation using `useNavigate` and resetting component state
+2. **Fix VintedReadyPack visibility** -- only show when `last_optimised_at` is set AND at least one image exists (`image_url || images.length > 0`)
+3. **Fix Photo Studio photo load guard** -- remove the `originalUrl` check so DB photos reload when itemId changes
+4. **Fix batch item type** -- make `file` optional/nullable in `BatchItem` type
+5. **Fix Dashboard "Needs Attention"** -- add `?filter=needs_optimising` to the navigation
+6. **Fix Optimise save flow** -- navigate to `/items/:id` instead of `/listings` after standalone save
+7. **Add "Add Item" CTA to Dashboard** -- prominent button in the empty state AND a quick action when items exist
 
-```
-[Title]
+### Sprint B: Remove Redundancy and Polish Navigation
 
-[Description without hashtag lines]
+**Files:** `AppShellV2.tsx`, `PriceCheck.tsx`, `Vintography.tsx`
 
-[Hashtags as space-separated string]
-```
+1. **Add Price Check to bottom nav** -- Replace Settings with Price Check in bottom tabs (Settings stays in hamburger and sidebar). New tabs: Home, Items, Price, Optimise, Photos
+2. **Remove duplicate CTA** on PriceCheck results -- keep only the prominent "Next: Optimise Listing" button, remove the redundant bottom card
+3. **Add Item Picker to Photo Studio** -- add "or pick from your items" link in the upload zone
 
-This matches the exact format Vinted sellers paste into the app.
+### Sprint C: User's Nike Test Item
 
-### No database changes needed
+**Files:** Multiple (project assets + NewItemWizard flow)
 
-All data already exists in the `listings` table. The component purely reads and formats existing data.
+1. Copy the 3 Nike crewneck photos into the project's storage
+2. Create a test listing via the New Item Wizard with: Title "Nike Crewneck Sweatshirt", Brand "Nike", Size "M", Category "Jumpers", Condition "Very Good", Colour "Black", Material "80% Cotton, 20% Polyester"
+3. Run the complete flow: Price Check > Optimise > Photo Studio > verify Vinted-Ready Pack
+4. Document any additional issues found during the live test
 
+---
+
+## Technical Notes
+
+- No database schema changes required
+- No edge function changes required
+- All fixes are frontend state management and navigation
+- The `window.location.reload()` fix is the single most impactful change -- it breaks the SPA feel completely
+- The bottom nav change (adding Price Check) requires removing one tab since 6 tabs is too many on mobile. Settings is the least-used action and belongs in the hamburger menu
