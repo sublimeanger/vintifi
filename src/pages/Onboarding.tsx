@@ -88,7 +88,7 @@ export default function Onboarding() {
               <Badge
                 key={c}
                 variant={selected ? "default" : "outline"}
-                className={`cursor-pointer px-3.5 py-2.5 sm:px-4 sm:py-2 text-xs sm:text-sm transition-all active:scale-95 select-none ${
+                className={`cursor-pointer px-3 py-2.5 sm:px-4 sm:py-2 text-xs sm:text-sm transition-all active:scale-95 select-none min-h-[40px] flex items-center ${
                   selected ? "ring-1 ring-primary/30 shadow-sm" : "hover:border-primary/40"
                 }`}
                 onClick={() => toggleCategory(c)}
@@ -111,12 +111,12 @@ export default function Onboarding() {
             return (
               <Card
                 key={c}
-                className={`p-4 sm:p-5 cursor-pointer text-center transition-all active:scale-[0.97] select-none ${
+                className={`p-3.5 sm:p-5 cursor-pointer text-center transition-all active:scale-[0.97] select-none min-h-[48px] flex items-center justify-center ${
                   selected ? "border-primary ring-1 ring-primary bg-primary/5 shadow-sm" : "hover:border-primary/30"
                 }`}
                 onClick={() => setListingCount(c)}
               >
-                <span className="font-display font-bold text-base sm:text-lg">{c}</span>
+                <span className="font-display font-bold text-sm sm:text-lg">{c}</span>
               </Card>
             );
           })}
@@ -127,13 +127,13 @@ export default function Onboarding() {
       title: "What's your main goal?",
       subtitle: "We'll prioritise features that matter most",
       content: (
-        <div className="space-y-2 sm:space-y-3">
+        <div className="space-y-1.5 sm:space-y-3">
           {PRIMARY_GOALS.map((g) => {
             const selected = goal === g.value;
             return (
               <Card
                 key={g.value}
-                className={`p-3.5 sm:p-4 cursor-pointer transition-all active:scale-[0.98] select-none ${
+                className={`p-3 sm:p-4 cursor-pointer transition-all active:scale-[0.98] select-none min-h-[44px] flex items-center ${
                   selected ? "border-primary ring-1 ring-primary bg-primary/5 shadow-sm" : "hover:border-primary/30"
                 }`}
                 onClick={() => setGoal(g.value)}
@@ -179,14 +179,14 @@ export default function Onboarding() {
   const totalSteps = steps.length;
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 py-6">
-      <Card className="w-full max-w-lg p-5 sm:p-8">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 py-4 sm:py-6">
+      <Card className="w-full max-w-lg p-4 sm:p-8">
         {/* Progress */}
-        <div className="flex gap-1.5 sm:gap-2 mb-6 sm:mb-8">
+        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-8">
           {steps.map((_, i) => (
             <motion.div
               key={i}
-              className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= step ? "bg-primary" : "bg-muted"}`}
+              className={`h-1 sm:h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= step ? "bg-primary" : "bg-muted"}`}
               initial={false}
               animate={{ scaleX: i <= step ? 1 : 0.95 }}
             />
@@ -201,26 +201,26 @@ export default function Onboarding() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="mb-1.5 sm:mb-2 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <div className="mb-1 sm:mb-2 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-[10px] sm:text-sm text-muted-foreground font-semibold uppercase tracking-wider">Step {step + 1} of {totalSteps}</span>
             </div>
-            <h2 className="font-display text-xl sm:text-2xl font-bold mb-0.5 sm:mb-1">{steps[step].title}</h2>
-            <p className="text-muted-foreground text-xs sm:text-sm mb-5 sm:mb-6">{steps[step].subtitle}</p>
+            <h2 className="font-display text-lg sm:text-2xl font-bold mb-0.5">{steps[step].title}</h2>
+            <p className="text-muted-foreground text-xs sm:text-sm mb-4 sm:mb-6">{steps[step].subtitle}</p>
             {steps[step].content}
           </motion.div>
         </AnimatePresence>
 
-        <div className="flex justify-between mt-6 sm:mt-8 gap-3">
-          <Button variant="ghost" onClick={() => setStep((s) => s - 1)} disabled={step === 0} className="h-11 sm:h-10 active:scale-95 transition-transform">
+        <div className="flex justify-between mt-5 sm:mt-8 gap-3">
+          <Button variant="ghost" onClick={() => setStep((s) => s - 1)} disabled={step === 0} className="h-12 sm:h-10 active:scale-95 transition-transform">
             <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
           </Button>
           {step < totalSteps - 1 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()} className="h-11 sm:h-10 px-5 sm:px-4 active:scale-95 transition-transform">
+            <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()} className="h-12 sm:h-10 px-5 sm:px-4 active:scale-95 transition-transform">
               Next <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handleFinish} disabled={!canProceed() || loading} className="h-11 sm:h-10 px-5 sm:px-4 active:scale-95 transition-transform">
+            <Button onClick={handleFinish} disabled={!canProceed() || loading} className="h-12 sm:h-10 px-5 sm:px-4 active:scale-95 transition-transform">
               {loading ? "Setting up..." : "Let's Go! 🚀"}
             </Button>
           )}
