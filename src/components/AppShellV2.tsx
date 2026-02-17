@@ -34,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
 const BOTTOM_TABS: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
   { icon: Package, label: "Items", path: "/listings" },
+  { icon: Sparkles, label: "Optimise", path: "/optimize" },
   { icon: ImageIcon, label: "Photos", path: "/vintography" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
