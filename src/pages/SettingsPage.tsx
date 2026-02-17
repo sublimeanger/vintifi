@@ -21,10 +21,10 @@ function Section({ icon: Icon, title, children, tint = "" }: {
   icon: React.ElementType; title: string; children: React.ReactNode; tint?: string;
 }) {
   return (
-    <Card className={`p-5 sm:p-6 ${tint}`}>
-      <div className="flex items-center gap-2 mb-4">
+    <Card className={`p-3.5 sm:p-6 ${tint}`}>
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
         <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-        <h2 className="font-display font-bold text-base sm:text-lg">{title}</h2>
+        <h2 className="font-display font-bold text-sm sm:text-lg">{title}</h2>
       </div>
       {children}
     </Card>
@@ -198,21 +198,21 @@ export default function SettingsPage() {
 
   return (
     <PageShell title="Settings" icon={<Settings className="w-5 h-5 text-primary" />} maxWidth="max-w-3xl">
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-3 sm:space-y-6">
 
         {/* ─── Profile ─── */}
         <Section icon={User} title="Profile">
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div>
-              <Label className="text-xs sm:text-sm mb-1.5 block">Display Name</Label>
+              <Label className="text-[11px] sm:text-sm mb-1 block">Display Name</Label>
               <Input className="h-11 sm:h-10 text-base sm:text-sm" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
             </div>
             <div>
-              <Label className="text-xs sm:text-sm mb-1.5 block">Email</Label>
+              <Label className="text-[11px] sm:text-sm mb-1 block">Email</Label>
               <Input className="h-11 sm:h-10 text-base sm:text-sm" value={user?.email || ""} disabled />
             </div>
             <div>
-              <Label className="flex items-center gap-1.5 text-xs sm:text-sm mb-1.5">
+              <Label className="flex items-center gap-1.5 text-[11px] sm:text-sm mb-1">
                 <Globe className="w-3.5 h-3.5" /> Timezone
               </Label>
               <Select value={selectedTimezone} onValueChange={handleTimezoneChange} disabled={timezoneSaving}>
@@ -235,12 +235,12 @@ export default function SettingsPage() {
 
         {/* ─── Platform Connections ─── */}
         <Section icon={Link2} title="eBay Connection" tint="border-blue-500/5">
-          <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+          <p className="text-[11px] sm:text-sm text-muted-foreground mb-3 sm:mb-4">
             Connect your eBay seller account to publish listings with one click.
           </p>
           <Button
             variant="outline"
-            className="h-10 active:scale-95 transition-transform text-xs sm:text-sm"
+            className="h-11 sm:h-10 active:scale-95 transition-transform text-xs sm:text-sm"
             onClick={() => navigate("/platforms")}
           >
             <Link2 className="w-4 h-4 mr-2" /> Manage Connection
@@ -249,9 +249,9 @@ export default function SettingsPage() {
 
         {/* ─── Subscription ─── */}
         <Section icon={CreditCard} title="Subscription" tint="border-primary/5">
-          <div className="mb-4">
-            <p className="text-xs sm:text-sm text-muted-foreground">Current plan</p>
-            <p className="font-display font-bold text-xl sm:text-2xl capitalize">{STRIPE_TIERS[currentTier].name}</p>
+          <div className="mb-3 sm:mb-4">
+            <p className="text-[11px] sm:text-sm text-muted-foreground">Current plan</p>
+            <p className="font-display font-bold text-lg sm:text-2xl capitalize">{STRIPE_TIERS[currentTier].name}</p>
             {credits && (() => {
               const isUnlimited = currentTier === "scale" || credits.credits_limit >= 999;
               const totalUsed = credits.price_checks_used + credits.optimizations_used + credits.vintography_used;
@@ -274,13 +274,13 @@ export default function SettingsPage() {
           </div>
 
           {currentTier !== "free" && (
-            <Button variant="outline" onClick={handleManageSubscription} disabled={portalLoading} className="mb-5 h-10 active:scale-95 transition-transform">
+            <Button variant="outline" onClick={handleManageSubscription} disabled={portalLoading} className="mb-4 sm:mb-5 h-11 sm:h-10 active:scale-95 transition-transform">
               {portalLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Manage Subscription
             </Button>
           )}
 
-          <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="flex items-center justify-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
             <span className={`text-xs sm:text-sm font-medium ${!billingAnnual ? "text-foreground" : "text-muted-foreground"}`}>Monthly</span>
             <Switch checked={billingAnnual} onCheckedChange={setBillingAnnual} />
             <span className={`text-xs sm:text-sm font-medium ${billingAnnual ? "text-foreground" : "text-muted-foreground"}`}>Annual</span>
@@ -332,27 +332,27 @@ export default function SettingsPage() {
 
         {/* ─── Credit Packs ─── */}
         <Section icon={Zap} title="Credit Packs" tint="border-accent/5">
-          <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+          <p className="text-[11px] sm:text-sm text-muted-foreground mb-3 sm:mb-4">
             Need more price checks? Buy a top-up pack — credits are added instantly.
           </p>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
             {CREDIT_PACKS.map((pack) => (
               <Card
                 key={pack.price_id}
-                className={`p-3 sm:p-4 relative text-center ${pack.popular ? "border-primary ring-1 ring-primary" : ""}`}
+                className={`p-2.5 sm:p-4 relative text-center ${pack.popular ? "border-primary ring-1 ring-primary" : ""}`}
               >
                 {pack.popular && (
                   <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[9px] sm:text-[10px]">
                     Best Value
                   </Badge>
                 )}
-                <h3 className="font-display font-bold text-xs sm:text-sm">{pack.label}</h3>
-                <p className="font-display text-xl sm:text-2xl font-bold mt-1">£{pack.price}</p>
+                <h3 className="font-display font-bold text-[11px] sm:text-sm">{pack.label}</h3>
+                <p className="font-display text-lg sm:text-2xl font-bold mt-0.5 sm:mt-1">£{pack.price}</p>
                 <p className="text-[9px] sm:text-xs text-muted-foreground mt-0.5">
                   £{(pack.price / pack.credits).toFixed(2)}/credit
                 </p>
                 <Button
-                  className="w-full mt-3 h-9 sm:h-10 active:scale-95 transition-transform"
+                  className="w-full mt-2 sm:mt-3 h-11 sm:h-10 active:scale-95 transition-transform"
                   size="sm"
                   variant={pack.popular ? "default" : "outline"}
                   disabled={creditPackLoading === pack.price_id}
@@ -367,11 +367,11 @@ export default function SettingsPage() {
 
         {/* ─── Weekly Digest ─── */}
         <Section icon={Mail} title="Weekly Digest">
-          <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+          <p className="text-[11px] sm:text-sm text-muted-foreground mb-3 sm:mb-4">
             Get a weekly email with your top trends, stale listings, and profit summary every Monday.
           </p>
-          <div className="flex items-center justify-between mb-4 p-3 rounded-lg bg-muted/40">
-            <Label htmlFor="digest-toggle" className="text-xs sm:text-sm font-medium">Email digest enabled</Label>
+          <div className="flex items-center justify-between mb-3 sm:mb-4 p-2.5 sm:p-3 rounded-lg bg-muted/40">
+            <Label htmlFor="digest-toggle" className="text-[11px] sm:text-sm font-medium">Email digest enabled</Label>
             <Switch id="digest-toggle" checked={digestEnabled} disabled={digestSaving} onCheckedChange={handleDigestToggle} />
           </div>
           <Button
@@ -379,7 +379,7 @@ export default function SettingsPage() {
             size="sm"
             disabled={sendingDigest}
             onClick={handleSendDigest}
-            className="h-10 active:scale-95 transition-transform"
+            className="h-11 sm:h-10 active:scale-95 transition-transform text-xs sm:text-sm"
           >
             {sendingDigest ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
             Send Test Digest Now
@@ -388,19 +388,19 @@ export default function SettingsPage() {
 
         {/* ─── Referral Program ─── */}
         <Section icon={Gift} title="Referral Program" tint="border-success/5">
-          <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+          <p className="text-[11px] sm:text-sm text-muted-foreground mb-3 sm:mb-4">
             Share your code — you and your friend both earn 5 bonus credits!
           </p>
           {referralCode && (
-            <div className="space-y-4">
-              <div className="bg-muted rounded-xl p-4 sm:p-5 text-center">
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Your referral code</p>
-                <p className="font-display text-2xl sm:text-3xl font-extrabold tracking-widest">{referralCode}</p>
+            <div className="space-y-3 sm:space-y-4">
+              <div className="bg-muted rounded-xl p-3 sm:p-5 text-center">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Your referral code</p>
+                <p className="font-display text-xl sm:text-3xl font-extrabold tracking-widest">{referralCode}</p>
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  className="flex-1 h-10 active:scale-95 transition-transform text-xs sm:text-sm"
+                  className="flex-1 h-11 sm:h-10 active:scale-95 transition-transform text-xs sm:text-sm"
                   onClick={() => {
                     const link = `${window.location.origin}/auth?mode=signup&ref=${referralCode}`;
                     navigator.clipboard.writeText(link);
@@ -412,7 +412,7 @@ export default function SettingsPage() {
                 {typeof navigator.share === "function" && (
                   <Button
                     variant="outline"
-                    className="flex-1 h-10 active:scale-95 transition-transform text-xs sm:text-sm"
+                    className="flex-1 h-11 sm:h-10 active:scale-95 transition-transform text-xs sm:text-sm"
                     onClick={() => {
                       navigator.share({
                         title: "Join Vintifi",
@@ -425,14 +425,14 @@ export default function SettingsPage() {
                   </Button>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-muted/40 rounded-xl p-3 sm:p-4 text-center">
-                  <p className="font-display text-xl sm:text-2xl font-bold">{referralCount}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Referrals</p>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="bg-muted/40 rounded-xl p-2.5 sm:p-4 text-center">
+                  <p className="font-display text-lg sm:text-2xl font-bold">{referralCount}</p>
+                  <p className="text-[9px] sm:text-xs text-muted-foreground">Referrals</p>
                 </div>
-                <div className="bg-muted/40 rounded-xl p-3 sm:p-4 text-center">
-                  <p className="font-display text-xl sm:text-2xl font-bold">{referralCredits}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Credits earned</p>
+                <div className="bg-muted/40 rounded-xl p-2.5 sm:p-4 text-center">
+                  <p className="font-display text-lg sm:text-2xl font-bold">{referralCredits}</p>
+                  <p className="text-[9px] sm:text-xs text-muted-foreground">Credits earned</p>
                 </div>
               </div>
             </div>
@@ -440,12 +440,12 @@ export default function SettingsPage() {
         </Section>
 
         {/* ─── Guided Tour (desktop) ─── */}
-        <Card className="p-5 sm:p-6 hidden lg:block">
-          <div className="flex items-center gap-2 mb-4">
+        <Card className="p-3.5 sm:p-6 hidden lg:block">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-            <h2 className="font-display font-bold text-base sm:text-lg">Guided Tour</h2>
+            <h2 className="font-display font-bold text-sm sm:text-lg">Guided Tour</h2>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+          <p className="text-[11px] sm:text-sm text-muted-foreground mb-3 sm:mb-4">
             Replay the onboarding tour to revisit key features on the dashboard.
           </p>
           <Button
@@ -469,8 +469,8 @@ export default function SettingsPage() {
         </Card>
 
         {/* ─── Sign Out ─── */}
-        <Card className="p-5 sm:p-6">
-          <Button variant="destructive" onClick={signOut} className="h-11 sm:h-10 active:scale-95 transition-transform">
+        <Card className="p-3.5 sm:p-6">
+          <Button variant="destructive" onClick={signOut} className="w-full sm:w-auto h-11 sm:h-10 active:scale-95 transition-transform">
             <LogOut className="w-4 h-4 mr-2" /> Sign Out
           </Button>
         </Card>
