@@ -84,7 +84,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 function getNextAction(item: Listing): { label: string; action: string; icon: typeof Search } | null {
   if (!item.last_price_check_at) return { label: "Run Price Check", action: "price", icon: Search };
   if (!item.last_optimised_at) return { label: "Improve Listing", action: "optimise", icon: Sparkles };
-  if (!item.last_photo_edit_at) return { label: "Enhance Photos", action: "photos", icon: ImageIcon };
+  if (!item.last_photo_edit_at) return { label: (item.image_url || (Array.isArray(item.images) && (item.images as string[]).length > 0)) ? "Enhance Photos" : "Add Photos", action: "photos", icon: ImageIcon };
   if (item.status === "draft") return { label: "Go Live", action: "publish", icon: Zap };
   return null;
 }
@@ -422,7 +422,7 @@ export default function ItemDetail() {
                     />
                   </div>
                 ) : (
-                  <p className="text-sm font-bold">{item.shipping_cost != null ? `£${item.shipping_cost.toFixed(2)}` : "—"}</p>
+                  <p className={`text-sm font-bold ${item.shipping_cost == null ? "text-muted-foreground italic" : ""}`}>{item.shipping_cost != null ? `£${item.shipping_cost.toFixed(2)}` : "Tap to set"}</p>
                 )}
                 <p className="text-[10px] text-muted-foreground">Shipping</p>
               </div>
