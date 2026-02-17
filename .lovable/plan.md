@@ -1,93 +1,104 @@
 
 
-# Overhaul AI Prompts for Real Vinted Intelligence
+# Replace Apify/Firecrawl Scraping with Perplexity AI Search
 
-## The Problems
+## Why This Is Better
 
-### 1. Price Check AI Insights mention irrelevant things (board games, etc.)
-The `ai_insights` field in the price-check prompt is defined only as "2-3 paragraphs explaining the pricing rationale" with zero constraints on what to include or avoid. The AI fills this with generic filler because it has no specific guidance.
+The current system scrapes Vinted via Apify, which returns irrelevant results (French board games for a Nike sweatshirt) because the search query construction is fundamentally broken. Even if fixed, Apify is a fragile single-platform scraper with a 120-second timeout that returns raw listing data requiring heavy processing.
 
-### 2. Listing descriptions sound like ChatGPT wrote them
-The optimize-listing prompt uses phrasing like "compelling opening that creates desire" and "reference the brand's reputation, the item's rarity, versatility". This practically begs the AI to use words like "elevate", "sophisticated", "timeless", "versatile" -- the exact language that screams AI-generated and turns off savvy Vinted buyers.
+**Perplexity's `sonar` model** is purpose-built for this: it performs real-time web search and returns grounded, cited answers. One API call can search Vinted, eBay, and Depop simultaneously and return structured market intelligence with source URLs. No scraping, no broken queries, no irrelevant results.
 
-### 3. Too many hashtags
-The prompt asks for 10-15 hashtags. Real Vinted sellers with 2,000+ transactions say **1-3 compound hashtags max**. Vinted does not work like Instagram. Long hashtag lists look spammy and unprofessional.
+```text
+CURRENT FLOW (broken):
+User input --> Build search query --> Apify scraper (120s timeout) --> Raw listings --> Format text --> Gemini analysis
+                                      ^^ returns board games ^^
 
-### 4. Description structure is robotic
-The current structure forces a bulleted "Key Details" section (`Brand: [brand] / Size: [size]`). Top-performing Vinted listings use **full, conversational sentences** that feel like a friend describing the item. Buyers on Vinted respond to authenticity, not corporate product pages.
+NEW FLOW:
+User input --> Perplexity sonar search --> Grounded market data with citations --> Gemini analysis
+               ^^ searches Vinted + eBay + Depop in one call ^^
+```
 
----
+## What Changes
 
-## The Fix
+### 1. Connect Perplexity (one-click)
 
-### Changes to `supabase/functions/price-check/index.ts`
+Use the Perplexity connector to add the API key to the project. No manual key entry needed.
 
-**Rewrite the `ai_insights` prompt section** to give the AI extremely specific guidance on what to include:
+### 2. Rewrite `supabase/functions/price-check/index.ts`
 
-- Specific, actionable pricing strategy for THIS item (not generic advice)
-- When to list (day of week, time) based on the category
-- How long to hold the price before dropping
-- Whether to accept offers or hold firm
-- Competitive positioning (where this item sits vs the market)
-- A "seller action plan" in 2-3 sentences
+**Remove entirely:**
+- `fetchViaApify()` function
+- `fetchViaFirecrawl()` function (for search -- keep the single-URL scrape for Vinted URL context)
+- `formatApifyComparables()` function
+- `formatFirecrawlComparables()` function
+- All Apify/Firecrawl hybrid fetching logic
 
-**Add a BANNED WORDS list** to the system prompt:
-"NEVER use these words: elevate, sophisticated, timeless, versatile, effortless, staple, wardrobe essential, investment piece, must-have, perfect addition, stunning, gorgeous, absolutely, boasts, game-changer"
+**Add new:**
+- `fetchViaPerplexity()` function that calls Perplexity's chat completions API with a carefully crafted prompt asking for current Vinted UK sold and active prices for the specific item
+- The Perplexity query will include: brand, category, size, condition
+- Domain filter to `vinted.co.uk`, `ebay.co.uk`, `depop.com` for focused results
+- Returns grounded market data with citations that Gemini can then analyse
 
-**Add STRICT CONSTRAINTS** to the insights:
-"Your insights must ONLY reference the specific item being priced and the comparable data provided. Never mention unrelated categories, items, or markets. Every sentence must contain a specific number, date, or actionable recommendation."
+**The Perplexity prompt will ask specifically for:**
+- Current active listing prices on Vinted UK for this exact item
+- Recent sold prices where available
+- Price range (low to high)
+- Number of comparable listings currently active
+- Any notable price trends
+- Cross-platform comparison (eBay, Depop prices for the same item)
 
-**Upgrade the model** from `gemini-3-flash-preview` to `gemini-2.5-pro` for price checks -- this is a high-value action that justifies the better model for accuracy.
+This gives Gemini 2.5 Pro real, grounded data to work with instead of garbage.
 
-### Changes to `supabase/functions/optimize-listing/index.ts`
+### 3. Fix VintedReadyPack score gating (`src/components/VintedReadyPack.tsx`)
 
-**Complete rewrite of the description prompt** based on research from sellers with 2,000+ Vinted transactions:
+Add health score thresholds:
+- Score 80+: Green "Ready to Post" with celebration (current design)
+- Score 60-79: Amber "Nearly Ready" with improvement CTA
+- Score below 60 or null: Component hidden
 
-- **Tone**: Conversational, honest, like texting a friend about something you're selling. NOT marketing copy.
-- **Structure**: Full flowing sentences. Describe the feel of the fabric, how it fits, what you'd wear it with, and be upfront about condition. No bulleted lists.
-- **Measurements prompt**: "If you have measurements, include them. If not, mention fit guidance like 'runs true to size' or 'slightly oversized'."
-- **Hashtags reduced to 3-5 compound hashtags** that mirror real buyer search terms (e.g. `#nikecrew`, `#menssweatshirt`, `#streetwearuk`) -- not 10-15 generic tags.
-- **Banned words list**: Same list as price check, plus: "boasts", "trendy", "chic", "standout", "stunning", "exquisite", "premium quality", "top-notch", "game-changer", "level up", "take your wardrobe to the next level"
-- **Anti-AI phrasing rule**: "Write like a real person selling their own clothes. Use casual British English. Contractions are fine. Short sentences are fine. The buyer should feel like they're reading a message from someone genuine, not a product page."
-- **Real examples**: Include 2-3 example descriptions based on the research (conversational full-sentence style)
-
-**Upgrade the model** for photo-based optimisation: keep `gemini-2.5-pro` for photos but upgrade the no-photo path from `gemini-2.5-flash` to `gemini-2.5-pro` as well -- listing quality is the core product.
-
----
+This stops a 75-scored listing from showing the misleading "Ready to Post" celebration.
 
 ## Technical Details
 
 | File | Change |
 |------|--------|
-| `supabase/functions/price-check/index.ts` | Rewrite system prompt + ai_insights specification + banned words + upgrade model |
-| `supabase/functions/optimize-listing/index.ts` | Rewrite description prompt + reduce hashtags to 3-5 + banned words + anti-AI tone rules + upgrade no-photo model |
+| `supabase/functions/price-check/index.ts` | Remove Apify + Firecrawl search functions. Add Perplexity sonar search. Keep Firecrawl single-URL scrape for Vinted URL context extraction. Restructure data pipeline. |
+| `src/components/VintedReadyPack.tsx` | Add score-based readiness tiers (80+ green, 60-79 amber, below 60 hidden) |
 
-### New AI Insights Structure (Price Check)
+### Perplexity Integration Pattern
 
-The `ai_insights` field will be instructed to return exactly 3 focused paragraphs:
+```text
+const perplexityRes = await fetch('https://api.perplexity.ai/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'sonar',
+    messages: [
+      { role: 'system', content: 'You are a secondhand clothing market researcher...' },
+      { role: 'user', content: 'What are current prices for [brand] [item] size [size] on Vinted UK? Include sold and active listings...' }
+    ],
+    search_domain_filter: ['vinted.co.uk', 'ebay.co.uk', 'depop.com'],
+  }),
+});
+```
 
-1. **Market Position** (2-3 sentences): Where this specific item sits in the current market. Reference actual comparable prices from the data. State whether the market is saturated or underserved for this exact item.
+The response includes `citations` (source URLs) which we pass to Gemini as evidence, making the final insights grounded in real, verifiable data.
 
-2. **Pricing Strategy** (2-3 sentences): Concrete advice. "List at X for the first 7 days. If no sale, drop to Y. Accept offers above Z." Include best day/time to list based on category (weekday evenings for menswear, Sunday for womenswear).
+### VintedReadyPack Readiness Tiers
 
-3. **Seller Edge** (1-2 sentences): One specific insight that gives the seller an advantage. Could be: "Only 3 of these in this size currently listed" or "This brand's resale value has increased 15% in the last quarter" or "Bundle with another Nike item -- bundled listings sell 40% faster on Vinted."
+```text
+Score >= 80  -->  Green "Ready to Post", sparkle animation, full celebration
+Score 60-79  -->  Amber "Nearly Ready", "Improve your listing" CTA, no sparkles
+Score < 60   -->  Component not rendered
+No score     -->  Component not rendered
+```
 
-### New Description Style (Optimize Listing)
+### Dependencies
 
-Instead of the current robotic template, the new prompt will produce descriptions like:
-
-"Really nice Nike crewneck sweatshirt in black, size M. The cotton blend makes it properly warm without being too heavy -- perfect for layering or wearing on its own. Fits true to size with a relaxed but not baggy cut.
-
-In very good condition -- worn a handful of times and well looked after. No marks, no bobbling, just a solid everyday piece.
-
-Comes from a smoke-free home. Happy to answer any questions about fit or bundle with other items for a discount.
-
-Shipped within 1-2 days.
-
-#nikecrew #menssweatshirt #streetwearuk"
-
-This reads like a real person, not an AI. That is the difference.
-
-### No database changes needed
-### No frontend changes needed -- prompts are entirely backend
+- Perplexity connector must be linked to the project (one-click setup)
+- No database changes needed
+- No new tables or columns required
 
