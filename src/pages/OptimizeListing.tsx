@@ -113,7 +113,7 @@ export default function OptimizeListing() {
       if (data.material && !material) setMaterial(data.material);
       if (data.brand && !brand) setBrand(data.brand);
       if (data.category && !category) setCategory(data.category);
-      if (data.condition && !condition) setCondition(data.condition);
+      if (data.condition && !condition) setCondition(data.condition.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()));
       if (data.title && !currentTitle) setCurrentTitle(data.title);
       if (data.description && !currentDescription) setCurrentDescription(data.description);
       // Photos
@@ -619,6 +619,8 @@ export default function OptimizeListing() {
                     if (picked.category) params.set("category", picked.category);
                     if (picked.condition) params.set("condition", picked.condition);
                     if (picked.size) params.set("size", picked.size!);
+                    if ((picked as any).colour) params.set("colour", (picked as any).colour);
+                    if ((picked as any).material) params.set("material", (picked as any).material);
                     // Navigate with replace and reset state instead of reloading
                     navigate(`/optimize?${params.toString()}`, { replace: true });
                     setResult(null);
@@ -630,6 +632,8 @@ export default function OptimizeListing() {
                     setCategory(picked.category || "");
                     setCondition(picked.condition || "");
                     setSize(picked.size || "");
+                    setColour((picked as any).colour || "");
+                    setMaterial((picked as any).material || "");
                     setVintedUrl("");
                     setAutoStartReady(false);
                   }}>
@@ -728,6 +732,16 @@ export default function OptimizeListing() {
                   <div className="space-y-1.5">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
                     <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Very Good" className="h-11 sm:h-10 text-base sm:text-sm" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Colour</Label>
+                    <Input value={colour} onChange={(e) => setColour(e.target.value)} placeholder="e.g. Black" className="h-11 sm:h-10 text-base sm:text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Material</Label>
+                    <Input value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="e.g. Cotton" className="h-11 sm:h-10 text-base sm:text-sm" />
                   </div>
                 </div>
               </CollapsibleContent>
