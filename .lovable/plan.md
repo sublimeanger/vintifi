@@ -1,132 +1,159 @@
 
+# Bulletproof Cohesion: The Vintifi Flow Rebuild
 
-# Phase D: Photo Studio — World-Class Upgrade
+## The Core Problem
 
-## Overview
+Every page operates as an isolated island. Data doesn't flow between pillars. When a user clicks "Photo Studio" from their item, they arrive at an empty upload zone instead of seeing their photos. When they finish optimising, there's no clear "you're done, here's your pack" moment. The four pillars (Add > Price > Optimise > Photos) exist but they don't talk to each other.
 
-Transform the Photo Studio from a functional tool into a best-in-class photo editing experience with shimmer skeletons, operation previews, improved batch UX, and hyper-optimised AI prompts.
+Here is every specific break I found:
 
----
+### Break 1: Photo Studio ignores item photos
+`Vintography.tsx` line 104 only reads `searchParams.get("image_url")` -- a single URL param. When navigating from ItemDetail Photos tab via `/vintography?itemId=xxx`, the Photo Studio shows an **empty upload zone** because it never fetches the item's photos from the database. This is the exact issue you experienced.
 
-## 1. Shimmer Skeleton During Processing (ComparisonView.tsx)
+### Break 2: Optimise results don't chain to Photo Studio with images
+`OptimizeListing.tsx` line 452 navigates to `/vintography` or `/vintography?itemId=xxx` but passes zero image data. The user arrives at Photo Studio with nothing loaded.
 
-Replace the current spinner overlay (lines 385-391) with a rich shimmer skeleton that previews the shape of the result:
+### Break 3: Photo Studio has no "next step" after processing
+After processing a photo, the only CTA is "Back to Item" (line 477-486, only if itemId exists). Standalone users have no forward path. There's no "Now optimise your listing" or "Your photos are ready" completion moment.
 
-- Show a pulsing image silhouette with a gradient sweep animation (like Instagram loading)
-- Display a multi-step progress indicator: "Uploading..." -> "AI analysing garment..." -> "Generating result..." -> "Finalising..."
-- Add a subtle progress bar with estimated time remaining
-- Keep the original image visible but dimmed underneath the skeleton overlay so users maintain context
+### Break 4: "All Done" card on ItemDetail is a dead end
+Line 692-702 just shows a green card saying "All Done!" with no actionable content. No copy buttons, no download-all, no assembled pack. The user's entire workflow culminates in... nothing.
 
-**Technical**: Add a `processingStep` state to `Vintography.tsx` that tracks stages (`uploading | analysing | generating | finalising`). Pass this to `ComparisonView` which renders the appropriate skeleton state. Use `framer-motion` for smooth transitions between steps.
+### Break 5: Two competing bottom nav systems
+`AppShellV2.tsx` has its own `BOTTOM_TABS` (4 tabs: Home, Items, Photos, Settings) while `MobileBottomNav.tsx` has 5 tabs (Home, Items, Optimise, Photos, Settings). AppShellV2 is used by Dashboard. MobileBottomNav is standalone. They don't match, and AppShellV2's version is missing Optimise and Price Check.
 
----
+### Break 6: Dashboard Quick Price Check creates orphan data
+When a user does a price check from the dashboard (no itemId), they can "Save to Inventory" from the results. But the saved item has no link back to the price report, no photos, and the user is dumped on the listings page with no next step.
 
-## 2. Operation Preview Cards with Before/After Examples (Vintography.tsx)
-
-Upgrade the 4 operation cards from plain text descriptions to visual previews:
-
-- Each card gets a tiny before/after thumbnail strip (2 small images side by side)
-- Use static placeholder images stored as inline SVG gradients/patterns (no external assets needed) that visually represent what each operation does:
-  - **Clean Background**: messy BG -> pure white
-  - **Lifestyle**: white BG -> styled scene
-  - **Virtual Model**: flat-lay -> on model
-  - **Enhance**: dull/dark -> bright/sharp
-- Add a subtle "1 credit" indicator on each card
-- On selection, the card expands slightly to show a one-line "what this does" explainer
-
-**Technical**: Update the `OPERATIONS` array to include `preview` data. Each card uses a small `div` with gradient backgrounds to simulate before/after without loading real images.
+### Break 7: No "pick from my items" on standalone pages
+Price Check and Optimise pages accessed from nav require manual entry or URL paste. Users with existing inventory can't select an item to work on.
 
 ---
 
-## 3. Batch Upload UX Fix (Vintography.tsx)
+## Sprint Plan
 
-Current issue: only the first photo auto-uploads; rest stay local until "Process All."
+### Sprint 1: Fix the Photo Studio Data Pipeline (highest impact)
+
+**Problem**: Photo Studio doesn't load item photos when navigated from ItemDetail.
+
+**Fix in `Vintography.tsx`**:
+- Add a `useEffect` that fires when `itemId` is present
+- Fetch the listing's `image_url` and `images` array from the database
+- Auto-populate the first photo as `originalUrl` and create `batchItems` from the rest
+- User arrives at Photo Studio with all their photos pre-loaded and ready to process
+
+**Fix in `OptimizeListing.tsx`**:
+- When the "Enhance Photos" button navigates to Photo Studio, also pass `image_url` as a fallback URL param for immediate display while the DB fetch loads
+
+**Result**: Click "Photo Studio" from any item -- photos are already loaded, ready to enhance.
+
+---
+
+### Sprint 2: Add Forward CTAs to Photo Studio
+
+**Problem**: After processing photos, there's no next step.
+
+**Fix in `Vintography.tsx`**:
+- After a successful process (when `processedUrl` is set), show a "Next Steps" card below the download button:
+  - If `itemId` exists and item has no optimisation: Show "Next: Optimise Your Listing" CTA linking to `/optimize?itemId=xxx`
+  - If `itemId` exists and item IS optimised: Show "Your item is ready! View Vinted-Ready Pack" linking to `/items/xxx`
+  - If standalone (no itemId): Show "Save & Optimise" that saves the processed photo to a new listing and navigates to optimise
+
+**Result**: Every Photo Studio session ends with a clear forward path.
+
+---
+
+### Sprint 3: Build the Vinted-Ready Pack on ItemDetail
+
+**Problem**: The "All Done" card is anticlimactic -- no actionable export.
+
+**Fix in `ItemDetail.tsx`**:
+- Replace the "All Done" card (lines 692-702) with a full "Vinted-Ready Pack" component
+- When all 3 steps are complete (priced + optimised + photos), show:
+  - Optimised title with copy button
+  - Optimised description with copy button (first 3 lines visible, expandable)
+  - Hashtags row with copy-all
+  - Photo grid (max 4) with "Download All" button
+  - Master "Copy Full Listing" button that copies title + description + hashtags
+  - If item has a Vinted URL: "Open on Vinted" link for easy paste-in
+- This is the payoff moment -- the reason users go through the entire workflow
+
+**Result**: The four-pillar workflow culminates in a beautiful, actionable export pack.
+
+---
+
+### Sprint 4: Unify Navigation
+
+**Problem**: Two competing bottom nav systems, AppShellV2 missing core tools.
 
 **Fix**:
-- On multi-file selection, immediately upload ALL files in parallel (not just the first)
-- Show upload progress per-thumbnail in the BatchStrip (progress ring around each thumb)
-- Add a prominent "Process All" floating bar when batch has 2+ items with count + selected operation
-- After batch completion, show a summary card: "4/5 photos processed successfully" with download-all
-- Fix `handleDownloadAll` to show a toast with progress: "Downloading 1 of 5..."
+- Update `AppShellV2.tsx` `BOTTOM_TABS` to match `MobileBottomNav.tsx`: 5 tabs (Home, Items, Optimise, Photos, Settings)
+- Remove the standalone `MobileBottomNav.tsx` component since AppShellV2 handles it
+- Ensure all pages that use `PageShell` also get the correct bottom nav (PageShell uses AppShellV2)
 
-**Technical**: Refactor `handleFileSelect` to upload all files concurrently using `Promise.allSettled`. Update `BatchItem.status` to include `"uploaded"` state. Add progress feedback to `handleDownloadAll`.
+**Result**: Consistent 5-tab mobile nav everywhere with one-tap access to all core tools.
 
 ---
 
-## 4. Hyper-Optimised AI Prompts (vintography/index.ts)
+### Sprint 5: Save-to-Inventory from Price Check creates a linked item
 
-Rewrite every prompt for maximum quality output:
+**Problem**: Dashboard price check "Save to Inventory" creates an orphan listing.
 
-### remove_bg (Clean Background)
-- Add explicit instructions for handling transparent/semi-transparent fabrics, fur edges, and intricate details like lace
-- Specify anti-aliasing on edges to prevent jagged cutouts
-- Add instruction to preserve natural fabric shadows on the white background
+**Fix in `PriceCheck.tsx`**:
+- When "Save to Inventory" is clicked, after inserting the listing:
+  1. Get the new listing ID from the insert response
+  2. Update the price_report with the new `listing_id`
+  3. Navigate to `/items/[newId]` instead of just showing a toast
+  4. The user lands on their new item's detail page with the price data already linked
 
-### smart_bg (Lifestyle)
-- Add depth-of-field instructions: garment sharp, background with natural bokeh
-- Add shadow casting: "cast a realistic soft shadow consistent with the scene's lighting direction"
-- Add colour temperature matching: "adjust garment white balance to match the scene's ambient light"
-- Expand scene descriptions with much more photographic detail (aperture feel, light quality, atmosphere)
-
-### model_shot (Virtual Model)
-- Add skin detail: "photo-realistic skin with natural pores, no plastic/AI look"
-- Add fabric physics: "show realistic gravity, drape, tension points, and fabric weight"
-- Add hand/finger instruction: "hands must have exactly 5 fingers, natural proportions"
-- Add face instruction: "natural expression, no uncanny valley, eyes looking at camera or naturally away"
-- Specify resolution feel: "equivalent to a 50mm f/1.8 lens at 6ft distance"
-- Use `google/gemini-3-pro-image-preview` for maximum quality
-
-### enhance
-- Add specific instructions for white balance correction
-- Add detail recovery for shadows and highlights
-- Add noise reduction with detail preservation
-- Add micro-contrast enhancement for fabric texture pop
-- Add instruction for consistent colour temperature
-
-### All prompts
-- Strengthen the "no text" instruction with: "ABSOLUTELY ZERO text, watermarks, labels, captions, annotations, logos, or any form of written content anywhere in the image"
-- Add output quality instruction: "Output at the highest possible resolution and quality. The result must look indistinguishable from a professional photographer's work"
+**Result**: Every saved item from Price Check is immediately actionable with its price data attached.
 
 ---
 
-## 5. Processing State Enhancement (Vintography.tsx + ComparisonView.tsx)
+### Sprint 6: "Pick from My Items" Quick Picker
 
-Add a rich processing experience:
+**Problem**: Standalone Price Check and Optimise pages require manual entry.
 
-- **Animated tips**: During processing, cycle through helpful tips every 3 seconds:
-  - "Tip: Clean Background works best with high-contrast photos"
-  - "Tip: Virtual Model preserves all garment details like logos and prints"
-  - "Tip: Try Lifestyle mode for social media posts"
-- **Sound feedback** (optional): Subtle chime on completion
-- **Auto-scroll**: When processing completes, smooth-scroll the result into view
+**Fix**:
+- Create a shared `ItemPickerDialog` component: a simple modal with a scrollable list of the user's recent items (image, title, brand, status)
+- Add a small "or pick from your items" link below the URL input on both `PriceCheck.tsx` and `OptimizeListing.tsx`
+- When an item is selected, auto-populate all fields (brand, category, condition, vintedUrl, itemId) and auto-focus the submit button
+- On Optimise page, also load the item's photos
 
-**Technical**: Add a `TIPS` array per operation. Use `useEffect` with `setInterval` to cycle tips during `processing === true`. Clear on completion.
-
----
-
-## 6. Gallery Improvements (GalleryCard.tsx)
-
-- Add a "Use as input" action to gallery cards so users can chain operations (e.g., Clean BG -> then Lifestyle)
-- Add operation icon badge overlay on gallery thumbnails
-- Improve the before/after hover to work on mobile (tap to toggle instead of hover)
+**Result**: Users with existing inventory can jump into any tool with one tap instead of re-entering data.
 
 ---
 
-## Files Modified
+### Sprint 7: Optimise Page Auto-Start When Item Context Exists
 
-| File | Changes |
-|------|---------|
-| `supabase/functions/vintography/index.ts` | Hyper-optimised prompts for all operations |
-| `src/pages/Vintography.tsx` | Batch upload fix, processing steps state, operation preview cards, auto-scroll, tips |
-| `src/components/vintography/ComparisonView.tsx` | Shimmer skeleton with multi-step progress, tips carousel |
-| `src/components/vintography/BatchStrip.tsx` | Upload progress rings, "uploaded" status |
-| `src/components/vintography/GalleryCard.tsx` | "Use as input" action, mobile tap toggle, operation icon badge |
+**Problem**: When navigating from ItemDetail to Optimise with full item context (itemId, photos in DB), the user still sees an input form they need to submit.
+
+**Fix in `OptimizeListing.tsx`**:
+- When `itemId` is present AND the item has photos in the database, skip the input form entirely
+- Show a brief "Ready to optimise" confirmation card with the item's photo, title, and brand
+- Auto-trigger `handleOptimize()` after a 1-second delay (with a "Cancel" button)
+- Or show a prominent single "Optimise Now" button instead of the full form
+
+**Result**: Coming from ItemDetail, the optimisation starts immediately instead of showing a redundant form.
+
+---
 
 ## Technical Details
 
-- No database changes needed
-- Edge function redeployment required for prompt updates
-- All UI changes use existing dependencies (framer-motion, lucide-react, Tailwind)
-- Processing step tracking uses a simple string state passed as props
-- Before/after previews on operation cards use CSS gradients (zero external assets)
+### Files Modified Per Sprint
 
+| Sprint | Files | Scope |
+|--------|-------|-------|
+| 1 | `Vintography.tsx`, `OptimizeListing.tsx` | Add DB fetch for item photos on mount |
+| 2 | `Vintography.tsx` | Add Next Steps card after processing |
+| 3 | `ItemDetail.tsx` | Replace "All Done" with Vinted-Ready Pack component |
+| 4 | `AppShellV2.tsx`, possibly remove `MobileBottomNav.tsx` | Unify bottom nav |
+| 5 | `PriceCheck.tsx` | Fix Save-to-Inventory flow with navigation |
+| 6 | New `ItemPickerDialog.tsx`, `PriceCheck.tsx`, `OptimizeListing.tsx` | Add item picker |
+| 7 | `OptimizeListing.tsx` | Auto-start when item context exists |
+
+### No database changes needed
+All fixes are frontend data-passing and UI flow improvements.
+
+### Recommended implementation order
+Sprints 1-3 first (fix the core broken chain), then Sprint 4 (nav), then Sprints 5-7 (polish).
