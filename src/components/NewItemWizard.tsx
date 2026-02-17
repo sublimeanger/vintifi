@@ -305,7 +305,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto mt-[env(safe-area-inset-top)]">
           <DialogHeader>
             <DialogTitle className="font-display">
               {step === "method" && "Add New Item"}
