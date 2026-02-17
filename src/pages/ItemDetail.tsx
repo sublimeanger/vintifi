@@ -289,11 +289,7 @@ export default function ItemDetail() {
         {/* ═══ OVERVIEW TAB ═══ */}
         <TabsContent value="overview" className="space-y-6">
           {/* Vinted-Ready Pack — top of Overview when ready */}
-          {item.last_optimised_at && (item.image_url || (Array.isArray(item.images) && (item.images as any[]).length > 0)) && (
-            <div className="mb-6">
-              <VintedReadyPack item={item} onOptimise={handleOptimise} onPhotoStudio={handlePhotoStudio} />
-            </div>
-          )}
+          <VintedReadyPack item={item} onOptimise={handleOptimise} onPhotoStudio={handlePhotoStudio} />
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card
