@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PhotosTab } from "@/components/PhotosTab";
+import { VintedReadyPack } from "@/components/VintedReadyPack";
 
 type Listing = {
   id: string;
@@ -279,6 +280,13 @@ export default function ItemDetail() {
 
         {/* ═══ OVERVIEW TAB ═══ */}
         <TabsContent value="overview" className="space-y-6">
+          {/* Vinted-Ready Pack — top of Overview when ready */}
+          {item.last_optimised_at && (
+            <div className="mb-6">
+              <VintedReadyPack item={item} onOptimise={handleOptimise} onPhotoStudio={handlePhotoStudio} />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card
               className="p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
@@ -689,110 +697,7 @@ export default function ItemDetail() {
               </div>
             </Card>
           ) : (
-            /* Sprint 3: Vinted-Ready Pack */
-            <Card className="p-4 sm:p-5 border-success/30 bg-gradient-to-br from-success/[0.06] to-transparent">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
-                  <Package className="w-5 h-5 text-success" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-success">Vinted-Ready Pack</p>
-                  <p className="text-xs text-muted-foreground">Copy everything below and paste into Vinted.</p>
-                </div>
-                {item.health_score != null && <HealthScoreMini score={item.health_score} />}
-              </div>
-
-              {/* Title */}
-              <div className="mb-3">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Title</p>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
-                    navigator.clipboard.writeText(item.title);
-                    toast.success("Title copied!");
-                  }}>
-                    <Copy className="w-3 h-3 mr-1" /> Copy
-                  </Button>
-                </div>
-                <p className="text-sm font-medium p-2.5 rounded-lg bg-background border border-border">{item.title}</p>
-              </div>
-
-              {/* Description */}
-              {item.description && (
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Description</p>
-                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
-                      navigator.clipboard.writeText(item.description!);
-                      toast.success("Description copied!");
-                    }}>
-                      <Copy className="w-3 h-3 mr-1" /> Copy
-                    </Button>
-                  </div>
-                  <div className="text-sm p-2.5 rounded-lg bg-background border border-border max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                    {item.description}
-                  </div>
-                </div>
-              )}
-
-              {/* Photos */}
-              {(() => {
-                const allImages: string[] = [];
-                if (item.image_url) allImages.push(item.image_url);
-                if (Array.isArray(item.images)) {
-                  for (const img of item.images as any[]) {
-                    const u = typeof img === "string" ? img : img?.url;
-                    if (u && !allImages.includes(u)) allImages.push(u);
-                  }
-                }
-                return allImages.length > 0 ? (
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Photos ({allImages.length})</p>
-                      <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={async () => {
-                        for (let i = 0; i < allImages.length; i++) {
-                          try {
-                            const res = await fetch(allImages[i]); const blob = await res.blob();
-                            const url = URL.createObjectURL(blob); const a = document.createElement("a");
-                            a.href = url; a.download = `vintifi-${item.title.slice(0, 20)}-${i + 1}.png`; a.click(); URL.revokeObjectURL(url);
-                            await new Promise(r => setTimeout(r, 300));
-                          } catch {}
-                        }
-                        toast.success("All photos downloaded!");
-                      }}>
-                        <Download className="w-3 h-3 mr-1" /> Download All
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {allImages.slice(0, 4).map((url, i) => (
-                        <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border bg-muted">
-                          <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-
-              {/* Master Copy All */}
-              <Button
-                className="w-full h-11 font-semibold active:scale-95 transition-transform"
-                onClick={() => {
-                  const text = `${item.title}${item.description ? `\n\n${item.description}` : ""}`;
-                  navigator.clipboard.writeText(text);
-                  toast.success("Full listing copied — paste into Vinted!");
-                }}
-              >
-                <Copy className="w-4 h-4 mr-2" /> Copy Full Listing
-              </Button>
-
-              {item.vinted_url && (
-                <Button variant="outline" className="w-full mt-2 h-10 active:scale-95 transition-transform" asChild>
-                  <a href={item.vinted_url} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Open on Vinted
-                  </a>
-                </Button>
-              )}
-            </Card>
+            <VintedReadyPack item={item} onOptimise={handleOptimise} onPhotoStudio={handlePhotoStudio} />
           )}
         </TabsContent>
       </Tabs>
