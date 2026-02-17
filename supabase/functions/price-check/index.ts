@@ -29,25 +29,24 @@ async function fetchViaPerplexity(
         {
           role: "system",
           content:
-            "You are a secondhand clothing market researcher specialising in the UK resale market. Provide factual, data-rich responses with specific prices in GBP. Focus on currently listed and recently sold items. Be concise and structured.",
+            "You are a secondhand clothing market price researcher. You MUST search for and report SPECIFIC prices in GBP (£) that you find on Vinted, eBay, and Depop. List individual items with their exact prices. Never say you cannot access these sites — search for them and report what you find.",
         },
         {
           role: "user",
-          content: `Research current market prices for: ${itemDesc}${conditionNote}
+          content: `Find current prices for "${itemDesc}"${conditionNote} on UK resale platforms.
 
-Please provide:
-1. Current active listing prices on Vinted UK for this exact item (list specific prices you find)
-2. Recent sold prices where available
-3. Price range (lowest to highest currently listed)
-4. Approximate number of comparable listings currently active
-5. Any notable price trends or seasonal demand patterns
-6. Cross-platform comparison: what similar items sell for on eBay UK and Depop
-7. Which condition grades command premium prices for this item
+Search Vinted UK, eBay UK, and Depop for this item and tell me:
 
-Be specific with real prices you find. If data is limited, say so clearly.`,
+1. List at least 5 specific items you find with their exact prices in £. Format: "Item title - £X.XX (platform, condition)"
+2. What is the price range? Lowest: £? Highest: £?
+3. What is the average/median selling price?
+4. How many listings did you find approximately?
+5. Are there any sold/completed listings with prices?
+6. How do prices compare across Vinted vs eBay vs Depop?
+
+I need REAL prices from REAL listings. Be specific.`,
         },
       ],
-      search_domain_filter: ["vinted.co.uk", "ebay.co.uk", "depop.com"],
       search_recency_filter: "month",
     }),
   });
@@ -63,6 +62,7 @@ Be specific with real prices you find. If data is limited, say so clearly.`,
   const citations: string[] = data.citations || [];
 
   console.log(`Perplexity returned ${content.length} chars with ${citations.length} citations`);
+  console.log("Perplexity market data:", content.substring(0, 500));
   return { marketData: content, citations };
 }
 
@@ -280,7 +280,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: `You are a pricing analyst for Vinted UK marketplace. Always respond with valid JSON only. Be precise with numbers and realistic with estimates. ${BANNED_WORDS_NOTICE}` },
           { role: "user", content: aiPrompt },
