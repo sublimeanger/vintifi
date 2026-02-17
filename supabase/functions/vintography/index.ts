@@ -7,30 +7,57 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ── Enhanced fashion-photography prompts ──────────────────────────────
-const GARMENT_PRESERVE = "CRITICAL: Preserve every detail of the garment — logos, prints, textures, stitching, buttons, zippers, tags, and brand markers must remain perfectly intact and unaltered. Maintain accurate colour reproduction under the new lighting. NEVER add any text, labels, watermarks, captions, annotations, or overlays to the image. The output must contain zero added text of any kind.";
+// ── Hyper-optimised fashion-photography prompts ──────────────────────
+const QUALITY_MANDATE = `OUTPUT REQUIREMENTS: Deliver the highest possible resolution and quality. The result must be indistinguishable from work by a professional fashion photographer using a full-frame camera with a prime lens. Maintain pixel-level sharpness on fabric textures, stitching, and hardware.`;
+
+const NO_TEXT = `ABSOLUTELY ZERO text, watermarks, labels, captions, annotations, logos, signatures, stamps, or any form of written content anywhere in the image. Not even subtle or blurred text. The image must be completely free of any characters or symbols.`;
+
+const GARMENT_PRESERVE = `GARMENT INTEGRITY (NON-NEGOTIABLE): Preserve every single detail of the garment with forensic accuracy — all logos, prints, embroidery, textures, stitching patterns, buttons, zippers, tags, brand markers, fabric weave, and colour must remain perfectly intact, unaltered, and unobscured. Maintain accurate colour reproduction under the new lighting conditions. ${NO_TEXT}`;
 
 const OPERATION_PROMPTS: Record<string, (params: Record<string, string>) => string> = {
   remove_bg: () =>
-    `Remove the background from this clothing/fashion item photo completely. Replace with a clean, pure white background (#FFFFFF). Produce crisp, clean edges around the garment with no artefacts or halos. Professional e-commerce product photography standard. ${GARMENT_PRESERVE}`,
+    `You are a professional product photographer specialising in e-commerce fashion imagery. Remove the background from this clothing/fashion item photo completely and replace it with a clean, pure white background (#FFFFFF).
+
+EDGE QUALITY: Produce crisp, anti-aliased edges around the entire garment silhouette. Pay special attention to:
+- Semi-transparent fabrics (chiffon, organza, mesh) — preserve their translucency against white
+- Fur, faux fur, and fuzzy textures — maintain individual fibre detail at the boundary, no jagged cutouts
+- Lace, crochet, and openwork — preserve every hole and gap in the pattern, showing white through them
+- Fine details like loose threads, frayed denim, and delicate trims
+
+SHADOW: Preserve a subtle, natural fabric shadow directly beneath the garment on the white background. The shadow should be soft, diffused, and grounded — as if the item is resting on a white surface under soft studio lighting. No harsh or directional shadows.
+
+LIGHTING: Apply clean, even, professional studio lighting. No colour cast. Neutral white balance (5500K). Even exposure across the entire garment.
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`,
 
   smart_bg: (p) => {
     const style = p?.bg_style || "studio";
     const styles: Record<string, string> = {
-      studio: "a professional photography studio with soft even lighting and a subtle grey-to-white gradient backdrop",
-      wooden_floor: "a warm honey-toned wooden floor surface with soft natural side-lighting, lifestyle product photo style",
-      outdoor: "a bright outdoor setting with beautifully blurred green bokeh foliage in the background, golden-hour natural daylight",
-      marble: "an elegant white Carrara marble surface with soft directional shadows, luxury product photography style",
-      vintage: "a warm vintage aesthetic background with aged paper textures, muted earth tones, and soft warm lighting",
-      concrete: "a minimalist raw concrete surface with subtle texture, industrial-chic product photography with cool even lighting",
-      linen: "a soft natural linen fabric surface with gentle folds and warm side-lighting, organic lifestyle feel",
-      summer: "a bright, sun-drenched beach scene with soft sand and ocean blur in background, summer lifestyle photography",
-      autumn: "a warm autumnal setting with golden leaves, rich amber tones, and soft diffused lighting",
-      winter: "a cool-toned winter scene with soft frost textures, clean whites, and crisp blue undertones",
-      bedroom: "a stylish modern bedroom setting with a neatly made bed and soft ambient lighting, lifestyle product placement",
-      cafe: "a cozy coffee shop setting with warm wood tones, soft bokeh lighting, and a lifestyle aesthetic",
+      studio: "a professional photography studio with two softboxes creating soft, even lighting and a subtle grey-to-white gradient backdrop. The lighting should feel like a Profoto B10 setup — clean, professional, with gentle wrap-around illumination",
+      wooden_floor: "a warm honey-toned European oak wooden floor surface. Soft natural side-lighting from a large window (camera-left), creating gentle directional shadows. The wood grain should be visible but not distracting. Lifestyle product photo aesthetic with warm 4500K colour temperature",
+      outdoor: "a bright outdoor setting with beautifully blurred green foliage bokeh (f/2.8 depth of field). Golden-hour natural daylight streaming from camera-right, creating warm rim lighting on the garment. The background should feel like a sun-dappled garden with creamy circular bokeh shapes",
+      marble: "an elegant white Carrara marble surface with subtle grey veining. Soft directional lighting from above-left, creating refined shadows. Luxury fashion e-commerce aesthetic. Cool-neutral colour temperature (5800K). The marble texture should be visible but secondary to the garment",
+      vintage: "a warm vintage aesthetic with aged cream-coloured paper or linen texture. Muted earth tones in the background. Soft, warm tungsten-style lighting (3200K) with gentle vignetting at edges. Film-photography feel with slight warmth",
+      concrete: "a minimalist raw concrete surface with subtle aggregate texture. Industrial-chic aesthetic. Cool even lighting (6000K) with soft shadows. The concrete should have a slightly polished finish, not rough",
+      linen: "a soft natural Belgian linen fabric surface with gentle organic folds. Warm side-lighting from camera-left creating soft shadows in the fabric creases. Warm neutral colour temperature. Organic, tactile, lifestyle feel",
+      summer: "a bright, sun-drenched Mediterranean beach scene with soft golden sand and a softly blurred turquoise ocean in the background (f/2.0 bokeh). Summer golden-hour light with warm lens flare. Fresh, aspirational, holiday vibes",
+      autumn: "a warm autumnal setting with scattered golden and amber fallen leaves. Rich warm tones (burnt orange, deep red, golden yellow). Soft diffused overcast lighting with warm colour temperature. Cozy, seasonal atmosphere",
+      winter: "a cool-toned Scandinavian winter scene with soft frost textures, clean crisp whites, and icy blue undertones. Bright, clear winter light (6500K). Fresh and clean with subtle sparkle in the frost",
+      bedroom: "a stylish modern Scandi-minimal bedroom with a neatly made bed in neutral linen tones. Soft ambient window light with gentle shadows. Warm, inviting, aspirational lifestyle setting",
+      cafe: "a cozy artisan coffee shop corner with warm reclaimed wood tones, exposed brick, and soft tungsten pendant lighting creating warm bokeh points. Lifestyle editorial feel with shallow depth of field",
     };
-    return `Remove the background from this clothing item and place it on ${styles[style] || styles.studio}. The garment must appear naturally placed in the scene with realistic shadows and reflections. Lighting should be consistent between the garment and background. ${GARMENT_PRESERVE}`;
+
+    return `You are an editorial fashion photographer creating lifestyle product imagery. Take this clothing item and place it naturally into the following scene: ${styles[style] || styles.studio}.
+
+DEPTH OF FIELD: The garment must be tack-sharp with the background showing natural photographic bokeh (as if shot at f/2.8 on a 50mm lens). The transition from sharp garment to blurred background should be smooth and natural.
+
+SHADOW & LIGHT: Cast a realistic soft shadow beneath/behind the garment that is consistent with the scene's primary light source direction. The shadow should ground the garment in the scene convincingly. Adjust the garment's white balance and colour temperature to match the scene's ambient light — the garment should look like it belongs in this lighting, not pasted on.
+
+COMPOSITION: The garment should be the clear hero of the image, positioned with intentional negative space. Professional editorial composition following the rule of thirds.
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`;
   },
 
   model_shot: (p) => {
@@ -40,32 +67,51 @@ const OPERATION_PROMPTS: Record<string, (params: Record<string, string>) => stri
     const bg = p?.model_bg || "studio";
 
     const looks: Record<string, string> = {
-      classic: "clean-cut, neutral styling, natural makeup, approachable and professional",
-      editorial: "high-fashion editorial styling, striking features, confident expression, magazine-quality",
-      streetwear: "urban streetwear aesthetic, relaxed confident attitude, contemporary casual styling",
-      athletic: "fit and athletic build, sporty styling, energetic and dynamic presence",
-      mature: "35-45 years old, sophisticated and refined appearance, elegant styling",
-      youthful: "18-25 years old, fresh and vibrant, trendy contemporary styling",
+      classic: "clean-cut, approachable, commercial model look. Natural makeup, healthy glowing skin, friendly but composed expression. Think Cos or Uniqlo campaign",
+      editorial: "high-fashion editorial presence. Striking bone structure, confident gaze, minimal but precise makeup. Magazine-cover energy. Think Vogue or i-D",
+      streetwear: "urban streetwear aesthetic. Relaxed confident attitude, contemporary casual styling. Subtle edge, authentic personality. Think END. or SSENSE lookbook",
+      athletic: "fit, athletic build with visible muscle tone. Sporty, energetic presence. Healthy, active lifestyle feel. Think Nike or Adidas campaign",
+      mature: "sophisticated 35-45 year old model. Refined, elegant appearance. Subtle distinguished features. Think Loro Piana or Max Mara",
+      youthful: "fresh-faced 18-25 year old. Vibrant, trend-forward energy. Natural beauty with minimal makeup. Think ASOS or Zara campaign",
     };
 
     const poses: Record<string, string> = {
-      standing_front: "standing facing camera directly, relaxed natural posture, arms at sides",
-      standing_angled: "standing at a flattering 3/4 angle to camera, one shoulder slightly forward",
-      walking: "mid-stride walking pose, natural movement, one foot slightly ahead",
-      casual_leaning: "casually leaning against a wall or surface, relaxed and approachable",
-      seated: "seated on a stool or chair, relaxed posture, looking at camera",
-      action: "dynamic action pose with natural movement, energetic and engaging",
+      standing_front: "standing facing camera directly, weight slightly on one hip for a natural S-curve, arms relaxed at sides with fingers gently curved. Chin slightly lifted",
+      standing_angled: "standing at a flattering 3/4 angle to camera, one shoulder slightly forward creating depth. Head turned to engage with camera. One arm slightly bent",
+      walking: "captured mid-stride walking naturally toward camera, one foot ahead. Arms in natural walking motion. Dynamic yet controlled movement. Hair and fabric showing gentle motion blur at edges",
+      casual_leaning: "casually leaning against a wall or surface at a slight angle, one foot crossed. Relaxed, approachable body language. One hand in pocket or resting naturally",
+      seated: "seated on a high stool, one foot on a rung. Relaxed posture with good spine alignment, looking at camera with warm expression. Hands resting naturally on thighs",
+      action: "dynamic action pose — a confident turn or step with natural movement energy. Fabric flowing with the motion. Engaging, editorial energy",
     };
 
     const bgs: Record<string, string> = {
-      studio: "clean white studio backdrop with professional softbox lighting",
-      grey_gradient: "smooth grey gradient studio backdrop, fashion photography lighting",
-      urban: "urban street setting with blurred city background, natural daylight",
-      park: "outdoor park setting with soft green bokeh, golden-hour lighting",
-      brick: "exposed brick wall backdrop, industrial-chic setting with warm lighting",
+      studio: "clean white studio backdrop (seamless paper sweep) with professional three-point softbox lighting. Key light camera-left, fill camera-right, hair light from above-behind",
+      grey_gradient: "smooth mid-grey gradient studio backdrop transitioning from charcoal at edges to lighter grey at centre. Professional fashion photography lighting with dramatic but soft contrast",
+      urban: "urban street setting with blurred architectural elements and city life in the background (f/2.0 bokeh). Natural daylight with a mix of sun and shade. Authentic street-style feel",
+      park: "outdoor park setting with soft green foliage bokeh. Golden-hour lighting (last hour before sunset) creating warm rim light and long gentle shadows",
+      brick: "exposed red-brown brick wall backdrop with character and texture. Warm tungsten-style accent lighting. Industrial-chic with editorial feel",
     };
 
-    return `Take this clothing/fashion garment and show it being worn by a ${gender} model. Model style: ${looks[look] || looks.classic}. Pose: ${poses[pose] || poses.standing_front}. Background: ${bgs[bg] || bgs.studio}. The model should have natural body proportions. The garment must fit realistically with proper draping, natural fabric flow, and correct sizing. Show realistic fabric tension, wrinkles, and movement. Professional fashion photography with sharp focus on the garment. ${GARMENT_PRESERVE}`;
+    return `You are a world-class fashion photographer shooting a lookbook. Create a photo-realistic image of a ${gender} model wearing this exact garment.
+
+MODEL REQUIREMENTS:
+- Body: Natural, healthy proportions appropriate for the garment's size. Realistic body type — not exaggerated.
+- Skin: Photo-realistic skin with natural pores, subtle imperfections, and realistic subsurface scattering. ABSOLUTELY NO plastic, waxy, or AI-smoothed skin. Must look like a real photograph of a real person.
+- Hands: Exactly 5 fingers per hand, natural proportions, relaxed pose. Fingernails clean and natural.
+- Face: ${looks[look] || looks.classic}. Natural expression — no uncanny valley. Eyes should have realistic catchlights from the lighting setup. Real-looking hair with individual strand detail.
+- Pose: ${poses[pose] || poses.standing_front}
+
+GARMENT FIT:
+- The garment must show realistic fabric physics — natural gravity, proper drape based on fabric weight, visible tension points at shoulders and closures, natural wrinkles at elbows and waist. The fabric should react to the pose realistically.
+- Sizing should look correct — not too tight, not too loose. Professional fit as you'd see in a well-styled photoshoot.
+
+CAMERA SIMULATION:
+- Shot on a full-frame camera with a 50mm f/1.8 lens at approximately 6-8 feet distance.
+- Background: ${bgs[bg] || bgs.studio}
+- Sharp focus on the garment and model's face, with natural depth-of-field falloff.
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`;
   },
 
   mannequin_shot: (p) => {
@@ -73,45 +119,83 @@ const OPERATION_PROMPTS: Record<string, (params: Record<string, string>) => stri
     const bg = p?.model_bg || "studio";
 
     const bgs: Record<string, string> = {
-      studio: "clean white studio backdrop with professional even lighting",
-      grey_gradient: "smooth grey gradient studio backdrop",
-      urban: "urban street setting with blurred city background",
-      park: "outdoor park setting with soft green bokeh",
-      brick: "exposed brick wall backdrop with warm lighting",
+      studio: "clean white studio backdrop with professional even lighting from two softboxes",
+      grey_gradient: "smooth grey gradient studio backdrop with professional three-point lighting",
+      urban: "urban street setting with blurred city background and natural daylight",
+      park: "outdoor park setting with soft green bokeh and golden-hour warmth",
+      brick: "exposed brick wall backdrop with warm directional lighting",
     };
 
-    return `Take this clothing/fashion garment and display it on a ${gender} shop mannequin/dress form. The mannequin should be a realistic retail display mannequin — smooth, neutral-coloured (white or light grey), with a clean professional appearance. The garment should drape naturally on the mannequin form showing its true shape and fit. Background: ${bgs[bg] || bgs.studio}. Professional retail product photography style with even lighting and no harsh shadows. ${GARMENT_PRESERVE}`;
+    return `Display this clothing/fashion garment on a ${gender} shop mannequin/dress form. Use a realistic retail display mannequin — smooth, neutral-coloured (matte white or light grey), with a clean professional appearance. No facial features on the mannequin.
+
+The garment should drape naturally on the mannequin form, showing its true 3D shape and fit with natural fabric behaviour. Background: ${bgs[bg] || bgs.studio}. Professional retail product photography style with even, wrap-around lighting and no harsh shadows.
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`;
   },
 
   ghost_mannequin: () =>
-    `Apply a professional ghost mannequin / invisible mannequin effect to this clothing photo. Remove any visible mannequin, hanger, or dress form from the image so the garment appears to float naturally in a 3D shape as if worn by an invisible person. Maintain the garment's natural shape, volume, and structure. Fill in any gaps where the mannequin was visible (neckline, sleeves, waistband) with realistic fabric continuation or clean background. The result should look like professional fashion e-commerce photography with the "hollow man" effect. Clean white background. ${GARMENT_PRESERVE}`,
+    `Apply a professional ghost mannequin / invisible mannequin effect to this clothing photo. Remove any visible mannequin, hanger, or dress form so the garment appears to float naturally in a 3D shape as if worn by an invisible person.
+
+CRITICAL DETAILS:
+- Maintain the garment's natural shape, volume, and 3D structure throughout
+- Fill in any gaps where the mannequin was visible (neckline, sleeve openings, waistband) with realistic fabric continuation showing the garment's interior or clean white background
+- Inner collar labels and interior fabric should be visible where naturally expected
+- Clean, pure white background (#FFFFFF) with a subtle grounding shadow beneath
+- The result should match the quality standard of ASOS or Net-a-Porter product imagery
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`,
 
   flatlay_style: (p) => {
     const style = p?.flatlay_style || "minimal";
     const styles: Record<string, string> = {
-      minimal: "Clean minimal flat-lay styling. Add subtle natural shadows beneath the garment. Ensure the garment is neatly arranged with clean folds. White or very light grey background. No props.",
-      styled: "Styled flat-lay with tasteful accessories — add complementary items like sunglasses, a watch, shoes, or a bag arranged artfully around the garment. Maintain breathing room. Soft natural shadows. Light neutral background.",
-      seasonal: "Seasonal themed flat-lay. Add contextual seasonal elements — flowers and greenery for spring, shells and sand texture for summer, leaves for autumn, pine and knit textures for winter. Warm, inviting composition with the garment as hero. Soft shadows.",
+      minimal: "Clean minimal flat-lay styling. Neatly arrange the garment with intentional, clean folds showing the garment's best features. Pure white or very light grey background. Subtle natural drop shadow beneath. No props — let the garment speak. Shot from directly overhead with even, diffused lighting",
+      styled: "Styled editorial flat-lay with carefully curated complementary accessories — add tasteful items like designer sunglasses, a leather watch, quality shoes, or a structured bag arranged with intentional spacing following the golden ratio. Maintain generous breathing room. Soft natural shadows. Light neutral background. Magazine-quality styling",
+      seasonal: "Seasonal themed flat-lay with contextual natural elements. For spring: fresh flowers and green sprigs. Summer: shells, sand texture, dried citrus. Autumn: scattered golden leaves and warm-toned berries. Winter: pine sprigs, knit textures, and warm wood elements. The garment remains the hero — seasonal elements frame it. Warm, inviting composition with professional overhead lighting",
     };
-    return `Enhance this flat-lay clothing photo. ${styles[style] || styles.minimal} Professional overhead product photography with even, diffused lighting. Straighten and neaten the garment layout. ${GARMENT_PRESERVE}`;
+    return `Create a professional overhead flat-lay product photo. ${styles[style] || styles.minimal}
+
+Straighten and neaten the garment layout so it looks professionally styled — no accidental creases or messy folds. Every fold should be intentional. Even, diffused overhead lighting with no harsh shadows. Professional product photography for e-commerce and social media.
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`;
   },
 
   enhance: () =>
-    `Enhance this clothing/fashion product photo for e-commerce. Improve lighting to be bright, even, and professional. Increase sharpness and clarity. Boost colour vibrancy while keeping colours accurate and natural. Reduce noise and graininess. Correct white balance. Add subtle professional-quality shadows. Keep the original background and composition. ${GARMENT_PRESERVE}`,
+    `You are a professional retoucher enhancing this clothing/fashion product photo for premium e-commerce. Apply the following corrections while keeping the original background and composition exactly the same:
+
+LIGHTING & EXPOSURE:
+- Correct white balance to neutral (5500K daylight standard) — remove any colour casts
+- Even out exposure — recover detail in shadows and highlights without clipping
+- Add clean, professional-quality fill lighting to eliminate any unflattering shadows on the garment
+
+SHARPNESS & DETAIL:
+- Apply intelligent sharpening to enhance fabric texture, stitching detail, and garment structure
+- Micro-contrast enhancement to make fabric textures pop — you should be able to see the weave
+- Reduce noise and graininess while preserving fine detail (smart noise reduction, not blur)
+
+COLOUR:
+- Boost colour vibrancy and saturation subtly while keeping colours accurate and true-to-life
+- Ensure consistent colour temperature across the entire image
+- Colours should look rich and appealing but never oversaturated or artificial
+
+The final result should look like it was shot by a professional photographer with a proper lighting setup, even if the original was taken on a phone.
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`,
 };
 
 // Models per operation
 const MODEL_MAP: Record<string, string> = {
   remove_bg: "google/gemini-2.5-flash-image",
-  smart_bg: "google/gemini-2.5-flash-image",
+  smart_bg: "google/gemini-3-pro-image-preview",
   model_shot: "google/gemini-3-pro-image-preview",
   mannequin_shot: "google/gemini-3-pro-image-preview",
   ghost_mannequin: "google/gemini-2.5-flash-image",
-  flatlay_style: "google/gemini-2.5-flash-image",
+  flatlay_style: "google/gemini-3-pro-image-preview",
   enhance: "google/gemini-2.5-flash-image",
 };
-
-// Credit limits now come from usage_credits.credits_limit (unified pool)
 
 // Operations allowed per tier
 const TIER_OPERATIONS: Record<string, string[]> = {

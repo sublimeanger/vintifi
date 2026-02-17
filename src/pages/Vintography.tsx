@@ -13,11 +13,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
   Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock,
-  RefreshCw, ChevronDown, X,
+  RefreshCw, Coins,
 } from "lucide-react";
 
 import { CreditBar } from "@/components/vintography/CreditBar";
-import { ComparisonView } from "@/components/vintography/ComparisonView";
+import { ComparisonView, type ProcessingStep } from "@/components/vintography/ComparisonView";
 import { GalleryCard, type VintographyJob } from "@/components/vintography/GalleryCard";
 import { BatchStrip, type BatchItem } from "@/components/vintography/BatchStrip";
 import { ModelPicker } from "@/components/vintography/ModelPicker";
@@ -25,14 +25,41 @@ import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
 
 type Operation = "clean_bg" | "lifestyle_bg" | "virtual_model" | "enhance";
 
-const OPERATIONS: { id: Operation; icon: typeof ImageOff; label: string; desc: string }[] = [
-  { id: "clean_bg", icon: ImageOff, label: "Clean Background", desc: "White or solid background" },
-  { id: "lifestyle_bg", icon: Paintbrush, label: "Lifestyle", desc: "AI scene placement" },
-  { id: "virtual_model", icon: UserIcon, label: "Virtual Model", desc: "Garment on a model" },
-  { id: "enhance", icon: Sparkles, label: "Enhance", desc: "Fix lighting & clarity" },
+const OPERATIONS: {
+  id: Operation;
+  icon: typeof ImageOff;
+  label: string;
+  desc: string;
+  detail: string;
+  beforeGradient: string;
+  afterGradient: string;
+}[] = [
+  {
+    id: "clean_bg", icon: ImageOff, label: "Clean Background", desc: "White or solid background",
+    detail: "Removes any background and replaces with pure white — perfect for Vinted listings",
+    beforeGradient: "from-amber-200/60 via-stone-300/40 to-emerald-200/50",
+    afterGradient: "from-white to-white",
+  },
+  {
+    id: "lifestyle_bg", icon: Paintbrush, label: "Lifestyle", desc: "AI scene placement",
+    detail: "Places your garment in a beautiful styled scene with matched lighting and shadows",
+    beforeGradient: "from-white to-gray-100",
+    afterGradient: "from-amber-100/80 via-orange-50 to-yellow-50",
+  },
+  {
+    id: "virtual_model", icon: UserIcon, label: "Virtual Model", desc: "Garment on a model",
+    detail: "Shows your item on a realistic model with natural fabric draping and fit",
+    beforeGradient: "from-gray-200 to-gray-100",
+    afterGradient: "from-rose-100/60 via-pink-50 to-purple-50/40",
+  },
+  {
+    id: "enhance", icon: Sparkles, label: "Enhance", desc: "Fix lighting & clarity",
+    detail: "Professional-grade colour correction, sharpening, and lighting improvement",
+    beforeGradient: "from-gray-300/80 to-gray-200/60",
+    afterGradient: "from-sky-100/50 via-blue-50/30 to-indigo-50/20",
+  },
 ];
 
-// Map new operation IDs to edge function operation names
 const OP_MAP: Record<Operation, string> = {
   clean_bg: "remove_bg",
   lifestyle_bg: "smart_bg",
@@ -45,12 +72,14 @@ export default function Vintography() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
   const itemId = searchParams.get("itemId");
 
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [selectedOp, setSelectedOp] = useState<Operation>("clean_bg");
   const [processing, setProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState<ProcessingStep>(null);
 
   // Lifestyle BG params
   const [bgStyle, setBgStyle] = useState("studio");
@@ -70,7 +99,7 @@ export default function Vintography() {
   const creditsLimit = credits?.credits_limit ?? 5;
   const isUnlimited = (profile as any)?.subscription_tier === "scale" || creditsLimit >= 999;
 
-  // Load image from URL param (coming from item detail)
+  // Load image from URL param
   useEffect(() => {
     const imageUrl = searchParams.get("image_url");
     if (imageUrl && !originalUrl) {
@@ -139,6 +168,7 @@ export default function Vintography() {
     return pub.publicUrl;
   };
 
+  // ── Batch: upload ALL files in parallel on selection ──
   const handleFileSelect = useCallback(async (files: FileList | File[]) => {
     if (!user) return;
     const fileArr = Array.from(files).slice(0, 10);
@@ -148,14 +178,27 @@ export default function Vintography() {
     } else {
       const items: BatchItem[] = fileArr.map((f) => ({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        file: f, previewUrl: URL.createObjectURL(f), uploadedUrl: null, processedUrl: null, status: "pending" as const,
+        file: f, previewUrl: URL.createObjectURL(f), uploadedUrl: null, processedUrl: null, status: "uploading" as const,
       }));
       setBatchItems(items);
       setActiveBatchIndex(0);
-      const url = await uploadFile(fileArr[0]);
-      if (url) {
-        setOriginalUrl(url); setProcessedUrl(null);
-        setBatchItems((prev) => prev.map((it, i) => i === 0 ? { ...it, uploadedUrl: url, status: "pending" } : it));
+
+      // Upload all in parallel
+      const results = await Promise.allSettled(fileArr.map((f) => uploadFile(f)));
+      const updatedItems = items.map((item, i) => {
+        const result = results[i];
+        if (result.status === "fulfilled" && result.value) {
+          return { ...item, uploadedUrl: result.value, status: "pending" as const };
+        }
+        return { ...item, status: "error" as const };
+      });
+      setBatchItems(updatedItems);
+
+      // Set first successful as active
+      const firstOk = updatedItems.find(it => it.status === "pending");
+      if (firstOk) {
+        setOriginalUrl(firstOk.uploadedUrl);
+        setProcessedUrl(null);
       }
     }
   }, [user]);
@@ -189,15 +232,23 @@ export default function Vintography() {
   const handleProcess = async () => {
     if (!originalUrl) return;
     setProcessing(true);
+    setProcessingStep("uploading");
     try {
+      // Simulate step progression while the edge function works
+      setTimeout(() => setProcessingStep("analysing"), 800);
+      setTimeout(() => setProcessingStep("generating"), 3000);
+      setTimeout(() => setProcessingStep("finalising"), 7000);
+
       const result = await processImage(originalUrl, OP_MAP[selectedOp], getParams());
       if (result) {
         setProcessedUrl(result);
         fetchGallery();
         await updateLinkedItem(result);
+        // Auto-scroll to result
+        setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
       }
     } catch (err: any) { toast.error(err.message || "Processing failed. Try again."); }
-    finally { setProcessing(false); }
+    finally { setProcessing(false); setProcessingStep(null); }
   };
 
   const handleDownload = async () => {
@@ -211,28 +262,29 @@ export default function Vintography() {
 
   const handleBatchProcessAll = async () => {
     if (batchItems.length <= 1) return;
+    setProcessing(true);
+    let doneCount = 0;
     for (let i = 0; i < batchItems.length; i++) {
       const item = batchItems[i];
-      let url = item.uploadedUrl;
-      if (!url) {
-        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "uploading" } : it));
-        try { url = await uploadFile(item.file); } catch {
-          setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it)); continue;
-        }
-        if (!url) { setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it)); continue; }
-        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, uploadedUrl: url, status: "pending" } : it));
+      const url = item.uploadedUrl;
+      if (!url || item.status === "error") {
+        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it));
+        continue;
       }
       setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "processing" } : it));
-      setActiveBatchIndex(i); setOriginalUrl(url);
+      setActiveBatchIndex(i); setOriginalUrl(url); setProcessedUrl(null);
+      setProcessingStep("analysing");
       try {
         const result = await processImage(url, OP_MAP[selectedOp], getParams());
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, processedUrl: result, status: result ? "done" : "error" } : it));
-        if (result) setProcessedUrl(result);
+        if (result) { setProcessedUrl(result); doneCount++; }
       } catch {
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it));
       }
     }
+    setProcessing(false); setProcessingStep(null);
     fetchGallery();
+    toast.success(`${doneCount}/${batchItems.length} photos processed successfully`);
   };
 
   const handleBatchSelect = (idx: number) => {
@@ -248,18 +300,30 @@ export default function Vintography() {
   };
 
   const handleDownloadAll = async () => {
-    for (const item of batchItems) {
-      if (!item.processedUrl) continue;
+    const downloadable = batchItems.filter(i => i.processedUrl);
+    if (downloadable.length === 0) return;
+    for (let i = 0; i < downloadable.length; i++) {
+      toast.info(`Downloading ${i + 1} of ${downloadable.length}…`);
       try {
-        const res = await fetch(item.processedUrl); const blob = await res.blob();
+        const res = await fetch(downloadable[i].processedUrl!); const blob = await res.blob();
         const url = URL.createObjectURL(blob); const a = document.createElement("a");
-        a.href = url; a.download = `vintography-${item.id}.png`; a.click(); URL.revokeObjectURL(url);
+        a.href = url; a.download = `vintography-${downloadable[i].id}.png`; a.click(); URL.revokeObjectURL(url);
+        await new Promise(r => setTimeout(r, 300)); // small delay between downloads
       } catch {}
     }
+    toast.success("All downloads complete");
+  };
+
+  const handleUseAsInput = (job: VintographyJob) => {
+    const url = job.processed_url || job.original_url;
+    setOriginalUrl(url);
+    setProcessedUrl(null);
+    setBatchItems([]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const resetAll = () => {
-    setOriginalUrl(null); setProcessedUrl(null); setBatchItems([]); setActiveBatchIndex(0);
+    setOriginalUrl(null); setProcessedUrl(null); setBatchItems([]); setActiveBatchIndex(0); setProcessingStep(null);
   };
 
   return (
@@ -300,27 +364,55 @@ export default function Vintography() {
               <BatchStrip items={batchItems} activeIndex={activeBatchIndex} onSelect={handleBatchSelect}
                 onRemove={handleBatchRemove} onDownloadAll={handleDownloadAll} />
 
-              {/* 4 Operation Cards */}
+              {/* 4 Operation Cards with visual previews */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                {OPERATIONS.map((op) => (
-                  <Card
-                    key={op.id}
-                    onClick={() => setSelectedOp(op.id)}
-                    className={`p-3 sm:p-4 cursor-pointer transition-all active:scale-[0.97] ${
-                      selectedOp === op.id
-                        ? "ring-2 ring-primary border-primary/30 bg-primary/[0.04]"
-                        : "hover:border-primary/20"
-                    }`}
-                  >
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${
-                      selectedOp === op.id ? "bg-primary/15" : "bg-muted"
-                    }`}>
-                      <op.icon className={`w-4 h-4 ${selectedOp === op.id ? "text-primary" : "text-muted-foreground"}`} />
-                    </div>
-                    <p className="font-semibold text-xs sm:text-sm">{op.label}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">{op.desc}</p>
-                  </Card>
-                ))}
+                {OPERATIONS.map((op) => {
+                  const isSelected = selectedOp === op.id;
+                  return (
+                    <Card
+                      key={op.id}
+                      onClick={() => setSelectedOp(op.id)}
+                      className={`p-3 sm:p-4 cursor-pointer transition-all active:scale-[0.97] ${
+                        isSelected
+                          ? "ring-2 ring-primary border-primary/30 bg-primary/[0.04]"
+                          : "hover:border-primary/20"
+                      }`}
+                    >
+                      {/* Before/After preview strip */}
+                      <div className="flex gap-1 mb-2">
+                        <div className={`flex-1 h-8 rounded bg-gradient-to-br ${op.beforeGradient} border border-border/50`} />
+                        <div className="flex items-center">
+                          <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/60" />
+                        </div>
+                        <div className={`flex-1 h-8 rounded bg-gradient-to-br ${op.afterGradient} border border-border/50`} />
+                      </div>
+
+                      <div className="flex items-start justify-between gap-1">
+                        <div>
+                          <p className="font-semibold text-xs sm:text-sm">{op.label}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">{op.desc}</p>
+                        </div>
+                        <Badge variant="secondary" className="text-[8px] px-1 py-0 shrink-0 mt-0.5">
+                          <Coins className="w-2 h-2 mr-0.5" />1
+                        </Badge>
+                      </div>
+
+                      {/* Expanded detail on selection */}
+                      <AnimatePresence>
+                        {isSelected && (
+                          <motion.p
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed"
+                          >
+                            {op.detail}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </Card>
+                  );
+                })}
               </div>
 
               {/* Operation-specific params */}
@@ -342,8 +434,14 @@ export default function Vintography() {
               </AnimatePresence>
 
               {/* Preview */}
-              <ComparisonView originalUrl={originalUrl} processedUrl={processedUrl} processing={processing}
-                variations={[]} currentVariation={0} onVariationChange={() => {}} />
+              <div ref={resultRef}>
+                <ComparisonView
+                  originalUrl={originalUrl} processedUrl={processedUrl}
+                  processing={processing} processingStep={processingStep}
+                  operationId={selectedOp}
+                  variations={[]} currentVariation={0} onVariationChange={() => {}}
+                />
+              </div>
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-2">
@@ -413,6 +511,7 @@ export default function Vintography() {
                       setOriginalUrl(j.original_url); setProcessedUrl(j.processed_url);
                     }}
                     onDelete={handleDeleteJob}
+                    onUseAsInput={handleUseAsInput}
                   />
                 ))}
               </div>

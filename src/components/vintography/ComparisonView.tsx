@@ -3,18 +3,58 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Loader2, ChevronRight, Columns2, Layers, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { Loader2, ChevronRight, Columns2, Layers, ZoomIn, ZoomOut, RotateCcw, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+export type ProcessingStep = "uploading" | "analysing" | "generating" | "finalising" | null;
 
 type Props = {
   originalUrl: string;
   processedUrl: string | null;
   processing: boolean;
+  processingStep?: ProcessingStep;
+  operationId?: string;
   variations: string[];
   currentVariation: number;
   onVariationChange: (idx: number) => void;
 };
 
 type ViewMode = "overlay" | "side-by-side";
+
+const PROCESSING_STEPS: { key: ProcessingStep; label: string; icon: string }[] = [
+  { key: "uploading", label: "Uploading photo…", icon: "📤" },
+  { key: "analysing", label: "AI analysing garment…", icon: "🔍" },
+  { key: "generating", label: "Generating result…", icon: "✨" },
+  { key: "finalising", label: "Finalising…", icon: "🎨" },
+];
+
+const TIPS: Record<string, string[]> = {
+  clean_bg: [
+    "Clean Background works best with high-contrast photos",
+    "For lace and transparent fabrics, use a contrasting background when photographing",
+    "Natural shadows are preserved for a grounded, professional look",
+  ],
+  lifestyle_bg: [
+    "Lifestyle mode matches your garment's lighting to the scene",
+    "Try different backgrounds — each creates a unique mood for your listing",
+    "Great for social media posts and Instagram-style product shots",
+  ],
+  virtual_model: [
+    "Virtual Model preserves all garment details like logos and prints",
+    "Try different poses to show how the garment moves and drapes",
+    "The AI creates realistic fabric physics — drape, tension, and weight",
+  ],
+  enhance: [
+    "Enhance corrects white balance and colour temperature automatically",
+    "Fabric textures become more visible with micro-contrast enhancement",
+    "Phone photos can look like professional studio shots after enhancement",
+  ],
+  default: [
+    "Each operation uses 1 credit from your monthly allowance",
+    "You can chain operations — try Clean Background then Lifestyle",
+    "Download your results or they're saved in your gallery automatically",
+  ],
+};
 
 function touchDist(a: React.Touch, b: React.Touch) {
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
@@ -44,10 +84,21 @@ const SNAP_THRESHOLD_PAN = 0.5;
 const DOUBLE_TAP_ZOOM = 2.5;
 
 export function ComparisonView({
-  originalUrl, processedUrl, processing, variations, currentVariation, onVariationChange,
+  originalUrl, processedUrl, processing, processingStep, operationId, variations, currentVariation, onVariationChange,
 }: Props) {
   const [sliderValue, setSliderValue] = useState([50]);
   const [viewMode, setViewMode] = useState<ViewMode>("overlay");
+  const [tipIndex, setTipIndex] = useState(0);
+
+  // Cycle tips during processing
+  useEffect(() => {
+    if (!processing) { setTipIndex(0); return; }
+    const tips = TIPS[operationId || "default"] || TIPS.default;
+    const interval = setInterval(() => {
+      setTipIndex((i) => (i + 1) % tips.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [processing, operationId]);
 
   // Visual (rendered) zoom/pan – animated via rAF
   const displayZoomRef = useRef(1);
@@ -79,7 +130,7 @@ export function ComparisonView({
   // Overlay swipe
   const overlaySwipeActive = useRef(false);
 
-  // ── Smart animation loop: only runs when needed ─────────────────
+  // ── Smart animation loop ─────────────────
   const animate = useCallback(() => {
     const tz = targetZoom.current;
     const tp = targetPan.current;
@@ -94,7 +145,6 @@ export function ComparisonView({
     const panDone = Math.abs(diffX) < SNAP_THRESHOLD_PAN && Math.abs(diffY) < SNAP_THRESHOLD_PAN;
 
     if (zoomDone && panDone) {
-      // Snap to target and stop
       displayZoomRef.current = tz;
       displayPanRef.current = tp;
       forceRender((c) => c + 1);
@@ -122,7 +172,6 @@ export function ComparisonView({
     return () => cancelAnimationFrame(rafId.current);
   }, []);
 
-  // ── Helpers ──────────────────────────────────────────────────────
   const getRect = () => containerRef.current?.getBoundingClientRect() ?? null;
 
   const setTargetZoom = useCallback((z: number, cursorX?: number, cursorY?: number) => {
@@ -158,7 +207,7 @@ export function ComparisonView({
     startAnimation();
   }, [startAnimation]);
 
-  // ── Mouse: pan ───────────────────────────────────────────────────
+  // ── Mouse: pan ───────────────────────────
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (targetZoom.current <= 1) return;
     e.preventDefault();
@@ -172,20 +221,13 @@ export function ComparisonView({
     const dx = e.clientX - panStart.current.x;
     const dy = e.clientY - panStart.current.y;
     const rect = getRect();
-    targetPan.current = clampPan(
-      panPanStart.current.x + dx,
-      panPanStart.current.y + dy,
-      targetZoom.current,
-      rect
-    );
+    targetPan.current = clampPan(panPanStart.current.x + dx, panPanStart.current.y + dy, targetZoom.current, rect);
     startAnimation();
   }, [startAnimation]);
 
-  const handleMouseUp = useCallback(() => {
-    isPanning.current = false;
-  }, []);
+  const handleMouseUp = useCallback(() => { isPanning.current = false; }, []);
 
-  // ── Mouse: wheel zoom (non-passive) ─────────────────────────────
+  // ── Mouse: wheel zoom ─────────────────────
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -198,16 +240,12 @@ export function ComparisonView({
     return () => el.removeEventListener("wheel", onWheel);
   }, [setTargetZoom]);
 
-  // ── Double click to zoom ─────────────────────────────────────────
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    if (targetZoom.current > 1.1) {
-      resetZoom();
-    } else {
-      setTargetZoom(DOUBLE_TAP_ZOOM, e.clientX, e.clientY);
-    }
+    if (targetZoom.current > 1.1) resetZoom();
+    else setTargetZoom(DOUBLE_TAP_ZOOM, e.clientX, e.clientY);
   }, [setTargetZoom, resetZoom]);
 
-  // ── Touch ────────────────────────────────────────────────────────
+  // ── Touch ────────────────────────────────
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       overlaySwipeActive.current = false;
@@ -216,7 +254,6 @@ export function ComparisonView({
       lastTouchMid.current = touchMid(e.touches[0], e.touches[1]);
       return;
     }
-
     if (e.touches.length === 1) {
       const now = Date.now();
       if (now - lastTapTime.current < 300) {
@@ -227,12 +264,10 @@ export function ComparisonView({
         return;
       }
       lastTapTime.current = now;
-
       if (viewMode === "overlay" && processedUrl && targetZoom.current <= 1) {
         overlaySwipeActive.current = true;
         return;
       }
-
       if (targetZoom.current > 1) {
         isTouchPanning.current = true;
         touchPanStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -251,7 +286,6 @@ export function ComparisonView({
       lastTouchMid.current = mid;
       return;
     }
-
     if (e.touches.length === 1) {
       if (overlaySwipeActive.current && containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
@@ -259,17 +293,11 @@ export function ComparisonView({
         setSliderValue([pct]);
         return;
       }
-
       if (isTouchPanning.current) {
         const dx = e.touches[0].clientX - touchPanStart.current.x;
         const dy = e.touches[0].clientY - touchPanStart.current.y;
         const rect = getRect();
-        targetPan.current = clampPan(
-          touchPanPanStart.current.x + dx,
-          touchPanPanStart.current.y + dy,
-          targetZoom.current,
-          rect
-        );
+        targetPan.current = clampPan(touchPanPanStart.current.x + dx, touchPanPanStart.current.y + dy, targetZoom.current, rect);
         startAnimation();
       }
     }
@@ -292,6 +320,9 @@ export function ComparisonView({
     transformOrigin: "center",
     willChange: isZoomed ? "transform" as const : "auto" as const,
   };
+
+  const currentStepIndex = processingStep ? PROCESSING_STEPS.findIndex(s => s.key === processingStep) : -1;
+  const tips = TIPS[operationId || "default"] || TIPS.default;
 
   return (
     <Card className="overflow-hidden">
@@ -382,11 +413,77 @@ export function ComparisonView({
           </div>
         )}
 
+        {/* ── Shimmer Skeleton Processing Overlay ── */}
         {processing && (
-          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
-            <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
-            <p className="font-semibold text-sm">AI is working its magic…</p>
-            <p className="text-xs text-muted-foreground">This usually takes 5–10 seconds</p>
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center">
+            {/* Dimmed original + shimmer sweep */}
+            <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute inset-0 animate-shimmer-sweep" style={{
+                background: "linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.08) 40%, hsl(var(--primary) / 0.15) 50%, hsl(var(--primary) / 0.08) 60%, transparent 100%)",
+                backgroundSize: "200% 100%",
+              }} />
+            </div>
+
+            {/* Content */}
+            <div className="relative z-10 flex flex-col items-center gap-4 px-6 max-w-xs text-center">
+              {/* Animated icon */}
+              <motion.div
+                animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="w-14 h-14 rounded-2xl bg-primary/15 flex items-center justify-center"
+              >
+                <Sparkles className="w-7 h-7 text-primary" />
+              </motion.div>
+
+              {/* Multi-step progress */}
+              <div className="w-full space-y-2">
+                {PROCESSING_STEPS.map((step, i) => {
+                  const isActive = i === currentStepIndex;
+                  const isDone = i < currentStepIndex;
+                  return (
+                    <motion.div
+                      key={step.key}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: isDone || isActive ? 1 : 0.35, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      className={`flex items-center gap-2 text-xs transition-colors ${isActive ? "text-primary font-semibold" : isDone ? "text-muted-foreground" : "text-muted-foreground/50"}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 transition-colors ${
+                        isDone ? "bg-primary/20 text-primary" : isActive ? "bg-primary text-primary-foreground" : "bg-muted"
+                      }`}>
+                        {isDone ? "✓" : isActive ? <Loader2 className="w-3 h-3 animate-spin" /> : step.icon}
+                      </div>
+                      <span>{step.label}</span>
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-primary rounded-full"
+                  initial={{ width: "5%" }}
+                  animate={{ width: `${Math.max(10, ((currentStepIndex + 1) / PROCESSING_STEPS.length) * 100)}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                />
+              </div>
+
+              {/* Rotating tips */}
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={tipIndex}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-[11px] text-muted-foreground italic"
+                >
+                  💡 {tips[tipIndex]}
+                </motion.p>
+              </AnimatePresence>
+            </div>
           </div>
         )}
       </div>
