@@ -113,7 +113,7 @@ export default function OptimizeListing() {
       if (data.material && !material) setMaterial(data.material);
       if (data.brand && !brand) setBrand(data.brand);
       if (data.category && !category) setCategory(data.category);
-      if (data.condition && !condition) setCondition(data.condition.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()));
+      if (data.condition && !condition) setCondition(data.condition);
       if (data.title && !currentTitle) setCurrentTitle(data.title);
       if (data.description && !currentDescription) setCurrentDescription(data.description);
       // Photos
@@ -224,8 +224,8 @@ export default function OptimizeListing() {
         const updatePayload: Record<string, any> = {
           health_score: data.health_score.overall,
           last_optimised_at: new Date().toISOString(),
-          title: data.optimised_title,
-          description: data.optimised_description,
+          optimised_title: data.optimised_title,
+          optimised_description: data.optimised_description,
         };
         if (data.detected_brand) updatePayload.brand = data.detected_brand;
         if (data.detected_category) updatePayload.category = data.detected_category;

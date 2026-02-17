@@ -72,6 +72,9 @@ export default function PriceCheck() {
   const paramBrand = searchParams.get("brand") || "";
   const paramCategory = searchParams.get("category") || "";
   const paramCondition = searchParams.get("condition") || "";
+  const paramTitle = searchParams.get("title") || "";
+  const paramSize = searchParams.get("size") || "";
+  const paramPurchasePrice = searchParams.get("purchasePrice") || "";
   const itemId = searchParams.get("itemId") || "";
   const hasManualParams = !!(paramBrand || paramCategory || paramCondition);
 
@@ -79,10 +82,12 @@ export default function PriceCheck() {
   const [brand, setBrand] = useState(paramBrand);
   const [category, setCategory] = useState(paramCategory);
   const [condition, setCondition] = useState(paramCondition);
+  const [title, setTitle] = useState(paramTitle);
+  const [size, setSize] = useState(paramSize);
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<PriceReport | null>(null);
   const [inputMode, setInputMode] = useState<"url" | "manual">(hasManualParams ? "manual" : "url");
-  const [yourCost, setYourCost] = useState("");
+  const [yourCost, setYourCost] = useState(paramPurchasePrice);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [checkingCache, setCheckingCache] = useState(false);
 
@@ -161,6 +166,8 @@ export default function PriceCheck() {
           brand: inputMode === "manual" ? brand : undefined,
           category: inputMode === "manual" ? category : undefined,
           condition: inputMode === "manual" ? condition : undefined,
+          size: size || undefined,
+          title: title || undefined,
           itemId: itemId || undefined,
         },
       });
@@ -173,11 +180,19 @@ export default function PriceCheck() {
 
       // If opened from an item, update the listing and log activity
       if (itemId && user) {
+        // Build update: always set recommended_price + last_price_check_at
+        // Also set current_price if it's currently null
+        const listingUpdate: Record<string, any> = {
+          recommended_price: data.recommended_price,
+          last_price_check_at: new Date().toISOString(),
+        };
+        // Fetch current_price to check if null
+        const { data: currentListing } = await supabase.from("listings").select("current_price").eq("id", itemId).maybeSingle();
+        if (currentListing && currentListing.current_price == null) {
+          listingUpdate.current_price = data.recommended_price;
+        }
         const updatePromises = [
-          supabase.from("listings").update({
-            recommended_price: data.recommended_price,
-            last_price_check_at: new Date().toISOString(),
-          }).eq("id", itemId).eq("user_id", user.id),
+          supabase.from("listings").update(listingUpdate).eq("id", itemId).eq("user_id", user.id),
           supabase.from("item_activity").insert({
             user_id: user.id,
             listing_id: itemId,
@@ -295,18 +310,24 @@ export default function PriceCheck() {
                 <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. T-shirt, Jacket" className="h-12 sm:h-11 text-base sm:text-sm" />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
-              <Select value={condition} onValueChange={setCondition}>
-                <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm">
-                  <SelectValue placeholder="Select condition" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CONDITION_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
+                <Input value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. M, L, UK 10" className="h-12 sm:h-11 text-base sm:text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
+                <Select value={condition} onValueChange={setCondition}>
+                  <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm">
+                    <SelectValue placeholder="Select condition" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONDITION_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <Button onClick={() => handleAnalyze()} disabled={loading} className="w-full sm:w-auto font-semibold h-12 sm:h-11 px-6 active:scale-95 transition-transform">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
@@ -334,6 +355,8 @@ export default function PriceCheck() {
               setBrand(picked.brand || "");
               setCategory(picked.category || "");
               setCondition(picked.condition || "");
+              setTitle(picked.title || "");
+              setSize(picked.size || "");
               if (picked.vinted_url) {
                 setInputMode("url");
                 checkForCachedReport(picked.vinted_url);
@@ -675,7 +698,7 @@ export default function PriceCheck() {
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
             <Button
-              onClick={() => { setReport(null); setUrl(""); setBrand(""); setCategory(""); setCondition(""); setYourCost(""); }}
+              onClick={() => { setReport(null); setUrl(""); setBrand(""); setCategory(""); setCondition(""); setSize(""); setTitle(""); setYourCost(""); }}
               variant="outline"
               className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
             >

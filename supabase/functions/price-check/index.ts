@@ -29,9 +29,10 @@ async function fetchViaPerplexity(
   category: string,
   size: string,
   condition: string,
-  perplexityKey: string
+  perplexityKey: string,
+  title?: string
 ): Promise<{ marketData: string; citations: string[] }> {
-  const itemDesc = [brand, category, size].filter(Boolean).join(" ");
+  const itemDesc = title || [brand, category, size].filter(Boolean).join(" ");
   const isNew = isNewCondition(condition);
   const conditionType = isNew ? "NEW" : "USED / pre-owned";
   const conditionNote = condition ? ` in ${conditionLabel(condition)} condition` : "";
@@ -126,7 +127,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { url, brand, category, condition, size, itemId } = await req.json();
+    const { url, brand, category, condition, size, itemId, title } = await req.json();
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Not authenticated");
@@ -166,7 +167,7 @@ serve(async (req) => {
     let itemCategory = category || "";
     let itemCondition = condition || "";
     let itemSize = size || "";
-    let itemTitle = "";
+    let itemTitle = title || "";
 
     // If a Vinted URL is provided, extract context via Firecrawl
     if (url && url.includes("vinted")) {
@@ -194,7 +195,8 @@ serve(async (req) => {
       itemCategory || itemTitle,
       itemSize,
       itemCondition,
-      perplexityKey
+      perplexityKey,
+      itemTitle
     );
 
     // --- AI Analysis via Gemini ---

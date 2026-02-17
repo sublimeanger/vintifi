@@ -27,6 +27,8 @@ type Listing = {
   last_optimised_at: string | null;
   last_photo_edit_at: string | null;
   last_price_check_at: string | null;
+  optimised_title?: string | null;
+  optimised_description?: string | null;
 };
 
 interface VintedReadyPackProps {
@@ -106,14 +108,17 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
   const isFullyReady = score != null && score >= 80;
   const isNearlyReady = score != null && score >= 60 && score < 80;
 
-  const { cleanDescription, hashtags } = item.description
-    ? extractHashtags(item.description)
+  const displayTitle = item.optimised_title || item.title;
+  const displayDescription = item.optimised_description || item.description;
+
+  const { cleanDescription, hashtags } = displayDescription
+    ? extractHashtags(displayDescription)
     : { cleanDescription: "", hashtags: [] };
 
   const allImages = getAllImages(item);
 
   const fullListingText = [
-    item.title,
+    displayTitle,
     cleanDescription,
     hashtags.length > 0 ? hashtags.join(" ") : "",
   ]
@@ -208,9 +213,9 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
               <Type className="w-3.5 h-3.5" />
               <span className="text-[10px] uppercase tracking-wider font-semibold">Title</span>
             </div>
-            <CopyButton text={item.title} label="Title" />
+            <CopyButton text={displayTitle} label="Title" />
           </div>
-          <p className="text-sm font-semibold leading-snug">{item.title}</p>
+          <p className="text-sm font-semibold leading-snug">{displayTitle}</p>
         </motion.div>
 
         {/* ── Description Section ── */}
