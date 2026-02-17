@@ -57,7 +57,13 @@ const initialData: WizardData = {
   purchasePrice: "",
 };
 
-const conditions = ["New with tags", "New without tags", "Very Good", "Good", "Satisfactory"];
+const conditions = [
+  { value: "new_with_tags", label: "New with tags" },
+  { value: "new_without_tags", label: "New without tags" },
+  { value: "very_good", label: "Very good" },
+  { value: "good", label: "Good" },
+  { value: "satisfactory", label: "Satisfactory" },
+];
 
 const categories = [
   "Tops", "T-shirts", "Shirts", "Hoodies", "Jumpers", "Jackets", "Coats",
@@ -192,6 +198,14 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
     if (!user) return;
     if (!data.title.trim()) {
       toast.error("Title is required");
+      return;
+    }
+    if (!data.condition) {
+      toast.error("Condition is required");
+      return;
+    }
+    if (data.purchasePrice === "") {
+      toast.error("Purchase price is required (enter 0 if free)");
       return;
     }
     if (listingCount >= listingLimit) {
@@ -458,14 +472,14 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition *</Label>
                   <select
                     value={data.condition}
                     onChange={(e) => update({ condition: e.target.value })}
                     className="w-full h-11 sm:h-10 px-3 rounded-md border border-input bg-background text-sm"
                   >
                     <option value="">Select...</option>
-                    {conditions.map(c => <option key={c} value={c}>{c}</option>)}
+                    {conditions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -515,7 +529,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purchase Price (£)</Label>
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purchase Price (£) *</Label>
                   <Input
                     value={data.purchasePrice}
                     onChange={(e) => update({ purchasePrice: e.target.value })}
