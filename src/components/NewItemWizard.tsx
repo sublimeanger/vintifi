@@ -305,48 +305,54 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto mt-[env(safe-area-inset-top)]">
-          <DialogHeader>
-            <DialogTitle className="font-display">
-              {step === "method" && "Add New Item"}
-              {step === "input" && (data.method === "url" ? "Paste Vinted URL" : "Upload Photos")}
-              {step === "details" && "Item Details"}
-              {step === "done" && "Item Created!"}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-lg max-h-[92dvh] flex flex-col p-0 gap-0 mt-[env(safe-area-inset-top)]">
+          {/* Sticky header */}
+          <div className="sticky top-0 z-10 bg-background border-b px-4 pt-4 pb-3 rounded-t-lg shrink-0">
+            <DialogHeader>
+              <DialogTitle className="font-display text-base">
+                {step === "method" && "Add New Item"}
+                {step === "input" && (data.method === "url" ? "Paste Vinted URL" : "Upload Photos")}
+                {step === "details" && "Item Details"}
+                {step === "done" && "Item Created!"}
+              </DialogTitle>
+            </DialogHeader>
 
-          {/* Progress dots */}
-          {step !== "done" && (
-            <div className="flex items-center justify-center gap-2 pb-2">
-              {["method", "input", "details"].map((s) => {
-                const steps = data.method === "manual" ? ["method", "details"] : ["method", "input", "details"];
-                const currentIdx = steps.indexOf(step);
-                const thisIdx = steps.indexOf(s);
-                if (thisIdx === -1) return null;
-                return (
-                  <div key={s} className={`w-2 h-2 rounded-full transition-colors ${thisIdx <= currentIdx ? "bg-primary" : "bg-muted"}`} />
-                );
-              })}
-            </div>
-          )}
+            {/* Progress dots */}
+            {step !== "done" && (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                {["method", "input", "details"].map((s) => {
+                  const steps = data.method === "manual" ? ["method", "details"] : ["method", "input", "details"];
+                  const currentIdx = steps.indexOf(step);
+                  const thisIdx = steps.indexOf(s);
+                  if (thisIdx === -1) return null;
+                  return (
+                    <div key={s} className={`w-2 h-2 rounded-full transition-colors ${thisIdx <= currentIdx ? "bg-primary" : "bg-muted"}`} />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
 
           <AnimatePresence mode="wait">
             {/* ═══ STEP 1: METHOD ═══ */}
             {step === "method" && (
-              <motion.div key="method" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-3 pt-2">
-                <p className="text-sm text-muted-foreground">How would you like to add your item?</p>
+              <motion.div key="method" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-2 pt-2">
+                <p className="text-xs text-muted-foreground">How would you like to add your item?</p>
 
                 <Card
                   onClick={() => handleMethodSelect("url")}
-                  className="p-4 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98]"
+                  className="p-3.5 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98] touch-card"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                       <Link2 className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm">Paste Vinted URL</p>
-                      <p className="text-xs text-muted-foreground">We'll pull in the details automatically</p>
+                      <p className="text-[11px] text-muted-foreground">Auto-fill details from any listing</p>
                     </div>
                     <Badge variant="secondary" className="text-[10px] shrink-0">Fastest</Badge>
                   </div>
@@ -354,30 +360,30 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
 
                 <Card
                   onClick={() => handleMethodSelect("photo")}
-                  className="p-4 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98]"
+                  className="p-3.5 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98] touch-card"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
                       <Camera className="w-5 h-5 text-accent" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm">Upload Photos</p>
-                      <p className="text-xs text-muted-foreground">Add photos and fill in the details</p>
+                      <p className="text-[11px] text-muted-foreground">Add photos and fill in the details</p>
                     </div>
                   </div>
                 </Card>
 
                 <Card
                   onClick={() => handleMethodSelect("manual")}
-                  className="p-4 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98]"
+                  className="p-3.5 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98] touch-card"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
                       <Pencil className="w-5 h-5 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm">Manual Entry</p>
-                      <p className="text-xs text-muted-foreground">Enter all details yourself</p>
+                      <p className="text-[11px] text-muted-foreground">Enter all details yourself</p>
                     </div>
                   </div>
                 </Card>
@@ -452,10 +458,10 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                 )}
 
                 <div className="flex gap-2 pt-2">
-                  <Button variant="outline" onClick={() => setStep("method")} disabled={scraping} className="h-11 active:scale-95 transition-transform">
-                    <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+                  <Button variant="outline" onClick={() => setStep("method")} disabled={scraping} className="h-12 min-w-[80px] active:scale-95 transition-transform touch-card">
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Back
                   </Button>
-                  <Button onClick={handleInputNext} disabled={scraping} className="flex-1 h-11 font-semibold active:scale-95 transition-transform">
+                  <Button onClick={handleInputNext} disabled={scraping} className="flex-1 h-12 font-semibold active:scale-95 transition-transform touch-card">
                     {scraping ? (
                       <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Detecting details...</>
                     ) : (
@@ -468,7 +474,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
 
             {/* ═══ STEP 3: DETAILS ═══ */}
             {step === "details" && (
-              <motion.div key="details" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-4 pt-2">
+              <motion.div key="details" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-3 pt-1">
 
                 {/* ── Guided Photo Upload Section ── */}
                 <div ref={photoSectionRef} className="space-y-3">
@@ -478,7 +484,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   {hasAnyPhotos ? (
                     <div className="space-y-2">
                       {/* Primary photo — large */}
-                      <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted border-2 border-primary/20">
+                      <div className="relative aspect-[4/3] sm:aspect-[4/3] max-h-[200px] sm:max-h-none rounded-xl overflow-hidden bg-muted border-2 border-primary/20">
                         <img src={data.photoUrls[0]} alt="Main photo" className="w-full h-full object-contain" />
                         <div className="absolute top-2 left-2 flex items-center gap-1.5">
                           <Badge className="text-[9px] font-bold">Main Photo</Badge>
@@ -536,11 +542,11 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                     <div className="space-y-2">
                       <Card
                         onClick={() => fileInputRef.current?.click()}
-                        className="border-2 border-dashed border-primary/20 hover:border-primary/40 cursor-pointer p-6 text-center transition-colors"
+                        className="border-2 border-dashed border-primary/20 hover:border-primary/40 cursor-pointer p-4 text-center transition-colors touch-card"
                       >
                         <div className="flex flex-col items-center gap-2">
-                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                            <ImageIcon className="w-6 h-6 text-primary" />
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <ImageIcon className="w-5 h-5 text-primary" />
                           </div>
                           <div>
                             <p className="text-sm font-semibold">Add Main Photo</p>
@@ -569,7 +575,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   />
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
                   <Input
                     value={data.title}
@@ -580,8 +586,8 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
                     <Input
                       value={data.brand}
@@ -590,7 +596,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                       className="h-11 sm:h-10 text-base sm:text-sm"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
                     <Input
                       value={data.size}
@@ -601,8 +607,8 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
                     <select
                       value={data.category}
@@ -613,7 +619,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                       {categories.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition *</Label>
                     <select
                       value={data.condition}
@@ -626,8 +632,8 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Colour</Label>
                     <Input
                       value={data.colour}
@@ -636,7 +642,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                       className="h-11 sm:h-10 text-base sm:text-sm"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Material</Label>
                     <Input
                       value={data.material}
@@ -647,19 +653,19 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</Label>
                   <Textarea
                     value={data.description}
                     onChange={(e) => update({ description: e.target.value })}
                     placeholder="Describe your item (optional — AI can generate this later)"
-                    rows={3}
+                    rows={2}
                     className="text-sm resize-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Listing Price (£)</Label>
                     <Input
                       value={data.currentPrice}
@@ -670,7 +676,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                       className="h-11 sm:h-10 text-base sm:text-sm"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purchase Price (£) *</Label>
                     <Input
                       value={data.purchasePrice}
@@ -683,18 +689,18 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-1 pb-1 sticky bottom-0 bg-background">
                   <Button
                     variant="outline"
                     onClick={() => setStep(data.method === "manual" ? "method" : "input")}
-                    className="h-11 active:scale-95 transition-transform"
+                    className="h-12 min-w-[80px] active:scale-95 transition-transform touch-card"
                   >
-                    <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Back
                   </Button>
                   <Button
                     onClick={handleSave}
                     disabled={saving || uploading}
-                    className="flex-1 h-11 font-semibold active:scale-95 transition-transform"
+                    className="flex-1 h-12 font-semibold active:scale-95 transition-transform touch-card"
                   >
                     {saving || uploading ? (
                       <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {uploading ? "Uploading..." : "Saving..."}</>
@@ -708,9 +714,9 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
 
             {/* ═══ STEP 4: DONE ═══ */}
             {step === "done" && (
-              <motion.div key="done" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="text-center py-6 space-y-5">
-                <div className="w-16 h-16 rounded-2xl bg-success/10 flex items-center justify-center mx-auto">
-                  <Check className="w-8 h-8 text-success" />
+              <motion.div key="done" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="text-center py-4 space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto">
+                  <Check className="w-7 h-7 text-success" />
                 </div>
                 <div>
                   <p className="font-display font-bold text-lg">{data.title}</p>
@@ -721,7 +727,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   {createdItemId && (
                     <Button
                       onClick={() => { handleClose(false); navigate(`/items/${createdItemId}`); }}
-                      className="w-full h-11 font-semibold active:scale-95 transition-transform"
+                      className="w-full h-12 font-semibold active:scale-95 transition-transform touch-card"
                     >
                       <Package className="w-4 h-4 mr-2" /> View Item
                     </Button>
@@ -742,7 +748,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                         if (data.url) params.set("url", data.url);
                         navigate(`/price-check?${params.toString()}`);
                       }}
-                      className="w-full h-11 active:scale-95 transition-transform"
+                      className="w-full h-12 active:scale-95 transition-transform touch-card"
                     >
                       <Zap className="w-4 h-4 mr-2" /> Run Price Check
                     </Button>
@@ -750,7 +756,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   <Button
                     variant="ghost"
                     onClick={reset}
-                    className="w-full h-11 active:scale-95 transition-transform text-muted-foreground"
+                    className="w-full h-12 active:scale-95 transition-transform text-muted-foreground touch-card"
                   >
                     <Plus className="w-4 h-4 mr-2" /> Add Another Item
                   </Button>
@@ -758,6 +764,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
               </motion.div>
             )}
           </AnimatePresence>
+          </div>{/* end scrollable body */}
         </DialogContent>
       </Dialog>
 
