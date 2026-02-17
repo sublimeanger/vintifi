@@ -342,7 +342,7 @@ export default function Listings() {
 
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-3 mb-4 sm:mb-6">
+      <div className="grid grid-cols-4 gap-1 sm:gap-3 mb-3 sm:mb-6">
         {[
           { label: "Total", value: stats.total.toString(), icon: Package, tint: "" },
           { label: "Active", value: stats.active.toString(), icon: TrendingUp, tint: "border-success/10 bg-success/[0.03]" },
@@ -350,12 +350,12 @@ export default function Listings() {
           { label: "Health", value: stats.avgHealth !== null ? `${stats.avgHealth}%` : "—", icon: Heart, tint: "border-accent/10 bg-accent/[0.03]" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-            <Card className={`p-2 sm:p-4 rounded-xl ${s.tint}`}>
-              <div className="flex items-center gap-1 mb-0.5">
+            <Card className={`p-1.5 sm:p-4 rounded-xl ${s.tint}`}>
+              <div className="flex items-center gap-0.5 sm:gap-1 mb-0.5">
                 <s.icon className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
-                <span className="text-[8px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">{s.label}</span>
+                <span className="text-[7px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">{s.label}</span>
               </div>
-              <p className="font-display text-lg sm:text-2xl font-bold leading-tight">{s.value}</p>
+              <p className="font-display text-base sm:text-2xl font-bold leading-tight">{s.value}</p>
             </Card>
           </motion.div>
         ))}
@@ -363,8 +363,8 @@ export default function Listings() {
 
       {/* Listing Limit Indicator */}
       {!isUnlimited && (
-        <Card className={`p-3 sm:p-4 mb-5 sm:mb-6 ${stats.active >= listingLimit ? "border-destructive/30 bg-destructive/[0.03]" : "border-border"}`}>
-          <div className="flex items-center justify-between mb-2">
+        <Card className={`p-2.5 sm:p-4 mb-3 sm:mb-6 ${stats.active >= listingLimit ? "border-destructive/30 bg-destructive/[0.03]" : "border-border"}`}>
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Active Listings: {stats.active} of {listingLimit}
             </span>
@@ -380,8 +380,8 @@ export default function Listings() {
 
       {/* Monthly Import Allowance */}
       {!isImportUnlimited && (
-        <Card className={`p-3 sm:p-4 mb-5 sm:mb-6 ${importRemaining <= 0 ? "border-destructive/30 bg-destructive/[0.03]" : "border-border"}`}>
-          <div className="flex items-center justify-between mb-2">
+        <Card className={`p-2.5 sm:p-4 mb-3 sm:mb-6 ${importRemaining <= 0 ? "border-destructive/30 bg-destructive/[0.03]" : "border-border"}`}>
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Monthly Imports: {importsThisMonth} of {importLimit}
             </span>
@@ -401,18 +401,18 @@ export default function Listings() {
       {/* P&L Summary — collapsible */}
       {(totalPurchaseCost > 0 || totalRevenue > 0) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <details className="mb-5 sm:mb-6">
+          <details className="mb-3 sm:mb-6">
             <summary className="cursor-pointer">
-              <Card className="p-4 border-primary/20 bg-primary/[0.02] inline-flex items-center gap-2 w-full">
-                <PoundSterling className="w-4 h-4 text-primary" />
-                <span className="font-display font-bold text-sm">P&L Summary</span>
+              <Card className="p-2.5 sm:p-4 border-primary/20 bg-primary/[0.02] inline-flex items-center gap-1.5 sm:gap-2 w-full">
+                <PoundSterling className="w-3.5 h-3.5 text-primary" />
+                <span className="font-display font-bold text-xs sm:text-sm">P&L</span>
                 <span className="text-xs text-muted-foreground ml-auto">
                   {totalProfit >= 0 ? "+" : ""}£{totalProfit.toFixed(0)} profit
                 </span>
               </Card>
             </summary>
-            <Card className="p-4 mt-1 border-primary/20 bg-primary/[0.02]">
-              <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            <Card className="p-2.5 sm:p-4 mt-1 border-primary/20 bg-primary/[0.02]">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 <div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Invested</p>
                   <p className="font-display font-bold text-base sm:text-lg">£{totalPurchaseCost.toFixed(0)}</p>
@@ -436,12 +436,12 @@ export default function Listings() {
       {/* Dead Stock Alert — with actions */}
       {deadStockListings.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="p-4 mb-5 sm:mb-6 border-destructive/30 bg-destructive/[0.03]">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+          <Card className="p-2.5 sm:p-4 mb-3 sm:mb-6 border-destructive/30 bg-destructive/[0.03]">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
               <div className="min-w-0 flex-1">
-                <h3 className="font-display font-bold text-sm text-destructive">
-                  {deadStockListings.length} Dead Stock Item{deadStockListings.length > 1 ? "s" : ""}
+                <h3 className="font-display font-bold text-xs sm:text-sm text-destructive">
+                  {deadStockListings.length} Dead Stock
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   Listed for 30+ days. Consider reducing prices, relisting, or bundling.
@@ -475,7 +475,7 @@ export default function Listings() {
       )}
 
       {/* Search & Filters */}
-      <div className="flex gap-1.5 sm:gap-3 mb-4 sm:mb-6">
+      <div className="flex gap-1.5 sm:gap-3 mb-3 sm:mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
@@ -492,7 +492,7 @@ export default function Listings() {
 
       {/* Status Chips */}
       {listings.length > 0 && (
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide mb-4 -mx-1 px-1 pb-1">
+        <div className="flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide mb-3 -mx-1 px-1 pb-1">
           {["all", "active", "needs_optimising", "sold", "reserved", "inactive"].map(s => {
             const count = s === "all"
               ? listings.length
@@ -543,10 +543,10 @@ export default function Listings() {
           )}
         </motion.div>
       ) : (
-        <div className="space-y-2 sm:space-y-3">
+        <div className="space-y-1.5 sm:space-y-3">
           {/* Bulk Action Bar */}
           {filteredListings.length > 0 && (
-            <div className="flex items-center gap-3 px-3 py-2 rounded-lg border border-border bg-muted/30">
+            <div className="flex items-center gap-2 sm:gap-3 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-border bg-muted/30">
               <Checkbox
                 checked={selectedIds.size === filteredListings.length && filteredListings.length > 0}
                 onCheckedChange={toggleSelectAll}
@@ -586,14 +586,14 @@ export default function Listings() {
                   <Card className={`overflow-hidden transition-all rounded-xl ${isDeadStock ? "border-destructive/30 bg-destructive/[0.01]" : ""} hover:shadow-md`}>
                     {/* Collapsed row — clickable */}
                     <div
-                      className="p-2.5 sm:p-4 cursor-pointer active:bg-muted/20 transition-colors"
+                      className="p-2 sm:p-4 cursor-pointer active:bg-muted/20 transition-colors touch-card"
                       onClick={(e) => {
                         const target = e.target as HTMLElement;
                         if (target.closest("button, input, select, [role='menuitem'], [data-radix-collection-item]")) return;
                         navigate(`/items/${listing.id}`);
                       }}
                     >
-                        <div className="flex items-start gap-2 sm:gap-3">
+                        <div className="flex items-start gap-1.5 sm:gap-3">
                          {/* Selection checkbox */}
                          <div className="pt-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                            <Checkbox
@@ -603,7 +603,7 @@ export default function Listings() {
                            />
                          </div>
                          {/* Image */}
-                        <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
+                        <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
                           {listing.image_url ? (
                             <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
                           ) : (
@@ -700,10 +700,10 @@ export default function Listings() {
                           </div>
 
                           {/* Metrics Row */}
-                          <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2.5 flex-wrap">
+                          <div className="flex items-center gap-1.5 sm:gap-3 mt-1 sm:mt-2.5 flex-wrap">
                             {listing.current_price != null && (
-                              <span className="font-display font-bold text-sm">
-                                £{listing.current_price.toFixed(2)}
+                              <span className="font-display font-bold text-xs sm:text-sm">
+                                £{listing.current_price.toFixed(0)}
                               </span>
                             )}
 
