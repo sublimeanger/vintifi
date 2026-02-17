@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
   Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock,
-  RefreshCw, Coins, Package, Info, X,
+  RefreshCw, Coins, Package, Info, X, Plus,
 } from "lucide-react";
 
 import { CreditBar } from "@/components/vintography/CreditBar";
@@ -621,24 +621,11 @@ export default function Vintography() {
                   ) : (
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold">Save & Continue</p>
-                        <p className="text-xs text-muted-foreground">Save this photo to your inventory and optimise the listing.</p>
+                        <p className="text-sm font-semibold">Add to Your Inventory</p>
+                        <p className="text-xs text-muted-foreground">Create an item with this photo and continue the workflow.</p>
                       </div>
-                      <Button size="sm" onClick={async () => {
-                        if (!user) return;
-                        const { data: newItem, error } = await supabase.from("listings").insert({
-                          user_id: user.id,
-                          title: "New Item",
-                          image_url: processedUrl,
-                          images: [processedUrl] as any,
-                          last_photo_edit_at: new Date().toISOString(),
-                          status: "draft",
-                        }).select("id").single();
-                        if (error || !newItem) { toast.error("Failed to save"); return; }
-                        toast.success("Saved!");
-                        navigate(`/optimize?itemId=${newItem.id}`);
-                      }} className="shrink-0">
-                        <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Save & Optimise
+                      <Button size="sm" onClick={() => navigate("/listings")} className="shrink-0">
+                        <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Item
                       </Button>
                     </div>
                   )}
