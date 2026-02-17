@@ -659,7 +659,7 @@ export default function PriceCheck() {
                     recommended_price: report.recommended_price,
                     last_price_check_at: new Date().toISOString(),
                     vinted_url: url || null,
-                    status: "active",
+                    status: "draft",
                   }).select("id").single();
                   if (error || !newItem) { toast.error("Failed to save"); return; }
                   // Link price report to new listing

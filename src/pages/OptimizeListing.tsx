@@ -4,17 +4,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Loader2, Sparkles, Copy, Check, Save,
-  ImagePlus, X, Camera, Link, ExternalLink, Tag, ChevronDown,
-  ClipboardCopy, Download, Package, ArrowRight,
+  Camera, Tag, ChevronDown,
+  ClipboardCopy, Package, ArrowRight, Plus,
 } from "lucide-react";
 import { HealthScoreGauge } from "@/components/HealthScoreGauge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -53,12 +51,8 @@ export default function OptimizeListing() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, session, profile, credits, refreshCredits } = useAuth();
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [remotePhotoUrls, setRemotePhotoUrls] = useState<string[]>([]);
   const [loadingItemPhotos, setLoadingItemPhotos] = useState(false);
-  const [vintedUrl, setVintedUrl] = useState(searchParams.get("vintedUrl") || "");
-  const [fetchingFromUrl, setFetchingFromUrl] = useState(false);
   const [brand, setBrand] = useState(searchParams.get("brand") || "");
   const [category, setCategory] = useState(searchParams.get("category") || "");
   const [size, setSize] = useState(searchParams.get("size") || "");
@@ -70,9 +64,7 @@ export default function OptimizeListing() {
   const [optimizing, setOptimizing] = useState(false);
   const [result, setResult] = useState<OptimiseResult | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [manualFieldsOpen, setManualFieldsOpen] = useState(false);
   const [autoStartReady, setAutoStartReady] = useState(false);
   const resultsRef = useCallback((node: HTMLDivElement | null) => {
     if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -80,17 +72,9 @@ export default function OptimizeListing() {
 
   const itemId = searchParams.get("itemId");
 
-  // Auto-expand manual fields if pre-populated from params (not URL mode)
-  useEffect(() => {
-    if (!vintedUrl && (brand || category || currentTitle)) {
-      setManualFieldsOpen(true);
-    }
-  }, []);
-
-  // Sprint 7: Auto-start when arriving from ItemDetail with photos loaded
+  // Auto-start when arriving from ItemDetail with photos loaded
   useEffect(() => {
     if (!itemId || !user || result || optimizing) return;
-    // Wait for photos to load, then mark as ready
     if (remotePhotoUrls.length > 0 && !autoStartReady) {
       setAutoStartReady(true);
     }
@@ -107,7 +91,6 @@ export default function OptimizeListing() {
         .eq("id", itemId)
         .maybeSingle();
       if (!data) { setLoadingItemPhotos(false); return; }
-      // Populate metadata from DB if not already set via search params
       if (data.size && !size) setSize(data.size);
       if (data.colour && !colour) setColour(data.colour);
       if (data.material && !material) setMaterial(data.material);
@@ -116,7 +99,6 @@ export default function OptimizeListing() {
       if (data.condition && !condition) setCondition(data.condition);
       if (data.title && !currentTitle) setCurrentTitle(data.title);
       if (data.description && !currentDescription) setCurrentDescription(data.description);
-      // Photos
       const urls: string[] = [];
       if (data.image_url) urls.push(data.image_url);
       if (Array.isArray(data.images)) {
@@ -130,57 +112,11 @@ export default function OptimizeListing() {
     })();
   }, [itemId]);
 
-  const handlePhotoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (photos.length + files.length > 4) {
-      toast.error("Maximum 4 photos allowed");
-      return;
-    }
-    const newPhotos = [...photos, ...files].slice(0, 4);
-    setPhotos(newPhotos);
-    setPhotoPreviewUrls(newPhotos.map((f) => URL.createObjectURL(f)));
-  }, [photos]);
-
-  const removePhoto = (index: number) => {
-    const newPhotos = photos.filter((_, i) => i !== index);
-    setPhotos(newPhotos);
-    setPhotoPreviewUrls(newPhotos.map((f) => URL.createObjectURL(f)));
-  };
-
-  const handleFetchFromVintedUrl = async () => {
-    if (!vintedUrl.trim() || !vintedUrl.includes("vinted")) {
-      toast.error("Enter a valid Vinted listing URL");
-      return;
-    }
-    setFetchingFromUrl(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("optimize-listing", {
-        body: { vintedUrl: vintedUrl.trim(), fetchOnly: true },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (data?.photos && data.photos.length > 0) {
-        setRemotePhotoUrls(data.photos);
-        toast.success(`Found ${data.photos.length} photo(s) from listing`);
-      }
-      if (data?.title) setCurrentTitle(data.title);
-      if (data?.brand) setBrand(data.brand);
-      if (data?.description) setCurrentDescription(data.description);
-      if (data?.category) setCategory(data.category);
-      if (data?.size) setSize(data.size);
-      if (data?.condition) setCondition(data.condition);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to fetch listing details");
-    } finally {
-      setFetchingFromUrl(false);
-    }
-  };
-
   const handleOptimize = async () => {
     if (!user || !session) return;
     const allPhotoUrls = [...remotePhotoUrls];
-    if (photos.length === 0 && allPhotoUrls.length === 0 && !currentTitle.trim() && !brand.trim()) {
-      toast.error("Please upload photos or enter item details");
+    if (allPhotoUrls.length === 0 && !currentTitle.trim() && !brand.trim()) {
+      toast.error("This item needs photos or details before optimising");
       return;
     }
 
@@ -188,15 +124,6 @@ export default function OptimizeListing() {
     setResult(null);
 
     try {
-      for (const photo of photos) {
-        const ext = photo.name.split(".").pop();
-        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("listing-photos").upload(path, photo);
-        if (uploadError) { console.error("Upload error:", uploadError); continue; }
-        const { data: urlData } = supabase.storage.from("listing-photos").getPublicUrl(path);
-        allPhotoUrls.push(urlData.publicUrl);
-      }
-
       const { data, error } = await supabase.functions.invoke("optimize-listing", {
         body: {
           photoUrls: allPhotoUrls,
@@ -271,47 +198,7 @@ export default function OptimizeListing() {
     toast.success("Full listing copied — paste into Vinted!");
   };
 
-  const handleSaveAsListing = async () => {
-    if (!result || !user) return;
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("listings").insert({
-        user_id: user.id,
-        title: result.optimised_title,
-        description: result.optimised_description,
-        brand: result.detected_brand || brand || null,
-        category: result.detected_category || category || null,
-        condition: result.detected_condition || condition || null,
-        colour: result.detected_colour || null,
-        material: result.detected_material || null,
-        size: size || null,
-        health_score: result.health_score.overall,
-        image_url: remotePhotoUrls[0] || null,
-        status: "active",
-      } as any);
-      if (error) throw error;
-      toast.success("Saved to My Items!");
-      // Navigate to the newly created item — fetch it first
-      const { data: newItems } = await supabase
-        .from("listings")
-        .select("id")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (newItems && newItems.length > 0) {
-        navigate(`/items/${newItems[0].id}`);
-      } else {
-        navigate("/listings");
-      }
-    } catch (e: any) {
-      toast.error("Failed to save listing");
-      console.error(e);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const allPhotos = [...remotePhotoUrls, ...photoPreviewUrls];
+  const allPhotos = [...remotePhotoUrls];
 
   return (
     <PageShell title="AI Listing Optimiser" subtitle="Create the perfect Vinted listing" maxWidth="max-w-6xl">
@@ -381,20 +268,16 @@ export default function OptimizeListing() {
                 {copiedField === "all" ? <Check className="w-4 h-4 mr-2" /> : <ClipboardCopy className="w-4 h-4 mr-2" />}
                 {copiedField === "all" ? "Copied!" : "Copy Full Listing"}
               </Button>
-              {!itemId && (
-                <Button variant="outline" onClick={handleSaveAsListing} disabled={saving} className="h-11 active:scale-95 transition-transform">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                  Save to Items
+              {itemId && (
+                <Button variant="outline" onClick={() => navigate(`/vintography?itemId=${itemId}`)} className="h-11 active:scale-95 transition-transform">
+                  <Camera className="w-4 h-4 mr-2" />
+                  Enhance Photos
                 </Button>
               )}
-              <Button variant="outline" onClick={() => navigate(itemId ? `/vintography?itemId=${itemId}` : `/vintography`)} className="h-11 active:scale-95 transition-transform">
-                <Camera className="w-4 h-4 mr-2" />
-                Enhance Photos
-              </Button>
             </div>
           </Card>
 
-          {/* Health Score Breakdown — prominent */}
+          {/* Health Score Breakdown */}
           {result.health_score && (
             <Card className="p-4 sm:p-5">
               <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Health Score Breakdown</Label>
@@ -481,15 +364,17 @@ export default function OptimizeListing() {
                   </div>
                 ))}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-3 h-9 text-xs active:scale-95 transition-transform"
-                onClick={() => navigate(itemId ? `/vintography?itemId=${itemId}` : `/vintography`)}
-              >
-                <Camera className="w-3.5 h-3.5 mr-1.5" />
-                Enhance these photos in Photo Studio
-              </Button>
+              {itemId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-3 h-9 text-xs active:scale-95 transition-transform"
+                  onClick={() => navigate(`/vintography?itemId=${itemId}`)}
+                >
+                  <Camera className="w-3.5 h-3.5 mr-1.5" />
+                  Enhance these photos in Photo Studio
+                </Button>
+              )}
             </Card>
           )}
 
@@ -559,7 +444,7 @@ export default function OptimizeListing() {
           </div>
         </motion.div>
       ) : !optimizing ? (
-        /* Sprint 7: Auto-start card when item context is ready */
+        /* Auto-start card when item context is ready */
         autoStartReady && itemId ? (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
             <Card className="p-5 sm:p-6 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent text-center">
@@ -574,184 +459,55 @@ export default function OptimizeListing() {
               <Button onClick={handleOptimize} className="h-12 sm:h-11 font-semibold px-8 active:scale-95 transition-transform">
                 <Sparkles className="w-4 h-4 mr-2" /> Optimise Now
               </Button>
-              <div className="mt-3">
-                <button onClick={() => setAutoStartReady(false)} className="text-xs text-muted-foreground hover:underline">
-                  Edit details manually instead
-                </button>
+            </Card>
+          </motion.div>
+        ) : itemId && loadingItemPhotos ? (
+          /* Loading item data */
+          <div className="max-w-2xl mx-auto">
+            <Card className="p-6 text-center">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Loading item data…</p>
+            </Card>
+          </div>
+        ) : !itemId ? (
+          /* No itemId — prompt to pick or add an item */
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto">
+            <Card className="p-8 sm:p-10 text-center border-border/50">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="w-7 h-7 text-primary" />
+              </div>
+              <h2 className="font-display font-bold text-lg sm:text-xl mb-2">Pick an item to optimise</h2>
+              <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+                Select an item from your inventory to generate an AI-optimised title, description, and hashtags.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <ItemPickerDialog onSelect={(picked) => {
+                  const params = new URLSearchParams({ itemId: picked.id });
+                  navigate(`/optimize?${params.toString()}`, { replace: true });
+                }}>
+                  <Button variant="outline" className="h-12 sm:h-11 px-6 active:scale-95 transition-transform">
+                    <Package className="w-4 h-4 mr-2" />
+                    Pick from My Items
+                  </Button>
+                </ItemPickerDialog>
+                <Button onClick={() => navigate("/listings")} className="h-12 sm:h-11 px-6 active:scale-95 transition-transform">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Item
+                </Button>
               </div>
             </Card>
           </motion.div>
         ) : (
-        /* Input Form — URL-first with collapsible manual fields */
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
-          <Card className="p-4 sm:p-6 border-border/50">
-            {/* Vinted URL Import — hero input */}
-            <div className="mb-5 sm:mb-6">
-              <h2 className="font-display font-bold text-sm sm:text-lg mb-3 flex items-center gap-2">
-                <Link className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                Import from Vinted URL
-              </h2>
-              <div className="flex gap-2">
-                <Input
-                  value={vintedUrl}
-                  onChange={(e) => setVintedUrl(e.target.value)}
-                  placeholder="https://www.vinted.co.uk/items/..."
-                  className="h-12 sm:h-11 text-base sm:text-sm flex-1"
-                  autoFocus={!itemId && !brand}
-                />
-                <Button
-                  variant="outline"
-                  onClick={handleFetchFromVintedUrl}
-                  disabled={fetchingFromUrl || !vintedUrl.trim()}
-                  className="h-12 sm:h-11 shrink-0 active:scale-95 transition-transform"
-                >
-                  {fetchingFromUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ExternalLink className="w-4 h-4 mr-1" /> Fetch</>}
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1.5">Paste a Vinted listing URL to auto-import photos &amp; details</p>
-              {/* Sprint 6: Pick from items */}
-              {!itemId && (
-                <div className="mt-1.5">
-                  <ItemPickerDialog onSelect={(picked) => {
-                    const params = new URLSearchParams({ itemId: picked.id });
-                    if (picked.title) params.set("title", picked.title);
-                    if (picked.brand) params.set("brand", picked.brand);
-                    if (picked.category) params.set("category", picked.category);
-                    if (picked.condition) params.set("condition", picked.condition);
-                    if (picked.size) params.set("size", picked.size!);
-                    if ((picked as any).colour) params.set("colour", (picked as any).colour);
-                    if ((picked as any).material) params.set("material", (picked as any).material);
-                    // Navigate with replace and reset state instead of reloading
-                    navigate(`/optimize?${params.toString()}`, { replace: true });
-                    setResult(null);
-                    setPhotos([]);
-                    setPhotoPreviewUrls([]);
-                    setRemotePhotoUrls([]);
-                    setCurrentTitle(picked.title || "");
-                    setBrand(picked.brand || "");
-                    setCategory(picked.category || "");
-                    setCondition(picked.condition || "");
-                    setSize(picked.size || "");
-                    setColour((picked as any).colour || "");
-                    setMaterial((picked as any).material || "");
-                    setVintedUrl("");
-                    setAutoStartReady(false);
-                  }}>
-                    <button className="text-xs text-primary hover:underline font-medium">
-                      or pick from your items
-                    </button>
-                  </ItemPickerDialog>
-                </div>
-              )}
-            </div>
-            {loadingItemPhotos && (
-              <div className="mb-4 sm:mb-5">
-                <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                  {[1, 2, 3].map(i => <div key={i} className="aspect-square rounded-xl bg-muted animate-pulse" />)}
-                </div>
-              </div>
-            )}
-
-            {!loadingItemPhotos && remotePhotoUrls.length > 0 && (
-              <div className="mb-4 sm:mb-5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-success mb-2 block">
-                  ✓ Imported Photos ({remotePhotoUrls.length})
-                </Label>
-                <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                  {remotePhotoUrls.map((url, i) => (
-                    <div key={`remote-${i}`} className="relative aspect-square rounded-xl overflow-hidden border-2 border-success/30 bg-muted">
-                      <img src={url} alt={`Imported ${i + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => setRemotePhotoUrls(prev => prev.filter((_, j) => j !== i))}
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center active:scale-90 transition-transform"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Photo Upload */}
-            <div className="mb-4 sm:mb-5">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                {remotePhotoUrls.length > 0 ? "Add More Photos" : "Photos (up to 4)"}
-              </Label>
-              <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                {photoPreviewUrls.map((url, i) => (
-                  <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-border bg-muted">
-                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                    <button onClick={() => removePhoto(i)} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center active:scale-90 transition-transform">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-                {photos.length < 4 && (
-                  <label className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 active:border-primary flex flex-col items-center justify-center cursor-pointer transition-colors bg-muted/30">
-                    <ImagePlus className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground mb-0.5" />
-                    <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Add</span>
-                    <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
-                  </label>
-                )}
-              </div>
-            </div>
-
-            {/* Collapsible Manual Fields */}
-            <Collapsible open={manualFieldsOpen} onOpenChange={setManualFieldsOpen}>
-              <CollapsibleTrigger asChild>
-                <button className="flex items-center gap-2 w-full py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors mb-2">
-                  <ChevronDown className={`w-4 h-4 transition-transform ${manualFieldsOpen ? "rotate-180" : ""}`} />
-                  {manualFieldsOpen ? "Hide Details" : "Add details manually"}
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-2.5 sm:space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Title</Label>
-                  <Input value={currentTitle} onChange={(e) => setCurrentTitle(e.target.value)} placeholder="e.g. Nike trainers size 9" className="h-11 sm:h-10 text-base sm:text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Description</Label>
-                  <Textarea value={currentDescription} onChange={(e) => setCurrentDescription(e.target.value)} placeholder="Paste your existing listing description..." rows={3} className="text-base sm:text-sm" />
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
-                    <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Nike" className="h-11 sm:h-10 text-base sm:text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
-                    <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Trainers" className="h-11 sm:h-10 text-base sm:text-sm" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
-                    <Input value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. UK 9" className="h-11 sm:h-10 text-base sm:text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
-                    <Input value={condition.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())} readOnly className="h-11 sm:h-10 text-base sm:text-sm bg-muted/50 cursor-default" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Colour</Label>
-                    <Input value={colour} onChange={(e) => setColour(e.target.value)} placeholder="e.g. Black" className="h-11 sm:h-10 text-base sm:text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Material</Label>
-                    <Input value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="e.g. Cotton" className="h-11 sm:h-10 text-base sm:text-sm" />
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-
-            <Button onClick={handleOptimize} disabled={optimizing} className="w-full mt-4 sm:mt-5 font-semibold h-12 sm:h-11 active:scale-95 transition-transform">
-              <Sparkles className="w-4 h-4 mr-2" /> Optimise Listing
-            </Button>
-          </Card>
-        </motion.div>
+          /* itemId present but no photos loaded yet and not loading — show optimise button */
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
+            <Card className="p-5 sm:p-6 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent text-center">
+              <p className="font-display font-bold text-base sm:text-lg mb-1">{currentTitle || brand || "Your Item"}</p>
+              <p className="text-xs text-muted-foreground mb-4">{[brand, category, size].filter(Boolean).join(" · ") || "Ready to optimise"}</p>
+              <Button onClick={handleOptimize} className="h-12 sm:h-11 font-semibold px-8 active:scale-95 transition-transform">
+                <Sparkles className="w-4 h-4 mr-2" /> Optimise Now
+              </Button>
+            </Card>
+          </motion.div>
         )
       ) : null}
 
