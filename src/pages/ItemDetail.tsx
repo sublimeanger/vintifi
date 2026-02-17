@@ -699,7 +699,9 @@ export default function ItemDetail() {
               </div>
             </Card>
           ) : (
-            <VintedReadyPack item={item} onOptimise={handleOptimise} onPhotoStudio={handlePhotoStudio} />
+          (item.image_url || (Array.isArray(item.images) && (item.images as any[]).length > 0)) && (
+              <VintedReadyPack item={item} onOptimise={handleOptimise} onPhotoStudio={handlePhotoStudio} />
+            )
           )}
         </TabsContent>
       </Tabs>
