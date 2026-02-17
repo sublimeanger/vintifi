@@ -199,6 +199,26 @@ IMPORTANT INSTRUCTIONS:
 5. Calculate FEES: estimated_fees ~5% of resale, estimated_shipping £3-5.
 6. net_profit_estimate = estimated_resale - estimated_fees - estimated_shipping
 
+═══════════════════════════════════════════
+AI INSIGHTS — STRICT REQUIREMENTS
+═══════════════════════════════════════════
+The "ai_insights" field MUST contain exactly 3 focused paragraphs separated by \\n\\n:
+
+PARAGRAPH 1 — MARKET POSITION (2-3 sentences):
+Where this SPECIFIC item sits in the current market RIGHT NOW. Reference actual comparable prices from the data above. State how many comparable listings are currently active and whether the market is saturated or underserved for this exact item. Every sentence must contain a specific number from the data.
+
+PARAGRAPH 2 — PRICING STRATEGY (2-3 sentences):
+Concrete, actionable advice with specific numbers. Example format: "List at £X for the first 7 days. If no sale, drop to £Y. Accept offers above £Z." Include the best day and time to list based on the category (weekday evenings for menswear, Sunday evenings for womenswear, Saturday mornings for kids). State whether to accept offers immediately or hold firm for the first week.
+
+PARAGRAPH 3 — SELLER EDGE (1-2 sentences):
+One specific competitive insight that gives the seller an advantage. Examples: "Only 3 of these in size M are currently listed on Vinted UK" or "Nike crewnecks have seen a 20% price increase over the last 30 days" or "Bundle with another Nike item — bundled listings sell 40% faster on Vinted." This must be data-backed and specific to THIS item.
+
+ABSOLUTE CONSTRAINTS FOR AI INSIGHTS:
+- Your insights must ONLY reference the specific item being priced and the comparable data provided above.
+- NEVER mention unrelated categories, items, or markets (no board games, no electronics, no furniture).
+- Every sentence must contain a specific number, price, date, or actionable recommendation.
+- If the data is limited, say so honestly — do NOT fill gaps with generic advice or unrelated information.
+
 Return a JSON object (no markdown, just raw JSON) with this exact structure:
 {
   "recommended_price": <number in GBP>,
@@ -226,7 +246,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
   "comparable_items": [
     {"title": "<item title>", "price": <number>, "sold": <boolean>, "days_listed": <number or null>, "condition": "<condition grade>"}
   ],
-  "ai_insights": "<2-3 paragraphs explaining the pricing rationale>",
+  "ai_insights": "<3 paragraphs as specified above, separated by \\n\\n>",
   "price_distribution": [
     {"range": "£0-5", "count": <number>},
     {"range": "£5-10", "count": <number>},
@@ -237,6 +257,8 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
   ]
 }`;
 
+    const BANNED_WORDS_NOTICE = `BANNED WORDS — NEVER use any of these words or phrases in any field: elevate, elevated, sophisticated, timeless, versatile, effortless, staple, wardrobe essential, investment piece, must-have, perfect addition, stunning, gorgeous, absolutely, boasts, game-changer, trendy, chic, standout, exquisite, premium quality, top-notch, level up, take your wardrobe to the next level. Write in plain, direct British English.`;
+
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -244,9 +266,9 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-pro",
         messages: [
-          { role: "system", content: "You are a pricing analyst for Vinted marketplace. Always respond with valid JSON only. Be precise with numbers and realistic with estimates." },
+          { role: "system", content: `You are a pricing analyst for Vinted UK marketplace. Always respond with valid JSON only. Be precise with numbers and realistic with estimates. ${BANNED_WORDS_NOTICE}` },
           { role: "user", content: aiPrompt },
         ],
       }),
