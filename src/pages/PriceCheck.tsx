@@ -318,16 +318,28 @@ export default function PriceCheck() {
         {/* Sprint 6: Pick from my items */}
         {!itemId && (
           <div className="text-center -mt-3 mb-3">
-            <ItemPickerDialog onSelect={(item) => {
-              const params = new URLSearchParams({ itemId: item.id });
-              if (item.vinted_url) params.set("url", item.vinted_url);
+            <ItemPickerDialog onSelect={(picked) => {
+              const params = new URLSearchParams({ itemId: picked.id });
+              if (picked.vinted_url) params.set("url", picked.vinted_url);
               else {
-                if (item.brand) params.set("brand", item.brand);
-                if (item.category) params.set("category", item.category);
-                if (item.condition) params.set("condition", item.condition);
+                if (picked.brand) params.set("brand", picked.brand);
+                if (picked.category) params.set("category", picked.category);
+                if (picked.condition) params.set("condition", picked.condition);
               }
-              navigate(`/price-check?${params.toString()}`);
-              window.location.reload();
+              navigate(`/price-check?${params.toString()}`, { replace: true });
+              // Reset local state so the component re-initialises with new params
+              setReport(null);
+              setCachedAt(null);
+              setUrl(picked.vinted_url || "");
+              setBrand(picked.brand || "");
+              setCategory(picked.category || "");
+              setCondition(picked.condition || "");
+              if (picked.vinted_url) {
+                setInputMode("url");
+                checkForCachedReport(picked.vinted_url);
+              } else {
+                setInputMode("manual");
+              }
             }}>
               <button className="text-xs text-primary hover:underline font-medium">
                 or pick from your items
@@ -672,29 +684,6 @@ export default function PriceCheck() {
             </Button>
           </div>
 
-          {/* Next step CTA */}
-          <Card className="p-4 sm:p-5 border-primary/20 bg-primary/[0.03]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold">Ready to list?</p>
-                <p className="text-xs text-muted-foreground">Optimise your title, description & hashtags with AI</p>
-              </div>
-              <Button
-                onClick={() => {
-                  const params = new URLSearchParams();
-                  if (brand) params.set("brand", brand);
-                  if (category) params.set("category", category);
-                  if (condition) params.set("condition", condition);
-                  if (url) params.set("vintedUrl", url);
-                  if (itemId) params.set("itemId", itemId);
-                  navigate(`/optimize?${params.toString()}`);
-                }}
-                className="shrink-0"
-              >
-                <Sparkles className="w-4 h-4 mr-1.5" /> Optimise Listing
-              </Button>
-            </div>
-          </Card>
         </motion.div>
       )}
 

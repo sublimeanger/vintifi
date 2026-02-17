@@ -277,7 +277,18 @@ export default function OptimizeListing() {
       } as any);
       if (error) throw error;
       toast.success("Saved to My Items!");
-      navigate("/listings");
+      // Navigate to the newly created item — fetch it first
+      const { data: newItems } = await supabase
+        .from("listings")
+        .select("id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (newItems && newItems.length > 0) {
+        navigate(`/items/${newItems[0].id}`);
+      } else {
+        navigate("/listings");
+      }
     } catch (e: any) {
       toast.error("Failed to save listing");
       console.error(e);
@@ -594,8 +605,19 @@ export default function OptimizeListing() {
                     if (picked.category) params.set("category", picked.category);
                     if (picked.condition) params.set("condition", picked.condition);
                     if (picked.size) params.set("size", picked.size!);
-                    navigate(`/optimize?${params.toString()}`);
-                    window.location.reload();
+                    // Navigate with replace and reset state instead of reloading
+                    navigate(`/optimize?${params.toString()}`, { replace: true });
+                    setResult(null);
+                    setPhotos([]);
+                    setPhotoPreviewUrls([]);
+                    setRemotePhotoUrls([]);
+                    setCurrentTitle(picked.title || "");
+                    setBrand(picked.brand || "");
+                    setCategory(picked.category || "");
+                    setCondition(picked.condition || "");
+                    setSize(picked.size || "");
+                    setVintedUrl("");
+                    setAutoStartReady(false);
                   }}>
                     <button className="text-xs text-primary hover:underline font-medium">
                       or pick from your items

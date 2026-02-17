@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { FeatureGate } from "@/components/FeatureGate";
+import { ItemPickerDialog } from "@/components/ItemPickerDialog";
 import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,7 +113,7 @@ export default function Vintography() {
   // Sprint 1: Fetch item photos from DB when itemId is present
   const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
   useEffect(() => {
-    if (!itemId || !user || originalUrl) return;
+    if (!itemId || !user) return;
     (async () => {
       const { data } = await supabase
         .from("listings")
@@ -396,6 +397,17 @@ export default function Vintography() {
                   <Button size="sm" className="active:scale-95 transition-transform">
                     <Camera className="w-4 h-4 mr-1.5" /> Choose Photos
                   </Button>
+                  {!itemId && (
+                    <div className="mt-2">
+                      <ItemPickerDialog onSelect={(picked) => {
+                        navigate(`/vintography?itemId=${picked.id}`, { replace: true });
+                      }}>
+                        <button className="text-xs text-primary hover:underline font-medium">
+                          or pick from your items
+                        </button>
+                      </ItemPickerDialog>
+                    </div>
+                  )}
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
                   onChange={(e) => { if (e.target.files?.length) handleFileSelect(e.target.files); }}
