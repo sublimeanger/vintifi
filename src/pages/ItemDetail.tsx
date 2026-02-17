@@ -251,7 +251,7 @@ export default function ItemDetail() {
       }
     >
       {/* Badge row */}
-      <div className="flex items-center gap-2 mb-4 sm:mb-6 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
+      <div className="flex items-center gap-1.5 sm:gap-2 mb-3 sm:mb-6 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
         <Badge variant="outline" className={`${status.className} shrink-0 text-[10px]`}>{status.label}</Badge>
         {item.brand && <Badge variant="secondary" className="shrink-0 text-[10px]"><Tag className="w-3 h-3 mr-1" />{item.brand}</Badge>}
         {item.size && <Badge variant="secondary" className="shrink-0 text-[10px]"><Ruler className="w-3 h-3 mr-1" />{item.size}</Badge>}
@@ -263,7 +263,7 @@ export default function ItemDetail() {
           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="ml-auto shrink-0">
             <Button
               size="sm"
-              className="font-semibold h-8 text-xs active:scale-95 transition-transform"
+              className="font-semibold h-9 sm:h-8 text-xs active:scale-95 transition-transform"
               onClick={() => {
                 if (nextAction.action === "price") handlePriceCheck();
                 else if (nextAction.action === "optimise") handleOptimise();
@@ -278,22 +278,22 @@ export default function ItemDetail() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap gap-0.5 scrollbar-hide h-9">
-          <TabsTrigger value="overview" className="min-w-fit text-xs h-8">Overview</TabsTrigger>
-          <TabsTrigger value="price" className="min-w-fit text-xs h-8">Price</TabsTrigger>
-          <TabsTrigger value="listing" className="min-w-fit text-xs h-8">Listing</TabsTrigger>
-          <TabsTrigger value="photos" className="min-w-fit text-xs h-8">Photos</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-6">
+        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap gap-0.5 scrollbar-hide h-10 sm:h-9">
+          <TabsTrigger value="overview" className="min-w-fit text-xs h-9 sm:h-8">Overview</TabsTrigger>
+          <TabsTrigger value="price" className="min-w-fit text-xs h-9 sm:h-8">Price</TabsTrigger>
+          <TabsTrigger value="listing" className="min-w-fit text-xs h-9 sm:h-8">Listing</TabsTrigger>
+          <TabsTrigger value="photos" className="min-w-fit text-xs h-9 sm:h-8">Photos</TabsTrigger>
         </TabsList>
 
         {/* ═══ OVERVIEW TAB ═══ */}
-        <TabsContent value="overview" className="space-y-3 sm:space-y-6">
+        <TabsContent value="overview" className="space-y-2.5 sm:space-y-6">
           {/* Vinted-Ready Pack — top of Overview when ready */}
           <VintedReadyPack item={item} onOptimise={handleOptimise} onPhotoStudio={handlePhotoStudio} />
 
-          <div className="grid grid-cols-4 gap-2 sm:gap-3">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
             <Card
-              className="p-2.5 sm:p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all touch-card"
+              className="p-2 sm:p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all touch-card"
               onClick={() => {
                 if (!editingPrice) {
                   setPriceInput(item.current_price != null ? item.current_price.toFixed(2) : "");
@@ -334,19 +334,19 @@ export default function ItemDetail() {
                 </p>
               )}
             </Card>
-            <Card className="p-2.5 sm:p-4">
+            <Card className="p-2 sm:p-4">
               <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Target</p>
-              <p className="text-base sm:text-xl font-display font-bold text-success truncate">
+              <p className="text-sm sm:text-xl font-display font-bold text-success truncate">
                 {item.recommended_price != null ? `£${item.recommended_price.toFixed(0)}` : "—"}
               </p>
             </Card>
-            <Card className="p-2.5 sm:p-4">
+            <Card className="p-2 sm:p-4">
               <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Profit</p>
-              <p className={`text-base sm:text-xl font-display font-bold truncate ${profit != null && profit >= 0 ? "text-success" : "text-destructive"}`}>
+              <p className={`text-sm sm:text-xl font-display font-bold truncate ${profit != null && profit >= 0 ? "text-success" : "text-destructive"}`}>
                 {profit != null ? `£${profit.toFixed(0)}` : "—"}
               </p>
             </Card>
-            <Card className="p-2.5 sm:p-4">
+            <Card className="p-2 sm:p-4">
               <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Health</p>
               <div className="flex items-center gap-1">
                 <HealthScoreMini score={item.health_score} />
@@ -354,29 +354,29 @@ export default function ItemDetail() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3">
-            <Card className="p-2.5 sm:p-3 flex items-center gap-2 touch-card">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-3">
+            <Card className="p-2 sm:p-3 flex items-center gap-1.5 sm:gap-2 touch-card">
               <Eye className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <div>
                 <p className="text-xs sm:text-sm font-bold">{item.views_count ?? 0}</p>
                 <p className="text-[9px] sm:text-[10px] text-muted-foreground">Views</p>
               </div>
             </Card>
-            <Card className="p-2.5 sm:p-3 flex items-center gap-2 touch-card">
+            <Card className="p-2 sm:p-3 flex items-center gap-1.5 sm:gap-2 touch-card">
               <Heart className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <div>
                 <p className="text-xs sm:text-sm font-bold">{item.favourites_count ?? 0}</p>
                 <p className="text-[9px] sm:text-[10px] text-muted-foreground">Favs</p>
               </div>
             </Card>
-            <Card className="p-2.5 sm:p-3 flex items-center gap-2 touch-card">
+            <Card className="p-2 sm:p-3 flex items-center gap-1.5 sm:gap-2 touch-card">
               <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <div>
                 <p className="text-xs sm:text-sm font-bold">{daysListed}d</p>
                 <p className="text-[9px] sm:text-[10px] text-muted-foreground">Listed</p>
               </div>
             </Card>
-            <Card className="p-2.5 sm:p-3 flex items-center gap-2 touch-card">
+            <Card className="p-2 sm:p-3 flex items-center gap-1.5 sm:gap-2 touch-card">
               <PoundSterling className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <div>
                 <p className="text-xs sm:text-sm font-bold">{item.purchase_price != null ? `£${item.purchase_price.toFixed(0)}` : "—"}</p>
@@ -384,7 +384,7 @@ export default function ItemDetail() {
               </div>
             </Card>
             <Card
-              className="p-2.5 sm:p-3 flex items-center gap-2 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all touch-card"
+              className="p-2 sm:p-3 flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all touch-card"
               onClick={() => {
                 if (!editingShipping) {
                   setShippingInput(item.shipping_cost != null ? item.shipping_cost.toFixed(2) : "");
@@ -429,8 +429,8 @@ export default function ItemDetail() {
           </div>
 
           {/* Workflow Progress */}
-          <Card className="p-3 sm:p-5">
-            <h3 className="text-xs sm:text-sm font-semibold mb-2 sm:mb-4">Workflow</h3>
+          <Card className="p-2.5 sm:p-5">
+            <h3 className="text-[11px] sm:text-sm font-semibold mb-1.5 sm:mb-4">Workflow</h3>
             {(() => {
               const steps = [
                 { label: "Priced", done: !!item.last_price_check_at, icon: Search },
@@ -470,10 +470,10 @@ export default function ItemDetail() {
           </Card>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
             <Button
               variant={!item.last_price_check_at ? "default" : "outline"}
-              className="justify-center h-auto py-2.5 sm:py-3 px-2 sm:px-4 flex-col sm:flex-row active:scale-95 transition-transform touch-card"
+              className="justify-center h-auto py-3 sm:py-3 px-2 sm:px-4 flex-col sm:flex-row active:scale-95 transition-transform touch-card"
               onClick={handlePriceCheck}
             >
               <Search className="w-4 h-4 sm:mr-2 shrink-0" />
@@ -488,7 +488,7 @@ export default function ItemDetail() {
             </Button>
             <Button
               variant={item.last_price_check_at && !item.last_optimised_at ? "default" : "outline"}
-              className="justify-center h-auto py-2.5 sm:py-3 px-2 sm:px-4 flex-col sm:flex-row active:scale-95 transition-transform touch-card"
+              className="justify-center h-auto py-3 sm:py-3 px-2 sm:px-4 flex-col sm:flex-row active:scale-95 transition-transform touch-card"
               onClick={handleOptimise}
             >
               <Sparkles className="w-4 h-4 sm:mr-2 shrink-0" />
@@ -503,7 +503,7 @@ export default function ItemDetail() {
             </Button>
             <Button
               variant={item.last_optimised_at && !item.last_photo_edit_at ? "default" : "outline"}
-              className="justify-center h-auto py-2.5 sm:py-3 px-2 sm:px-4 flex-col sm:flex-row active:scale-95 transition-transform touch-card"
+              className="justify-center h-auto py-3 sm:py-3 px-2 sm:px-4 flex-col sm:flex-row active:scale-95 transition-transform touch-card"
               onClick={handlePhotoStudio}
             >
               <ImageIcon className="w-4 h-4 sm:mr-2 shrink-0" />
@@ -520,40 +520,40 @@ export default function ItemDetail() {
         </TabsContent>
 
         {/* ═══ PRICE TAB ═══ */}
-        <TabsContent value="price" className="space-y-4 sm:space-y-6">
+        <TabsContent value="price" className="space-y-3 sm:space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Price Intelligence</h3>
-            <Button size="sm" onClick={handlePriceCheck}>
+            <h3 className="text-xs sm:text-sm font-semibold">Price Intelligence</h3>
+            <Button size="sm" onClick={handlePriceCheck} className="h-9 sm:h-8 active:scale-95 transition-transform">
               <Search className="w-3.5 h-3.5 mr-1.5" />
               {latestReport ? "Recheck Price" : "Run Price Check"}
             </Button>
           </div>
 
           {latestReport ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                <Card className="p-2.5 sm:p-4">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
+                <Card className="p-2 sm:p-4">
                   <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Target</p>
-                  <p className="text-base sm:text-xl font-display font-bold text-success truncate">
+                  <p className="text-sm sm:text-xl font-display font-bold text-success truncate">
                     £{latestReport.recommended_price?.toFixed(0) ?? "—"}
                   </p>
                 </Card>
-                <Card className="p-2.5 sm:p-4">
+                <Card className="p-2 sm:p-4">
                   <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Conf.</p>
-                  <p className="text-base sm:text-xl font-display font-bold">{latestReport.confidence_score ?? "—"}%</p>
+                  <p className="text-sm sm:text-xl font-display font-bold">{latestReport.confidence_score ?? "—"}%</p>
                 </Card>
-                <Card className="p-2.5 sm:p-4">
+                <Card className="p-2 sm:p-4">
                   <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Low</p>
-                  <p className="text-base sm:text-xl font-display font-bold truncate">£{latestReport.price_range_low?.toFixed(0) ?? "—"}</p>
+                  <p className="text-sm sm:text-xl font-display font-bold truncate">£{latestReport.price_range_low?.toFixed(0) ?? "—"}</p>
                 </Card>
-                <Card className="p-2.5 sm:p-4">
+                <Card className="p-2 sm:p-4">
                   <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">High</p>
-                  <p className="text-base sm:text-xl font-display font-bold truncate">£{latestReport.price_range_high?.toFixed(0) ?? "—"}</p>
+                  <p className="text-sm sm:text-xl font-display font-bold truncate">£{latestReport.price_range_high?.toFixed(0) ?? "—"}</p>
                 </Card>
               </div>
 
               {latestReport.ai_insights && (
-                <Card className="p-3 sm:p-5">
+                <Card className="p-2.5 sm:p-5">
                   <h4 className="text-xs sm:text-sm font-semibold mb-1.5 flex items-center gap-2">
                     <TrendingUp className="w-3.5 h-3.5 text-primary" /> AI Insights
                   </h4>
@@ -566,7 +566,7 @@ export default function ItemDetail() {
 
               {priceReports.length > 1 && (
                 <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Price History</h4>
+                  <h4 className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 sm:mb-3">Price History</h4>
                   <div className="space-y-2">
                     {priceReports.slice(1).map((r) => (
                       <Card key={r.id} className="p-3 flex items-center justify-between">
@@ -582,24 +582,24 @@ export default function ItemDetail() {
               )}
 
               {/* Next step CTA */}
-              <Card className="p-3 border-primary/20 bg-primary/5">
+              <Card className="p-2.5 sm:p-3 border-primary/20 bg-primary/5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-xs sm:text-sm font-semibold">Next: Improve Your Listing</p>
                     <p className="text-[10px] sm:text-xs text-muted-foreground truncate">AI-generated title & description</p>
                   </div>
-                  <Button size="sm" onClick={handleOptimise} className="shrink-0 h-8 active:scale-95 touch-card">
+                  <Button size="sm" onClick={handleOptimise} className="shrink-0 h-9 sm:h-8 active:scale-95 touch-card">
                     <Sparkles className="w-3.5 h-3.5 mr-1" /> Improve
                   </Button>
                 </div>
               </Card>
             </div>
           ) : (
-            <Card className="p-6 sm:p-10 text-center">
-              <Search className="w-7 h-7 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm font-medium mb-1">No price data yet</p>
-              <p className="text-xs text-muted-foreground mb-3">Run a price check to see market intelligence.</p>
-              <Button onClick={handlePriceCheck} className="h-10 active:scale-95 touch-card">
+            <Card className="p-5 sm:p-10 text-center">
+              <Search className="w-6 h-6 sm:w-7 sm:h-7 mx-auto text-muted-foreground mb-2" />
+              <p className="text-xs sm:text-sm font-medium mb-1">No price data yet</p>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mb-3">Run a price check to see market intelligence.</p>
+              <Button onClick={handlePriceCheck} className="h-11 sm:h-10 active:scale-95 touch-card">
                 <Search className="w-3.5 h-3.5 mr-1.5" /> Run Price Check
               </Button>
             </Card>
@@ -607,20 +607,20 @@ export default function ItemDetail() {
         </TabsContent>
 
         {/* ═══ LISTING TAB ═══ */}
-        <TabsContent value="listing" className="space-y-3 sm:space-y-6">
+        <TabsContent value="listing" className="space-y-2.5 sm:space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-xs sm:text-sm font-semibold">Listing Copy</h3>
-            <Button size="sm" onClick={handleOptimise} className="h-8 active:scale-95 touch-card">
+            <Button size="sm" onClick={handleOptimise} className="h-9 sm:h-8 active:scale-95 touch-card">
               <Sparkles className="w-3.5 h-3.5 mr-1" /> Improve
             </Button>
           </div>
 
-          <Card className="p-3 sm:p-5 space-y-3">
+          <Card className="p-2.5 sm:p-5 space-y-2.5 sm:space-y-3">
             <div>
               <div className="flex items-center justify-between mb-0.5">
                 <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Title</p>
                 {(item.optimised_title || item.title) && (
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => {
+                  <Button variant="ghost" size="sm" className="h-7 sm:h-6 text-[10px] active:scale-95" onClick={() => {
                     navigator.clipboard.writeText(item.optimised_title || item.title);
                     toast.success("Title copied");
                   }}>
@@ -635,7 +635,7 @@ export default function ItemDetail() {
               <div className="flex items-center justify-between mb-0.5">
                 <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Description</p>
                 {(item.optimised_description || item.description) && (
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={handleCopyDescription}>
+                  <Button variant="ghost" size="sm" className="h-7 sm:h-6 text-[10px] active:scale-95" onClick={handleCopyDescription}>
                     {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
                     {copied ? "Copied" : "Copy"}
                   </Button>
@@ -671,13 +671,13 @@ export default function ItemDetail() {
             </p>
           )}
 
-          <Card className="p-3 border-primary/20 bg-primary/5">
+          <Card className="p-2.5 sm:p-3 border-primary/20 bg-primary/5">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm font-semibold">Next: Enhance Photos</p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Backgrounds, models & more</p>
               </div>
-              <Button size="sm" onClick={handlePhotoStudio} className="shrink-0 h-8 active:scale-95 touch-card">
+              <Button size="sm" onClick={handlePhotoStudio} className="shrink-0 h-9 sm:h-8 active:scale-95 touch-card">
                 <ImageIcon className="w-3.5 h-3.5 mr-1" /> Photos
               </Button>
             </div>
@@ -685,18 +685,18 @@ export default function ItemDetail() {
         </TabsContent>
 
         {/* ═══ PHOTOS TAB ═══ */}
-        <TabsContent value="photos" className="space-y-3 sm:space-y-6">
+        <TabsContent value="photos" className="space-y-2.5 sm:space-y-6">
           <PhotosTab item={item} onEditPhotos={handlePhotoStudio} onItemUpdate={setItem} />
 
           {/* Next step CTA */}
           {!item.last_optimised_at ? (
-            <Card className="p-3 border-primary/20 bg-primary/5">
+            <Card className="p-2.5 sm:p-3 border-primary/20 bg-primary/5">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-semibold">Next: Vinted-Ready Pack</p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Optimised title, description & hashtags</p>
                 </div>
-                <Button size="sm" onClick={handleOptimise} className="shrink-0 h-8 active:scale-95 touch-card">
+                <Button size="sm" onClick={handleOptimise} className="shrink-0 h-9 sm:h-8 active:scale-95 touch-card">
                   <Sparkles className="w-3.5 h-3.5 mr-1" /> Improve
                 </Button>
               </div>
