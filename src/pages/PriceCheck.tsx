@@ -265,7 +265,7 @@ export default function PriceCheck() {
     >
 
       {/* Input Section */}
-      <Card className="p-4 sm:p-6 mb-5 sm:mb-8 border-border/50">
+      <Card className="p-3 sm:p-6 mb-3 sm:mb-8 border-border/50">
         {/* Mode Toggle */}
         <div className="flex gap-1 mb-4 sm:mb-5 bg-muted/60 p-1 rounded-lg w-fit">
           {(["url", "manual"] as const).map((mode) => (
@@ -401,19 +401,19 @@ export default function PriceCheck() {
 
       {/* Report */}
       {report && !loading && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 sm:space-y-5">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-2.5 sm:space-y-5">
           {/* Hero Price Card */}
-          <Card className="p-5 sm:p-8 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent relative overflow-hidden">
+          <Card className="p-4 sm:p-8 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-            <p className="text-[10px] sm:text-sm text-muted-foreground mb-1 font-medium flex items-center gap-1.5 uppercase tracking-wider">
-              <TrendingUp className="w-3.5 h-3.5 text-primary" />
+            <p className="text-[9px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 font-medium flex items-center gap-1.5 uppercase tracking-wider">
+              <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
               Sell At Price
             </p>
-            <p className="font-display text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight">
-              £{report.recommended_price.toFixed(2)}
+            <p className="font-display text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight">
+              £{report.recommended_price.toFixed(0)}
             </p>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-              Market range: <span className="font-semibold text-foreground">£{report.price_range_low.toFixed(2)}</span> – <span className="font-semibold text-foreground">£{report.price_range_high.toFixed(2)}</span>
+            <p className="text-[10px] sm:text-sm text-muted-foreground mt-1 sm:mt-2">
+              Range: <span className="font-semibold text-foreground">£{report.price_range_low.toFixed(0)}</span> – <span className="font-semibold text-foreground">£{report.price_range_high.toFixed(0)}</span>
             </p>
             {report.net_profit_estimate != null && (
               <p className="text-xs text-success font-semibold mt-1.5">
@@ -427,27 +427,27 @@ export default function PriceCheck() {
 
           {/* Reseller Guide */}
           {(report.buy_price_good != null || report.buy_price_max != null || report.estimated_resale != null) && (
-            <Card className="p-4 sm:p-6">
-              <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                <PoundSterling className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <Card className="p-3 sm:p-6">
+              <h3 className="font-display font-bold text-[11px] sm:text-lg mb-2 sm:mb-4 flex items-center gap-1.5">
+                <PoundSterling className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
                 Reseller Guide
               </h3>
-              <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                <div className="text-center p-3 rounded-xl bg-success/10 border border-success/20">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
+                <div className="text-center p-2 sm:p-3 rounded-xl bg-success/10 border border-success/20">
                   <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-success mb-1">Good Buy</p>
                   <p className="font-display text-xl sm:text-2xl font-extrabold text-success">
                     £{(report.buy_price_good ?? 0).toFixed(0)}
                   </p>
                   <p className="text-[9px] text-muted-foreground mt-0.5">Great deal</p>
                 </div>
-                <div className="text-center p-3 rounded-xl bg-accent/10 border border-accent/20">
+                <div className="text-center p-2 sm:p-3 rounded-xl bg-accent/10 border border-accent/20">
                   <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-accent mb-1">Max Buy</p>
                   <p className="font-display text-xl sm:text-2xl font-extrabold text-accent">
                     £{(report.buy_price_max ?? 0).toFixed(0)}
                   </p>
                   <p className="text-[9px] text-muted-foreground mt-0.5">Still profitable</p>
                 </div>
-                <div className="text-center p-3 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="text-center p-2 sm:p-3 rounded-xl bg-primary/10 border border-primary/20">
                   <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-primary mb-1">Resale</p>
                   <p className="font-display text-xl sm:text-2xl font-extrabold text-primary">
                     £{(report.estimated_resale ?? report.recommended_price).toFixed(0)}
@@ -459,8 +459,8 @@ export default function PriceCheck() {
           )}
 
           {/* Confidence + Demand + Days */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-            <Card className={`p-3 sm:p-4 border ${getConfidenceBg(report.confidence_score)}`}>
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+            <Card className={`p-2.5 sm:p-4 border ${getConfidenceBg(report.confidence_score)}`}>
               <div className="flex items-center gap-1.5 mb-1">
                 <CheckCircle2 className={`w-3.5 h-3.5 ${getConfidenceColor(report.confidence_score)}`} />
                 <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Confidence</span>
@@ -473,7 +473,7 @@ export default function PriceCheck() {
               </p>
             </Card>
             {report.demand_level && (
-              <Card className={`p-3 sm:p-4 border ${getDemandColor(report.demand_level)}`}>
+              <Card className={`p-2.5 sm:p-4 border ${getDemandColor(report.demand_level)}`}>
                 <div className="flex items-center gap-1.5 mb-1">
                   {getDemandIcon(report.demand_level)}
                   <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Demand</span>
@@ -484,7 +484,7 @@ export default function PriceCheck() {
               </Card>
             )}
             {report.estimated_days_to_sell != null && (
-              <Card className="p-3 sm:p-4">
+              <Card className="p-2.5 sm:p-4">
                 <div className="flex items-center gap-1.5 mb-1">
                   <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Avg. Sell Time</span>
@@ -498,10 +498,10 @@ export default function PriceCheck() {
           </div>
 
           {/* Your Cost Calculator */}
-          <Card className="p-4 sm:p-5">
-            <h3 className="font-display font-bold text-xs sm:text-lg mb-3 flex items-center gap-2">
-              <Calculator className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-              Your Profit Calculator
+          <Card className="p-3 sm:p-5">
+            <h3 className="font-display font-bold text-[11px] sm:text-lg mb-2 sm:mb-3 flex items-center gap-1.5">
+              <Calculator className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
+              Profit Calculator
             </h3>
             <div className="flex items-end gap-3">
               <div className="space-y-1.5 flex-1">
@@ -532,12 +532,12 @@ export default function PriceCheck() {
 
           {/* Price Distribution */}
           {report.price_distribution && report.price_distribution.length > 0 && (
-            <Card className="p-4 sm:p-6">
-              <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <Card className="p-3 sm:p-6">
+              <h3 className="font-display font-bold text-[11px] sm:text-lg mb-2 sm:mb-4 flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
                 Price Distribution
               </h3>
-              <div className="h-40 sm:h-52">
+              <div className="h-36 sm:h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={report.price_distribution}>
                     <XAxis dataKey="range" tick={{ fontSize: 10 }} />
@@ -556,9 +556,9 @@ export default function PriceCheck() {
 
           {/* Condition Price Breakdown */}
           {report.condition_price_breakdown && report.condition_price_breakdown.length > 0 && (
-            <Card className="p-4 sm:p-6">
-              <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <Card className="p-3 sm:p-6">
+              <h3 className="font-display font-bold text-[11px] sm:text-lg mb-2 sm:mb-4 flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
                 Price by Condition
               </h3>
               <div className="space-y-2">
@@ -577,10 +577,10 @@ export default function PriceCheck() {
 
           {/* Comparables */}
           {report.comparable_items && report.comparable_items.length > 0 && (
-            <Card className="p-4 sm:p-6">
-              <h3 className="font-display font-bold text-xs sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                Comparable Listings ({report.comparable_items.length})
+            <Card className="p-3 sm:p-6">
+              <h3 className="font-display font-bold text-[11px] sm:text-lg mb-2 sm:mb-4 flex items-center gap-1.5">
+                <ShoppingBag className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
+                Comparables ({report.comparable_items.length})
               </h3>
               <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
                 <Table>
@@ -622,9 +622,9 @@ export default function PriceCheck() {
 
           {/* AI Insights */}
           {report.ai_insights && (
-            <Card className="p-4 sm:p-6">
-              <h3 className="font-display font-bold text-xs sm:text-lg mb-2 sm:mb-3 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <Card className="p-3 sm:p-6">
+              <h3 className="font-display font-bold text-[11px] sm:text-lg mb-1.5 sm:mb-3 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
                 AI Insights
               </h3>
               <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
@@ -634,7 +634,7 @@ export default function PriceCheck() {
           )}
 
           {/* Primary Actions */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-center pt-2 pb-2">
+          <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-3 sm:justify-center pt-1 pb-1">
             {itemId ? (
               <Button
                 onClick={() => navigate(`/items/${itemId}`)}
