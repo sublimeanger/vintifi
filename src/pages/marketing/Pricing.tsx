@@ -65,22 +65,22 @@ export default function Pricing() {
   return (
     <MarketingLayout>
       {/* Hero */}
-      <section className="relative py-20 sm:py-24 md:py-32 overflow-hidden">
+      <section className="relative py-12 sm:py-24 md:py-32 overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/3 w-[500px] h-[500px] rounded-full bg-primary/6 blur-[120px] float-animation" />
           <div className="absolute bottom-0 right-1/3 w-[400px] h-[400px] rounded-full bg-accent/6 blur-[100px] float-animation-delay" />
         </div>
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
-            <motion.h1 variants={fadeUp} className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6">
+            <motion.h1 variants={fadeUp} className="font-display text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-4 sm:mb-6">
               Simple pricing,
               <br />
               <span className="text-gradient">serious results</span>
             </motion.h1>
-            <motion.p variants={fadeUp} className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10">
+            <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-10">
               Start free. Upgrade when you're ready. Every plan includes our core AI intelligence.
             </motion.p>
-            <motion.div variants={fadeUp} className="flex items-center justify-center gap-3">
+            <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 min-h-[44px]">
               <span className={`text-sm font-medium ${!annual ? "text-foreground" : "text-muted-foreground"}`}>Monthly</span>
               <Switch checked={annual} onCheckedChange={setAnnual} />
               <span className={`text-sm font-medium ${annual ? "text-foreground" : "text-muted-foreground"}`}>Annual</span>
@@ -93,9 +93,9 @@ export default function Pricing() {
       </section>
 
       {/* Pricing cards */}
-      <section className="pb-16 sm:pb-20">
+      <section className="pb-10 sm:pb-20">
         <div className="container mx-auto px-4">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 max-w-6xl mx-auto">
             {tiers.map(([key, tier], i) => {
               const isPopular = key === "pro";
               const price = annual && tier.price > 0 && 'annual_price' in tier ? ((tier as any).annual_price / 12).toFixed(2) : tier.price;
@@ -107,35 +107,35 @@ export default function Pricing() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
                 >
-                  <Card className={`p-5 sm:p-6 h-full relative flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${isPopular ? "border-primary shadow-lg shadow-primary/10 ring-1 ring-primary animate-glow-pulse" : "border-border/50 hover:shadow-primary/5"}`}>
+                  <Card className={`p-4 sm:p-6 h-full relative flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] ${isPopular ? "border-primary shadow-lg shadow-primary/10 ring-1 ring-primary animate-glow-pulse" : "border-border/50 hover:shadow-primary/5"}`}>
                     {isPopular && (
                       <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
                         Most Popular
                       </Badge>
                     )}
-                    <div className="mb-6">
-                      <h3 className="font-display font-bold text-lg">{tier.name}</h3>
-                      <div className="mt-3">
-                        <span className="font-display text-3xl sm:text-4xl font-extrabold">
+                    <div className="mb-4 sm:mb-6">
+                      <h3 className="font-display font-bold text-base sm:text-lg">{tier.name}</h3>
+                      <div className="mt-2 sm:mt-3">
+                        <span className="font-display text-2xl sm:text-4xl font-extrabold">
                           {tier.price === 0 ? "Free" : `£${price}`}
                         </span>
-                        {tier.price > 0 && <span className="text-muted-foreground text-sm">/month</span>}
+                        {tier.price > 0 && <span className="text-muted-foreground text-xs sm:text-sm">/month</span>}
                       </div>
                       {annual && tier.price > 0 && (
                         <p className="text-xs text-muted-foreground mt-1 line-through">£{tier.price}/mo</p>
                       )}
                     </div>
-                    <ul className="space-y-3 mb-8 flex-1">
+                    <ul className="space-y-2 sm:space-y-3 mb-5 sm:mb-8 flex-1">
                       {tier.features.map((f) => (
-                        <li key={f} className="flex items-start gap-2 text-sm">
-                          <Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+                        <li key={f} className="flex items-start gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                          <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success mt-0.5 shrink-0" />
                           <span>{f}</span>
                         </li>
                       ))}
                     </ul>
                     <Button
                       variant={isPopular ? "default" : "outline"}
-                      className={`w-full font-semibold ${isPopular ? "shadow-lg shadow-primary/25" : ""}`}
+                      className={`w-full font-semibold h-11 sm:h-10 active:scale-95 transition-transform ${isPopular ? "shadow-lg shadow-primary/25" : ""}`}
                       onClick={() => navigate("/auth?mode=signup")}
                     >
                       {tier.price === 0 ? "Get Started" : "Start Free Trial"}
@@ -149,10 +149,10 @@ export default function Pricing() {
       </section>
 
       {/* Comparison table */}
-      <section className="py-16 sm:py-20 bg-muted/30">
+      <section className="py-10 sm:py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <motion.h2
-            className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold text-center mb-10 sm:mb-12"
+            className="font-display text-xl sm:text-3xl md:text-4xl font-extrabold text-center mb-6 sm:mb-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -187,17 +187,17 @@ export default function Pricing() {
           </div>
 
           {/* Mobile stacked cards */}
-          <div className="lg:hidden space-y-4 max-w-md mx-auto">
+          <div className="lg:hidden space-y-3 max-w-md mx-auto">
             {tiers.map(([key, tier]) => (
-              <Card key={key} className={`p-5 ${key === "pro" ? "border-primary ring-1 ring-primary" : ""}`}>
-                <h3 className="font-display font-bold text-lg mb-3">{tier.name}</h3>
-                <ul className="space-y-2">
+              <Card key={key} className={`p-3.5 ${key === "pro" ? "border-primary ring-1 ring-primary" : ""}`}>
+                <h3 className="font-display font-bold text-base mb-2">{tier.name}</h3>
+                <ul className="space-y-1.5">
                   {comparisonFeatures.map((f) => {
                     const val = f[key as keyof typeof f];
                     return (
-                      <li key={f.name} className="flex items-center justify-between text-sm">
+                      <li key={f.name} className="flex items-center justify-between text-xs min-h-[32px]">
                         <span className="text-muted-foreground">{f.name}</span>
-                        <span className={val === "—" ? "text-muted-foreground" : "text-foreground font-medium"}>{val}</span>
+                        <span className={`text-right ${val === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{val}</span>
                       </li>
                     );
                   })}
@@ -209,17 +209,17 @@ export default function Pricing() {
       </section>
 
       {/* FAQ */}
-      <section className="py-16 sm:py-20">
+      <section className="py-10 sm:py-20">
         <div className="container mx-auto px-4 max-w-3xl">
           <motion.h2
-            className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold text-center mb-10 sm:mb-12"
+            className="font-display text-xl sm:text-3xl md:text-4xl font-extrabold text-center mb-6 sm:mb-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
             Frequently Asked Questions
           </motion.h2>
-          <Accordion type="single" collapsible className="space-y-3">
+          <Accordion type="single" collapsible className="space-y-2 sm:space-y-3">
             {faqs.map((faq, i) => (
               <motion.div
                 key={i}
@@ -228,11 +228,11 @@ export default function Pricing() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
               >
-                <AccordionItem value={`faq-${i}`} className="border border-border rounded-xl px-5 data-[state=open]:bg-muted/30 data-[state=open]:border-l-4 data-[state=open]:border-l-primary transition-all">
-                  <AccordionTrigger className="text-left font-semibold text-sm md:text-base hover:no-underline">
+                <AccordionItem value={`faq-${i}`} className="border border-border rounded-xl px-3.5 sm:px-5 data-[state=open]:bg-muted/30 data-[state=open]:border-l-4 data-[state=open]:border-l-primary transition-all">
+                  <AccordionTrigger className="text-left font-semibold text-xs sm:text-sm md:text-base hover:no-underline min-h-[44px]">
                     {faq.q}
                   </AccordionTrigger>
-                  <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-4">
+                  <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-3 sm:pb-4">
                     {faq.a}
                   </AccordionContent>
                 </AccordionItem>
@@ -243,7 +243,7 @@ export default function Pricing() {
       </section>
 
       {/* Bottom CTA */}
-      <section className="relative py-20 sm:py-24 overflow-hidden">
+      <section className="relative py-12 sm:py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-secondary via-secondary to-secondary">
           <div className="absolute top-0 left-1/4 w-[400px] h-[400px] rounded-full bg-primary/10 blur-[100px]" />
           <div className="absolute bottom-0 right-1/4 w-[300px] h-[300px] rounded-full bg-accent/10 blur-[80px]" />
@@ -255,18 +255,18 @@ export default function Pricing() {
             viewport={{ once: true }}
             variants={stagger}
           >
-            <motion.div variants={fadeUp} className="flex items-center justify-center gap-2 mb-6">
-              <Shield className="w-5 h-5 text-success" />
-              <span className="text-sm font-medium text-secondary-foreground">14-day money-back guarantee on all plans</span>
+            <motion.div variants={fadeUp} className="flex items-center justify-center gap-2 mb-4 sm:mb-6">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+              <span className="text-xs sm:text-sm font-medium text-secondary-foreground">14-day money-back guarantee on all plans</span>
             </motion.div>
-            <motion.h2 variants={fadeUp} className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-secondary-foreground">
+            <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 text-secondary-foreground">
               Start selling smarter today
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-secondary-foreground/70 text-base sm:text-lg mb-8 max-w-xl mx-auto">
+            <motion.p variants={fadeUp} className="text-secondary-foreground/70 text-sm sm:text-lg mb-6 sm:mb-8 max-w-xl mx-auto">
               Join Vinted sellers who stopped guessing and started profiting.
             </motion.p>
             <motion.div variants={fadeUp}>
-              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">
+              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto active:scale-95 transition-transform">
                 Get Started Free <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </motion.div>
