@@ -1,100 +1,93 @@
 
-# Full System Audit: Cohesion Flaws, Bugs, and UX Issues
 
-After a thorough code review of every page, component, and data flow, here is everything that needs fixing to make the core workflow bulletproof.
+# Overhaul AI Prompts for Real Vinted Intelligence
 
----
+## The Problems
 
-## Critical Cohesion Breaks
+### 1. Price Check AI Insights mention irrelevant things (board games, etc.)
+The `ai_insights` field in the price-check prompt is defined only as "2-3 paragraphs explaining the pricing rationale" with zero constraints on what to include or avoid. The AI fills this with generic filler because it has no specific guidance.
 
-### 1. NewItemWizard doesn't accept user-uploaded images from chat
-The user has provided 3 photos of a Nike crewneck. There's no way to directly use these uploaded images in the wizard -- the wizard only supports file uploads via browser or Vinted URL scraping. The photos need to be copied into the project and then uploaded through the app.
+### 2. Listing descriptions sound like ChatGPT wrote them
+The optimize-listing prompt uses phrasing like "compelling opening that creates desire" and "reference the brand's reputation, the item's rarity, versatility". This practically begs the AI to use words like "elevate", "sophisticated", "timeless", "versatile" -- the exact language that screams AI-generated and turns off savvy Vinted buyers.
 
-### 2. `window.location.reload()` on Item Picker selection (2 locations)
-Both `PriceCheck.tsx` line 330 and `OptimizeListing.tsx` line 598 call `window.location.reload()` after selecting an item from the picker. This is a jarring full-page reload that destroys React state, shows a flash of white, and feels extremely broken. Should be replaced with proper React state updates.
+### 3. Too many hashtags
+The prompt asks for 10-15 hashtags. Real Vinted sellers with 2,000+ transactions say **1-3 compound hashtags max**. Vinted does not work like Instagram. Long hashtag lists look spammy and unprofessional.
 
-### 3. VintedReadyPack shows even without photos
-`ItemDetail.tsx` line 284 shows the pack whenever `last_optimised_at` is set, regardless of whether photos exist. An optimised listing with zero photos shows the pack with an empty photos section -- confusing because users expect the "Ready to Post" celebration to mean everything is complete.
-
-### 4. Bottom nav missing Price Check
-`BOTTOM_TABS` in `AppShellV2.tsx` has 5 tabs: Home, Items, Optimise, Photos, Settings. Price Check is only in the sidebar (`NAV_ITEMS`) and the hamburger menu. On mobile, there's no quick access to Price Check from the bottom nav -- the second most important feature is hidden.
-
-### 5. Photo Studio `originalUrl` guard prevents item photo load
-In `Vintography.tsx` line 115: `if (!itemId || !user || originalUrl) return;` -- the `originalUrl` check means if you navigate to Photo Studio, then go back, then return with an itemId, the photos won't reload because `originalUrl` was already set from the previous session. The guard is too aggressive.
-
-### 6. Batch items created from DB photos have `file: null as any`
-`Vintography.tsx` line 144: `file: null as any` -- this violates the `BatchItem` type which expects `file: File`. If any downstream code tries to read `.file.name` or `.file.size`, it will crash. The type needs a nullable file field.
-
-### 7. No "Add Item" button on Dashboard
-The Dashboard has Quick Price Check and Recent Items, but no prominent "Add Item" CTA. New users with zero items have to find the Items page first, then find the Add button. The most common starting action should be front and centre.
-
-### 8. Optimise page `handleSaveAsListing` navigates to `/listings` not `/items/:id`
-`OptimizeListing.tsx` line 280: `navigate("/listings")` -- after saving a standalone optimisation as a new listing, the user is dumped on the full listings page. It should navigate to the newly created item detail page (like Price Check does).
-
-### 9. Photos tab "Photo Studio" button doesn't pass images
-`PhotosTab.tsx` line 281: `onEditPhotos` just calls `handlePhotoStudio()` which navigates to `/vintography?itemId=${item.id}`. The Photo Studio then fetches photos from DB. But if the user just uploaded new photos via the PhotosTab upload button and hasn't saved yet, those new photos won't appear in Photo Studio because they're already saved to DB immediately. This is actually fine -- just worth noting.
-
-### 10. No loading state for VintedReadyPack image downloads
-`VintedReadyPack.tsx` line 109-120: The download loop silently catches errors with empty catch blocks. If a photo URL is expired or CORS-blocked, the user gets no feedback.
+### 4. Description structure is robotic
+The current structure forces a bulleted "Key Details" section (`Brand: [brand] / Size: [size]`). Top-performing Vinted listings use **full, conversational sentences** that feel like a friend describing the item. Buyers on Vinted respond to authenticity, not corporate product pages.
 
 ---
 
-## UX/UI Issues
+## The Fix
 
-### 11. Dashboard "Needs Attention" card navigates to `/listings` without a filter
-Line 111: `onClick={() => navigate("/listings")}` -- should navigate with `?filter=needs_optimising` to show only items needing work.
+### Changes to `supabase/functions/price-check/index.ts`
 
-### 12. Item Picker Dialog missing from standalone Photo Studio
-Price Check and Optimise both have "or pick from your items" links, but the Photo Studio upload zone does not. Users arriving at Photo Studio from the nav with no item context can't easily select an existing item.
+**Rewrite the `ai_insights` prompt section** to give the AI extremely specific guidance on what to include:
 
-### 13. Duplicate "Next: Optimise Listing" CTAs on PriceCheck results
-After a price report, there are TWO identical CTAs: the primary "Next: Optimise Listing" button in the actions bar (line 648-664) AND a separate "Ready to list?" card at the bottom (line 676-697). Redundant and confusing.
+- Specific, actionable pricing strategy for THIS item (not generic advice)
+- When to list (day of week, time) based on the category
+- How long to hold the price before dropping
+- Whether to accept offers or hold firm
+- Competitive positioning (where this item sits vs the market)
+- A "seller action plan" in 2-3 sentences
 
-### 14. Auto-start on Optimise page doesn't trigger
-`OptimizeListing.tsx` lines 89-95: The auto-start `useEffect` sets `autoStartReady = true` when `remotePhotoUrls.length > 0`, but it never actually auto-triggers `handleOptimize()`. It just shows a card with a manual "Optimise Now" button. This is arguably fine (avoids accidental credit spend) but the plan said "auto-trigger after 1-second delay."
+**Add a BANNED WORDS list** to the system prompt:
+"NEVER use these words: elevate, sophisticated, timeless, versatile, effortless, staple, wardrobe essential, investment piece, must-have, perfect addition, stunning, gorgeous, absolutely, boasts, game-changer"
 
-### 15. Listings page card click area inconsistency
-On the Listings page, clicking the listing card background navigates to item detail, but there are inline edit interactions (price, status) that intercept clicks. The tap targets are confusing on mobile.
+**Add STRICT CONSTRAINTS** to the insights:
+"Your insights must ONLY reference the specific item being priced and the comparable data provided. Never mention unrelated categories, items, or markets. Every sentence must contain a specific number, date, or actionable recommendation."
 
----
+**Upgrade the model** from `gemini-3-flash-preview` to `gemini-2.5-pro` for price checks -- this is a high-value action that justifies the better model for accuracy.
 
-## Sprint Breakdown
+### Changes to `supabase/functions/optimize-listing/index.ts`
 
-### Sprint A: Fix Critical Cohesion (highest priority)
+**Complete rewrite of the description prompt** based on research from sellers with 2,000+ Vinted transactions:
 
-**Files:** `AppShellV2.tsx`, `PriceCheck.tsx`, `OptimizeListing.tsx`, `ItemDetail.tsx`, `Vintography.tsx`, `Dashboard.tsx`
+- **Tone**: Conversational, honest, like texting a friend about something you're selling. NOT marketing copy.
+- **Structure**: Full flowing sentences. Describe the feel of the fabric, how it fits, what you'd wear it with, and be upfront about condition. No bulleted lists.
+- **Measurements prompt**: "If you have measurements, include them. If not, mention fit guidance like 'runs true to size' or 'slightly oversized'."
+- **Hashtags reduced to 3-5 compound hashtags** that mirror real buyer search terms (e.g. `#nikecrew`, `#menssweatshirt`, `#streetwearuk`) -- not 10-15 generic tags.
+- **Banned words list**: Same list as price check, plus: "boasts", "trendy", "chic", "standout", "stunning", "exquisite", "premium quality", "top-notch", "game-changer", "level up", "take your wardrobe to the next level"
+- **Anti-AI phrasing rule**: "Write like a real person selling their own clothes. Use casual British English. Contractions are fine. Short sentences are fine. The buyer should feel like they're reading a message from someone genuine, not a product page."
+- **Real examples**: Include 2-3 example descriptions based on the research (conversational full-sentence style)
 
-1. **Fix `window.location.reload()`** in PriceCheck and OptimizeListing item pickers -- replace with state-driven navigation using `useNavigate` and resetting component state
-2. **Fix VintedReadyPack visibility** -- only show when `last_optimised_at` is set AND at least one image exists (`image_url || images.length > 0`)
-3. **Fix Photo Studio photo load guard** -- remove the `originalUrl` check so DB photos reload when itemId changes
-4. **Fix batch item type** -- make `file` optional/nullable in `BatchItem` type
-5. **Fix Dashboard "Needs Attention"** -- add `?filter=needs_optimising` to the navigation
-6. **Fix Optimise save flow** -- navigate to `/items/:id` instead of `/listings` after standalone save
-7. **Add "Add Item" CTA to Dashboard** -- prominent button in the empty state AND a quick action when items exist
-
-### Sprint B: Remove Redundancy and Polish Navigation
-
-**Files:** `AppShellV2.tsx`, `PriceCheck.tsx`, `Vintography.tsx`
-
-1. **Add Price Check to bottom nav** -- Replace Settings with Price Check in bottom tabs (Settings stays in hamburger and sidebar). New tabs: Home, Items, Price, Optimise, Photos
-2. **Remove duplicate CTA** on PriceCheck results -- keep only the prominent "Next: Optimise Listing" button, remove the redundant bottom card
-3. **Add Item Picker to Photo Studio** -- add "or pick from your items" link in the upload zone
-
-### Sprint C: User's Nike Test Item
-
-**Files:** Multiple (project assets + NewItemWizard flow)
-
-1. Copy the 3 Nike crewneck photos into the project's storage
-2. Create a test listing via the New Item Wizard with: Title "Nike Crewneck Sweatshirt", Brand "Nike", Size "M", Category "Jumpers", Condition "Very Good", Colour "Black", Material "80% Cotton, 20% Polyester"
-3. Run the complete flow: Price Check > Optimise > Photo Studio > verify Vinted-Ready Pack
-4. Document any additional issues found during the live test
+**Upgrade the model** for photo-based optimisation: keep `gemini-2.5-pro` for photos but upgrade the no-photo path from `gemini-2.5-flash` to `gemini-2.5-pro` as well -- listing quality is the core product.
 
 ---
 
-## Technical Notes
+## Technical Details
 
-- No database schema changes required
-- No edge function changes required
-- All fixes are frontend state management and navigation
-- The `window.location.reload()` fix is the single most impactful change -- it breaks the SPA feel completely
-- The bottom nav change (adding Price Check) requires removing one tab since 6 tabs is too many on mobile. Settings is the least-used action and belongs in the hamburger menu
+| File | Change |
+|------|--------|
+| `supabase/functions/price-check/index.ts` | Rewrite system prompt + ai_insights specification + banned words + upgrade model |
+| `supabase/functions/optimize-listing/index.ts` | Rewrite description prompt + reduce hashtags to 3-5 + banned words + anti-AI tone rules + upgrade no-photo model |
+
+### New AI Insights Structure (Price Check)
+
+The `ai_insights` field will be instructed to return exactly 3 focused paragraphs:
+
+1. **Market Position** (2-3 sentences): Where this specific item sits in the current market. Reference actual comparable prices from the data. State whether the market is saturated or underserved for this exact item.
+
+2. **Pricing Strategy** (2-3 sentences): Concrete advice. "List at X for the first 7 days. If no sale, drop to Y. Accept offers above Z." Include best day/time to list based on category (weekday evenings for menswear, Sunday for womenswear).
+
+3. **Seller Edge** (1-2 sentences): One specific insight that gives the seller an advantage. Could be: "Only 3 of these in this size currently listed" or "This brand's resale value has increased 15% in the last quarter" or "Bundle with another Nike item -- bundled listings sell 40% faster on Vinted."
+
+### New Description Style (Optimize Listing)
+
+Instead of the current robotic template, the new prompt will produce descriptions like:
+
+"Really nice Nike crewneck sweatshirt in black, size M. The cotton blend makes it properly warm without being too heavy -- perfect for layering or wearing on its own. Fits true to size with a relaxed but not baggy cut.
+
+In very good condition -- worn a handful of times and well looked after. No marks, no bobbling, just a solid everyday piece.
+
+Comes from a smoke-free home. Happy to answer any questions about fit or bundle with other items for a discount.
+
+Shipped within 1-2 days.
+
+#nikecrew #menssweatshirt #streetwearuk"
+
+This reads like a real person, not an AI. That is the difference.
+
+### No database changes needed
+### No frontend changes needed -- prompts are entirely backend
+
