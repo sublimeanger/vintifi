@@ -623,7 +623,17 @@ export default function ItemDetail() {
 
           <Card className="p-5 space-y-4">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Title</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Title</p>
+                {(item.optimised_title || item.title) && (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
+                    navigator.clipboard.writeText(item.optimised_title || item.title);
+                    toast.success("Title copied");
+                  }}>
+                    <Copy className="w-3 h-3 mr-1" /> Copy
+                  </Button>
+                )}
+              </div>
               <p className="text-sm font-medium">{item.optimised_title || item.title}</p>
             </div>
 
