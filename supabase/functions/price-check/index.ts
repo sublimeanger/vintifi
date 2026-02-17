@@ -7,6 +7,23 @@ const corsHeaders = {
 
 // --- Perplexity market research ---
 
+function isNewCondition(condition: string): boolean {
+  const c = condition.toLowerCase().replace(/[\s_-]+/g, "_");
+  return c === "new_with_tags" || c === "new_without_tags";
+}
+
+function conditionLabel(condition: string): string {
+  const c = condition.toLowerCase().replace(/[\s_-]+/g, "_");
+  const map: Record<string, string> = {
+    new_with_tags: "New with tags",
+    new_without_tags: "New without tags",
+    very_good: "Very good (used)",
+    good: "Good (used)",
+    satisfactory: "Satisfactory (used)",
+  };
+  return map[c] || condition;
+}
+
 async function fetchViaPerplexity(
   brand: string,
   category: string,
@@ -15,7 +32,9 @@ async function fetchViaPerplexity(
   perplexityKey: string
 ): Promise<{ marketData: string; citations: string[] }> {
   const itemDesc = [brand, category, size].filter(Boolean).join(" ");
-  const conditionNote = condition ? ` in ${condition.replace(/_/g, " ")} condition` : "";
+  const isNew = isNewCondition(condition);
+  const conditionType = isNew ? "NEW" : "USED / pre-owned";
+  const conditionNote = condition ? ` in ${conditionLabel(condition)} condition` : "";
 
   const res = await fetch("https://api.perplexity.ai/chat/completions", {
     method: "POST",
@@ -29,22 +48,22 @@ async function fetchViaPerplexity(
         {
           role: "system",
           content:
-            "You are a secondhand clothing market price researcher. You MUST search for and report SPECIFIC prices in GBP (£) that you find on Vinted, eBay, and Depop. List individual items with their exact prices. Never say you cannot access these sites — search for them and report what you find.",
+            `You are a secondhand clothing market price researcher. You MUST search for and report SPECIFIC prices in GBP (£) that you find on Vinted, eBay, and Depop. List individual items with their exact prices. Focus ONLY on ${conditionType} listings. Never say you cannot access these sites — search for them and report what you find.`,
         },
         {
           role: "user",
-          content: `Find current prices for "${itemDesc}"${conditionNote} on UK resale platforms.
+          content: `Find current prices for ${conditionType} "${itemDesc}"${conditionNote} on UK resale platforms.
 
 Search Vinted UK, eBay UK, and Depop for this item and tell me:
 
-1. List at least 5 specific items you find with their exact prices in £. Format: "Item title - £X.XX (platform, condition)"
-2. What is the price range? Lowest: £? Highest: £?
-3. What is the average/median selling price?
-4. How many listings did you find approximately?
-5. Are there any sold/completed listings with prices?
-6. How do prices compare across Vinted vs eBay vs Depop?
+1. List at least 5 specific ${conditionType} items you find with their exact prices in £. Format: "Item title - £X.XX (platform, condition)"
+2. What is the price range for ${conditionType} listings? Lowest: £? Highest: £?
+3. What is the average/median selling price for ${conditionType} items?
+4. How many ${conditionType} listings did you find approximately?
+5. Are there any sold/completed ${conditionType} listings with prices?
+6. How do prices compare across Vinted vs eBay vs Depop for ${conditionType} items?
 
-I need REAL prices from REAL listings. Be specific.`,
+IMPORTANT: Focus ONLY on ${conditionType} listings. Do NOT mix new and used prices together. I need REAL prices from REAL listings. Be specific.`,
         },
       ],
       search_recency_filter: "month",
@@ -186,17 +205,23 @@ serve(async (req) => {
       ? `\n\nSource URLs (citations from real-time web search):\n${citations.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
       : "";
 
+    const isNew = isNewCondition(itemCondition);
+    const condType = isNew ? "NEW" : "USED";
+    const condLabel = conditionLabel(itemCondition);
+
     const aiPrompt = `You are a Vinted pricing analyst specialising in the UK secondhand market. Analyse the following REAL-TIME market research data gathered from live searches across Vinted, eBay, and Depop.
+
+CRITICAL: This item is ${condType} (condition: ${condLabel}). Your recommended_price MUST reflect ${condType} market prices ONLY. ${isNew ? "Price against new/unworn listings only." : "Do NOT use new-with-tags or retail prices. Price against used/pre-owned listings only."}
 
 Item being priced:
 - URL: ${url || "N/A"}
 - Brand: ${itemBrand || "Unknown"}
 - Category: ${itemCategory || itemTitle || "Unknown"}
 - Size: ${itemSize || "Unknown"}
-- Condition: ${itemCondition || "Unknown"}
+- Condition: ${condLabel} (${condType})
 
 ═══════════════════════════════════════════
-REAL-TIME MARKET DATA (from Perplexity AI search):
+REAL-TIME MARKET DATA (from Perplexity AI search — filtered for ${condType} items):
 ═══════════════════════════════════════════
 ${marketData}
 ${citationsText}
