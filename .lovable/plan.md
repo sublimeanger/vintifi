@@ -1,66 +1,103 @@
 
 
-# Photo Studio Revamp: Fixing the Garment Fidelity Problem
+# World-Class Photo Guidance: End-to-End Workflow Revamp
 
-## The Problem
+## What This Solves
 
-The Virtual Model operation tells the AI to put a model "wearing this exact garment," but generative image models like Gemini don't copy the garment pixel-perfectly -- they **re-imagine** it based on the prompt. This means a Nike crewneck sweatshirt can become a Nike hoodie, colours shift, logos move, and details are lost. This is a fundamental limitation of text-to-image generation, not a prompt-tuning issue.
+Right now, the Add Item wizard allows photo uploads with zero guidance -- users upload folded-up photos, angled shots, partial views, and label close-ups. When Photo Studio tries to put these on a model or remove backgrounds, the AI gets confused because it can't see the full garment. The entire pipeline needs to educate and hand-hold users from the very first photo they upload, so every downstream tool (Price Check, Listing Optimiser, Photo Studio) has the best possible input to work with.
 
-## The Solution: A Three-Part Revamp
+## The Revamp: 5 Key Changes
 
-### 1. Inject Garment Context Into Prompts
+### 1. Guided Photo Upload in the New Item Wizard
 
-When Photo Studio is opened from an item (via `itemId`), the system already loads the item data but only uses `image_url` and `images`. We will also load the item's `title`, `brand`, `category`, and `description` and inject these details directly into the AI prompt so it knows *exactly* what the garment is.
+Replace the current "tap to upload" with a structured, guided photo upload section that appears in the **Details step** (for all entry methods -- URL, Photo, Manual).
 
-**Before:** "Create a photo of a model wearing this exact garment"
-**After:** "Create a photo of a model wearing this Nike crewneck sweatshirt (Menswear, size M, good condition). NOT a hoodie, NOT a jacket -- a crew-neck sweatshirt with no hood and a round neckline..."
+**Primary Photo (Required)**
+- A large upload area labelled **"Main Photo"** with guidance text: *"Full front view of the garment, laid flat or on a hanger. Show the entire item from neckline to hem."*
+- A small inline tip with an icon: *"This photo is used by Photo Studio for model shots and background removal. A clear, full-front view gives the best results."*
+- Validation: at least 1 photo is required before saving (enforce on the Save button alongside title/condition/price).
 
-This won't guarantee perfection, but it dramatically reduces misidentification.
+**Additional Photos (Optional)**
+- Below the primary photo, a smaller row of up to 4 additional photo slots with the label: *"Extra angles (optional)"*
+- Guidance: *"Back view, label/tag, detail close-ups, or any flaws. These help buyers but aren't used for AI editing."*
 
-### 2. Add a Garment Description Input for Standalone Use
+The first photo uploaded becomes `image_url` (the cover / primary photo used by Photo Studio). Additional photos go into `images[]`.
 
-When users upload photos without linking to an item, add a small optional text field: **"Describe your item"** (e.g., "Black Nike crewneck sweatshirt, size M"). This text gets injected into the prompt as explicit garment identity context. For item-linked usage, this auto-fills from the listing data.
+For **Vinted URL** imports: scraped photos auto-fill these slots. The first scraped photo is treated as the primary. Users can reorder by tapping to swap.
 
-### 3. Set Honest Expectations in the UI
+### 2. Photo Quality Guidance in Photo Studio
 
-- Rename "Virtual Model" to **"AI Model Concept"** with updated description: "AI-generated model wearing your style of garment"
-- Add a small disclaimer badge on the Virtual Model card: "AI interpretation -- garment details may vary"
-- Update the processing tips for virtual_model to be honest about the capability
-- Add a post-result feedback nudge: "Not quite right? Try **Clean Background** or **Enhance** for pixel-perfect results"
+When Photo Studio loads an image (from an item or uploaded directly), add a small dismissible guidance banner at the top of the editor:
+
+*"Best results with a full, flat-lay or hanger shot showing the entire garment. Close-ups, folded shots, or partial views may produce unexpected results."*
+
+This appears once per session and can be dismissed. It sets expectations before the user spends a credit.
+
+### 3. Photo Studio Operation-Specific Warnings
+
+Before processing, if the selected operation is **AI Model Concept** or **Lifestyle**, show a brief inline check:
+
+*"Make sure your photo shows the full garment (front view, neckline to hem). Folded or cropped photos won't work well for this operation."*
+
+This appears below the operation cards when those operations are selected (alongside the existing garment description input).
+
+### 4. Primary Photo Indicator in Photos Tab (Item Detail)
+
+The Photos tab already has a "Cover" badge on the first photo. Enhance this with a small tooltip/note:
+
+*"The cover photo is used by Photo Studio for AI editing. For best results, make sure it's a clear, full-front view."*
+
+This reinforces the guidance at the point where users manage their photo order.
+
+### 5. Make Photo Upload Mandatory in the Wizard
+
+Currently, the wizard enforces title, condition, and purchase price. Add a **soft requirement** for at least 1 photo:
+
+- If no photos are attached when the user taps "Add Item", show a confirmation dialog: *"No photos added. Photos are needed for Photo Studio and help your listing sell faster. Continue without photos?"*
+- Two buttons: "Add Photos" (primary) and "Skip for now" (ghost).
+- This doesn't block the flow but creates a strong nudge.
 
 ## Technical Changes
 
-### Edge Function (`supabase/functions/vintography/index.ts`)
+### `src/components/NewItemWizard.tsx`
 
-- Accept a new optional `garment_context` field in the request body (string)
-- Inject the garment context into the `model_shot` prompt as an explicit garment identity block with negative instructions (e.g., "This is NOT a hoodie")
-- Also inject into `smart_bg` and `flatlay_style` prompts for consistency
-- Strengthen the `GARMENT_PRESERVE` constant with explicit anti-hallucination language
+**Details step changes:**
+- Add a "Main Photo" upload section at the top of the details form (before Title field) with guidance text and upload area
+- Show the first photo larger with a "Main Photo" label
+- Show additional photos in a smaller strip below
+- Add a confirmation dialog state (`showPhotoNudge`) triggered when saving with no photos
+- For URL imports: auto-populate the primary photo from scraped data with a visual indicator
 
-### Frontend (`src/pages/Vintography.tsx`)
+**New sub-component or inline section:**
+- `PhotoGuidance` -- a small card with an icon and guidance text about what makes a good primary photo
 
-- Extend the item data fetch to load `title`, `brand`, `category`, `description` from the listing
-- Add a `garmentContext` state variable that auto-populates from item data
-- Add a small text input below the operation cards (visible for `virtual_model`, `lifestyle_bg`, `flatlay_style`) for manual garment description
-- Pass `garment_context` in the `processImage` call
-- Rename "Virtual Model" label to "AI Model Concept" and update description/detail text
-- Add a disclaimer `Badge` on the Virtual Model operation card
+### `src/pages/Vintography.tsx`
 
-### ComparisonView (`src/components/vintography/ComparisonView.tsx`)
+- Add a dismissible `photoGuidanceDismissed` state (persisted to sessionStorage)
+- Show a guidance banner between the CreditBar and the upload/editor zone
+- Add operation-specific guidance text below the operation cards for `virtual_model` and `lifestyle_bg`
 
-- Update the `TIPS` for `virtual_model` to set honest expectations
-- Add a post-result suggestion when operation is `virtual_model`: "For pixel-perfect results, try Clean Background or Enhance instead"
+### `src/components/PhotosTab.tsx`
 
-### Model Picker (`src/components/vintography/ModelPicker.tsx`)
+- Add a small info note below the "Drag thumbnails to reorder" text: *"The cover photo is used by Photo Studio for AI editing. A full front view gives the best results."*
 
-- Add a small info note at the top: "The AI creates a concept based on your garment style. Exact details like logos may differ."
+### `src/components/NewItemWizard.tsx` (Confirmation Dialog)
+
+- Add an AlertDialog that triggers when saving with 0 photos
+- Two options: "Add Photos" (dismisses dialog, scrolls to photo upload) and "Skip for now" (proceeds with save)
 
 ## Summary of Files Changed
 
 | File | Change |
 |------|--------|
-| `supabase/functions/vintography/index.ts` | Accept `garment_context`, inject into prompts, strengthen anti-hallucination language |
-| `src/pages/Vintography.tsx` | Load item metadata, add garment description input, rename Virtual Model, pass context to edge function |
-| `src/components/vintography/ComparisonView.tsx` | Update tips, add post-result suggestion for model shots |
-| `src/components/vintography/ModelPicker.tsx` | Add expectation-setting info note |
+| `src/components/NewItemWizard.tsx` | Restructure photo upload with primary/additional guidance, add photo nudge dialog, move photos to top of details step |
+| `src/pages/Vintography.tsx` | Add dismissible guidance banner, add operation-specific quality warnings |
+| `src/components/PhotosTab.tsx` | Add cover photo guidance note |
+
+## What This Does NOT Change
+
+- No database schema changes needed
+- No edge function changes needed (garment context injection from last revamp handles the AI side)
+- No changes to Price Check or Listing Optimiser flows
+- The workflow order remains: Add Item (with guided photos) > Price Check > Optimise > Photo Studio
 
