@@ -97,9 +97,14 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
   const [downloading, setDownloading] = useState(false);
 
   const isReady = !!item.last_optimised_at;
-  const hasPhotos = !!item.image_url || (Array.isArray(item.images) && (item.images as any[]).length > 0);
+  const score = item.health_score;
 
+  // Hide entirely if not optimised or score below 60
   if (!isReady) return null;
+  if (score != null && score < 60) return null;
+
+  const isFullyReady = score != null && score >= 80;
+  const isNearlyReady = score != null && score >= 60 && score < 80;
 
   const { cleanDescription, hashtags } = item.description
     ? extractHashtags(item.description)
@@ -146,33 +151,55 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
         {/* ── Header ── */}
         <motion.div variants={fadeUp} className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center">
-              <Package className="w-6 h-6 text-success" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+              isFullyReady
+                ? "bg-gradient-to-br from-success/20 to-success/5"
+                : "bg-gradient-to-br from-warning/20 to-warning/5"
+            }`}>
+              <Package className={`w-6 h-6 ${isFullyReady ? "text-success" : "text-warning"}`} />
             </div>
-            {/* Celebration sparkles */}
-            <motion.div
-              className="absolute -top-1 -right-1"
-              initial={{ scale: 0, rotate: -30 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.5, type: "spring", stiffness: 300 }}
-            >
-              <Sparkles className="w-4 h-4 text-accent" />
-            </motion.div>
+            {/* Celebration sparkles — only for fully ready */}
+            {isFullyReady && (
+              <motion.div
+                className="absolute -top-1 -right-1"
+                initial={{ scale: 0, rotate: -30 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.5, type: "spring", stiffness: 300 }}
+              >
+                <Sparkles className="w-4 h-4 text-accent" />
+              </motion.div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-display text-lg font-bold tracking-tight">
-              Ready to Post
+              {isFullyReady ? "Ready to Post" : "Nearly Ready"}
             </h3>
             <p className="text-xs text-muted-foreground">
-              Copy everything below and paste straight into Vinted
+              {isFullyReady
+                ? "Copy everything below and paste straight into Vinted"
+                : "Improve your listing to get the best results"}
             </p>
           </div>
-          {item.health_score != null && (
+          {score != null && (
             <div className="shrink-0">
-              <HealthScoreMini score={item.health_score} />
+              <HealthScoreMini score={score} />
             </div>
           )}
         </motion.div>
+
+        {/* ── Nearly Ready CTA ── */}
+        {isNearlyReady && (
+          <motion.div variants={fadeUp}>
+            <Button
+              variant="outline"
+              className="w-full h-10 border-warning/30 text-warning hover:bg-warning/10 hover:text-warning font-semibold text-sm"
+              onClick={onOptimise}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Re-optimise to boost your score
+            </Button>
+          </motion.div>
+        )}
 
         {/* ── Title Section ── */}
         <motion.div variants={fadeUp} className="rounded-lg border border-border bg-background/60 p-3.5">
