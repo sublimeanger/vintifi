@@ -5,74 +5,100 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// --- Data fetching helpers ---
+// --- Perplexity market research ---
 
-async function fetchViaApify(searchQuery: string, apifyToken: string): Promise<any[] | null> {
-  try {
-    const actorId = "kazkn~vinted-smart-scraper";
-    const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyToken}&timeout=120`;
+async function fetchViaPerplexity(
+  brand: string,
+  category: string,
+  size: string,
+  condition: string,
+  perplexityKey: string
+): Promise<{ marketData: string; citations: string[] }> {
+  const itemDesc = [brand, category, size].filter(Boolean).join(" ");
+  const conditionNote = condition ? ` in ${condition.replace(/_/g, " ")} condition` : "";
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mode: "SEARCH",
-        searchQuery: searchQuery.substring(0, 100),
-        country: "uk",
-        maxItems: 20,
-      }),
-    });
-
-    if (!res.ok) {
-      console.error("Apify error:", res.status, await res.text());
-      return null;
-    }
-
-    const items = await res.json();
-    if (!Array.isArray(items) || items.length === 0) return null;
-    return items;
-  } catch (e) {
-    console.error("Apify fetch failed:", e);
-    return null;
-  }
-}
-
-async function fetchViaFirecrawl(searchQuery: string, firecrawlKey: string): Promise<any[]> {
-  const res = await fetch("https://api.firecrawl.dev/v1/search", {
+  const res = await fetch("https://api.perplexity.ai/chat/completions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${perplexityKey}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
-      query: `site:vinted.co.uk ${searchQuery.substring(0, 200)}`,
-      limit: 10,
-      scrapeOptions: { formats: ["markdown"] },
+      model: "sonar",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a secondhand clothing market researcher specialising in the UK resale market. Provide factual, data-rich responses with specific prices in GBP. Focus on currently listed and recently sold items. Be concise and structured.",
+        },
+        {
+          role: "user",
+          content: `Research current market prices for: ${itemDesc}${conditionNote}
+
+Please provide:
+1. Current active listing prices on Vinted UK for this exact item (list specific prices you find)
+2. Recent sold prices where available
+3. Price range (lowest to highest currently listed)
+4. Approximate number of comparable listings currently active
+5. Any notable price trends or seasonal demand patterns
+6. Cross-platform comparison: what similar items sell for on eBay UK and Depop
+7. Which condition grades command premium prices for this item
+
+Be specific with real prices you find. If data is limited, say so clearly.`,
+        },
+      ],
+      search_domain_filter: ["vinted.co.uk", "ebay.co.uk", "depop.com"],
+      search_recency_filter: "month",
     }),
   });
-  if (!res.ok) return [];
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("Perplexity error:", res.status, errText);
+    throw new Error(`Perplexity search failed: ${res.status}`);
+  }
+
   const data = await res.json();
-  return data.data || [];
+  const content = data.choices?.[0]?.message?.content || "";
+  const citations: string[] = data.citations || [];
+
+  console.log(`Perplexity returned ${content.length} chars with ${citations.length} citations`);
+  return { marketData: content, citations };
 }
 
-function formatApifyComparables(items: any[]): string {
-  return items
-    .map((item: any, i: number) => {
-      const title = item.title || "Unknown";
-      const price = item.price != null ? `£${item.price}` : "N/A";
-      const brand = item.brand_title || item.brand || "Unknown";
-      const size = item.size_title || "";
-      const views = item.view_count ?? "N/A";
-      const favs = item.favourite_count ?? "N/A";
-      const status = item.status || "active";
-      const url = item.url || "";
-      const condition = item.status_label || "Unknown";
-      return `${i + 1}. ${title} | Brand: ${brand} | Price: ${price} | Size: ${size} | Condition: ${condition} | Views: ${views} | Favourites: ${favs} | Status: ${status} | URL: ${url}`;
-    })
-    .join("\n");
-}
+// --- Optional: Extract context from a Vinted URL via Firecrawl ---
 
-function formatFirecrawlComparables(items: any[]): string {
-  return items
-    .map((r: any, i: number) => `${i + 1}. ${r.title || r.url}: ${r.markdown?.substring(0, 200) || "No details"}`)
-    .join("\n");
+async function extractVintedItemContext(
+  url: string,
+  firecrawlKey: string
+): Promise<{ brand: string; title: string; category: string; condition: string; size: string }> {
+  try {
+    const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+    });
+    const scrapeData = await scrapeRes.json();
+    const markdown: string = scrapeData.data?.markdown || scrapeData.markdown || "";
+
+    // Extract structured fields from the markdown
+    const titleMatch = markdown.match(/^#\s+(.+)/m);
+    const brandMatch = markdown.match(/brand[:\s]+([^\n|]+)/i);
+    const sizeMatch = markdown.match(/size[:\s]+([^\n|]+)/i);
+    const conditionMatch = markdown.match(/condition[:\s]+([^\n|]+)/i);
+    const categoryMatch = markdown.match(/category[:\s]+([^\n|]+)/i);
+
+    return {
+      title: titleMatch?.[1]?.trim() || "",
+      brand: brandMatch?.[1]?.trim() || "",
+      category: categoryMatch?.[1]?.trim() || "",
+      condition: conditionMatch?.[1]?.trim() || "",
+      size: sizeMatch?.[1]?.trim() || "",
+    };
+  } catch (e) {
+    console.error("Firecrawl context extraction failed:", e);
+    return { brand: "", title: "", category: "", condition: "", size: "" };
+  }
 }
 
 // --- Main handler ---
@@ -81,7 +107,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { url, brand, category, condition, itemId } = await req.json();
+    const { url, brand, category, condition, size, itemId } = await req.json();
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Not authenticated");
@@ -116,88 +142,76 @@ serve(async (req) => {
       }
     }
 
-    // Build search query
-    let searchQuery = "";
+    // --- Resolve item details ---
+    let itemBrand = brand || "";
+    let itemCategory = category || "";
+    let itemCondition = condition || "";
+    let itemSize = size || "";
+    let itemTitle = "";
+
+    // If a Vinted URL is provided, extract context via Firecrawl
     if (url && url.includes("vinted")) {
-      // Extract item details from URL via Firecrawl scrape for context
       const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
       if (firecrawlKey) {
-        try {
-          const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
-          });
-          const scrapeData = await scrapeRes.json();
-          const markdown = scrapeData.data?.markdown || scrapeData.markdown || "";
-          searchQuery = markdown.substring(0, 300);
-        } catch {
-          searchQuery = url;
-        }
-      } else {
-        searchQuery = url;
-      }
-    } else {
-      searchQuery = [brand, category, condition].filter(Boolean).join(" ");
-    }
-
-    // --- Hybrid data fetching: Apify primary, Firecrawl fallback ---
-    const apifyToken = Deno.env.get("APIFY_API_TOKEN");
-    const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
-
-    let comparablesSummary = "";
-    let dataSource = "none";
-
-    if (apifyToken) {
-      const apifyItems = await fetchViaApify(searchQuery, apifyToken);
-      if (apifyItems && apifyItems.length > 0) {
-        comparablesSummary = formatApifyComparables(apifyItems);
-        dataSource = "apify";
-        console.log(`Apify returned ${apifyItems.length} structured results`);
+        const context = await extractVintedItemContext(url, firecrawlKey);
+        itemBrand = itemBrand || context.brand;
+        itemCategory = itemCategory || context.category || context.title;
+        itemCondition = itemCondition || context.condition;
+        itemSize = itemSize || context.size;
+        itemTitle = context.title;
+        console.log("Extracted from Vinted URL:", JSON.stringify(context));
       }
     }
 
-    // Fallback to Firecrawl if Apify failed or not configured
-    if (!comparablesSummary && firecrawlKey) {
-      const fcItems = await fetchViaFirecrawl(searchQuery, firecrawlKey);
-      if (fcItems.length > 0) {
-        comparablesSummary = formatFirecrawlComparables(fcItems);
-        dataSource = "firecrawl";
-        console.log(`Firecrawl fallback returned ${fcItems.length} results`);
-      }
-    }
+    // --- Perplexity market research ---
+    const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
+    if (!perplexityKey) throw new Error("Perplexity API not configured. Please connect Perplexity in project settings.");
 
-    // AI Analysis
+    const searchDesc = itemTitle || [itemBrand, itemCategory].filter(Boolean).join(" ");
+    console.log(`Running Perplexity search for: "${searchDesc}" size: "${itemSize}" condition: "${itemCondition}"`);
+
+    const { marketData, citations } = await fetchViaPerplexity(
+      itemBrand,
+      itemCategory || itemTitle,
+      itemSize,
+      itemCondition,
+      perplexityKey
+    );
+
+    // --- AI Analysis via Gemini ---
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI not configured");
 
-    const dataSourceNote = dataSource === "apify"
-      ? "The comparable items below are STRUCTURED DATA from Vinted with exact prices, view counts, and favourite counts. Use these real numbers for your analysis."
-      : "The comparable items below are web search snippets. Estimate prices and metrics from the text.";
+    const citationsText = citations.length > 0
+      ? `\n\nSource URLs (citations from real-time web search):\n${citations.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+      : "";
 
-    const aiPrompt = `You are a Vinted pricing analyst specialising in the UK secondhand market. Analyse the following market data and provide a comprehensive pricing report.
+    const aiPrompt = `You are a Vinted pricing analyst specialising in the UK secondhand market. Analyse the following REAL-TIME market research data gathered from live searches across Vinted, eBay, and Depop.
 
 Item being priced:
 - URL: ${url || "N/A"}
-- Brand: ${brand || "Unknown"}
-- Category: ${category || "Unknown"}  
-- Condition: ${condition || "Unknown"}
+- Brand: ${itemBrand || "Unknown"}
+- Category: ${itemCategory || itemTitle || "Unknown"}
+- Size: ${itemSize || "Unknown"}
+- Condition: ${itemCondition || "Unknown"}
 
-${dataSourceNote}
-
-Comparable items found on the market:
-${comparablesSummary || "No comparables found"}
+═══════════════════════════════════════════
+REAL-TIME MARKET DATA (from Perplexity AI search):
+═══════════════════════════════════════════
+${marketData}
+${citationsText}
 
 IMPORTANT INSTRUCTIONS:
-1. DIFFERENTIATE between NEW and USED items. New items (with or without tags) command significantly higher prices.
-2. Calculate RESELLER buy/sell prices:
+1. The market data above is from a LIVE web search conducted moments ago. Use the specific prices, listings, and trends mentioned.
+2. DIFFERENTIATE between NEW and USED items. New items command significantly higher prices.
+3. Calculate RESELLER buy/sell prices:
    - "buy_price_good": A great sourcing price (50%+ margin after fees)
    - "buy_price_max": Max price to pay and still profit (40%+ margin on resale)
    - "estimated_resale": Realistic sell price on Vinted
-3. Estimate DEMAND LEVEL based on views, favourites, and sold vs active ratio.
-4. Provide CONDITION PRICE BREAKDOWN.
-5. Calculate FEES: estimated_fees ~5% of resale, estimated_shipping £3-5.
-6. net_profit_estimate = estimated_resale - estimated_fees - estimated_shipping
+4. Estimate DEMAND LEVEL based on the number of listings, price clustering, and market activity described above.
+5. Provide CONDITION PRICE BREAKDOWN based on the data.
+6. Calculate FEES: estimated_fees ~5% of resale, estimated_shipping £3-5.
+7. net_profit_estimate = estimated_resale - estimated_fees - estimated_shipping
 
 ═══════════════════════════════════════════
 AI INSIGHTS — STRICT REQUIREMENTS
@@ -205,19 +219,19 @@ AI INSIGHTS — STRICT REQUIREMENTS
 The "ai_insights" field MUST contain exactly 3 focused paragraphs separated by \\n\\n:
 
 PARAGRAPH 1 — MARKET POSITION (2-3 sentences):
-Where this SPECIFIC item sits in the current market RIGHT NOW. Reference actual comparable prices from the data above. State how many comparable listings are currently active and whether the market is saturated or underserved for this exact item. Every sentence must contain a specific number from the data.
+Where this SPECIFIC item sits in the current market RIGHT NOW. Reference actual prices from the market data above. State how many comparable listings are currently active and whether the market is saturated or underserved. Every sentence must contain a specific number from the data.
 
 PARAGRAPH 2 — PRICING STRATEGY (2-3 sentences):
-Concrete, actionable advice with specific numbers. Example format: "List at £X for the first 7 days. If no sale, drop to £Y. Accept offers above £Z." Include the best day and time to list based on the category (weekday evenings for menswear, Sunday evenings for womenswear, Saturday mornings for kids). State whether to accept offers immediately or hold firm for the first week.
+Concrete, actionable advice with specific numbers. Example format: "List at £X for the first 7 days. If no sale, drop to £Y. Accept offers above £Z." Include the best day and time to list based on the category. State whether to accept offers immediately or hold firm.
 
 PARAGRAPH 3 — SELLER EDGE (1-2 sentences):
-One specific competitive insight that gives the seller an advantage. Examples: "Only 3 of these in size M are currently listed on Vinted UK" or "Nike crewnecks have seen a 20% price increase over the last 30 days" or "Bundle with another Nike item — bundled listings sell 40% faster on Vinted." This must be data-backed and specific to THIS item.
+One specific competitive insight backed by the data above. Reference cross-platform price differences, supply gaps, or demand trends. This must be specific to THIS item.
 
 ABSOLUTE CONSTRAINTS FOR AI INSIGHTS:
-- Your insights must ONLY reference the specific item being priced and the comparable data provided above.
-- NEVER mention unrelated categories, items, or markets (no board games, no electronics, no furniture).
-- Every sentence must contain a specific number, price, date, or actionable recommendation.
-- If the data is limited, say so honestly — do NOT fill gaps with generic advice or unrelated information.
+- Reference ONLY the specific item and the market data provided above.
+- NEVER mention unrelated categories or items.
+- Every sentence must contain a specific number, price, or actionable recommendation.
+- If data is limited, say so honestly — do NOT fill gaps with generic advice.
 
 Return a JSON object (no markdown, just raw JSON) with this exact structure:
 {
@@ -295,6 +309,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
     }
 
     // Save report to database
+    const searchQuery = [itemBrand, itemCategory || itemTitle, itemSize].filter(Boolean).join(" ");
     await fetch(`${supabaseUrl}/rest/v1/price_reports`, {
       method: "POST",
       headers: {
