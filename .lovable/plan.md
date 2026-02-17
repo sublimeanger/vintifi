@@ -1,177 +1,66 @@
 
 
-# Fix Everything: 15 Cohesiveness Fixes
+# Photo Studio Revamp: Fixing the Garment Fidelity Problem
 
-## Overview
-This plan addresses all 15 bugs and UX flaws identified in the end-to-end audit, organized by priority.
+## The Problem
 
----
+The Virtual Model operation tells the AI to put a model "wearing this exact garment," but generative image models like Gemini don't copy the garment pixel-perfectly -- they **re-imagine** it based on the prompt. This means a Nike crewneck sweatshirt can become a Nike hoodie, colours shift, logos move, and details are lost. This is a fundamental limitation of text-to-image generation, not a prompt-tuning issue.
 
-## Fix 1: Price Check uses item TITLE, not just brand + category
-**File:** `supabase/functions/price-check/index.ts`
+## The Solution: A Three-Part Revamp
 
-Currently the Perplexity search builds its query from `brand` + `category` (e.g. "Nike Jumpers"). This is too generic.
+### 1. Inject Garment Context Into Prompts
 
-- Change `fetchViaPerplexity` to accept a `title` parameter
-- When navigating from an item, pass the full title (e.g. "Nike Crewneck Sweatshirt M") to Perplexity as the primary search term
-- Update the search description logic on line 189: prefer `itemTitle` over `brand + category`
-- Pass `itemTitle` into `fetchViaPerplexity` so the search is specific
+When Photo Studio is opened from an item (via `itemId`), the system already loads the item data but only uses `image_url` and `images`. We will also load the item's `title`, `brand`, `category`, and `description` and inject these details directly into the AI prompt so it knows *exactly* what the garment is.
 
-Also update the frontend (`PriceCheck.tsx`) to pass the item title to the edge function when in manual mode or when navigating from an item.
+**Before:** "Create a photo of a model wearing this exact garment"
+**After:** "Create a photo of a model wearing this Nike crewneck sweatshirt (Menswear, size M, good condition). NOT a hoodie, NOT a jacket -- a crew-neck sweatshirt with no hood and a round neckline..."
 
----
+This won't guarantee perfection, but it dramatically reduces misidentification.
 
-## Fix 2: Add SIZE field to Price Check manual form
-**File:** `src/pages/PriceCheck.tsx`
+### 2. Add a Garment Description Input for Standalone Use
 
-The manual entry form has Brand, Category, Condition but no Size field. Size is critical for accurate pricing.
+When users upload photos without linking to an item, add a small optional text field: **"Describe your item"** (e.g., "Black Nike crewneck sweatshirt, size M"). This text gets injected into the prompt as explicit garment identity context. For item-linked usage, this auto-fills from the listing data.
 
-- Add a `size` state variable
-- Add a Size input field in the manual entry grid
-- Pass `size` in the `supabase.functions.invoke("price-check", { body: { ... size } })` call
-- Pre-populate size from search params when navigating from an item (`searchParams.get("size")`)
+### 3. Set Honest Expectations in the UI
 
-Also update `ItemDetail.tsx` `handlePriceCheck` to pass `size` in the URL params.
+- Rename "Virtual Model" to **"AI Model Concept"** with updated description: "AI-generated model wearing your style of garment"
+- Add a small disclaimer badge on the Virtual Model card: "AI interpretation -- garment details may vary"
+- Update the processing tips for virtual_model to be honest about the capability
+- Add a post-result feedback nudge: "Not quite right? Try **Clean Background** or **Enhance** for pixel-perfect results"
 
----
+## Technical Changes
 
-## Fix 3: Add "Sweatshirts" to category dropdown
-**File:** `src/components/NewItemWizard.tsx`
+### Edge Function (`supabase/functions/vintography/index.ts`)
 
-The categories array is missing "Sweatshirts". Add it after "Hoodies" in the list.
+- Accept a new optional `garment_context` field in the request body (string)
+- Inject the garment context into the `model_shot` prompt as an explicit garment identity block with negative instructions (e.g., "This is NOT a hoodie")
+- Also inject into `smart_bg` and `flatlay_style` prompts for consistency
+- Strengthen the `GARMENT_PRESERVE` constant with explicit anti-hallucination language
 
----
+### Frontend (`src/pages/Vintography.tsx`)
 
-## Fix 4: Stop Optimiser from overwriting original title
-**File:** `src/pages/OptimizeListing.tsx`
+- Extend the item data fetch to load `title`, `brand`, `category`, `description` from the listing
+- Add a `garmentContext` state variable that auto-populates from item data
+- Add a small text input below the operation cards (visible for `virtual_model`, `lifestyle_bg`, `flatlay_style`) for manual garment description
+- Pass `garment_context` in the `processImage` call
+- Rename "Virtual Model" label to "AI Model Concept" and update description/detail text
+- Add a disclaimer `Badge` on the Virtual Model operation card
 
-Lines 224-228: the save-to-DB logic currently sets `title: data.optimised_title` and `description: data.optimised_description`, overwriting the user's original title.
+### ComparisonView (`src/components/vintography/ComparisonView.tsx`)
 
-- Save the optimised title/description to NEW fields: `optimised_title` and `optimised_description` (these will need a migration)
-- Keep the original `title` and `description` untouched
-- The Vinted-Ready Pack and Listing tab should display the optimised versions when available, falling back to originals
+- Update the `TIPS` for `virtual_model` to set honest expectations
+- Add a post-result suggestion when operation is `virtual_model`: "For pixel-perfect results, try Clean Background or Enhance instead"
 
-This requires a small database migration to add `optimised_title` and `optimised_description` columns to the listings table.
+### Model Picker (`src/components/vintography/ModelPicker.tsx`)
 
----
+- Add a small info note at the top: "The AI creates a concept based on your garment style. Exact details like logos may differ."
 
-## Fix 5: Display condition as human-readable in Optimiser
-**File:** `src/pages/OptimizeListing.tsx`
+## Summary of Files Changed
 
-Line 116: when loading condition from DB, it converts snake_case to Title Case for display. But then this Title Case value gets sent to the AI. The condition should stay as snake_case internally and only be displayed as human-readable in the UI.
-
-- Keep condition state as snake_case
-- Display it with `.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())` only in the UI label, not in the state
-
----
-
-## Fix 6: Pre-fill Profit Calculator with purchase_price
-**File:** `src/pages/PriceCheck.tsx`
-
-When navigating from an item that has a `purchase_price`, the "Your Cost" field in the Profit Calculator should be pre-filled.
-
-- Accept `purchasePrice` from search params
-- Pre-populate `yourCost` state when available
-- Update `ItemDetail.tsx` `handlePriceCheck` to pass `purchase_price` in the URL params
-
----
-
-## Fix 7: Auto-populate current_price after price check
-**File:** `src/pages/PriceCheck.tsx`
-
-After a successful price check linked to an item, update the item's `current_price` to the `recommended_price` if `current_price` is currently null.
-
-- In the `if (itemId && user)` block (line 176), add a conditional update: `current_price: data.recommended_price` only when the existing `current_price` is null
-
----
-
-## Fix 8: Portfolio value uses recommended_price fallback
-**File:** `src/pages/Listings.tsx`
-
-The portfolio total currently only sums `current_price`. When `current_price` is null but `recommended_price` exists, it should use that as fallback.
-
-- Find the portfolio value calculation and update: `item.current_price ?? item.recommended_price ?? 0`
-
----
-
-## Fix 9: Pass item title to Price Check from ItemDetail
-**File:** `src/pages/ItemDetail.tsx`
-
-The `handlePriceCheck` function (line 134) passes brand, category, condition but NOT the item title or size.
-
-- Add `params.set("title", item.title)` 
-- Add `params.set("size", item.size)` when available
-- Add `params.set("purchasePrice", item.purchase_price)` when available
-
----
-
-## Fix 10: Price Check accepts and uses title param
-**File:** `src/pages/PriceCheck.tsx`
-
-- Add `paramTitle` from search params
-- Add a `title` state variable
-- Pass `title` in the edge function call body
-- Display the title in the manual form (optional, could be auto-derived)
-
----
-
-## Fix 11: Price Check edge function uses title for search
-**File:** `supabase/functions/price-check/index.ts`
-
-- Accept `title` in the request body
-- Set `itemTitle = title || ""` at the top alongside other params
-- The existing line 189 `const searchDesc = itemTitle || [itemBrand, itemCategory].filter(Boolean).join(" ")` already prefers `itemTitle` -- just ensure it gets populated from the request body, not only from Firecrawl
-
----
-
-## Fix 12: Condition display in ItemDetail Listing tab
-**File:** `src/pages/ItemDetail.tsx`
-
-Line 651: condition displays raw snake_case. Already handled on line 252 in the badge row, but the Listing tab grid (line 655) shows raw value.
-
-- Apply the same `.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())` transform to the condition field in the Listing tab
-
----
-
-## Fix 13: Optimiser condition state fix
-**File:** `src/pages/OptimizeListing.tsx`
-
-Line 116: converts condition from DB to Title Case. This breaks the AI prompt which expects snake_case.
-
-- Remove the Title Case conversion on line 116
-- Keep raw snake_case value in state
-- Only format for display in the UI
-
----
-
-## Fix 14: DB Migration for optimised_title/description
-New columns on the `listings` table:
-- `optimised_title TEXT`
-- `optimised_description TEXT`
-
-This keeps original user data intact while storing AI-generated versions separately.
-
----
-
-## Fix 15: Update VintedReadyPack and Listing tab to use optimised fields
-**Files:** `src/components/VintedReadyPack.tsx`, `src/pages/ItemDetail.tsx`
-
-- When displaying listing copy, prefer `optimised_title` over `title` and `optimised_description` over `description`
-- The copy-to-clipboard action should copy the optimised version
-- Both fields fall back to originals when optimised versions don't exist
-
----
-
-## Summary of files changed
-
-| File | Changes |
-|------|---------|
-| `supabase/functions/price-check/index.ts` | Accept `title` param, use it as primary search term |
-| `src/pages/PriceCheck.tsx` | Add size + title fields, pre-fill purchase price, pass title to edge function |
-| `src/pages/OptimizeListing.tsx` | Save to `optimised_title`/`optimised_description`, fix condition state |
-| `src/pages/ItemDetail.tsx` | Pass title/size/purchasePrice to price check, format condition, use optimised fields |
-| `src/pages/Listings.tsx` | Portfolio fallback to recommended_price |
-| `src/components/NewItemWizard.tsx` | Add "Sweatshirts" category |
-| `src/components/VintedReadyPack.tsx` | Use optimised_title/description fields |
-| DB Migration | Add `optimised_title`, `optimised_description` columns |
+| File | Change |
+|------|--------|
+| `supabase/functions/vintography/index.ts` | Accept `garment_context`, inject into prompts, strengthen anti-hallucination language |
+| `src/pages/Vintography.tsx` | Load item metadata, add garment description input, rename Virtual Model, pass context to edge function |
+| `src/components/vintography/ComparisonView.tsx` | Update tips, add post-result suggestion for model shots |
+| `src/components/vintography/ModelPicker.tsx` | Add expectation-setting info note |
 
