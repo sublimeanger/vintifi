@@ -209,32 +209,32 @@ export function BriefingCardSkeleton({ count = 5 }: { count?: number }) {
 /** Price check result skeleton */
 export function PriceReportSkeleton() {
   return (
-    <div className="space-y-4">
-      <ShimmerCard>
+    <div className="space-y-2.5 sm:space-y-4">
+      <ShimmerCard className="!p-3 sm:!p-4">
         <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-10 w-24" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-2.5 w-20 sm:w-28" />
+            <Skeleton className="h-8 w-20 sm:h-10 sm:w-24" />
           </div>
-          <Skeleton className="h-16 w-16 rounded-full" />
+          <Skeleton className="h-12 w-12 sm:h-16 sm:w-16 rounded-full" />
         </div>
       </ShimmerCard>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
         {[1, 2, 3].map((i) => (
-          <ShimmerCard key={i}>
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-6 w-16" />
+          <ShimmerCard key={i} className="!p-2.5 sm:!p-4">
+            <Skeleton className="h-2.5 w-14 sm:w-20" />
+            <Skeleton className="h-5 w-12 sm:h-6 sm:w-16" />
           </ShimmerCard>
         ))}
       </div>
       <ChartSkeleton />
-      <ShimmerCard>
-        <Skeleton className="h-4 w-40 mb-2" />
+      <ShimmerCard className="!p-3 sm:!p-4">
+        <Skeleton className="h-3.5 w-32 sm:w-40 mb-2" />
         <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="flex justify-between">
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-3.5 w-36 sm:w-48" />
+              <Skeleton className="h-3.5 w-12 sm:w-16" />
             </div>
           ))}
         </div>

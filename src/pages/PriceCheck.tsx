@@ -337,7 +337,7 @@ export default function PriceCheck() {
 
         {/* Sprint 6: Pick from my items */}
         {!itemId && (
-          <div className="text-center -mt-3 mb-3">
+          <div className="text-center mt-1 sm:-mt-1 mb-1">
             <ItemPickerDialog onSelect={(picked) => {
               const params = new URLSearchParams({ itemId: picked.id });
               if (picked.vinted_url) params.set("url", picked.vinted_url);
