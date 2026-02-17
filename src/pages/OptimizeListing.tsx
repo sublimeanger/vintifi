@@ -731,7 +731,7 @@ export default function OptimizeListing() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</Label>
-                    <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="e.g. Very Good" className="h-11 sm:h-10 text-base sm:text-sm" />
+                    <Input value={condition.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())} readOnly className="h-11 sm:h-10 text-base sm:text-sm bg-muted/50 cursor-default" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">

@@ -31,6 +31,8 @@ type Listing = {
   id: string;
   title: string;
   description: string | null;
+  optimised_title: string | null;
+  optimised_description: string | null;
   brand: string | null;
   category: string | null;
   size: string | null;
@@ -166,8 +168,9 @@ export default function ItemDetail() {
   };
 
   const handleCopyDescription = () => {
-    if (item?.description) {
-      navigator.clipboard.writeText(item.description);
+    const text = item?.optimised_description || item?.description;
+    if (text) {
+      navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast.success("Description copied");
@@ -625,21 +628,21 @@ export default function ItemDetail() {
           <Card className="p-5 space-y-4">
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Title</p>
-              <p className="text-sm font-medium">{item.title}</p>
+              <p className="text-sm font-medium">{item.optimised_title || item.title}</p>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Description</p>
-                {item.description && (
+                {(item.optimised_description || item.description) && (
                   <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={handleCopyDescription}>
                     {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
                     {copied ? "Copied" : "Copy"}
                   </Button>
                 )}
               </div>
-              {item.description ? (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{item.description}</p>
+              {(item.optimised_description || item.description) ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{item.optimised_description || item.description}</p>
               ) : (
                 <p className="text-sm text-muted-foreground italic">No description yet. Use "Improve Listing" to generate one.</p>
               )}
