@@ -10,7 +10,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { photoUrls, brand, category, size, condition, currentTitle, currentDescription, vintedUrl, fetchOnly } = body;
+    const { photoUrls, brand, category, size, condition, colour, material, currentTitle, currentDescription, vintedUrl, fetchOnly } = body;
 
     // Auth
     const authHeader = req.headers.get("Authorization");
@@ -213,6 +213,8 @@ Item details provided by seller:
 - Category: ${category || "Not specified"}
 - Size: ${size || "Not specified"}
 - Condition: ${condition || "Not specified"}
+- Colour: ${colour || "Not specified"}
+- Material: ${material || "Not specified"}
 - Current title: ${currentTitle || "None"}
 - Current description: ${currentDescription || "None"}
 

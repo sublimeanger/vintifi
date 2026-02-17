@@ -63,6 +63,8 @@ export default function OptimizeListing() {
   const [category, setCategory] = useState(searchParams.get("category") || "");
   const [size, setSize] = useState(searchParams.get("size") || "");
   const [condition, setCondition] = useState(searchParams.get("condition") || "");
+  const [colour, setColour] = useState(searchParams.get("colour") || "");
+  const [material, setMaterial] = useState(searchParams.get("material") || "");
   const [currentTitle, setCurrentTitle] = useState(searchParams.get("title") || "");
   const [currentDescription, setCurrentDescription] = useState(searchParams.get("description") || "");
   const [optimizing, setOptimizing] = useState(false);
@@ -94,17 +96,27 @@ export default function OptimizeListing() {
     }
   }, [itemId, remotePhotoUrls, user, result, optimizing]);
 
-  // Fetch existing photos from DB when opened from an item detail page
+  // Fetch existing photos AND metadata from DB when opened from an item detail page
   useEffect(() => {
     if (!itemId) return;
     setLoadingItemPhotos(true);
     (async () => {
       const { data } = await supabase
         .from("listings")
-        .select("image_url, images")
+        .select("image_url, images, size, colour, material, condition, brand, category, title, description")
         .eq("id", itemId)
         .maybeSingle();
       if (!data) { setLoadingItemPhotos(false); return; }
+      // Populate metadata from DB if not already set via search params
+      if (data.size && !size) setSize(data.size);
+      if (data.colour && !colour) setColour(data.colour);
+      if (data.material && !material) setMaterial(data.material);
+      if (data.brand && !brand) setBrand(data.brand);
+      if (data.category && !category) setCategory(data.category);
+      if (data.condition && !condition) setCondition(data.condition);
+      if (data.title && !currentTitle) setCurrentTitle(data.title);
+      if (data.description && !currentDescription) setCurrentDescription(data.description);
+      // Photos
       const urls: string[] = [];
       if (data.image_url) urls.push(data.image_url);
       if (Array.isArray(data.images)) {
@@ -192,6 +204,8 @@ export default function OptimizeListing() {
           category: category.trim() || undefined,
           size: size.trim() || undefined,
           condition: condition.trim() || undefined,
+          colour: colour.trim() || undefined,
+          material: material.trim() || undefined,
           currentTitle: currentTitle.trim() || undefined,
           currentDescription: currentDescription.trim() || undefined,
         },

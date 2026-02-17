@@ -152,6 +152,8 @@ export default function ItemDetail() {
     if (item.category) params.set("category", item.category);
     if (item.size) params.set("size", item.size);
     if (item.condition) params.set("condition", item.condition);
+    if (item.colour) params.set("colour", item.colour);
+    if (item.material) params.set("material", item.material);
     navigate(`/optimize?${params.toString()}`);
   };
 
@@ -247,7 +249,7 @@ export default function ItemDetail() {
         <Badge variant="outline" className={`${status.className} shrink-0`}>{status.label}</Badge>
         {item.brand && <Badge variant="secondary" className="shrink-0"><Tag className="w-3 h-3 mr-1" />{item.brand}</Badge>}
         {item.size && <Badge variant="secondary" className="shrink-0"><Ruler className="w-3 h-3 mr-1" />{item.size}</Badge>}
-        {item.condition && <Badge variant="secondary" className="shrink-0"><ShieldCheck className="w-3 h-3 mr-1" />{item.condition}</Badge>}
+        {item.condition && <Badge variant="secondary" className="shrink-0"><ShieldCheck className="w-3 h-3 mr-1" />{item.condition.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</Badge>}
         {item.colour && <Badge variant="secondary" className="shrink-0">{item.colour}</Badge>}
         {item.material && <Badge variant="secondary" className="shrink-0">{item.material}</Badge>}
 
@@ -433,7 +435,7 @@ export default function ItemDetail() {
                 { label: "Priced", done: !!item.last_price_check_at, icon: Search },
                 { label: "Optimised", done: !!item.last_optimised_at, icon: Sparkles },
                 { label: "Photos", done: !!item.last_photo_edit_at || !!item.image_url, icon: ImageIcon },
-                { label: "Listed", done: item.status === "active" || item.status === "sold", icon: Package },
+                { label: "Listed", done: !!item.vinted_url || item.status === "sold", icon: Package },
               ];
               const doneCount = steps.filter(s => s.done).length;
               return (
