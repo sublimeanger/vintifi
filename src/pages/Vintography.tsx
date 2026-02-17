@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
   Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock,
-  RefreshCw, Coins, Package,
+  RefreshCw, Coins, Package, Info, X,
 } from "lucide-react";
 
 import { CreditBar } from "@/components/vintography/CreditBar";
@@ -381,6 +381,32 @@ export default function Vintography() {
         <div className="space-y-4 sm:space-y-5">
           <CreditBar used={vintographyUsed} limit={creditsLimit} unlimited={isUnlimited} />
 
+          {/* Photo quality guidance banner */}
+          {!sessionStorage.getItem("vintography_guidance_dismissed") && (
+            <motion.div
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-2.5 rounded-lg bg-primary/[0.04] border border-primary/10 p-3"
+            >
+              <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="font-semibold text-foreground">Best results</span> with a full, flat-lay or hanger shot showing the entire garment. Close-ups, folded shots, or partial views may produce unexpected results.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  sessionStorage.setItem("vintography_guidance_dismissed", "1");
+                  // Force re-render
+                  setProcessedUrl(prev => prev);
+                }}
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+
           {!originalUrl ? (
             /* ─── Upload Zone ─── */
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -484,7 +510,14 @@ export default function Vintography() {
 
               {/* Garment description input for context-sensitive operations */}
               {(selectedOp === "virtual_model" || selectedOp === "lifestyle_bg") && (
-                <Card className="p-3 space-y-1.5">
+                <Card className="p-3 space-y-2">
+                  {/* Operation-specific photo quality warning */}
+                  <div className="flex items-start gap-2 rounded-md bg-warning/[0.06] border border-warning/15 p-2">
+                    <Info className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Make sure your photo shows the <span className="font-semibold text-foreground">full garment</span> (front view, neckline to hem). Folded or cropped photos won't work well for {selectedOp === "virtual_model" ? "model shots" : "lifestyle scenes"}.
+                    </p>
+                  </div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Describe your item {itemId ? "(auto-filled)" : "(optional)"}
                   </label>

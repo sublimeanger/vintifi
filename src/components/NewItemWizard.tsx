@@ -8,6 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +28,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Link2, Camera, Pencil, ArrowRight, ArrowLeft, Loader2,
-  Plus, Check, Sparkles, Package, Upload, X, Zap,
+  Plus, Check, Sparkles, Package, Upload, X, Zap, Info, ImageIcon,
 } from "lucide-react";
 
 type EntryMethod = "url" | "photo" | "manual";
@@ -85,6 +95,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoSectionRef = useRef<HTMLDivElement>(null);
 
   const [data, setData] = useState<WizardData>(initialData);
   const [step, setStep] = useState<"method" | "input" | "details" | "done">("method");
@@ -92,6 +103,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
   const [createdItemId, setCreatedItemId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [scraping, setScraping] = useState(false);
+  const [showPhotoNudge, setShowPhotoNudge] = useState(false);
 
   const update = (partial: Partial<WizardData>) => setData(prev => ({ ...prev, ...partial }));
 
@@ -99,6 +111,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
     setData(initialData);
     setStep("method");
     setCreatedItemId(null);
+    setShowPhotoNudge(false);
   };
 
   const handleClose = (v: boolean) => {
@@ -126,9 +139,12 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
   };
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).slice(0, 5);
+    const files = Array.from(e.target.files || []).slice(0, 5 - data.photoUrls.length);
     if (files.length === 0) return;
-    update({ photos: files, photoUrls: files.map(f => URL.createObjectURL(f)) });
+    const newFiles = [...data.photos, ...files];
+    const newUrls = [...data.photoUrls, ...files.map(f => URL.createObjectURL(f))];
+    update({ photos: newFiles, photoUrls: newUrls });
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removePhoto = (idx: number) => {
@@ -136,6 +152,17 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
       photos: data.photos.filter((_, i) => i !== idx),
       photoUrls: data.photoUrls.filter((_, i) => i !== idx),
     });
+  };
+
+  const swapToMain = (idx: number) => {
+    if (idx === 0) return;
+    const newUrls = [...data.photoUrls];
+    const newPhotos = [...data.photos];
+    [newUrls[0], newUrls[idx]] = [newUrls[idx], newUrls[0]];
+    if (newPhotos.length > idx) {
+      [newPhotos[0], newPhotos[idx]] = [newPhotos[idx], newPhotos[0]];
+    }
+    update({ photoUrls: newUrls, photos: newPhotos });
   };
 
   const handleMethodSelect = (method: EntryMethod) => {
@@ -194,25 +221,8 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
     setStep("details");
   };
 
-  const handleSave = async () => {
+  const executeSave = async () => {
     if (!user) return;
-    if (!data.title.trim()) {
-      toast.error("Title is required");
-      return;
-    }
-    if (!data.condition) {
-      toast.error("Condition is required");
-      return;
-    }
-    if (data.purchasePrice === "") {
-      toast.error("Purchase price is required (enter 0 if free)");
-      return;
-    }
-    if (listingCount >= listingLimit) {
-      toast.error("Listing limit reached — upgrade to add more");
-      return;
-    }
-
     setSaving(true);
     try {
       let uploadedUrls: string[] = [];
@@ -255,147 +265,298 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
     }
   };
 
+  const handleSave = async () => {
+    if (!user) return;
+    if (!data.title.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+    if (!data.condition) {
+      toast.error("Condition is required");
+      return;
+    }
+    if (data.purchasePrice === "") {
+      toast.error("Purchase price is required (enter 0 if free)");
+      return;
+    }
+    if (listingCount >= listingLimit) {
+      toast.error("Listing limit reached — upgrade to add more");
+      return;
+    }
+
+    // Check if no photos — show nudge dialog
+    const hasPhotos = data.photoUrls.length > 0 || data.photos.length > 0;
+    if (!hasPhotos) {
+      setShowPhotoNudge(true);
+      return;
+    }
+
+    await executeSave();
+  };
+
   const slideVariants = {
     enter: { opacity: 0, x: 20 },
     center: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: -20 },
   };
 
+  const hasAnyPhotos = data.photoUrls.length > 0;
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-display">
-            {step === "method" && "Add New Item"}
-            {step === "input" && (data.method === "url" ? "Paste Vinted URL" : "Upload Photos")}
-            {step === "details" && "Item Details"}
-            {step === "done" && "Item Created!"}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              {step === "method" && "Add New Item"}
+              {step === "input" && (data.method === "url" ? "Paste Vinted URL" : "Upload Photos")}
+              {step === "details" && "Item Details"}
+              {step === "done" && "Item Created!"}
+            </DialogTitle>
+          </DialogHeader>
 
-        {/* Progress dots */}
-        {step !== "done" && (
-          <div className="flex items-center justify-center gap-2 pb-2">
-            {["method", "input", "details"].map((s) => {
-              const steps = data.method === "manual" ? ["method", "details"] : ["method", "input", "details"];
-              const currentIdx = steps.indexOf(step);
-              const thisIdx = steps.indexOf(s);
-              if (thisIdx === -1) return null;
-              return (
-                <div key={s} className={`w-2 h-2 rounded-full transition-colors ${thisIdx <= currentIdx ? "bg-primary" : "bg-muted"}`} />
-              );
-            })}
-          </div>
-        )}
-
-        <AnimatePresence mode="wait">
-          {/* ═══ STEP 1: METHOD ═══ */}
-          {step === "method" && (
-            <motion.div key="method" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-3 pt-2">
-              <p className="text-sm text-muted-foreground">How would you like to add your item?</p>
-
-              <Card
-                onClick={() => handleMethodSelect("url")}
-                className="p-4 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98]"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <Link2 className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">Paste Vinted URL</p>
-                    <p className="text-xs text-muted-foreground">We'll pull in the details automatically</p>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] shrink-0">Fastest</Badge>
-                </div>
-              </Card>
-
-              <Card
-                onClick={() => handleMethodSelect("photo")}
-                className="p-4 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98]"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                    <Camera className="w-5 h-5 text-accent" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">Upload Photos</p>
-                    <p className="text-xs text-muted-foreground">Add photos and fill in the details</p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card
-                onClick={() => handleMethodSelect("manual")}
-                className="p-4 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98]"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                    <Pencil className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">Manual Entry</p>
-                    <p className="text-xs text-muted-foreground">Enter all details yourself</p>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
+          {/* Progress dots */}
+          {step !== "done" && (
+            <div className="flex items-center justify-center gap-2 pb-2">
+              {["method", "input", "details"].map((s) => {
+                const steps = data.method === "manual" ? ["method", "details"] : ["method", "input", "details"];
+                const currentIdx = steps.indexOf(step);
+                const thisIdx = steps.indexOf(s);
+                if (thisIdx === -1) return null;
+                return (
+                  <div key={s} className={`w-2 h-2 rounded-full transition-colors ${thisIdx <= currentIdx ? "bg-primary" : "bg-muted"}`} />
+                );
+              })}
+            </div>
           )}
 
-          {/* ═══ STEP 2: INPUT (URL or Photo) ═══ */}
-          {step === "input" && (
-            <motion.div key="input" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-4 pt-2">
-              {data.method === "url" && (
-                <div className="space-y-3">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vinted Listing URL</Label>
-                  <Input
-                    value={data.url}
-                    onChange={(e) => update({ url: e.target.value })}
-                    placeholder="https://www.vinted.co.uk/items/..."
-                    className="h-12 text-base"
-                    autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Paste the URL of any Vinted listing — yours or one you want to track.
-                  </p>
-                </div>
-              )}
+          <AnimatePresence mode="wait">
+            {/* ═══ STEP 1: METHOD ═══ */}
+            {step === "method" && (
+              <motion.div key="method" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-3 pt-2">
+                <p className="text-sm text-muted-foreground">How would you like to add your item?</p>
 
-              {data.method === "photo" && (
-                <div className="space-y-3">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item Photos</Label>
+                <Card
+                  onClick={() => handleMethodSelect("url")}
+                  className="p-4 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Link2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">Paste Vinted URL</p>
+                      <p className="text-xs text-muted-foreground">We'll pull in the details automatically</p>
+                    </div>
+                    <Badge variant="secondary" className="text-[10px] shrink-0">Fastest</Badge>
+                  </div>
+                </Card>
 
-                  {data.photoUrls.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {data.photoUrls.map((url, i) => (
-                        <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
-                          <img src={url} alt="" className="w-full h-full object-cover" />
+                <Card
+                  onClick={() => handleMethodSelect("photo")}
+                  className="p-4 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                      <Camera className="w-5 h-5 text-accent" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">Upload Photos</p>
+                      <p className="text-xs text-muted-foreground">Add photos and fill in the details</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card
+                  onClick={() => handleMethodSelect("manual")}
+                  className="p-4 cursor-pointer hover:border-primary/40 transition-colors active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                      <Pencil className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">Manual Entry</p>
+                      <p className="text-xs text-muted-foreground">Enter all details yourself</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ═══ STEP 2: INPUT (URL or Photo) ═══ */}
+            {step === "input" && (
+              <motion.div key="input" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-4 pt-2">
+                {data.method === "url" && (
+                  <div className="space-y-3">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vinted Listing URL</Label>
+                    <Input
+                      value={data.url}
+                      onChange={(e) => update({ url: e.target.value })}
+                      placeholder="https://www.vinted.co.uk/items/..."
+                      className="h-12 text-base"
+                      autoFocus
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Paste the URL of any Vinted listing — yours or one you want to track.
+                    </p>
+                  </div>
+                )}
+
+                {data.method === "photo" && (
+                  <div className="space-y-3">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item Photos</Label>
+
+                    {data.photoUrls.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {data.photoUrls.map((url, i) => (
+                          <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => removePhoto(i)}
+                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-background/80 flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        {data.photoUrls.length < 5 && (
                           <button
-                            onClick={() => removePhoto(i)}
-                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-background/80 flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center hover:border-primary/40 transition-colors"
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <Plus className="w-5 h-5 text-muted-foreground" />
                           </button>
+                        )}
+                      </div>
+                    ) : (
+                      <Card
+                        onClick={() => fileInputRef.current?.click()}
+                        className="border-2 border-dashed border-primary/20 hover:border-primary/40 cursor-pointer p-8 text-center transition-colors"
+                      >
+                        <Upload className="w-8 h-8 text-primary/50 mx-auto mb-2" />
+                        <p className="text-sm font-medium">Tap to upload photos</p>
+                        <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WebP · Max 10MB · Up to 5</p>
+                      </Card>
+                    )}
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handlePhotoSelect}
+                    />
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setStep("method")} disabled={scraping} className="h-11 active:scale-95 transition-transform">
+                    <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+                  </Button>
+                  <Button onClick={handleInputNext} disabled={scraping} className="flex-1 h-11 font-semibold active:scale-95 transition-transform">
+                    {scraping ? (
+                      <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Detecting details...</>
+                    ) : (
+                      <>Continue <ArrowRight className="w-4 h-4 ml-1.5" /></>
+                    )}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══ STEP 3: DETAILS ═══ */}
+            {step === "details" && (
+              <motion.div key="details" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-4 pt-2">
+
+                {/* ── Guided Photo Upload Section ── */}
+                <div ref={photoSectionRef} className="space-y-3">
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Photos</Label>
+
+                  {/* Main Photo */}
+                  {hasAnyPhotos ? (
+                    <div className="space-y-2">
+                      {/* Primary photo — large */}
+                      <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted border-2 border-primary/20">
+                        <img src={data.photoUrls[0]} alt="Main photo" className="w-full h-full object-contain" />
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                          <Badge className="text-[9px] font-bold">Main Photo</Badge>
                         </div>
-                      ))}
-                      {data.photoUrls.length < 5 && (
                         <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center hover:border-primary/40 transition-colors"
+                          onClick={() => removePhoto(0)}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-background/80 flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
                         >
-                          <Plus className="w-5 h-5 text-muted-foreground" />
+                          <X className="w-4 h-4" />
                         </button>
-                      )}
+                      </div>
+
+                      {/* Guidance tip */}
+                      <div className="flex items-start gap-2 px-1">
+                        <Sparkles className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                          This photo is used by Photo Studio for model shots and background removal. A clear, full-front view gives the best results.
+                        </p>
+                      </div>
+
+                      {/* Additional photos strip */}
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] text-muted-foreground font-medium">Extra angles (optional)</p>
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                          {data.photoUrls.slice(1).map((url, i) => (
+                            <div key={i + 1} className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted shrink-0 border group">
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                              <button
+                                onClick={() => removePhoto(i + 1)}
+                                className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-background/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => swapToMain(i + 1)}
+                                className="absolute bottom-0.5 left-0.5 bg-background/80 text-[8px] font-semibold px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                Set main
+                              </button>
+                            </div>
+                          ))}
+                          {data.photoUrls.length < 5 && (
+                            <button
+                              onClick={() => fileInputRef.current?.click()}
+                              className="w-16 h-16 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center hover:border-primary/40 transition-colors shrink-0"
+                            >
+                              <Plus className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">Back view, label/tag, detail close-ups, or flaws. These help buyers but aren't used for AI editing.</p>
+                      </div>
                     </div>
                   ) : (
-                    <Card
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed border-primary/20 hover:border-primary/40 cursor-pointer p-8 text-center transition-colors"
-                    >
-                      <Upload className="w-8 h-8 text-primary/50 mx-auto mb-2" />
-                      <p className="text-sm font-medium">Tap to upload photos</p>
-                      <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WebP · Max 10MB · Up to 5</p>
-                    </Card>
+                    <div className="space-y-2">
+                      <Card
+                        onClick={() => fileInputRef.current?.click()}
+                        className="border-2 border-dashed border-primary/20 hover:border-primary/40 cursor-pointer p-6 text-center transition-colors"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <ImageIcon className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold">Add Main Photo</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">Full front view, laid flat or on a hanger — neckline to hem</p>
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* Photo guidance card */}
+                      <div className="flex items-start gap-2 rounded-lg bg-primary/[0.04] border border-primary/10 p-2.5">
+                        <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                          <span className="font-semibold text-foreground">For best AI results:</span> Upload a full, flat-lay or hanger shot showing the entire garment. Close-ups, folded shots, or partial views won't work well for model shots or background removal.
+                        </p>
+                      </div>
+                    </div>
                   )}
 
                   <input
@@ -407,227 +568,228 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                     onChange={handlePhotoSelect}
                   />
                 </div>
-              )}
 
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" onClick={() => setStep("method")} disabled={scraping} className="h-11 active:scale-95 transition-transform">
-                  <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
-                </Button>
-                <Button onClick={handleInputNext} disabled={scraping} className="flex-1 h-11 font-semibold active:scale-95 transition-transform">
-                  {scraping ? (
-                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Detecting details...</>
-                  ) : (
-                    <>Continue <ArrowRight className="w-4 h-4 ml-1.5" /></>
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ═══ STEP 3: DETAILS ═══ */}
-          {step === "details" && (
-            <motion.div key="details" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
-                <Input
-                  value={data.title}
-                  onChange={(e) => update({ title: e.target.value })}
-                  placeholder="e.g. Nike Air Force 1 White UK 9"
-                  className="h-11 text-base sm:text-sm"
-                  autoFocus
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
                   <Input
-                    value={data.brand}
-                    onChange={(e) => update({ brand: e.target.value })}
-                    placeholder="e.g. Nike"
-                    className="h-11 sm:h-10 text-base sm:text-sm"
+                    value={data.title}
+                    onChange={(e) => update({ title: e.target.value })}
+                    placeholder="e.g. Nike Air Force 1 White UK 9"
+                    className="h-11 text-base sm:text-sm"
+                    autoFocus
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
+                    <Input
+                      value={data.brand}
+                      onChange={(e) => update({ brand: e.target.value })}
+                      placeholder="e.g. Nike"
+                      className="h-11 sm:h-10 text-base sm:text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
+                    <Input
+                      value={data.size}
+                      onChange={(e) => update({ size: e.target.value })}
+                      placeholder="e.g. UK 9 / M / 12"
+                      className="h-11 sm:h-10 text-base sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
+                    <select
+                      value={data.category}
+                      onChange={(e) => update({ category: e.target.value })}
+                      className="w-full h-11 sm:h-10 px-3 rounded-md border border-input bg-background text-sm"
+                    >
+                      <option value="">Select...</option>
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition *</Label>
+                    <select
+                      value={data.condition}
+                      onChange={(e) => update({ condition: e.target.value })}
+                      className="w-full h-11 sm:h-10 px-3 rounded-md border border-input bg-background text-sm"
+                    >
+                      <option value="">Select...</option>
+                      {conditions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Colour</Label>
+                    <Input
+                      value={data.colour}
+                      onChange={(e) => update({ colour: e.target.value })}
+                      placeholder="e.g. Black"
+                      className="h-11 sm:h-10 text-base sm:text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Material</Label>
+                    <Input
+                      value={data.material}
+                      onChange={(e) => update({ material: e.target.value })}
+                      placeholder="e.g. Cotton"
+                      className="h-11 sm:h-10 text-base sm:text-sm"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
-                  <Input
-                    value={data.size}
-                    onChange={(e) => update({ size: e.target.value })}
-                    placeholder="e.g. UK 9 / M / 12"
-                    className="h-11 sm:h-10 text-base sm:text-sm"
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</Label>
+                  <Textarea
+                    value={data.description}
+                    onChange={(e) => update({ description: e.target.value })}
+                    placeholder="Describe your item (optional — AI can generate this later)"
+                    rows={3}
+                    className="text-sm resize-none"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
-                  <select
-                    value={data.category}
-                    onChange={(e) => update({ category: e.target.value })}
-                    className="w-full h-11 sm:h-10 px-3 rounded-md border border-input bg-background text-sm"
-                  >
-                    <option value="">Select...</option>
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Listing Price (£)</Label>
+                    <Input
+                      value={data.currentPrice}
+                      onChange={(e) => update({ currentPrice: e.target.value })}
+                      placeholder="0.00"
+                      type="number"
+                      step="0.01"
+                      className="h-11 sm:h-10 text-base sm:text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purchase Price (£) *</Label>
+                    <Input
+                      value={data.purchasePrice}
+                      onChange={(e) => update({ purchasePrice: e.target.value })}
+                      placeholder="What you paid"
+                      type="number"
+                      step="0.01"
+                      className="h-11 sm:h-10 text-base sm:text-sm"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition *</Label>
-                  <select
-                    value={data.condition}
-                    onChange={(e) => update({ condition: e.target.value })}
-                    className="w-full h-11 sm:h-10 px-3 rounded-md border border-input bg-background text-sm"
-                  >
-                    <option value="">Select...</option>
-                    {conditions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Colour</Label>
-                  <Input
-                    value={data.colour}
-                    onChange={(e) => update({ colour: e.target.value })}
-                    placeholder="e.g. Black"
-                    className="h-11 sm:h-10 text-base sm:text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Material</Label>
-                  <Input
-                    value={data.material}
-                    onChange={(e) => update({ material: e.target.value })}
-                    placeholder="e.g. Cotton"
-                    className="h-11 sm:h-10 text-base sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</Label>
-                <Textarea
-                  value={data.description}
-                  onChange={(e) => update({ description: e.target.value })}
-                  placeholder="Describe your item (optional — AI can generate this later)"
-                  rows={3}
-                  className="text-sm resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Listing Price (£)</Label>
-                  <Input
-                    value={data.currentPrice}
-                    onChange={(e) => update({ currentPrice: e.target.value })}
-                    placeholder="0.00"
-                    type="number"
-                    step="0.01"
-                    className="h-11 sm:h-10 text-base sm:text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purchase Price (£) *</Label>
-                  <Input
-                    value={data.purchasePrice}
-                    onChange={(e) => update({ purchasePrice: e.target.value })}
-                    placeholder="What you paid"
-                    type="number"
-                    step="0.01"
-                    className="h-11 sm:h-10 text-base sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Photo previews if added via photo method */}
-              {data.photoUrls.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {data.photoUrls.map((url, i) => (
-                    <img key={i} src={url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border" />
-                  ))}
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(data.method === "manual" ? "method" : "input")}
-                  className="h-11 active:scale-95 transition-transform"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={saving || uploading}
-                  className="flex-1 h-11 font-semibold active:scale-95 transition-transform"
-                >
-                  {saving || uploading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {uploading ? "Uploading..." : "Saving..."}</>
-                  ) : (
-                    <><Plus className="w-4 h-4 mr-1.5" /> Add Item</>
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ═══ STEP 4: DONE ═══ */}
-          {step === "done" && (
-            <motion.div key="done" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="text-center py-6 space-y-5">
-              <div className="w-16 h-16 rounded-2xl bg-success/10 flex items-center justify-center mx-auto">
-                <Check className="w-8 h-8 text-success" />
-              </div>
-              <div>
-                <p className="font-display font-bold text-lg">{data.title}</p>
-                <p className="text-sm text-muted-foreground mt-1">Added to your inventory</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {/* Primary CTA: View Item (always the main action) */}
-                {createdItemId && (
-                  <Button
-                    onClick={() => { handleClose(false); navigate(`/items/${createdItemId}`); }}
-                    className="w-full h-11 font-semibold active:scale-95 transition-transform"
-                  >
-                    <Package className="w-4 h-4 mr-2" /> View Item
-                  </Button>
-                )}
-                {/* Secondary: Price Check — the recommended next step */}
-                {createdItemId && (
+                <div className="flex gap-2 pt-2">
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      handleClose(false);
-                      const params = new URLSearchParams();
-                      params.set("itemId", createdItemId);
-                      if (data.brand) params.set("brand", data.brand);
-                      if (data.category) params.set("category", data.category);
-                      if (data.condition) params.set("condition", data.condition);
-                      if (data.size) params.set("size", data.size);
-                      if (data.title) params.set("title", data.title);
-                      if (data.purchasePrice) params.set("purchasePrice", String(data.purchasePrice));
-                      if (data.url) params.set("url", data.url);
-                      navigate(`/price-check?${params.toString()}`);
-                    }}
-                    className="w-full h-11 active:scale-95 transition-transform"
+                    onClick={() => setStep(data.method === "manual" ? "method" : "input")}
+                    className="h-11 active:scale-95 transition-transform"
                   >
-                    <Zap className="w-4 h-4 mr-2" /> Run Price Check
+                    <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  onClick={reset}
-                  className="w-full h-11 active:scale-95 transition-transform text-muted-foreground"
-                >
-                  <Plus className="w-4 h-4 mr-2" /> Add Another Item
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </DialogContent>
-    </Dialog>
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving || uploading}
+                    className="flex-1 h-11 font-semibold active:scale-95 transition-transform"
+                  >
+                    {saving || uploading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {uploading ? "Uploading..." : "Saving..."}</>
+                    ) : (
+                      <><Plus className="w-4 h-4 mr-1.5" /> Add Item</>
+                    )}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══ STEP 4: DONE ═══ */}
+            {step === "done" && (
+              <motion.div key="done" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.15 }} className="text-center py-6 space-y-5">
+                <div className="w-16 h-16 rounded-2xl bg-success/10 flex items-center justify-center mx-auto">
+                  <Check className="w-8 h-8 text-success" />
+                </div>
+                <div>
+                  <p className="font-display font-bold text-lg">{data.title}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Added to your inventory</p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {createdItemId && (
+                    <Button
+                      onClick={() => { handleClose(false); navigate(`/items/${createdItemId}`); }}
+                      className="w-full h-11 font-semibold active:scale-95 transition-transform"
+                    >
+                      <Package className="w-4 h-4 mr-2" /> View Item
+                    </Button>
+                  )}
+                  {createdItemId && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        handleClose(false);
+                        const params = new URLSearchParams();
+                        params.set("itemId", createdItemId);
+                        if (data.brand) params.set("brand", data.brand);
+                        if (data.category) params.set("category", data.category);
+                        if (data.condition) params.set("condition", data.condition);
+                        if (data.size) params.set("size", data.size);
+                        if (data.title) params.set("title", data.title);
+                        if (data.purchasePrice) params.set("purchasePrice", String(data.purchasePrice));
+                        if (data.url) params.set("url", data.url);
+                        navigate(`/price-check?${params.toString()}`);
+                      }}
+                      className="w-full h-11 active:scale-95 transition-transform"
+                    >
+                      <Zap className="w-4 h-4 mr-2" /> Run Price Check
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    onClick={reset}
+                    className="w-full h-11 active:scale-95 transition-transform text-muted-foreground"
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> Add Another Item
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </DialogContent>
+      </Dialog>
+
+      {/* No-photos nudge dialog */}
+      <AlertDialog open={showPhotoNudge} onOpenChange={setShowPhotoNudge}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>No photos added</AlertDialogTitle>
+            <AlertDialogDescription>
+              Photos are needed for Photo Studio (model shots, background removal) and help your listing sell faster. Add at least one clear, full-front photo for best results.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowPhotoNudge(false);
+                executeSave();
+              }}
+            >
+              Skip for now
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowPhotoNudge(false);
+                setTimeout(() => photoSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+              }}
+            >
+              <ImageIcon className="w-4 h-4 mr-1.5" /> Add Photos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
