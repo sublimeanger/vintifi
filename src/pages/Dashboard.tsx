@@ -91,6 +91,26 @@ export default function Dashboard() {
           </div>
         </Card>
 
+        {/* Quick Actions */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1 h-12 sm:h-10 font-semibold active:scale-95 transition-transform"
+            onClick={() => navigate("/listings?action=add")}
+          >
+            <Package className="w-4 h-4 mr-2" />
+            Add Item
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 h-12 sm:h-10 font-semibold active:scale-95 transition-transform"
+            onClick={() => navigate("/optimize")}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Optimise
+          </Button>
+        </div>
+
         {/* 2 Metric Cards */}
         <div className="grid grid-cols-2 gap-2 sm:gap-3">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
@@ -108,7 +128,7 @@ export default function Dashboard() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <Card
               className="p-3 sm:p-4 border-l-[3px] border-l-warning bg-warning/[0.03] cursor-pointer hover:shadow-md active:scale-[0.97] transition-all"
-              onClick={() => navigate("/listings")}
+              onClick={() => navigate("/listings?filter=needs_attention")}
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 text-warning" />
