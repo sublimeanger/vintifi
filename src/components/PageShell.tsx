@@ -29,26 +29,26 @@ export function PageShell({
   return (
     <AppShellV2 maxWidth={maxWidth}>
       {/* Page header */}
-      <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate(backTo)} className="shrink-0 h-10 w-10 -ml-2">
-          <ArrowLeft className="w-5 h-5" />
+      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <Button variant="ghost" size="icon" onClick={() => navigate(backTo)} className="shrink-0 h-9 w-9 sm:h-10 sm:w-10 -ml-1.5 rounded-xl">
+          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="font-display font-bold text-base sm:text-lg flex items-center gap-2 truncate">
+          <h1 className="font-display font-bold text-sm sm:text-lg flex items-center gap-1.5 sm:gap-2 truncate">
             {icon}
             {title}
           </h1>
           {subtitle && (
-            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{subtitle}</p>
           )}
         </div>
-        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+        {actions && <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">{actions}</div>}
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.25 }}
       >
         {children}
       </motion.div>

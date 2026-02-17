@@ -124,25 +124,25 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
   /* ── Mobile header ── */
   const mobileHeader = (
-    <header className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border shadow-sm flex items-center justify-between px-4 h-14">
-      <h1 className="font-display text-lg font-extrabold">
+    <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-2xl border-b border-border/60 flex items-center justify-between px-4 h-12">
+      <h1 className="font-display text-base font-extrabold">
         <span className="text-gradient">Vintifi</span>
       </h1>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => navigate("/settings")}
           className={cn(
-            "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors active:scale-95",
-            creditsLow ? "bg-warning/20 hover:bg-warning/30" : "bg-muted hover:bg-muted/80",
+            "flex items-center gap-1 rounded-full px-2.5 py-1 transition-colors active:scale-95",
+            creditsLow ? "bg-warning/15" : "bg-muted/60",
           )}
         >
-          <Zap className={cn("w-3.5 h-3.5", creditsLow ? "text-warning" : "text-primary")} />
-          <span className={cn("text-xs font-semibold", creditsLow && "text-warning")}>{isUnlimited ? "∞" : checksRemaining}</span>
+          <Zap className={cn("w-3 h-3", creditsLow ? "text-warning" : "text-primary")} />
+          <span className={cn("text-[11px] font-bold tabular-nums", creditsLow && "text-warning")}>{isUnlimited ? "∞" : checksRemaining}</span>
         </button>
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-10 w-10">
-              <Menu className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="h-9 w-9 -mr-1">
+              <Menu className="w-[18px] h-[18px]" />
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-72 p-0 bg-sidebar text-sidebar-foreground flex flex-col h-full">
@@ -189,8 +189,8 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
   /* ── Mobile bottom nav ── */
   const bottomNav = (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around h-16">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-background/90 backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-center justify-around h-14">
         {BOTTOM_TABS.map((tab) => {
           const active = isActive(tab.path);
           return (
@@ -198,19 +198,19 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
               key={tab.path}
               onClick={() => navigate(tab.path)}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-all min-w-0 active:scale-95",
+                "relative flex flex-col items-center justify-center gap-0 flex-1 h-full transition-all min-w-0 active:scale-90",
                 active ? "text-primary" : "text-muted-foreground",
               )}
             >
               {active && (
                 <motion.div
                   layoutId="bottom-nav-pill-v2"
-                  className="absolute inset-x-2 inset-y-1.5 bg-primary/10 rounded-xl"
+                  className="absolute inset-x-3 inset-y-2 bg-primary/8 rounded-xl"
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}
-              <tab.icon className="w-[22px] h-[22px] relative z-10" />
-              <span className={cn("text-[10px] font-medium relative z-10", active && "font-semibold")}>
+              <tab.icon className={cn("w-5 h-5 relative z-10 transition-all", active && "w-[22px] h-[22px]")} />
+              <span className={cn("text-[9px] font-medium relative z-10 mt-0.5", active && "font-bold text-[10px]")}>
                 {tab.label}
               </span>
             </button>
@@ -225,8 +225,8 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
       {sidebar}
       <div className="flex-1 flex flex-col min-w-0">
         {mobileHeader}
-        <main className="flex-1 pt-14 lg:pt-0 pb-28 lg:pb-0">
-          <div className={cn("container mx-auto px-4 py-6 sm:py-8", maxWidth)}>
+        <main className="flex-1 pt-12 lg:pt-0 pb-20 lg:pb-0">
+          <div className={cn("container mx-auto px-3 sm:px-4 py-4 sm:py-8", maxWidth)}>
             {children}
           </div>
         </main>

@@ -308,17 +308,17 @@ export default function Listings() {
   };
 
   const headerActions = (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       <Button variant="outline" size="sm" onClick={handleImportClick} className="font-semibold hidden sm:flex h-9">
         <Download className="w-3.5 h-3.5 mr-1.5" /> Import
       </Button>
-      <Button variant="outline" size="icon" onClick={handleImportClick} className="sm:hidden h-10 w-10" title="Import CSV">
+      <Button variant="outline" size="icon" onClick={handleImportClick} className="sm:hidden h-9 w-9 rounded-xl" title="Import CSV">
         <Download className="w-4 h-4" />
       </Button>
       <Button size="sm" className="font-semibold hidden sm:flex h-9" onClick={() => setAddDialogOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
           </Button>
-          <Button size="icon" className="sm:hidden h-10 w-10" onClick={() => setAddDialogOpen(true)}>
+          <Button size="icon" className="sm:hidden h-9 w-9 rounded-xl" onClick={() => setAddDialogOpen(true)}>
             <Plus className="w-4 h-4" />
           </Button>
           <NewItemWizard
@@ -342,20 +342,20 @@ export default function Listings() {
 
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-5 sm:mb-6">
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-3 mb-4 sm:mb-6">
         {[
           { label: "Total", value: stats.total.toString(), icon: Package, tint: "" },
           { label: "Active", value: stats.active.toString(), icon: TrendingUp, tint: "border-success/10 bg-success/[0.03]" },
-          { label: "Portfolio", value: `£${stats.totalValue.toFixed(0)}`, icon: Zap, tint: "border-primary/10 bg-primary/[0.03]" },
-          { label: "Avg Health", value: stats.avgHealth !== null ? `${stats.avgHealth}%` : "—", icon: Heart, tint: "border-accent/10 bg-accent/[0.03]" },
+          { label: "Value", value: `£${stats.totalValue.toFixed(0)}`, icon: Zap, tint: "border-primary/10 bg-primary/[0.03]" },
+          { label: "Health", value: stats.avgHealth !== null ? `${stats.avgHealth}%` : "—", icon: Heart, tint: "border-accent/10 bg-accent/[0.03]" },
         ].map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-            <Card className={`p-3 sm:p-4 ${s.tint}`}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <s.icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
-                <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">{s.label}</span>
+          <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+            <Card className={`p-2 sm:p-4 rounded-xl ${s.tint}`}>
+              <div className="flex items-center gap-1 mb-0.5">
+                <s.icon className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+                <span className="text-[8px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">{s.label}</span>
               </div>
-              <p className="font-display text-xl sm:text-2xl font-bold">{s.value}</p>
+              <p className="font-display text-lg sm:text-2xl font-bold leading-tight">{s.value}</p>
             </Card>
           </motion.div>
         ))}
@@ -475,18 +475,18 @@ export default function Listings() {
       )}
 
       {/* Search & Filters */}
-      <div className="flex gap-2 sm:gap-3 mb-5 sm:mb-6">
+      <div className="flex gap-1.5 sm:gap-3 mb-4 sm:mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search listings..."
-            className="pl-10 h-11 sm:h-10 text-base sm:text-sm"
+            placeholder="Search..."
+            className="pl-8 h-10 sm:h-10 text-sm rounded-xl"
           />
         </div>
-        <Button variant="outline" size="icon" onClick={fetchListings} className="h-11 w-11 sm:h-10 sm:w-10 shrink-0">
-          <RefreshCw className="w-4 h-4" />
+        <Button variant="outline" size="icon" onClick={fetchListings} className="h-10 w-10 shrink-0 rounded-xl">
+          <RefreshCw className="w-3.5 h-3.5" />
         </Button>
       </div>
 
@@ -524,20 +524,20 @@ export default function Listings() {
       {loading ? (
         <ListingCardSkeleton count={5} />
       ) : filteredListings.length === 0 ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12 sm:py-16">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
-            <Package className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/40" />
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-10 sm:py-16">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-3">
+            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground/40" />
           </div>
-          <h3 className="font-display font-bold text-base sm:text-lg mb-2">
+          <h3 className="font-display font-bold text-sm sm:text-lg mb-1">
             {listings.length === 0 ? "No listings yet" : "No matching listings"}
           </h3>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-xs text-muted-foreground mb-5">
             {listings.length === 0
               ? "Add your first listing to start tracking"
               : "Try adjusting your search or filters"}
           </p>
           {listings.length === 0 && (
-            <Button onClick={() => setAddDialogOpen(true)} className="font-semibold h-12 sm:h-10 active:scale-95 transition-transform">
+            <Button onClick={() => setAddDialogOpen(true)} className="font-semibold h-11 sm:h-10 rounded-xl active:scale-95 transition-transform">
               <Plus className="w-4 h-4 mr-2" /> Add Your First Listing
             </Button>
           )}
@@ -583,19 +583,19 @@ export default function Listings() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ delay: i * 0.03 }}
                 >
-                  <Card className={`overflow-hidden transition-all ${isDeadStock ? "border-destructive/30 bg-destructive/[0.01]" : ""} hover:shadow-md`}>
+                  <Card className={`overflow-hidden transition-all rounded-xl ${isDeadStock ? "border-destructive/30 bg-destructive/[0.01]" : ""} hover:shadow-md`}>
                     {/* Collapsed row — clickable */}
                     <div
-                      className="p-3 sm:p-4 cursor-pointer active:bg-muted/30 transition-colors"
+                      className="p-2.5 sm:p-4 cursor-pointer active:bg-muted/20 transition-colors"
                       onClick={(e) => {
                         const target = e.target as HTMLElement;
                         if (target.closest("button, input, select, [role='menuitem'], [data-radix-collection-item]")) return;
                         navigate(`/items/${listing.id}`);
                       }}
                     >
-                        <div className="flex items-start gap-2.5 sm:gap-3">
+                        <div className="flex items-start gap-2 sm:gap-3">
                          {/* Selection checkbox */}
-                         <div className="pt-1 shrink-0" onClick={e => e.stopPropagation()}>
+                         <div className="pt-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                            <Checkbox
                              checked={selectedIds.has(listing.id)}
                              onCheckedChange={() => toggleSelect(listing.id)}
@@ -603,20 +603,20 @@ export default function Listings() {
                            />
                          </div>
                          {/* Image */}
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
+                        <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
                           {listing.image_url ? (
                             <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
                           ) : (
-                            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground/40" />
+                            <Package className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground/40" />
                           )}
-                          <div className={`absolute -top-1 -right-1 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full ${health.color} ring-2 ${health.ring}`} />
+                          <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 rounded-full ${health.color} ring-2 ${health.ring}`} />
                         </div>
 
                         {/* Details */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <h3 className="font-display font-bold text-sm leading-snug line-clamp-1 sm:line-clamp-2">{listing.title}</h3>
+                              <h3 className="font-display font-bold text-xs sm:text-sm leading-snug line-clamp-1">{listing.title}</h3>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 <Badge variant="outline" className={`text-[10px] capitalize py-0 ${statusColors[listing.status] || ""}`}>
                                   {editingId === listing.id && editField === "status" ? (
@@ -663,11 +663,11 @@ export default function Listings() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-0.5 shrink-0">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-8 sm:w-8 shrink-0">
-                                    <MoreVertical className="w-4 h-4" />
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
+                                    <MoreVertical className="w-3.5 h-3.5" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="bg-popover">
