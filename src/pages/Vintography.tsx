@@ -48,8 +48,8 @@ const OPERATIONS: {
     afterGradient: "from-amber-100/80 via-orange-50 to-yellow-50",
   },
   {
-    id: "virtual_model", icon: UserIcon, label: "Virtual Model", desc: "Garment on a model",
-    detail: "Shows your item on a realistic model with natural fabric draping and fit",
+    id: "virtual_model", icon: UserIcon, label: "AI Model Concept", desc: "AI-generated model shot",
+    detail: "AI-generated model wearing your style of garment. Exact details like logos may differ.",
     beforeGradient: "from-gray-200 to-gray-100",
     afterGradient: "from-rose-100/60 via-pink-50 to-purple-50/40",
   },
@@ -112,17 +112,21 @@ export default function Vintography() {
 
   // Sprint 1: Fetch item photos from DB when itemId is present
   const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
+  const [garmentContext, setGarmentContext] = useState("");
   useEffect(() => {
     if (!itemId || !user) return;
     (async () => {
       const { data } = await supabase
         .from("listings")
-        .select("image_url, images, last_optimised_at")
+        .select("image_url, images, last_optimised_at, title, brand, category, description, size, condition")
         .eq("id", itemId)
         .eq("user_id", user.id)
         .maybeSingle();
       if (!data) return;
       setItemData({ last_optimised_at: data.last_optimised_at });
+      // Auto-populate garment context from item metadata
+      const parts = [data.brand, data.title, data.category, data.size ? `size ${data.size}` : null, data.condition].filter(Boolean);
+      if (parts.length > 0) setGarmentContext(parts.join(", "));
       const urls: string[] = [];
       if (data.image_url) urls.push(data.image_url);
       if (Array.isArray(data.images)) {
@@ -255,7 +259,7 @@ export default function Vintography() {
 
   const processImage = async (imageUrl: string, operation: string, params: Record<string, string> = {}): Promise<string | null> => {
     const { data, error } = await supabase.functions.invoke("vintography", {
-      body: { image_url: imageUrl, operation, parameters: params },
+      body: { image_url: imageUrl, operation, parameters: params, garment_context: garmentContext || undefined },
     });
     if (error) throw error;
     if (data?.error) { toast.error(data.error); return null; }
@@ -448,9 +452,16 @@ export default function Vintography() {
                           <p className="font-semibold text-xs sm:text-sm">{op.label}</p>
                           <p className="text-[10px] sm:text-xs text-muted-foreground">{op.desc}</p>
                         </div>
-                        <Badge variant="secondary" className="text-[8px] px-1 py-0 shrink-0 mt-0.5">
-                          <Coins className="w-2 h-2 mr-0.5" />1
-                        </Badge>
+                        <div className="flex flex-col items-end gap-0.5 shrink-0 mt-0.5">
+                          <Badge variant="secondary" className="text-[8px] px-1 py-0">
+                            <Coins className="w-2 h-2 mr-0.5" />1
+                          </Badge>
+                          {op.id === "virtual_model" && (
+                            <Badge variant="outline" className="text-[7px] px-1 py-0 text-warning border-warning/40">
+                              AI concept
+                            </Badge>
+                          )}
+                        </div>
                       </div>
 
                       {/* Expanded detail on selection */}
@@ -470,6 +481,23 @@ export default function Vintography() {
                   );
                 })}
               </div>
+
+              {/* Garment description input for context-sensitive operations */}
+              {(selectedOp === "virtual_model" || selectedOp === "lifestyle_bg") && (
+                <Card className="p-3 space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Describe your item {itemId ? "(auto-filled)" : "(optional)"}
+                  </label>
+                  <input
+                    type="text"
+                    value={garmentContext}
+                    onChange={(e) => setGarmentContext(e.target.value)}
+                    placeholder="e.g. Black Nike crewneck sweatshirt, size M"
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
+                  <p className="text-[10px] text-muted-foreground">Helps the AI reproduce your garment accurately</p>
+                </Card>
+              )}
 
               {/* Operation-specific params */}
               <AnimatePresence mode="wait">

@@ -95,6 +95,9 @@ export const ModelPicker = forwardRef<HTMLDivElement, Props>(
           <User className="w-4 h-4 text-primary" />
           <p className="text-sm font-semibold">Model Configuration</p>
         </div>
+        <p className="text-[10px] text-muted-foreground bg-muted/50 rounded-lg px-2.5 py-1.5 leading-relaxed">
+          ℹ️ The AI creates a concept based on your garment style. Exact details like logos and prints may differ slightly from the original.
+        </p>
         <OptionGrid title="Gender" options={genderOptions} value={gender} onChange={onGenderChange} cols={2} />
         {showLook && (
           <OptionGrid title="Model Look" options={lookOptions} value={look} onChange={onLookChange} cols={3} />
