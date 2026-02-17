@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// --- Perplexity market research ---
+// --- Helpers ---
 
 function isNewCondition(condition: string): boolean {
   const c = condition.toLowerCase().replace(/[\s_-]+/g, "_");
@@ -17,76 +17,146 @@ function conditionLabel(condition: string): string {
   const map: Record<string, string> = {
     new_with_tags: "New with tags",
     new_without_tags: "New without tags",
-    very_good: "Very good (used)",
-    good: "Good (used)",
-    satisfactory: "Satisfactory (used)",
+    very_good: "Very good",
+    good: "Good",
+    satisfactory: "Satisfactory",
   };
   return map[c] || condition;
 }
 
+/** Build a broad search term: brand + generic item type (not the full verbose title) */
+function buildSearchTerm(brand: string, category: string, title: string): string {
+  // If we have brand + category, that's the best generic search
+  if (brand && category) return `${brand} ${category}`;
+  // Fall back to title but strip size/condition noise
+  if (title) {
+    return title
+      .replace(/\b(XS|S|M|L|XL|XXL|XXXL|UK\s?\d+)\b/gi, "")
+      .replace(/\b(great|good|very good|excellent|new|used|condition)\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+  return brand || category || "clothing item";
+}
+
+// --- Perplexity market research ---
+
 async function fetchViaPerplexity(
-  brand: string,
-  category: string,
+  searchTerm: string,
   size: string,
   condition: string,
   perplexityKey: string,
-  title?: string
 ): Promise<{ marketData: string; citations: string[] }> {
-  const itemDesc = title || [brand, category, size].filter(Boolean).join(" ");
   const isNew = isNewCondition(condition);
-  const conditionType = isNew ? "NEW" : "USED / pre-owned";
-  const conditionNote = condition ? ` in ${conditionLabel(condition)} condition` : "";
+  const condLabel = conditionLabel(condition);
 
-  const res = await fetch("https://api.perplexity.ai/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${perplexityKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "sonar-pro",
-      messages: [
-        {
-          role: "system",
-          content:
-            `You are a secondhand clothing market price researcher. You MUST search for and report SPECIFIC prices in GBP (£) that you find on Vinted, eBay, and Depop. List individual items with their exact prices. Focus ONLY on ${conditionType} listings. Never say you cannot access these sites — search for them and report what you find.`,
-        },
-        {
-          role: "user",
-          content: `Find current prices for ${conditionType} "${itemDesc}"${conditionNote} on UK resale platforms.
+  // First attempt: specific search with size
+  const sizeNote = size ? `, size ${size}` : "";
+  const searchQuery = `${searchTerm}${sizeNote} price UK`;
 
-Search Vinted UK, eBay UK, and Depop for this item and tell me:
+  console.log(`Perplexity search query: "${searchQuery}"`);
 
-1. List at least 5 specific ${conditionType} items you find with their exact prices in £. Format: "Item title - £X.XX (platform, condition)"
-2. What is the price range for ${conditionType} listings? Lowest: £? Highest: £?
-3. What is the average/median selling price for ${conditionType} items?
-4. How many ${conditionType} listings did you find approximately?
-5. Are there any sold/completed ${conditionType} listings with prices?
-6. How do prices compare across Vinted vs eBay vs Depop for ${conditionType} items?
+  const makeRequest = async (query: string) => {
+    const res = await fetch("https://api.perplexity.ai/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${perplexityKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar-pro",
+        messages: [
+          {
+            role: "system",
+            content: `You are a UK secondhand clothing price researcher. Search Vinted UK, eBay UK, and Depop for real listing prices in GBP (£). Report every price you find — both active listings and sold items. Include ALL conditions (new and used) but label each one clearly. Be thorough and specific.`,
+          },
+          {
+            role: "user",
+            content: `I need to price a "${searchTerm}"${sizeNote}${condition ? ` (${condLabel} condition)` : ""} for resale on Vinted UK.
 
-IMPORTANT: Focus ONLY on ${conditionType} listings. Do NOT mix new and used prices together. I need REAL prices from REAL listings. Be specific.`,
-        },
-      ],
-      search_recency_filter: "month",
-    }),
-  });
+Search vinted.co.uk, ebay.co.uk, and depop.com for this item and report:
 
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error("Perplexity error:", res.status, errText);
-    throw new Error(`Perplexity search failed: ${res.status}`);
+1. LIST every specific listing you find with exact prices in £. Format each as: "Title - £XX (Platform, Condition: new/used/very good/etc)"
+   Include BOTH new and used listings but clearly label the condition of each one.
+
+2. PRICE RANGE: What's the lowest and highest price you found?
+
+3. SOLD ITEMS: Any recently sold/completed listings? What did they sell for?
+
+4. PLATFORM COMPARISON: How do Vinted prices compare to eBay and Depop for this item?
+
+5. SUPPLY: Roughly how many active listings exist across all platforms?
+
+Be thorough. I need real prices from real listings to make a pricing decision. If you find fewer than 5 exact matches, broaden your search to similar items from the same brand in the same category.`,
+          },
+        ],
+        search_domain_filter: ["vinted.co.uk", "ebay.co.uk", "depop.com"],
+        search_recency_filter: "month",
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Perplexity error:", res.status, errText);
+      throw new Error(`Perplexity search failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    const citations: string[] = data.citations || [];
+    return { content, citations };
+  };
+
+  // First attempt with domain filtering
+  let result = await makeRequest(searchQuery);
+  console.log(`Perplexity attempt 1: ${result.content.length} chars, ${result.citations.length} citations`);
+
+  // If data is thin (< 800 chars or < 3 citations), retry WITHOUT domain filter and with broader terms
+  if (result.content.length < 800 || result.citations.length < 3) {
+    console.log("Thin data detected — retrying with broader search...");
+
+    const broadRes = await fetch("https://api.perplexity.ai/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${perplexityKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar-pro",
+        messages: [
+          {
+            role: "system",
+            content: `You are a UK secondhand clothing price researcher. Find real prices in GBP (£) for items on resale platforms. Be thorough — list every price you find.`,
+          },
+          {
+            role: "user",
+            content: `What do "${searchTerm}" sell for on UK resale platforms like Vinted, eBay, and Depop?
+
+List specific items with prices in £. Include both active listings and recently sold items. Label each with platform and condition (new/used). I need at least 5-10 price points to understand the market. If exact matches are scarce, include similar items from ${searchTerm.split(" ")[0] || "the same brand"}.`,
+          },
+        ],
+        search_recency_filter: "month",
+      }),
+    });
+
+    if (broadRes.ok) {
+      const broadData = await broadRes.json();
+      const broadContent = broadData.choices?.[0]?.message?.content || "";
+      const broadCitations: string[] = broadData.citations || [];
+      console.log(`Perplexity retry: ${broadContent.length} chars, ${broadCitations.length} citations`);
+
+      // Use the better result
+      if (broadContent.length > result.content.length) {
+        result = { content: broadContent, citations: broadCitations };
+      }
+    }
   }
 
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content || "";
-  const citations: string[] = data.citations || [];
-
-  console.log(`Perplexity returned ${content.length} chars with ${citations.length} citations`);
-  console.log("Perplexity market data:", content.substring(0, 500));
-  return { marketData: content, citations };
+  console.log("Perplexity market data preview:", result.content.substring(0, 500));
+  return { marketData: result.content, citations: result.citations };
 }
 
-// --- Optional: Extract context from a Vinted URL via Firecrawl ---
+// --- Firecrawl URL extraction ---
 
 async function extractVintedItemContext(
   url: string,
@@ -101,7 +171,6 @@ async function extractVintedItemContext(
     const scrapeData = await scrapeRes.json();
     const markdown: string = scrapeData.data?.markdown || scrapeData.markdown || "";
 
-    // Extract structured fields from the markdown
     const titleMatch = markdown.match(/^#\s+(.+)/m);
     const brandMatch = markdown.match(/brand[:\s]+([^\n|]+)/i);
     const sizeMatch = markdown.match(/size[:\s]+([^\n|]+)/i);
@@ -143,7 +212,7 @@ serve(async (req) => {
     const userId = userData.id;
     if (!userId) throw new Error("Invalid user");
 
-    // Check credits (unified pool)
+    // Check credits
     const creditsRes = await fetch(
       `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}&select=price_checks_used,optimizations_used,vintography_used,credits_limit`,
       { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
@@ -169,7 +238,6 @@ serve(async (req) => {
     let itemSize = size || "";
     let itemTitle = title || "";
 
-    // If a Vinted URL is provided, extract context via Firecrawl
     if (url && url.includes("vinted")) {
       const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
       if (firecrawlKey) {
@@ -178,102 +246,98 @@ serve(async (req) => {
         itemCategory = itemCategory || context.category || context.title;
         itemCondition = itemCondition || context.condition;
         itemSize = itemSize || context.size;
-        itemTitle = context.title;
+        itemTitle = itemTitle || context.title;
         console.log("Extracted from Vinted URL:", JSON.stringify(context));
       }
     }
 
     // --- Perplexity market research ---
     const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
-    if (!perplexityKey) throw new Error("Perplexity API not configured. Please connect Perplexity in project settings.");
+    if (!perplexityKey) throw new Error("Perplexity API not configured.");
 
-    const searchDesc = itemTitle || [itemBrand, itemCategory].filter(Boolean).join(" ");
-    console.log(`Running Perplexity search for: "${searchDesc}" size: "${itemSize}" condition: "${itemCondition}"`);
+    const searchTerm = buildSearchTerm(itemBrand, itemCategory, itemTitle);
+    console.log(`Search term: "${searchTerm}" | Size: "${itemSize}" | Condition: "${itemCondition}"`);
 
     const { marketData, citations } = await fetchViaPerplexity(
-      itemBrand,
-      itemCategory || itemTitle,
+      searchTerm,
       itemSize,
       itemCondition,
       perplexityKey,
-      itemTitle
     );
 
-    // --- AI Analysis via Gemini ---
+    // --- AI Analysis ---
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI not configured");
 
     const citationsText = citations.length > 0
-      ? `\n\nSource URLs (citations from real-time web search):\n${citations.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+      ? `\n\nSource URLs:\n${citations.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
       : "";
 
     const isNew = isNewCondition(itemCondition);
     const condType = isNew ? "NEW" : "USED";
     const condLabel = conditionLabel(itemCondition);
+    const fullItemDesc = itemTitle || [itemBrand, itemCategory, itemSize].filter(Boolean).join(" ");
 
-    const aiPrompt = `You are a Vinted pricing analyst specialising in the UK secondhand market. Analyse the following REAL-TIME market research data gathered from live searches across Vinted, eBay, and Depop.
+    const aiPrompt = `You are a Vinted UK pricing analyst. Analyse the REAL market data below and price this specific item.
 
-CRITICAL: This item is ${condType} (condition: ${condLabel}). Your recommended_price MUST reflect ${condType} market prices ONLY. ${isNew ? "Price against new/unworn listings only." : "Do NOT use new-with-tags or retail prices. Price against used/pre-owned listings only."}
-
-Item being priced:
-- URL: ${url || "N/A"}
+ITEM TO PRICE:
+- Full description: "${fullItemDesc}"
 - Brand: ${itemBrand || "Unknown"}
-- Category: ${itemCategory || itemTitle || "Unknown"}
+- Category: ${itemCategory || "Unknown"}
 - Size: ${itemSize || "Unknown"}
 - Condition: ${condLabel} (${condType})
+- URL: ${url || "N/A"}
 
 ═══════════════════════════════════════════
-REAL-TIME MARKET DATA (from Perplexity AI search — filtered for ${condType} items):
+LIVE MARKET DATA (from real-time web search):
 ═══════════════════════════════════════════
 ${marketData}
 ${citationsText}
 
-IMPORTANT INSTRUCTIONS:
-1. The market data above is from a LIVE web search conducted moments ago. Use the specific prices, listings, and trends mentioned.
-2. DIFFERENTIATE between NEW and USED items. New items command significantly higher prices.
-3. Calculate RESELLER buy/sell prices:
-   - "buy_price_good": A great sourcing price (50%+ margin after fees)
-   - "buy_price_max": Max price to pay and still profit (40%+ margin on resale)
-   - "estimated_resale": Realistic sell price on Vinted
-4. Estimate DEMAND LEVEL based on the number of listings, price clustering, and market activity described above.
-5. Provide CONDITION PRICE BREAKDOWN based on the data.
-6. Calculate FEES: estimated_fees ~5% of resale, estimated_shipping £3-5.
-7. net_profit_estimate = estimated_resale - estimated_fees - estimated_shipping
+PRICING RULES:
+- This item is ${condType} in ${condLabel} condition.
+${isNew
+  ? "- Price against NEW listings only. Ignore used prices."
+  : "- Price against USED/pre-owned listings. Used items typically sell for 40-70% of new listing prices. If the market data mostly shows new items, discount accordingly."
+}
+- If market data shows prices for BOTH new and used, clearly separate them in condition_price_breakdown and use ONLY the relevant ones for recommended_price.
+- If few exact matches exist, use similar items from the same brand/category to estimate.
 
-═══════════════════════════════════════════
-AI INSIGHTS — STRICT REQUIREMENTS
-═══════════════════════════════════════════
-The "ai_insights" field MUST contain exactly 3 focused paragraphs separated by \\n\\n:
+CALCULATE:
+- recommended_price: realistic Vinted sell price for THIS condition
+- buy_price_good: sourcing price for 50%+ margin after fees
+- buy_price_max: max buy price for 40%+ margin
+- estimated_fees: ~5% of resale
+- estimated_shipping: £3-5
+- net_profit_estimate: resale - fees - shipping
 
-PARAGRAPH 1 — MARKET POSITION (2-3 sentences):
-Where this SPECIFIC item sits in the current market RIGHT NOW. Reference actual prices from the market data above. State how many comparable listings are currently active and whether the market is saturated or underserved. Every sentence must contain a specific number from the data.
+AI INSIGHTS — write exactly 3 paragraphs separated by \\n\\n:
 
-PARAGRAPH 2 — PRICING STRATEGY (2-3 sentences):
-Concrete, actionable advice with specific numbers. Example format: "List at £X for the first 7 days. If no sale, drop to £Y. Accept offers above £Z." Include the best day and time to list based on the category. State whether to accept offers immediately or hold firm.
+PARAGRAPH 1 — MARKET POSITION: Where this item sits in the market. Reference specific prices from the data. How many comparable listings exist? Is the market crowded or sparse? Use real numbers.
 
-PARAGRAPH 3 — SELLER EDGE (1-2 sentences):
-One specific competitive insight backed by the data above. Reference cross-platform price differences, supply gaps, or demand trends. This must be specific to THIS item.
+PARAGRAPH 2 — PRICING STRATEGY: "List at £X for 7 days. If no sale, drop to £Y. Accept offers above £Z." Include best day/time to list for this category. Be specific and actionable.
 
-ABSOLUTE CONSTRAINTS FOR AI INSIGHTS:
-- Reference ONLY the specific item and the market data provided above.
-- NEVER mention unrelated categories or items.
-- Every sentence must contain a specific number, price, or actionable recommendation.
-- If data is limited, say so honestly — do NOT fill gaps with generic advice.
+PARAGRAPH 3 — SELLER EDGE: One specific insight — a cross-platform price gap, supply shortage, or demand trend. Must reference data above.
 
-Return a JSON object (no markdown, just raw JSON) with this exact structure:
+CONSTRAINTS:
+- Every sentence must contain a specific £ price, number, or actionable recommendation.
+- If data is limited, use what's available and state confidence level — never pad with generic filler.
+- Write in plain, direct British English.
+
+Return raw JSON only (no markdown):
 {
-  "recommended_price": <number in GBP>,
+  "recommended_price": <number>,
   "confidence_score": <integer 0-100>,
   "price_range_low": <number>,
   "price_range_high": <number>,
-  "item_title": "<best guess at item title>",
+  "item_title": "<descriptive title>",
   "item_brand": "<brand>",
-  "condition_detected": "<new_with_tags | new_without_tags | very_good | good | satisfactory>",
+  "condition_detected": "<new_with_tags|new_without_tags|very_good|good|satisfactory>",
   "buy_price_good": <number>,
   "buy_price_max": <number>,
   "estimated_resale": <number>,
   "estimated_days_to_sell": <number>,
-  "demand_level": "<high | medium | low>",
+  "demand_level": "<high|medium|low>",
   "condition_price_breakdown": [
     {"condition": "New with tags", "avg_price": <number>, "count": <number>},
     {"condition": "New without tags", "avg_price": <number>, "count": <number>},
@@ -285,9 +349,9 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
   "estimated_shipping": <number>,
   "net_profit_estimate": <number>,
   "comparable_items": [
-    {"title": "<item title>", "price": <number>, "sold": <boolean>, "days_listed": <number or null>, "condition": "<condition grade>"}
+    {"title": "<title>", "price": <number>, "sold": <boolean>, "days_listed": <number|null>, "condition": "<condition>"}
   ],
-  "ai_insights": "<3 paragraphs as specified above, separated by \\n\\n>",
+  "ai_insights": "<3 paragraphs separated by \\n\\n>",
   "price_distribution": [
     {"range": "£0-5", "count": <number>},
     {"range": "£5-10", "count": <number>},
@@ -298,7 +362,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
   ]
 }`;
 
-    const BANNED_WORDS_NOTICE = `BANNED WORDS — NEVER use any of these words or phrases in any field: elevate, elevated, sophisticated, timeless, versatile, effortless, staple, wardrobe essential, investment piece, must-have, perfect addition, stunning, gorgeous, absolutely, boasts, game-changer, trendy, chic, standout, exquisite, premium quality, top-notch, level up, take your wardrobe to the next level. Write in plain, direct British English.`;
+    const BANNED_WORDS_NOTICE = `BANNED WORDS — NEVER use: elevate, elevated, sophisticated, timeless, versatile, effortless, staple, wardrobe essential, investment piece, must-have, perfect addition, stunning, gorgeous, absolutely, boasts, game-changer, trendy, chic, standout, exquisite, premium quality, top-notch, level up.`;
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -309,7 +373,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: `You are a pricing analyst for Vinted UK marketplace. Always respond with valid JSON only. Be precise with numbers and realistic with estimates. ${BANNED_WORDS_NOTICE}` },
+          { role: "system", content: `Vinted UK pricing analyst. Return valid JSON only. Be precise. ${BANNED_WORDS_NOTICE}` },
           { role: "user", content: aiPrompt },
         ],
       }),
@@ -335,7 +399,7 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
       throw new Error("AI returned invalid response");
     }
 
-    // Save report to database
+    // Save report
     const searchQuery = [itemBrand, itemCategory || itemTitle, itemSize].filter(Boolean).join(" ");
     await fetch(`${supabaseUrl}/rest/v1/price_reports`, {
       method: "POST",
