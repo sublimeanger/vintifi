@@ -378,7 +378,7 @@ export default function Vintography() {
   return (
     <PageShell title="Photo Studio" subtitle="AI-powered photo editing for your listings" maxWidth="max-w-4xl">
       <FeatureGate feature="vintography">
-        <div className="space-y-4 sm:space-y-5">
+        <div className="space-y-3 sm:space-y-5">
           <CreditBar used={vintographyUsed} limit={creditsLimit} unlimited={isUnlimited} />
 
           {/* Photo quality guidance banner */}
@@ -386,7 +386,7 @@ export default function Vintography() {
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-2.5 rounded-lg bg-primary/[0.04] border border-primary/10 p-3"
+              className="flex items-start gap-2 rounded-lg bg-primary/[0.04] border border-primary/10 p-2.5 sm:p-3"
             >
               <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
@@ -411,20 +411,20 @@ export default function Vintography() {
             /* ─── Upload Zone ─── */
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <Card
-                className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-colors cursor-pointer p-8 sm:p-12 text-center"
+                className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-colors cursor-pointer p-6 sm:p-12 text-center"
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
               >
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                    <Upload className="w-7 h-7 text-primary" />
+                <div className="flex flex-col items-center gap-2.5 sm:gap-3">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <Upload className="w-6 h-6 sm:w-7 sm:h-7 text-primary" />
                   </div>
                   <div>
-                    <p className="font-display font-bold text-base sm:text-lg">Drop your photos here</p>
-                    <p className="text-sm text-muted-foreground mt-1">or tap to upload · JPG, PNG, WebP · Max 10MB</p>
+                    <p className="font-display font-bold text-sm sm:text-lg">Drop your photos here</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">or tap to upload · JPG, PNG, WebP · Max 10MB</p>
                   </div>
-                  <Button size="sm" className="active:scale-95 transition-transform">
+                  <Button size="sm" className="h-11 sm:h-9 active:scale-95 transition-transform">
                     <Camera className="w-4 h-4 mr-1.5" /> Choose Photos
                   </Button>
                   {!itemId && (
@@ -446,31 +446,31 @@ export default function Vintography() {
             </motion.div>
           ) : (
             /* ─── Editor ─── */
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 sm:space-y-4">
               <BatchStrip items={batchItems} activeIndex={activeBatchIndex} onSelect={handleBatchSelect}
                 onRemove={handleBatchRemove} onDownloadAll={handleDownloadAll} />
 
               {/* 4 Operation Cards with visual previews */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-3">
                 {OPERATIONS.map((op) => {
                   const isSelected = selectedOp === op.id;
                   return (
                     <Card
                       key={op.id}
                       onClick={() => setSelectedOp(op.id)}
-                      className={`p-3 sm:p-4 cursor-pointer transition-all active:scale-[0.97] ${
+                      className={`p-2.5 sm:p-4 cursor-pointer transition-all active:scale-[0.97] ${
                         isSelected
                           ? "ring-2 ring-primary border-primary/30 bg-primary/[0.04]"
                           : "hover:border-primary/20"
                       }`}
                     >
                       {/* Before/After preview strip */}
-                      <div className="flex gap-1 mb-2">
-                        <div className={`flex-1 h-8 rounded bg-gradient-to-br ${op.beforeGradient} border border-border/50`} />
+                      <div className="flex gap-1 mb-1.5 sm:mb-2">
+                        <div className={`flex-1 h-6 sm:h-8 rounded bg-gradient-to-br ${op.beforeGradient} border border-border/50`} />
                         <div className="flex items-center">
                           <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/60" />
                         </div>
-                        <div className={`flex-1 h-8 rounded bg-gradient-to-br ${op.afterGradient} border border-border/50`} />
+                        <div className={`flex-1 h-6 sm:h-8 rounded bg-gradient-to-br ${op.afterGradient} border border-border/50`} />
                       </div>
 
                       <div className="flex items-start justify-between gap-1">
@@ -510,9 +510,9 @@ export default function Vintography() {
 
               {/* Garment description input for context-sensitive operations */}
               {(selectedOp === "virtual_model" || selectedOp === "lifestyle_bg") && (
-                <Card className="p-3 space-y-2">
+                <Card className="p-2.5 sm:p-3 space-y-1.5 sm:space-y-2">
                   {/* Operation-specific photo quality warning */}
-                  <div className="flex items-start gap-2 rounded-md bg-warning/[0.06] border border-warning/15 p-2">
+                  <div className="flex items-start gap-2 rounded-md bg-warning/[0.06] border border-warning/15 p-1.5 sm:p-2">
                     <Info className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
                       Make sure your photo shows the <span className="font-semibold text-foreground">full garment</span> (front view, neckline to hem). Folded or cropped photos won't work well for {selectedOp === "virtual_model" ? "model shots" : "lifestyle scenes"}.
@@ -526,7 +526,7 @@ export default function Vintography() {
                     value={garmentContext}
                     onChange={(e) => setGarmentContext(e.target.value)}
                     placeholder="e.g. Black Nike crewneck sweatshirt, size M"
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="flex h-11 sm:h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-base sm:text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   />
                   <p className="text-[10px] text-muted-foreground">Helps the AI reproduce your garment accurately</p>
                 </Card>
@@ -592,8 +592,8 @@ export default function Vintography() {
 
               {/* Sprint 2: Next Steps after processing */}
               {processedUrl && (
-                <Card className="p-4 sm:p-5 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Next Steps</p>
+                <Card className="p-3 sm:p-5 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 sm:mb-3">Next Steps</p>
                   {itemId ? (
                     itemData?.last_optimised_at ? (
                       <div className="flex items-center justify-between">
@@ -635,20 +635,20 @@ export default function Vintography() {
           )}
 
           {/* Previous Edits Gallery */}
-          <div className="mt-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <h2 className="font-display font-bold text-sm sm:text-base">Previous Edits</h2>
-              {gallery.length > 0 && <Badge variant="secondary" className="text-[10px]">{gallery.length}</Badge>}
+          <div className="mt-4 sm:mt-6">
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+              <h2 className="font-display font-bold text-xs sm:text-base">Previous Edits</h2>
+              {gallery.length > 0 && <Badge variant="secondary" className="text-[9px] sm:text-[10px]">{gallery.length}</Badge>}
             </div>
             {galleryLoading ? (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="aspect-square rounded-lg" />)}
               </div>
             ) : gallery.length === 0 ? (
-              <Card className="p-6 text-center">
-                <ImageIcon className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Your edited photos will appear here</p>
+              <Card className="p-4 sm:p-6 text-center">
+                <ImageIcon className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/40 mx-auto mb-1.5 sm:mb-2" />
+                <p className="text-xs sm:text-sm text-muted-foreground">Your edited photos will appear here</p>
               </Card>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
