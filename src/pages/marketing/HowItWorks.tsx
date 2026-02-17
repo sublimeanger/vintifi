@@ -108,19 +108,19 @@ export default function HowItWorks() {
   return (
     <MarketingLayout>
       {/* Hero */}
-      <section className="py-20 sm:py-24 md:py-36 relative overflow-hidden">
+      <section className="py-12 sm:py-24 md:py-36 relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 right-1/4 w-[500px] h-[500px] rounded-full bg-primary/6 blur-[120px] float-animation" />
           <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] rounded-full bg-accent/6 blur-[100px] float-animation-delay" />
         </div>
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
-            <motion.h1 variants={fadeUp} className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6">
+            <motion.h1 variants={fadeUp} className="font-display text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-4 sm:mb-6">
               From guesswork to profit
               <br />
               <span className="text-gradient">in 3 steps</span>
             </motion.h1>
-            <motion.p variants={fadeUp} className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+            <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
               No complex setup. No learning curve. Paste a URL and watch the magic happen.
             </motion.p>
           </motion.div>
@@ -128,7 +128,7 @@ export default function HowItWorks() {
       </section>
 
       {/* Steps */}
-      <section className="pb-16 sm:pb-20">
+      <section className="pb-10 sm:pb-20">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="relative">
             <div className="absolute left-8 md:left-10 top-0 bottom-0 w-px bg-border hidden md:block">
@@ -137,27 +137,27 @@ export default function HowItWorks() {
               <div className="absolute top-3/4 -left-[3px] w-[7px] h-[7px] rounded-full bg-primary animate-pulse" style={{ animationDelay: "1s" }} />
             </div>
 
-            <div className="space-y-12 sm:space-y-16">
+            <div className="space-y-8 sm:space-y-16">
               {steps.map((step, i) => (
                 <motion.div
                   key={step.num}
-                  className="flex flex-col md:flex-row gap-6 sm:gap-8 relative"
+                  className="flex flex-col md:flex-row gap-4 sm:gap-8 relative"
                   initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-60px" }}
                   transition={{ delay: i * 0.15, duration: 0.6 }}
                 >
                   <div className="shrink-0 relative z-10">
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
-                      <span className="font-display text-2xl md:text-3xl font-extrabold text-primary">{step.num}</span>
+                    <div className="w-12 h-12 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
+                      <span className="font-display text-xl md:text-3xl font-extrabold text-primary">{step.num}</span>
                     </div>
                   </div>
-                  <div className="flex-1 space-y-4">
+                  <div className="flex-1 space-y-2.5 sm:space-y-4">
                     <div className="flex items-center gap-2">
-                      <step.icon className="w-5 h-5 text-primary" />
-                      <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-extrabold">{step.title}</h2>
+                      <step.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                      <h2 className="font-display text-lg sm:text-2xl md:text-3xl font-extrabold">{step.title}</h2>
                     </div>
-                    <p className="text-muted-foreground leading-relaxed max-w-lg text-sm sm:text-base">{step.desc}</p>
+                    <p className="text-muted-foreground leading-relaxed max-w-lg text-xs sm:text-base">{step.desc}</p>
                     <div className="max-w-md">{step.mock}</div>
                   </div>
                 </motion.div>
@@ -168,17 +168,17 @@ export default function HowItWorks() {
       </section>
 
       {/* Before / After */}
-      <section className="py-16 sm:py-20 bg-muted/30">
+      <section className="py-10 sm:py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <motion.h2
-            className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold text-center mb-10 sm:mb-12"
+            className="font-display text-xl sm:text-3xl md:text-4xl font-extrabold text-center mb-6 sm:mb-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
             The Vintifi Difference
           </motion.h2>
-          <div className="grid md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 max-w-4xl mx-auto relative">
             <div className="hidden md:flex absolute left-1/2 top-0 bottom-0 -translate-x-1/2 items-center z-10">
               <div className="w-10 h-10 rounded-full bg-card border-2 border-primary shadow-lg flex items-center justify-center">
                 <ArrowRight className="w-4 h-4 text-primary" />
@@ -189,24 +189,24 @@ export default function HowItWorks() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <Card className="p-5 sm:p-6 border-destructive/30 bg-destructive/5">
-                <h3 className="font-display font-bold text-lg mb-5 text-destructive">Without Vintifi</h3>
-                <div className="space-y-4">
+              <Card className="p-3.5 sm:p-6 border-destructive/30 bg-destructive/5">
+                <h3 className="font-display font-bold text-sm sm:text-lg mb-3 sm:mb-5 text-destructive">Without Vintifi</h3>
+                <div className="space-y-2.5 sm:space-y-4">
                   {beforeAfter.before.map((item) => (
                     <div key={item.label} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <item.icon className="w-4 h-4 text-destructive/70" />
-                        <span className="text-sm text-muted-foreground">{item.label}</span>
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <item.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-destructive/70" />
+                        <span className="text-xs sm:text-sm text-muted-foreground">{item.label}</span>
                       </div>
-                      <span className="text-sm font-medium text-foreground">{item.value}</span>
+                      <span className="text-xs sm:text-sm font-medium text-foreground">{item.value}</span>
                     </div>
                   ))}
                 </div>
               </Card>
             </motion.div>
 
-            <div className="flex md:hidden items-center justify-center -my-1">
-              <div className="w-8 h-8 rounded-full bg-card border-2 border-primary shadow-lg flex items-center justify-center">
+            <div className="flex sm:hidden items-center justify-center -my-0.5">
+              <div className="w-7 h-7 rounded-full bg-card border-2 border-primary shadow-lg flex items-center justify-center">
                 <ArrowRight className="w-3 h-3 text-primary rotate-90" />
               </div>
             </div>
@@ -216,16 +216,16 @@ export default function HowItWorks() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <Card className="p-5 sm:p-6 border-success/30 bg-success/5">
-                <h3 className="font-display font-bold text-lg mb-5 text-success">With Vintifi</h3>
-                <div className="space-y-4">
+              <Card className="p-3.5 sm:p-6 border-success/30 bg-success/5">
+                <h3 className="font-display font-bold text-sm sm:text-lg mb-3 sm:mb-5 text-success">With Vintifi</h3>
+                <div className="space-y-2.5 sm:space-y-4">
                   {beforeAfter.after.map((item) => (
                     <div key={item.label} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <item.icon className="w-4 h-4 text-success/70" />
-                        <span className="text-sm text-muted-foreground">{item.label}</span>
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <item.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success/70" />
+                        <span className="text-xs sm:text-sm text-muted-foreground">{item.label}</span>
                       </div>
-                      <span className="text-sm font-medium text-foreground">{item.value}</span>
+                      <span className="text-xs sm:text-sm font-medium text-foreground">{item.value}</span>
                     </div>
                   ))}
                 </div>
@@ -236,17 +236,17 @@ export default function HowItWorks() {
       </section>
 
       {/* Bottom CTA */}
-      <section className="py-20 sm:py-24">
+      <section className="py-12 sm:py-24">
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
-            <motion.h2 variants={fadeUp} className="font-display text-2xl sm:text-3xl md:text-5xl font-extrabold mb-4">
+            <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-3xl md:text-5xl font-extrabold mb-3 sm:mb-4">
               Ready to try it yourself?
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-muted-foreground text-base sm:text-lg mb-8 max-w-xl mx-auto">
+            <motion.p variants={fadeUp} className="text-muted-foreground text-sm sm:text-lg mb-6 sm:mb-8 max-w-xl mx-auto">
               Your first 5 credits are free. See results in under 90 seconds.
             </motion.p>
             <motion.div variants={fadeUp}>
-              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">
+              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto active:scale-95 transition-transform">
                 Get Started Free <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </motion.div>

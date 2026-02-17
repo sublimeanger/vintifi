@@ -227,26 +227,26 @@ export default function Features() {
   return (
     <MarketingLayout>
       {/* Hero */}
-      <section className="relative overflow-hidden py-20 sm:py-24 md:py-36">
+      <section className="relative overflow-hidden py-12 sm:py-24 md:py-36">
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-primary/8 blur-[120px] float-animation" />
           <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-accent/8 blur-[100px] float-animation-delay" />
         </div>
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
-            <motion.h1 variants={fadeUp} className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6">
+            <motion.h1 variants={fadeUp} className="font-display text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-4 sm:mb-6">
               Your Unfair Advantage
               <br />
               <span className="text-gradient">on Vinted</span>
             </motion.h1>
-            <motion.p variants={fadeUp} className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+            <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8">
               Seven powerful modules working together to turn you into a data-driven reselling machine. No guesswork. No wasted time. Just results.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button
                 variant="outline"
                 size="lg"
-                className="h-12 text-base"
+                className="h-12 text-sm sm:text-base active:scale-95 transition-transform w-full sm:w-auto"
                 onClick={() => document.getElementById("feature-1")?.scrollIntoView({ behavior: "smooth" })}
               >
                 Explore Features <ArrowDown className="ml-2 w-4 h-4" />
@@ -261,18 +261,18 @@ export default function Features() {
         <section
           key={f.title}
           id={`feature-${idx + 1}`}
-          className={`py-16 sm:py-20 md:py-28 ${idx % 2 === 0 ? "bg-background" : "bg-muted/30"}`}
+          className={`py-10 sm:py-20 md:py-28 ${idx % 2 === 0 ? "bg-background" : "bg-muted/30"}`}
         >
           <div className="container mx-auto px-4">
-            <div className="flex items-center gap-3 mb-8 sm:mb-12 max-w-5xl mx-auto">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                <span className="font-display text-sm sm:text-base font-extrabold text-primary">{idx + 1}</span>
+            <div className="flex items-center gap-2.5 sm:gap-3 mb-5 sm:mb-12 max-w-5xl mx-auto">
+              <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                <span className="font-display text-xs sm:text-base font-extrabold text-primary">{idx + 1}</span>
               </div>
               <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground font-medium">{f.title}</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">{f.title}</span>
             </div>
 
-            <div className={`flex flex-col ${idx % 2 === 0 ? "lg:flex-row" : "lg:flex-row-reverse"} items-center gap-8 sm:gap-12 lg:gap-20 max-w-5xl mx-auto`}>
+            <div className={`flex flex-col ${idx % 2 === 0 ? "lg:flex-row" : "lg:flex-row-reverse"} items-center gap-6 sm:gap-12 lg:gap-20 max-w-5xl mx-auto`}>
               <motion.div
                 className="flex-1 max-w-xl"
                 initial="hidden"
@@ -281,22 +281,22 @@ export default function Features() {
                 variants={stagger}
               >
                 <motion.div variants={fadeUp}>
-                  <Badge variant="outline" className="mb-4">
-                    <f.icon className="w-3.5 h-3.5 mr-1.5" /> {f.badge}
+                  <Badge variant="outline" className="mb-3 sm:mb-4 text-[10px] sm:text-xs">
+                    <f.icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 sm:mr-1.5" /> {f.badge}
                   </Badge>
                 </motion.div>
-                <motion.h2 variants={fadeUp} className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight mb-4">
+                <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-3xl md:text-4xl font-extrabold tracking-tight mb-3 sm:mb-4">
                   {f.headline}
                 </motion.h2>
-                <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-4 text-sm sm:text-base">
+                <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-3 sm:mb-4 text-xs sm:text-base">
                   {f.desc1}
                 </motion.p>
-                <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-6 text-sm sm:text-base">
+                <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-4 sm:mb-6 text-xs sm:text-base">
                   {f.desc2}
                 </motion.p>
-                <motion.div variants={fadeUp} className="flex items-baseline gap-3 rounded-xl bg-primary/5 border-l-4 border-primary p-4">
-                  <span className="font-display text-2xl sm:text-3xl font-extrabold text-primary">{f.stat}</span>
-                  <span className="text-xs sm:text-sm text-muted-foreground">{f.statLabel}</span>
+                <motion.div variants={fadeUp} className="flex items-baseline gap-2.5 sm:gap-3 rounded-xl bg-primary/5 border-l-4 border-primary p-3 sm:p-4">
+                  <span className="font-display text-xl sm:text-3xl font-extrabold text-primary">{f.stat}</span>
+                  <span className="text-[10px] sm:text-sm text-muted-foreground">{f.statLabel}</span>
                 </motion.div>
               </motion.div>
 
@@ -326,7 +326,7 @@ export default function Features() {
       ))}
 
       {/* Bottom CTA */}
-      <section className="relative py-20 sm:py-24 overflow-hidden">
+      <section className="relative py-12 sm:py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/10" />
         <div className="container mx-auto px-4 text-center relative z-10">
           <motion.div
@@ -335,14 +335,14 @@ export default function Features() {
             viewport={{ once: true }}
             variants={stagger}
           >
-            <motion.h2 variants={fadeUp} className="font-display text-2xl sm:text-3xl md:text-5xl font-extrabold mb-4">
+            <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-3xl md:text-5xl font-extrabold mb-3 sm:mb-4">
               Ready to level up?
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-muted-foreground text-base sm:text-lg mb-8 max-w-xl mx-auto">
+            <motion.p variants={fadeUp} className="text-muted-foreground text-sm sm:text-lg mb-6 sm:mb-8 max-w-xl mx-auto">
               Start with 5 free credits. No credit card required. See results in under 90 seconds.
             </motion.p>
             <motion.div variants={fadeUp}>
-              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">
+              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto active:scale-95 transition-transform">
                 Get Started Free <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </motion.div>
