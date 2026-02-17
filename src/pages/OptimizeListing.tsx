@@ -249,29 +249,29 @@ export default function OptimizeListing() {
 
       {/* If we have a result, show the Vinted-Ready Pack */}
       {result && !optimizing ? (
-        <motion.div ref={resultsRef} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-3xl mx-auto">
+        <motion.div ref={resultsRef} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-2.5 sm:space-y-4 max-w-3xl mx-auto">
           
           {/* Master Copy All Button */}
-          <Card className="p-4 sm:p-5 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+          <Card className="p-3 sm:p-5 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent">
+            <div className="flex items-start gap-2.5 sm:gap-4">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Package className="w-4 h-4 sm:w-6 sm:h-6 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="font-display font-bold text-base sm:text-lg">Your Vinted-Ready Pack</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Everything below is ready to copy and paste directly into Vinted.</p>
+                <h2 className="font-display font-bold text-sm sm:text-lg">Vinted-Ready Pack</h2>
+                <p className="text-[10px] sm:text-sm text-muted-foreground mt-0.5">Copy & paste directly into Vinted.</p>
               </div>
               <HealthScoreGauge score={result.health_score} compact size="sm" />
             </div>
-            <div className="flex flex-wrap gap-2 mt-4">
-              <Button onClick={handleCopyAll} className="font-semibold h-11 active:scale-95 transition-transform flex-1 sm:flex-none">
-                {copiedField === "all" ? <Check className="w-4 h-4 mr-2" /> : <ClipboardCopy className="w-4 h-4 mr-2" />}
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-4">
+              <Button onClick={handleCopyAll} className="font-semibold h-11 sm:h-11 active:scale-95 transition-transform touch-card flex-1 sm:flex-none">
+                {copiedField === "all" ? <Check className="w-4 h-4 mr-1.5" /> : <ClipboardCopy className="w-4 h-4 mr-1.5" />}
                 {copiedField === "all" ? "Copied!" : "Copy Full Listing"}
               </Button>
               {itemId && (
-                <Button variant="outline" onClick={() => navigate(`/vintography?itemId=${itemId}`)} className="h-11 active:scale-95 transition-transform">
-                  <Camera className="w-4 h-4 mr-2" />
-                  Enhance Photos
+                <Button variant="outline" onClick={() => navigate(`/vintography?itemId=${itemId}`)} className="h-11 active:scale-95 transition-transform touch-card">
+                  <Camera className="w-4 h-4 mr-1.5" />
+                  Photos
                 </Button>
               )}
             </div>
@@ -279,17 +279,17 @@ export default function OptimizeListing() {
 
           {/* Health Score Breakdown */}
           {result.health_score && (
-            <Card className="p-4 sm:p-5">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Health Score Breakdown</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="p-3 sm:p-5">
+              <Label className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 sm:mb-3 block">Health Score</Label>
+              <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
                 {[
                   { label: "Title", score: result.health_score.title_score, feedback: result.health_score.title_feedback },
-                  { label: "Description", score: result.health_score.description_score, feedback: result.health_score.description_feedback },
+                  { label: "Desc", score: result.health_score.description_score, feedback: result.health_score.description_feedback },
                   { label: "Photos", score: result.health_score.photo_score, feedback: result.health_score.photo_feedback },
-                  { label: "Completeness", score: result.health_score.completeness_score, feedback: result.health_score.completeness_feedback },
+                  { label: "Complete", score: result.health_score.completeness_score, feedback: result.health_score.completeness_feedback },
                 ].map((item) => (
-                  <div key={item.label} className="text-center p-3 rounded-xl bg-muted/40 border border-border">
-                    <p className={`font-display text-2xl font-extrabold ${
+                  <div key={item.label} className="text-center p-2 sm:p-3 rounded-xl bg-muted/40 border border-border">
+                    <p className={`font-display text-lg sm:text-2xl font-extrabold ${
                       item.score >= 80 ? "text-success" : item.score >= 60 ? "text-accent" : "text-destructive"
                     }`}>{item.score}</p>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-0.5">{item.label}</p>
@@ -301,39 +301,39 @@ export default function OptimizeListing() {
           )}
 
           {/* Title */}
-          <Card className="p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</Label>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => copyToClipboard(result.optimised_title, "title")}>
+          <Card className="p-3 sm:p-5">
+            <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+              <Label className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</Label>
+              <Button variant="ghost" size="sm" className="h-8 text-xs active:scale-95 touch-card" onClick={() => copyToClipboard(result.optimised_title, "title")}>
                 {copiedField === "title" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
                 {copiedField === "title" ? "Copied" : "Copy"}
               </Button>
             </div>
-            <div className="p-3 rounded-lg bg-success/5 border border-success/20">
+            <div className="p-2.5 sm:p-3 rounded-lg bg-success/5 border border-success/20">
               <p className="text-sm sm:text-base font-medium">{result.optimised_title}</p>
             </div>
           </Card>
 
           {/* Description */}
-          <Card className="p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</Label>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => copyToClipboard(result.optimised_description, "description")}>
+          <Card className="p-3 sm:p-5">
+            <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+              <Label className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</Label>
+              <Button variant="ghost" size="sm" className="h-8 text-xs active:scale-95 touch-card" onClick={() => copyToClipboard(result.optimised_description, "description")}>
                 {copiedField === "description" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
                 {copiedField === "description" ? "Copied" : "Copy"}
               </Button>
             </div>
-            <div className="p-3 rounded-lg bg-success/5 border border-success/20 max-h-72 overflow-y-auto">
+            <div className="p-2.5 sm:p-3 rounded-lg bg-success/5 border border-success/20 max-h-56 sm:max-h-72 overflow-y-auto">
               <p className="text-sm whitespace-pre-wrap leading-relaxed">{result.optimised_description}</p>
             </div>
           </Card>
 
           {/* Hashtags */}
           {result.hashtags && result.hashtags.length > 0 && (
-            <Card className="p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hashtags</Label>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => copyToClipboard(result.hashtags.join(" "), "hashtags")}>
+            <Card className="p-3 sm:p-5">
+              <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                <Label className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hashtags</Label>
+                <Button variant="ghost" size="sm" className="h-8 text-xs active:scale-95 touch-card" onClick={() => copyToClipboard(result.hashtags.join(" "), "hashtags")}>
                   {copiedField === "hashtags" ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
                   {copiedField === "hashtags" ? "Copied" : "Copy All"}
                 </Button>
@@ -355,9 +355,9 @@ export default function OptimizeListing() {
 
           {/* Photos */}
           {allPhotos.length > 0 && (
-            <Card className="p-4 sm:p-5">
-              <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Photos</Label>
-              <div className="grid grid-cols-4 gap-2">
+            <Card className="p-3 sm:p-5">
+              <Label className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 sm:mb-3 block">Photos</Label>
+              <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                 {allPhotos.slice(0, 4).map((url, i) => (
                   <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border bg-muted">
                     <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
@@ -423,14 +423,14 @@ export default function OptimizeListing() {
 
           {/* Next Step CTA */}
           {itemId && (
-            <Card className="p-4 sm:p-5 border-primary/20 bg-primary/[0.03]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold">Next: Enhance Your Photos</p>
-                  <p className="text-xs text-muted-foreground">Make your photos stand out with AI background removal & enhancement</p>
+            <Card className="p-3 sm:p-5 border-primary/20 bg-primary/[0.03]">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-semibold truncate">Next: Enhance Photos</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">AI background removal & enhancement</p>
                 </div>
-                <Button onClick={() => navigate(`/vintography?itemId=${itemId}`)} className="shrink-0">
-                  <Camera className="w-4 h-4 mr-1.5" /> Photo Studio
+                <Button size="sm" onClick={() => navigate(`/vintography?itemId=${itemId}`)} className="shrink-0 h-9 active:scale-95 touch-card">
+                  <Camera className="w-3.5 h-3.5 mr-1" /> Photos
                 </Button>
               </div>
             </Card>
