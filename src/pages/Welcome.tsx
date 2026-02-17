@@ -51,8 +51,8 @@ export default function Welcome() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 py-6">
-      <Card className="w-full max-w-lg p-5 sm:p-8">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 py-4 sm:py-6">
+      <Card className="w-full max-w-lg p-4 sm:p-8">
         <AnimatePresence mode="wait">
           <motion.div
             key="welcome"
@@ -61,55 +61,55 @@ export default function Welcome() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="mb-1.5 sm:mb-2 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <div className="mb-1 sm:mb-2 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-[10px] sm:text-sm text-muted-foreground font-semibold uppercase tracking-wider">
                 Welcome
               </span>
             </div>
-            <h2 className="font-display text-xl sm:text-2xl font-bold mb-0.5 sm:mb-1">
+            <h2 className="font-display text-lg sm:text-2xl font-bold mb-0.5">
               See what your items are really worth
             </h2>
-            <p className="text-muted-foreground text-xs sm:text-sm mb-5 sm:mb-6">
+            <p className="text-muted-foreground text-xs sm:text-sm mb-4 sm:mb-6">
               {items.length > 0
                 ? "Pick any item below for a free AI price check"
                 : "Paste any Vinted listing URL to try a free price check"}
             </p>
 
             {existingCount && existingCount > 0 && items.length > 0 ? (
-              <div className="space-y-4">
-                <div className="rounded-xl bg-success/10 border border-success/20 p-4 text-center">
-                  <Package className="w-8 h-8 text-success mx-auto mb-2" />
-                  <p className="font-display font-bold text-lg text-foreground">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="rounded-xl bg-success/10 border border-success/20 p-3 sm:p-4 text-center">
+                  <Package className="w-7 h-7 sm:w-8 sm:h-8 text-success mx-auto mb-1.5" />
+                  <p className="font-display font-bold text-base sm:text-lg text-foreground">
                     You have {existingCount} items
                   </p>
                 </div>
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {items.map((item) => (
                     <Card
                       key={item.id}
-                      className="p-3 sm:p-4 flex items-center gap-3 hover:border-primary/30 transition-colors cursor-pointer group"
+                      className="p-2.5 sm:p-4 flex items-center gap-2.5 sm:gap-3 hover:border-primary/30 transition-colors cursor-pointer group active:scale-[0.98] min-h-[56px]"
                       onClick={() => handlePriceCheck(item)}
                     >
                       {item.image_url ? (
                         <img
                           src={item.image_url}
                           alt={item.title}
-                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0 bg-muted"
+                          className="w-11 h-11 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0 bg-muted"
                         />
                       ) : (
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                          <Package className="w-5 h-5 text-muted-foreground" />
+                        <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Package className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{item.title}</p>
+                        <p className="font-medium text-xs sm:text-sm truncate">{item.title}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           {item.brand && (
-                            <span className="text-xs text-muted-foreground">{item.brand}</span>
+                            <span className="text-[11px] sm:text-xs text-muted-foreground">{item.brand}</span>
                           )}
                           {item.current_price != null && (
-                            <span className="text-xs font-semibold text-foreground">
+                            <span className="text-[11px] sm:text-xs font-semibold text-foreground">
                               £{item.current_price.toFixed(2)}
                             </span>
                           )}
@@ -118,20 +118,20 @@ export default function Welcome() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="shrink-0 font-semibold group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                        className="shrink-0 font-semibold text-xs h-9 group-hover:bg-primary group-hover:text-primary-foreground transition-colors active:scale-95"
                       >
                         <Search className="w-3.5 h-3.5 mr-1" />
-                        Check Price
+                        Check
                       </Button>
                     </Card>
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <Input
                   placeholder="Paste any Vinted listing URL..."
-                  className="h-11 sm:h-10 text-base sm:text-sm"
+                  className="h-11 text-base sm:text-sm"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -149,7 +149,7 @@ export default function Welcome() {
                     if (val) navigate(`/price-check?url=${encodeURIComponent(val)}`);
                     else toast.error("Please paste a Vinted listing URL");
                   }}
-                  className="w-full h-11 sm:h-10 font-semibold"
+                  className="w-full h-12 sm:h-10 font-semibold active:scale-95 transition-transform"
                 >
                   <Search className="w-4 h-4 mr-1.5" />
                   Try a Price Check
@@ -157,16 +157,16 @@ export default function Welcome() {
               </div>
             )}
 
-            <div className="mt-5 space-y-2">
+            <div className="mt-4 sm:mt-5 space-y-1">
               <button
                 onClick={() => navigate("/trends")}
-                className="w-full text-sm text-primary hover:text-primary/80 transition-colors text-center flex items-center justify-center gap-1.5 font-medium"
+                className="w-full text-xs sm:text-sm text-primary hover:text-primary/80 transition-colors text-center flex items-center justify-center gap-1.5 font-medium py-2.5 active:scale-95 min-h-[44px]"
               >
                 <TrendingUp className="w-3.5 h-3.5" /> Explore what's trending right now
               </button>
               <button
                 onClick={() => navigate("/dashboard")}
-                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors text-center flex items-center justify-center gap-1.5"
+                className="w-full text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors text-center flex items-center justify-center gap-1.5 py-2.5 active:scale-95 min-h-[44px]"
               >
                 Go to Dashboard <ArrowRight className="w-3.5 h-3.5" />
               </button>
