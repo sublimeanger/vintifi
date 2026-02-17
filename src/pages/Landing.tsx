@@ -38,7 +38,7 @@ export default function Landing() {
           <div className="absolute top-[30%] right-[30%] w-[300px] h-[300px] rounded-full bg-success/5 blur-[80px] float-animation" />
         </div>
 
-        <div className="container mx-auto px-4 pt-16 sm:pt-24 pb-16">
+        <div className="container mx-auto px-4 pt-10 sm:pt-24 pb-10 sm:pb-16">
           <motion.div
             className="max-w-3xl mx-auto text-center"
             initial="hidden"
@@ -48,21 +48,21 @@ export default function Landing() {
             <motion.h1
               variants={fadeUp}
               custom={1}
-              className="font-display text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6"
+              className="font-display text-3xl sm:text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1] mb-4 sm:mb-6"
             >
               Stop guessing.
               <br />
               <span className="text-gradient">Start selling smarter.</span>
             </motion.h1>
-            <motion.p variants={fadeUp} custom={2} className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10 px-2">
+            <motion.p variants={fadeUp} custom={2} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-10 px-2">
               Vintifi analyses the Vinted marketplace in real-time and tells you the optimal price for any item — backed by AI and market data.
             </motion.p>
-            <motion.div variants={fadeUp} custom={3} className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4 sm:px-0">
-              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 w-full sm:w-auto shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-shadow">
+            <motion.div variants={fadeUp} custom={3} className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 justify-center px-2 sm:px-0">
+              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 w-full sm:w-auto shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all active:scale-95">
                 Start Free — No Card Required
                 <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate("/how-it-works")} className="text-base h-12 w-full sm:w-auto">
+              <Button size="lg" variant="outline" onClick={() => navigate("/how-it-works")} className="text-sm sm:text-base h-12 w-full sm:w-auto active:scale-95 transition-transform">
                 See How It Works
               </Button>
             </motion.div>
@@ -73,7 +73,7 @@ export default function Landing() {
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.8 }}
-            className="mt-16 sm:mt-20 max-w-4xl mx-auto"
+            className="mt-10 sm:mt-20 max-w-4xl mx-auto"
           >
             <div className="gradient-border p-[1.5px] rounded-2xl">
               <div className="rounded-2xl bg-card p-4 sm:p-6 shadow-2xl shadow-primary/5">
@@ -115,15 +115,15 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section className="py-20 sm:py-24 bg-muted/30">
+      <section className="py-12 sm:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12 sm:mb-16">
-            <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-4">Everything you need to sell smarter</h2>
-            <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto">
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-4">Everything you need to sell smarter</h2>
+            <p className="text-muted-foreground text-sm sm:text-lg max-w-2xl mx-auto">
               Vintifi combines web scraping, AI analysis, and market intelligence into one seamless tool.
             </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6 max-w-5xl mx-auto">
             {features.map((f, i) => (
               <motion.div
                 key={f.title}
@@ -132,12 +132,12 @@ export default function Landing() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08 }}
               >
-                <Card className="p-5 sm:p-6 h-full hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 border-border/50 group">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                    <f.icon className="w-5 h-5 text-primary" />
+                <Card className="p-3.5 sm:p-6 h-full hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 border-border/50 group">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2.5 sm:mb-4 group-hover:bg-primary/20 transition-colors">
+                    <f.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   </div>
-                  <h3 className="font-display font-bold text-lg mb-2">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                  <h3 className="font-display font-bold text-sm sm:text-lg mb-1 sm:mb-2">{f.title}</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
                 </Card>
               </motion.div>
             ))}
@@ -146,21 +146,21 @@ export default function Landing() {
       </section>
 
       {/* Pricing */}
-      <section className="py-20 sm:py-24">
+      <section className="py-12 sm:py-24">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12 sm:mb-16">
-            <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-4">Simple, transparent pricing</h2>
-            <p className="text-muted-foreground text-base sm:text-lg mb-6">Start free. Upgrade when you're ready. All paid plans include a 7-day free trial.</p>
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-4">Simple, transparent pricing</h2>
+            <p className="text-muted-foreground text-sm sm:text-lg mb-4 sm:mb-6">Start free. Upgrade when you're ready. All paid plans include a 7-day free trial.</p>
             <div className="flex items-center justify-center gap-3">
-              <span className={`text-sm font-medium ${!annual ? "text-foreground" : "text-muted-foreground"}`}>Monthly</span>
+              <span className={`text-xs sm:text-sm font-medium ${!annual ? "text-foreground" : "text-muted-foreground"}`}>Monthly</span>
               <Switch checked={annual} onCheckedChange={setAnnual} />
-              <span className={`text-sm font-medium ${annual ? "text-foreground" : "text-muted-foreground"}`}>Annual</span>
+              <span className={`text-xs sm:text-sm font-medium ${annual ? "text-foreground" : "text-muted-foreground"}`}>Annual</span>
               {annual && (
-                <Badge className="bg-success text-success-foreground ml-1">Save 20%</Badge>
+                <Badge className="bg-success text-success-foreground ml-1 text-[10px] sm:text-xs">Save 20%</Badge>
               )}
             </div>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6 max-w-6xl mx-auto">
             {(Object.entries(STRIPE_TIERS) as [TierKey, typeof STRIPE_TIERS[TierKey]][]).map(([key, tier], i) => {
               const isPopular = key === "pro";
               const displayPrice = annual && tier.price > 0 && 'annual_price' in tier ? ((tier as any).annual_price / 12).toFixed(2) : tier.price;
@@ -172,38 +172,38 @@ export default function Landing() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
                 >
-                  <Card className={`p-5 sm:p-6 h-full relative flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${isPopular ? "border-primary shadow-lg shadow-primary/10 ring-1 ring-primary animate-glow-pulse" : "border-border/50 hover:shadow-primary/5"}`}>
+                  <Card className={`p-3.5 sm:p-6 h-full relative flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${isPopular ? "border-primary shadow-lg shadow-primary/10 ring-1 ring-primary animate-glow-pulse" : "border-border/50 hover:shadow-primary/5"}`}>
                     {isPopular && (
-                      <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
+                      <Badge className="absolute -top-2.5 sm:-top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] sm:text-xs">
                         Most Popular
                       </Badge>
                     )}
-                    <div className="mb-6">
-                      <h3 className="font-display font-bold text-lg">{tier.name}</h3>
-                      <div className="mt-3">
-                        <span className="font-display text-3xl sm:text-4xl font-extrabold">
+                    <div className="mb-3 sm:mb-6">
+                      <h3 className="font-display font-bold text-sm sm:text-lg">{tier.name}</h3>
+                      <div className="mt-2 sm:mt-3">
+                        <span className="font-display text-2xl sm:text-4xl font-extrabold">
                           {tier.price === 0 ? "Free" : `£${displayPrice}`}
                         </span>
-                        {tier.price > 0 && <span className="text-muted-foreground text-sm">/month</span>}
+                        {tier.price > 0 && <span className="text-muted-foreground text-[10px] sm:text-sm">/mo</span>}
                       </div>
                       {annual && tier.price > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1 line-through">£{tier.price}/mo</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-through">£{tier.price}/mo</p>
                       )}
                     </div>
-                    <ul className="space-y-3 mb-8 flex-1">
+                    <ul className="space-y-1.5 sm:space-y-3 mb-4 sm:mb-8 flex-1">
                       {tier.features.map((f) => (
-                        <li key={f} className="flex items-start gap-2 text-sm">
-                          <Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+                        <li key={f} className="flex items-start gap-1.5 sm:gap-2 text-[11px] sm:text-sm">
+                          <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success mt-0.5 shrink-0" />
                           <span>{f}</span>
                         </li>
                       ))}
                     </ul>
                     <Button
                       variant={isPopular ? "default" : "outline"}
-                      className="w-full font-semibold"
+                      className="w-full font-semibold text-xs sm:text-sm h-10 sm:h-10 active:scale-95 transition-transform"
                       onClick={() => navigate("/auth?mode=signup")}
                     >
-                      {tier.price === 0 ? "Get Started" : "Start 7-Day Free Trial"}
+                      {tier.price === 0 ? "Get Started" : "Start Trial"}
                     </Button>
                   </Card>
                 </motion.div>
@@ -214,17 +214,17 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      <section className="relative py-20 sm:py-24 overflow-hidden">
+      <section className="relative py-12 sm:py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-secondary via-secondary to-secondary">
           <div className="absolute top-0 left-1/4 w-[400px] h-[400px] rounded-full bg-primary/10 blur-[100px]" />
           <div className="absolute bottom-0 right-1/4 w-[300px] h-[300px] rounded-full bg-accent/10 blur-[80px]" />
         </div>
         <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-secondary-foreground">Ready to sell smarter?</h2>
-          <p className="text-secondary-foreground/70 text-base sm:text-lg mb-8 max-w-xl mx-auto">
+          <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-4 text-secondary-foreground">Ready to sell smarter?</h2>
+          <p className="text-secondary-foreground/70 text-sm sm:text-lg mb-6 sm:mb-8 max-w-xl mx-auto">
             Join Vinted sellers who use Vintifi to price their items perfectly and sell faster.
           </p>
-          <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto">
+          <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto active:scale-95 transition-transform">
             Get Started Free
             <ArrowRight className="ml-2 w-4 h-4" />
           </Button>
