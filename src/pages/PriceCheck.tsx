@@ -157,7 +157,6 @@ export default function PriceCheck() {
     setLoading(true);
     setReport(null);
     setCachedAt(null);
-    setYourCost("");
 
     try {
       const { data, error } = await supabase.functions.invoke("price-check", {
@@ -563,13 +562,13 @@ export default function PriceCheck() {
                 Price by Condition
               </h3>
               <div className="space-y-2">
-                {report.condition_price_breakdown.map((item) => (
+              {report.condition_price_breakdown.filter(item => item.avg_price != null && item.count > 0).map((item) => (
                   <div key={item.condition} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px] capitalize">{item.condition}</Badge>
                       <span className="text-[10px] text-muted-foreground">({item.count} listings)</span>
                     </div>
-                    <span className="font-display font-bold text-sm">£{item.avg_price.toFixed(2)}</span>
+                    <span className="font-display font-bold text-sm">£{(item.avg_price ?? 0).toFixed(2)}</span>
                   </div>
                 ))}
               </div>

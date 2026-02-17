@@ -605,6 +605,9 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                       if (data.brand) params.set("brand", data.brand);
                       if (data.category) params.set("category", data.category);
                       if (data.condition) params.set("condition", data.condition);
+                      if (data.size) params.set("size", data.size);
+                      if (data.title) params.set("title", data.title);
+                      if (data.purchasePrice) params.set("purchasePrice", String(data.purchasePrice));
                       if (data.url) params.set("url", data.url);
                       navigate(`/price-check?${params.toString()}`);
                     }}

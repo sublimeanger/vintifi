@@ -191,6 +191,9 @@ export default function Listings() {
       if (listing.category) params.set("category", listing.category);
       if (listing.condition) params.set("condition", listing.condition);
     }
+    if (listing.title) params.set("title", listing.title);
+    if (listing.size) params.set("size", listing.size);
+    if (listing.purchase_price != null) params.set("purchasePrice", String(listing.purchase_price));
     navigate(`/price-check?${params.toString()}`);
   };
 
