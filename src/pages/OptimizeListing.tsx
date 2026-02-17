@@ -20,6 +20,7 @@ import { HealthScoreGauge } from "@/components/HealthScoreGauge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PageShell } from "@/components/PageShell";
 import { FeatureGate } from "@/components/FeatureGate";
+import { ItemPickerDialog } from "@/components/ItemPickerDialog";
 
 type HealthScore = {
   overall: number;
@@ -70,6 +71,7 @@ export default function OptimizeListing() {
   const [saving, setSaving] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [manualFieldsOpen, setManualFieldsOpen] = useState(false);
+  const [autoStartReady, setAutoStartReady] = useState(false);
   const resultsRef = useCallback((node: HTMLDivElement | null) => {
     if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
@@ -82,6 +84,15 @@ export default function OptimizeListing() {
       setManualFieldsOpen(true);
     }
   }, []);
+
+  // Sprint 7: Auto-start when arriving from ItemDetail with photos loaded
+  useEffect(() => {
+    if (!itemId || !user || result || optimizing) return;
+    // Wait for photos to load, then mark as ready
+    if (remotePhotoUrls.length > 0 && !autoStartReady) {
+      setAutoStartReady(true);
+    }
+  }, [itemId, remotePhotoUrls, user, result, optimizing]);
 
   // Fetch existing photos from DB when opened from an item detail page
   useEffect(() => {
@@ -523,6 +534,29 @@ export default function OptimizeListing() {
           </div>
         </motion.div>
       ) : !optimizing ? (
+        /* Sprint 7: Auto-start card when item context is ready */
+        autoStartReady && itemId ? (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
+            <Card className="p-5 sm:p-6 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent text-center">
+              {remotePhotoUrls[0] && (
+                <div className="w-20 h-20 rounded-xl overflow-hidden border border-border bg-muted mx-auto mb-4">
+                  <img src={remotePhotoUrls[0]} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <p className="font-display font-bold text-base sm:text-lg mb-1">{currentTitle || brand || "Your Item"}</p>
+              <p className="text-xs text-muted-foreground mb-4">{[brand, category, size].filter(Boolean).join(" · ") || "Ready to optimise"}</p>
+              <p className="text-sm text-muted-foreground mb-4">{remotePhotoUrls.length} photo{remotePhotoUrls.length !== 1 ? "s" : ""} loaded from your item</p>
+              <Button onClick={handleOptimize} className="h-12 sm:h-11 font-semibold px-8 active:scale-95 transition-transform">
+                <Sparkles className="w-4 h-4 mr-2" /> Optimise Now
+              </Button>
+              <div className="mt-3">
+                <button onClick={() => setAutoStartReady(false)} className="text-xs text-muted-foreground hover:underline">
+                  Edit details manually instead
+                </button>
+              </div>
+            </Card>
+          </motion.div>
+        ) : (
         /* Input Form — URL-first with collapsible manual fields */
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
           <Card className="p-4 sm:p-6 border-border/50">
@@ -550,8 +584,26 @@ export default function OptimizeListing() {
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground mt-1.5">Paste a Vinted listing URL to auto-import photos &amp; details</p>
+              {/* Sprint 6: Pick from items */}
+              {!itemId && (
+                <div className="mt-1.5">
+                  <ItemPickerDialog onSelect={(picked) => {
+                    const params = new URLSearchParams({ itemId: picked.id });
+                    if (picked.title) params.set("title", picked.title);
+                    if (picked.brand) params.set("brand", picked.brand);
+                    if (picked.category) params.set("category", picked.category);
+                    if (picked.condition) params.set("condition", picked.condition);
+                    if (picked.size) params.set("size", picked.size!);
+                    navigate(`/optimize?${params.toString()}`);
+                    window.location.reload();
+                  }}>
+                    <button className="text-xs text-primary hover:underline font-medium">
+                      or pick from your items
+                    </button>
+                  </ItemPickerDialog>
+                </div>
+              )}
             </div>
-
             {loadingItemPhotos && (
               <div className="mb-4 sm:mb-5">
                 <div className="grid grid-cols-4 gap-2 sm:gap-3">
@@ -650,6 +702,7 @@ export default function OptimizeListing() {
             </Button>
           </Card>
         </motion.div>
+        )
       ) : null}
 
       </FeatureGate>

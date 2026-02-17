@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
   Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock,
-  RefreshCw, Coins,
+  RefreshCw, Coins, Package,
 } from "lucide-react";
 
 import { CreditBar } from "@/components/vintography/CreditBar";
@@ -108,6 +108,50 @@ export default function Vintography() {
       setBatchItems([]);
     }
   }, [searchParams]);
+
+  // Sprint 1: Fetch item photos from DB when itemId is present
+  const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
+  useEffect(() => {
+    if (!itemId || !user || originalUrl) return;
+    (async () => {
+      const { data } = await supabase
+        .from("listings")
+        .select("image_url, images, last_optimised_at")
+        .eq("id", itemId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!data) return;
+      setItemData({ last_optimised_at: data.last_optimised_at });
+      const urls: string[] = [];
+      if (data.image_url) urls.push(data.image_url);
+      if (Array.isArray(data.images)) {
+        for (const img of data.images) {
+          const u = typeof img === "string" ? img : (img as any)?.url;
+          if (u && !urls.includes(u)) urls.push(u);
+        }
+      }
+      if (urls.length === 0) return;
+      if (urls.length === 1) {
+        setOriginalUrl(urls[0]);
+        setProcessedUrl(null);
+        setBatchItems([]);
+      } else {
+        // Multiple photos: set first as active, rest in batch
+        setOriginalUrl(urls[0]);
+        setProcessedUrl(null);
+        const items: BatchItem[] = urls.map((u, i) => ({
+          id: `item-${i}-${Date.now()}`,
+          file: null as any,
+          previewUrl: u,
+          uploadedUrl: u,
+          processedUrl: null,
+          status: "pending" as const,
+        }));
+        setBatchItems(items);
+        setActiveBatchIndex(0);
+      }
+    })();
+  }, [itemId, user]);
 
   const fetchGallery = useCallback(async () => {
     if (!user) return;
@@ -473,15 +517,58 @@ export default function Vintography() {
                 </Button>
               </div>
 
-              {/* Item link footer */}
-              {itemId && processedUrl && (
-                <Card className="p-3 sm:p-4 bg-success/5 border-success/20">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Photo saved to your item</p>
-                    <Button size="sm" onClick={() => navigate(`/items/${itemId}`)} className="active:scale-95 transition-transform">
-                      Back to Item <ChevronRight className="w-3.5 h-3.5 ml-1" />
-                    </Button>
-                  </div>
+              {/* Sprint 2: Next Steps after processing */}
+              {processedUrl && (
+                <Card className="p-4 sm:p-5 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Next Steps</p>
+                  {itemId ? (
+                    itemData?.last_optimised_at ? (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-success">Your item is ready!</p>
+                          <p className="text-xs text-muted-foreground">View your Vinted-Ready Pack with copy & download.</p>
+                        </div>
+                        <Button size="sm" onClick={() => navigate(`/items/${itemId}`)} className="shrink-0">
+                          <Package className="w-3.5 h-3.5 mr-1.5" /> View Pack
+                          <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold">Next: Optimise Your Listing</p>
+                          <p className="text-xs text-muted-foreground">Generate a perfect title, description & hashtags.</p>
+                        </div>
+                        <Button size="sm" onClick={() => navigate(`/optimize?itemId=${itemId}`)} className="shrink-0">
+                          <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Optimise
+                          <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                        </Button>
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">Save & Continue</p>
+                        <p className="text-xs text-muted-foreground">Save this photo to your inventory and optimise the listing.</p>
+                      </div>
+                      <Button size="sm" onClick={async () => {
+                        if (!user) return;
+                        const { data: newItem, error } = await supabase.from("listings").insert({
+                          user_id: user.id,
+                          title: "New Item",
+                          image_url: processedUrl,
+                          images: [processedUrl] as any,
+                          last_photo_edit_at: new Date().toISOString(),
+                          status: "draft",
+                        }).select("id").single();
+                        if (error || !newItem) { toast.error("Failed to save"); return; }
+                        toast.success("Saved!");
+                        navigate(`/optimize?itemId=${newItem.id}`);
+                      }} className="shrink-0">
+                        <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Save & Optimise
+                      </Button>
+                    </div>
+                  )}
                 </Card>
               )}
             </motion.div>

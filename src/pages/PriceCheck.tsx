@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
+import { ItemPickerDialog } from "@/components/ItemPickerDialog";
 
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
@@ -313,6 +314,27 @@ export default function PriceCheck() {
             </Button>
           </div>
         )}
+
+        {/* Sprint 6: Pick from my items */}
+        {!itemId && (
+          <div className="text-center -mt-3 mb-3">
+            <ItemPickerDialog onSelect={(item) => {
+              const params = new URLSearchParams({ itemId: item.id });
+              if (item.vinted_url) params.set("url", item.vinted_url);
+              else {
+                if (item.brand) params.set("brand", item.brand);
+                if (item.category) params.set("category", item.category);
+                if (item.condition) params.set("condition", item.condition);
+              }
+              navigate(`/price-check?${params.toString()}`);
+              window.location.reload();
+            }}>
+              <button className="text-xs text-primary hover:underline font-medium">
+                or pick from your items
+              </button>
+            </ItemPickerDialog>
+          </div>
+        )}
       </Card>
 
       {/* Cache banner */}
@@ -592,20 +614,29 @@ export default function PriceCheck() {
               <Button
                 onClick={async () => {
                   if (!user) { toast.error("Sign in to save"); return; }
-                  const { error } = await supabase.from("listings").insert({
+                  const { data: newItem, error } = await supabase.from("listings").insert({
                     user_id: user.id,
-                    title: `${brand} ${category}`.trim() || url || "Untitled",
-                    brand: brand || null,
+                    title: report.item_title || `${brand} ${category}`.trim() || url || "Untitled",
+                    brand: report.item_brand || brand || null,
                     category: category || null,
-                    condition: condition || null,
+                    condition: report.condition_detected || condition || null,
                     purchase_price: report.buy_price_max || null,
                     current_price: report.recommended_price,
                     recommended_price: report.recommended_price,
+                    last_price_check_at: new Date().toISOString(),
                     vinted_url: url || null,
                     status: "active",
-                  });
-                  if (error) toast.error("Failed to save");
-                  else toast.success("Saved to your inventory!");
+                  }).select("id").single();
+                  if (error || !newItem) { toast.error("Failed to save"); return; }
+                  // Link price report to new listing
+                  await supabase.from("price_reports")
+                    .update({ listing_id: newItem.id })
+                    .eq("user_id", user.id)
+                    .is("listing_id", null)
+                    .order("created_at", { ascending: false })
+                    .limit(1);
+                  toast.success("Saved! Taking you to your item…");
+                  navigate(`/items/${newItem.id}`);
                 }}
                 variant="outline"
                 className="w-full sm:w-auto h-12 sm:h-10 active:scale-95 transition-transform"
