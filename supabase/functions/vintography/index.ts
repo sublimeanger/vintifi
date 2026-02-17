@@ -12,7 +12,13 @@ const QUALITY_MANDATE = `OUTPUT REQUIREMENTS: Deliver the highest possible resol
 
 const NO_TEXT = `ABSOLUTELY ZERO text, watermarks, labels, captions, annotations, logos, signatures, stamps, or any form of written content anywhere in the image. Not even subtle or blurred text. The image must be completely free of any characters or symbols.`;
 
-const GARMENT_PRESERVE = `GARMENT INTEGRITY (NON-NEGOTIABLE): Preserve every single detail of the garment with forensic accuracy — all logos, prints, embroidery, textures, stitching patterns, buttons, zippers, tags, brand markers, fabric weave, and colour must remain perfectly intact, unaltered, and unobscured. Maintain accurate colour reproduction under the new lighting conditions. ${NO_TEXT}`;
+const GARMENT_PRESERVE = `GARMENT INTEGRITY (NON-NEGOTIABLE): Preserve every single detail of the garment with forensic accuracy — all logos, prints, embroidery, textures, stitching patterns, buttons, zippers, tags, brand markers, fabric weave, and colour must remain perfectly intact, unaltered, and unobscured. Maintain accurate colour reproduction under the new lighting conditions. DO NOT change the garment type — if the input is a crewneck sweatshirt, it must remain a crewneck sweatshirt. DO NOT add a hood, DO NOT change the neckline, DO NOT alter the silhouette. The garment identity must be preserved exactly. ${NO_TEXT}`;
+
+// Build garment context block from optional metadata
+function buildGarmentContext(garmentContext?: string): string {
+  if (!garmentContext || garmentContext.trim().length === 0) return "";
+  return `\n\nGARMENT IDENTITY (CRITICAL): The garment in this image is: ${garmentContext.trim()}. You MUST reproduce this EXACT type of garment. DO NOT substitute it with a similar but different garment (e.g., DO NOT turn a crewneck into a hoodie, DO NOT turn a t-shirt into a long-sleeve, DO NOT change the neckline style). The garment type, neckline, sleeve length, and overall silhouette must match the description precisely.\n`;
+}
 
 const OPERATION_PROMPTS: Record<string, (params: Record<string, string>) => string> = {
   remove_bg: () =>
@@ -60,6 +66,12 @@ ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`;
   },
 
+  // Wrap smart_bg to inject garment context
+  _smart_bg_with_context: (p: Record<string, string>) => {
+    const base = OPERATION_PROMPTS.smart_bg(p);
+    return base + buildGarmentContext(p?.garment_context);
+  },
+
   model_shot: (p) => {
     const gender = p?.gender || "female";
     const pose = p?.pose || "standing_front";
@@ -92,8 +104,10 @@ ${QUALITY_MANDATE}`;
       brick: "exposed red-brown brick wall backdrop with character and texture. Warm tungsten-style accent lighting. Industrial-chic with editorial feel",
     };
 
-    return `You are a world-class fashion photographer shooting a lookbook. Create a photo-realistic image of a ${gender} model wearing this exact garment.
+    const garmentCtx = p?.garment_context ? `\n\nGARMENT IDENTITY (CRITICAL — READ BEFORE GENERATING): The garment is: ${p.garment_context}. Generate this EXACT garment type. If it says "crewneck sweatshirt", the model MUST wear a crewneck sweatshirt with a round neckline and NO hood. If it says "t-shirt", it must be a t-shirt. DO NOT substitute with any other garment type. DO NOT add a hood. DO NOT change the neckline.\n` : "";
 
+    return `You are a world-class fashion photographer shooting a lookbook. Create a photo-realistic image of a ${gender} model wearing this exact garment.
+${garmentCtx}
 MODEL REQUIREMENTS:
 - Body: Natural, healthy proportions appropriate for the garment's size. Realistic body type — not exaggerated.
 - Skin: Photo-realistic skin with natural pores, subtle imperfections, and realistic subsurface scattering. ABSOLUTELY NO plastic, waxy, or AI-smoothed skin. Must look like a real photograph of a real person.
@@ -240,7 +254,7 @@ serve(async (req) => {
       });
     }
 
-    const { image_url, operation, parameters } = await req.json();
+    const { image_url, operation, parameters, garment_context } = await req.json();
 
     if (!image_url || !operation) {
       return new Response(JSON.stringify({ error: "image_url and operation are required" }), {
@@ -312,7 +326,13 @@ serve(async (req) => {
     }
 
     const model = MODEL_MAP[operation];
-    const prompt = OPERATION_PROMPTS[operation](parameters || {});
+    // Inject garment_context into parameters so prompts can use it
+    const enrichedParams = { ...(parameters || {}), garment_context: garment_context || "" };
+    let prompt = OPERATION_PROMPTS[operation](enrichedParams);
+    // For operations that don't have built-in garment context injection, append it
+    if (garment_context && !["model_shot"].includes(operation)) {
+      prompt += buildGarmentContext(garment_context);
+    }
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 

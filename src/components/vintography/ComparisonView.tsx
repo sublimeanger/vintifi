@@ -40,9 +40,10 @@ const TIPS: Record<string, string[]> = {
     "Great for social media posts and Instagram-style product shots",
   ],
   virtual_model: [
-    "Virtual Model preserves all garment details like logos and prints",
-    "Try different poses to show how the garment moves and drapes",
-    "The AI creates realistic fabric physics — drape, tension, and weight",
+    "AI Model Concept creates an interpretation — exact logos and prints may vary",
+    "Add a garment description for better accuracy (e.g., 'Nike crewneck sweatshirt')",
+    "For pixel-perfect results, try Clean Background or Enhance instead",
+    "Try different poses and looks to find the best representation",
   ],
   enhance: [
     "Enhance corrects white balance and colour temperature automatically",
@@ -491,6 +492,15 @@ export function ComparisonView({
       {processedUrl && viewMode === "overlay" && (
         <div className="px-4 py-3 border-t border-border">
           <Slider value={sliderValue} onValueChange={setSliderValue} min={0} max={100} step={1} />
+        </div>
+      )}
+
+      {/* Post-result suggestion for AI Model Concept */}
+      {processedUrl && operationId === "virtual_model" && (
+        <div className="px-4 py-3 border-t border-border bg-warning/10">
+          <p className="text-[11px] text-muted-foreground">
+            💡 Not quite right? <strong>Clean Background</strong> and <strong>Enhance</strong> preserve your garment pixel-perfectly — ideal for accurate listings.
+          </p>
         </div>
       )}
     </Card>
