@@ -140,6 +140,9 @@ export default function ItemDetail() {
       if (item.category) params.set("category", item.category);
       if (item.condition) params.set("condition", item.condition);
     }
+    if (item.title) params.set("title", item.title);
+    if (item.size) params.set("size", item.size);
+    if (item.purchase_price != null) params.set("purchasePrice", String(item.purchase_price));
     navigate(`/price-check?${params.toString()}`);
   };
 
@@ -647,7 +650,7 @@ export default function ItemDetail() {
                 { label: "Brand", value: item.brand },
                 { label: "Category", value: item.category },
                 { label: "Size", value: item.size },
-                { label: "Condition", value: item.condition },
+                { label: "Condition", value: item.condition?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) },
                 { label: "Colour", value: item.colour },
                 { label: "Material", value: item.material },
               ].map((field) => (

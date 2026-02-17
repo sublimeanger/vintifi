@@ -443,6 +443,8 @@ export type Database = {
           last_photo_edit_at: string | null
           last_price_check_at: string | null
           material: string | null
+          optimised_description: string | null
+          optimised_title: string | null
           purchase_price: number | null
           recommended_price: number | null
           sale_price: number | null
@@ -476,6 +478,8 @@ export type Database = {
           last_photo_edit_at?: string | null
           last_price_check_at?: string | null
           material?: string | null
+          optimised_description?: string | null
+          optimised_title?: string | null
           purchase_price?: number | null
           recommended_price?: number | null
           sale_price?: number | null
@@ -509,6 +513,8 @@ export type Database = {
           last_photo_edit_at?: string | null
           last_price_check_at?: string | null
           material?: string | null
+          optimised_description?: string | null
+          optimised_title?: string | null
           purchase_price?: number | null
           recommended_price?: number | null
           sale_price?: number | null

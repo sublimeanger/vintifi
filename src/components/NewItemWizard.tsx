@@ -66,7 +66,7 @@ const conditions = [
 ];
 
 const categories = [
-  "Tops", "T-shirts", "Shirts", "Hoodies", "Jumpers", "Jackets", "Coats",
+  "Tops", "T-shirts", "Shirts", "Hoodies", "Sweatshirts", "Jumpers", "Jackets", "Coats",
   "Jeans", "Trousers", "Shorts", "Skirts", "Dresses",
   "Shoes", "Trainers", "Boots", "Sandals",
   "Bags", "Accessories", "Jewellery", "Watches",

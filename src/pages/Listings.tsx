@@ -281,8 +281,8 @@ export default function Listings() {
     total: listings.length,
     active: listings.filter((l) => l.status === "active").length,
     totalValue: listings
-      .filter((l) => l.status === "active" && l.current_price)
-      .reduce((sum, l) => sum + (l.current_price || 0), 0),
+      .filter((l) => l.status === "active" && (l.current_price || l.recommended_price))
+      .reduce((sum, l) => sum + (l.current_price ?? l.recommended_price ?? 0), 0),
     avgHealth:
       listings.filter((l) => l.health_score).length > 0
         ? Math.round(
