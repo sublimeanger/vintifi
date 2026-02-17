@@ -306,7 +306,8 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
 
       {/* Drag-and-drop thumbnail strip */}
       <div>
-        <p className="text-[10px] text-muted-foreground mb-2">Drag thumbnails to reorder · first photo becomes the cover</p>
+        <p className="text-[10px] text-muted-foreground mb-1">Drag thumbnails to reorder · first photo becomes the cover</p>
+        <p className="text-[10px] text-muted-foreground/70 mb-2">💡 The cover photo is used by Photo Studio for AI editing. A full front view gives the best results.</p>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={photos} strategy={rectSortingStrategy}>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
