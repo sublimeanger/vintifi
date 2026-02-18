@@ -112,6 +112,7 @@ export default function Vintography() {
 
   // Sprint 1: Fetch item photos from DB when itemId is present
   const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
+  const [linkedItemTitle, setLinkedItemTitle] = useState<string>("");
   const [garmentContext, setGarmentContext] = useState("");
   useEffect(() => {
     if (!itemId || !user) return;
@@ -124,6 +125,7 @@ export default function Vintography() {
         .maybeSingle();
       if (!data) return;
       setItemData({ last_optimised_at: data.last_optimised_at });
+      setLinkedItemTitle(data.title || "");
       // Auto-populate garment context from item metadata
       const parts = [data.brand, data.title, data.category, data.size ? `size ${data.size}` : null, data.condition].filter(Boolean);
       if (parts.length > 0) setGarmentContext(parts.join(", "));
@@ -201,6 +203,15 @@ export default function Vintography() {
       await supabase.from("item_activity").insert({
         user_id: user.id, listing_id: itemId, type: "photo_edited",
         payload: { operation: selectedOp, processed_url: newProcessedUrl },
+      });
+      // Show clear confirmation with link back to item photos tab
+      toast.success(linkedItemTitle ? `Photo saved to "${linkedItemTitle}"` : "Photo saved to your item", {
+        description: "Tap to view it in the Photos tab",
+        action: {
+          label: "View Photos",
+          onClick: () => navigate(`/items/${itemId}?tab=photos`),
+        },
+        duration: 6000,
       });
     } catch (err) { console.error("Failed to update linked item:", err); }
   };
@@ -354,10 +365,18 @@ export default function Vintography() {
     for (let i = 0; i < downloadable.length; i++) {
       toast.info(`Downloading ${i + 1} of ${downloadable.length}…`);
       try {
-        const res = await fetch(downloadable[i].processedUrl!); const blob = await res.blob();
-        const url = URL.createObjectURL(blob); const a = document.createElement("a");
-        a.href = url; a.download = `vintography-${downloadable[i].id}.png`; a.click(); URL.revokeObjectURL(url);
-        await new Promise(r => setTimeout(r, 300)); // small delay between downloads
+        const res = await fetch(downloadable[i].processedUrl!);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `vintography-${downloadable[i].id}.png`;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        await new Promise(r => setTimeout(r, 400));
       } catch {}
     }
     toast.success("All downloads complete");
@@ -376,7 +395,24 @@ export default function Vintography() {
   };
 
   return (
-    <PageShell title="Photo Studio" subtitle="AI-powered photo editing for your listings" maxWidth="max-w-4xl">
+    <PageShell
+      title={itemId && linkedItemTitle ? `Photo Studio` : "Photo Studio"}
+      subtitle={itemId && linkedItemTitle ? `Editing photos for: ${linkedItemTitle}` : "AI-powered photo editing for your listings"}
+      maxWidth="max-w-4xl"
+    >
+      {itemId && linkedItemTitle && (
+        <div className="mb-3 -mt-1">
+          <button
+            onClick={() => navigate(`/items/${itemId}?tab=photos`)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to {linkedItemTitle}
+          </button>
+        </div>
+      )}
       <FeatureGate feature="vintography">
         <div className="space-y-3 sm:space-y-5">
           <CreditBar used={vintographyUsed} limit={creditsLimit} unlimited={isUnlimited} />

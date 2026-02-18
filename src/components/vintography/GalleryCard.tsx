@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Image as ImageIcon, Trash2, Upload, ImageOff, Paintbrush, User as UserIcon, Sparkles } from "lucide-react";
+import { Loader2, Image as ImageIcon, Trash2, Wand2, ImageOff, Paintbrush, User as UserIcon, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 
@@ -102,9 +102,9 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
                 variant="secondary"
                 className="h-7 w-7 rounded-full"
                 onClick={(e) => { e.stopPropagation(); onUseAsInput(job); }}
-                title="Use as input for another operation"
+                title="Edit again"
               >
-                <Upload className="w-3 h-3" />
+                <Wand2 className="w-3 h-3" />
               </Button>
             )}
             {job.processed_url && (
