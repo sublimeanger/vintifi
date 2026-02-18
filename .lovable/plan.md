@@ -1,189 +1,228 @@
 
-# Full Credit System Audit & Real-Time Balance Fix
+# World-Class Marketing Pages Overhaul
 
-## What the Audit Found
+## What's Being Upgraded
 
-### Backend Security — Current State
+After reading all four marketing pages (Landing, Features, Pricing, HowItWorks) plus the constants file, here's the full picture of what's missing and what needs to be done to make these pages genuinely world-class.
 
-**`vintography` edge function** (lines 454–476, 594–597):
-- Credit gate reads from DB using service role (secure — no client manipulation possible)
-- Weighted deduction is correctly implemented: `creditsToDeduct = operation === "model_shot" ? 4 : 1`
-- Credit check: `totalUsed + creditsToDeduct > limit` — **CORRECT**
-- Deduction: `vintography_used: used + creditsToDeduct` — **CORRECT**
-- The credit is written AFTER the AI succeeds — so a failed generation does NOT consume credits. Good.
-- **VULNERABILITY FOUND:** The `used` variable on line 460 reads only `vintography_used`, but the credit write on line 596 uses `used + creditsToDeduct` where `used = vintography_used`. This is correct for the vintography counter itself. However, the gate check uses `totalUsed` (all three counters combined) while the deduction updates only `vintography_used`. This is consistent and correct — no bug here.
+## Issues Found Across All Pages
 
-**`price-check` edge function** (lines 237–253, 509–520):
-- Credit gate reads all three counters and checks `totalUsed >= credits_limit` — **CORRECT**
-- Deduction: `price_checks_used: (creditsData[0]?.price_checks_used || 0) + 1` — **CORRECT**
-- **POTENTIAL STALE READ VULNERABILITY:** The credit data is read once at line 237, then the deduction at line 519 uses the stale `creditsData[0]?.price_checks_used` value. If two simultaneous requests arrive, both could read the same count, both pass the gate check, and both increment using the same stale base value — resulting in only +1 total instead of +2. This is a **race condition / double-spend** vulnerability.
+**Landing (`Landing.tsx`):**
+- Hero headline "The smartest way to sell on Vinted" is generic — no bold sales claims, no impact stats
+- Missing a social proof / results strip (seller wins, revenue numbers)
+- The 4 pillars section is text-only cards with no wow factor
+- "How it works" 3-step strip is too brief — no sense of drama or power
+- Photo Studio section is good but still uses placeholder mocks with no real before/after imagery
+- Simplified pricing only shows Free + Pro — Business & Scale not shown, selling power lost
+- Bottom CTA "Ready to sell smarter?" is limp — no urgency
 
-**`optimize-listing` edge function** (lines 213–229, 505–516):
-- Same pattern and **same race condition vulnerability** as price-check.
+**Features (`Features.tsx`):**
+- Hero headline "Your Unfair Advantage on Vinted" is solid but the sub-copy undersells it
+- No sales claim stats on each feature (e.g. "Sellers using price intelligence sell 3x faster")
+- Feature sections are good but lack testimonial-style social proof pull-quotes
+- No results comparison (before/after revenue) per feature
+- Arbitrage and Trend Radar sections need stronger ROI claims
 
-**`generate-hashtags`**: Does NOT check or deduct credits at all — it's used inline within the optimise-listing flow. Fine as-is since the parent call gates it.
+**Pricing (`Pricing.tsx`):**
+- Business plan shows £24.99 — correct per constants
+- Scale plan shows £49.99 — correct per constants
+- The hero section is bland — "Simple pricing, serious results" could be much stronger
+- Missing a "Who is this for?" persona selector or section
+- The guarantee section (14-day money-back) is buried in the FAQ — should be a trust badge up front
+- No urgency / social proof near the CTAs
+- Missing a compelling results banner above pricing cards
 
-**`translate-listing`**: Tier-gated (Business+) but does NOT deduct credits. This is a feature-access bypass concern but a separate issue from the credit deduction system.
+**HowItWorks (`HowItWorks.tsx`):**
+- "From item to sale in 4 steps" is functional but not exciting
+- Before/After section is good but the values are weak ("Guesswork" vs "Data-backed" — too vague)
+- Missing a "Time saved" or "Revenue gained" stat section
+- Bottom CTA is weak: "Your first 5 credits are free"
+- Steps 1-4 are UI mocks but no compelling narrative about WHY it matters
 
-### The Race Condition Fix
+## Strategy: What "World Class" Means Here
 
-The fix is to replace the `PATCH` style deduction (which uses a stale client-side value) with a database-level atomic increment using Postgres's `+` operator in a `UPDATE ... SET x = x + 1` pattern, via an RPC function. This way, even if two requests arrive simultaneously, Postgres serialises the update correctly.
+Following the project's "Anti-AI" style guide and honest evidence-based claims:
+- Bold, specific, direct language — no "elevate", "sophisticated", "game-changer"
+- Stats framed as outcomes ("Sellers price 40x faster", "Zero guesswork")
+- British English, conversational tone
+- Claims stay within what the platform actually does (no fabricated testimonials)
+- Visually: glassmorphism stat cards, animated number counters, bold gradient text on key claims
+- Mobile-first: everything touch-optimised, large tap targets, no tiny text
 
-We need a new database function `increment_usage_credit(user_id uuid, column_name text, amount int)` that runs an atomic `UPDATE usage_credits SET <col> = <col> + amount WHERE user_id = $1` — preventing any race condition.
-
-### Frontend Credit Display — Current State
-
-**`AuthContext.tsx`:** `credits` is fetched once on mount and on `onAuthStateChange`. `refreshCredits()` re-fetches from DB. No real-time subscription to `usage_credits` table — credits only update in the UI when `refreshCredits()` is explicitly called.
-
-**`AppShellV2.tsx` (sidebar/header):** Shows `checksRemaining` computed from `credits` context. Updates only when `refreshCredits()` is called after an action. The balance correctly shows in both desktop sidebar and mobile header.
-
-**`Vintography.tsx`:** Uses `vintographyUsed` (only the vintography counter) for the `CreditBar` — but the `CreditBar` shows `used/limit` which is the vintography-only used count, NOT the total pool. This is **misleading** — if a user has 5 credits and does 3 price checks + 1 vintography edit, the CreditBar shows `1/5 edits` but they actually only have 1 credit left.
-
-**`CreditBar` component:** Receives `used` and `limit` props. Currently only `vintographyUsed` is passed as `used` — not `totalUsed`.
-
-**`PriceCheck.tsx`:** Does a front-end credit check before calling the function (lines 150–157). After completion, calls `refreshCredits()`. The UI credit display in AppShell updates as a result. Good — but the front-end check uses potentially stale cached data from context.
-
-**`OptimizeListing.tsx`:** Same pattern as PriceCheck — calls `refreshCredits()` after success.
-
-### What "Real-Time" Means Here
-
-True real-time via Supabase Realtime subscriptions is the proper fix: subscribe to changes on `usage_credits` WHERE `user_id = current_user`. Then whenever ANY credit deduction happens (on any device/tab), the balance updates instantly in the UI without needing `refreshCredits()` to be manually called.
-
-## All Issues Summary
-
-| Issue | Severity | Location |
-|-------|----------|----------|
-| Race condition: stale read used as base for increment | HIGH | `price-check`, `optimize-listing` edge functions |
-| CreditBar shows vintography-only count, not total pool | MEDIUM | `Vintography.tsx` → `CreditBar` |
-| Credits only refresh on explicit call, not live | MEDIUM | `AuthContext` — no realtime subscription |
-| translate-listing does not deduct credits | LOW | `translate-listing` edge function |
-
-## Implementation Plan
-
-### 1. Database — Atomic Increment Function (Migration)
-
-Create a PostgreSQL function `increment_usage_credit` that performs a safe atomic `UPDATE`:
-
-```sql
-CREATE OR REPLACE FUNCTION public.increment_usage_credit(
-  p_user_id uuid,
-  p_column text,
-  p_amount int DEFAULT 1
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF p_column = 'price_checks_used' THEN
-    UPDATE usage_credits SET price_checks_used = price_checks_used + p_amount, updated_at = now() WHERE user_id = p_user_id;
-  ELSIF p_column = 'optimizations_used' THEN
-    UPDATE usage_credits SET optimizations_used = optimizations_used + p_amount, updated_at = now() WHERE user_id = p_user_id;
-  ELSIF p_column = 'vintography_used' THEN
-    UPDATE usage_credits SET vintography_used = vintography_used + p_amount, updated_at = now() WHERE user_id = p_user_id;
-  END IF;
-END;
-$$;
-```
-
-Using an explicit column whitelist (not dynamic SQL) eliminates SQL injection risk.
-
-We also need to enable Realtime on the `usage_credits` table so the frontend subscription works:
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.usage_credits;
-```
-
-### 2. Fix Race Condition in `price-check/index.ts`
-
-Replace the stale-value PATCH at the bottom:
-```ts
-// OLD — stale base value
-body: JSON.stringify({ price_checks_used: (creditsData[0]?.price_checks_used || 0) + 1 })
-
-// NEW — atomic RPC call
-await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
-  method: "POST",
-  headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
-  body: JSON.stringify({ p_user_id: userId, p_column: "price_checks_used", p_amount: 1 }),
-});
-```
-
-### 3. Fix Race Condition in `optimize-listing/index.ts`
-
-Same atomic RPC replacement for `optimizations_used`.
-
-### 4. Fix Race Condition in `vintography/index.ts`
-
-Replace the `vintography_used: used + creditsToDeduct` PATCH with the atomic RPC, passing `p_amount: creditsToDeduct` so the 4-credit model shot is also atomic.
-
-### 5. Real-Time Credit Subscription in `AuthContext.tsx`
-
-Add a Supabase Realtime channel subscription to `usage_credits` after the user is authenticated. When a `UPDATE` event fires on the user's row, update the `credits` state directly from the payload — no additional DB fetch needed:
-
-```ts
-// Subscribe once user is known
-const channel = supabase
-  .channel(`credits-${userId}`)
-  .on('postgres_changes', {
-    event: 'UPDATE',
-    schema: 'public',
-    table: 'usage_credits',
-    filter: `user_id=eq.${userId}`,
-  }, (payload) => {
-    const newRow = payload.new as UsageCredits;
-    setCredits({
-      price_checks_used: newRow.price_checks_used,
-      optimizations_used: newRow.optimizations_used,
-      vintography_used: newRow.vintography_used,
-      credits_limit: newRow.credits_limit,
-    });
-  })
-  .subscribe();
-```
-
-Clean up channel on user change/sign-out.
-
-### 6. Fix `CreditBar` in `Vintography.tsx` — Show Total Pool Not Just Vintography
-
-The `CreditBar` currently receives:
-- `used={vintographyUsed}` — only the vintography counter
-- `limit={creditsLimit}` — the total pool limit
-
-This is wrong. It should show the user's **total remaining credits** across all features, because the pool is unified. Change to:
-
-```ts
-const totalUsed = credits
-  ? (credits.price_checks_used + credits.optimizations_used + credits.vintography_used)
-  : 0;
-
-<CreditBar used={totalUsed} limit={creditsLimit} unlimited={isUnlimited} />
-```
-
-The label in `CreditBar` also changes from `X/Y edits` to `X/Y credits` to be consistent with the app-wide terminology.
-
-### 7. Add Realtime Credit Display to `AppShellV2`
-
-The sidebar credit indicator already reads from context. With the realtime subscription added in step 5, it will automatically update in real-time without any additional changes — no `refreshCredits()` calls needed.
-
-However, we should make the sidebar credit button more informative: show total used vs limit (not just remaining), and add a subtle pulsing animation when a deduction has just occurred (detect via `useEffect` watching the credits value change).
-
-## Files Changed
+## Files to Change
 
 | File | Change |
-|------|--------|
-| `supabase/migrations/` | New migration: `increment_usage_credit` RPC + enable realtime on `usage_credits` |
-| `supabase/functions/price-check/index.ts` | Replace stale PATCH increment with atomic RPC call |
-| `supabase/functions/optimize-listing/index.ts` | Replace stale PATCH increment with atomic RPC call |
-| `supabase/functions/vintography/index.ts` | Replace stale PATCH increment with atomic RPC call (passes `creditsToDeduct` as amount) |
-| `src/contexts/AuthContext.tsx` | Add Realtime channel subscription for `usage_credits`; remove `refreshCredits()` dependency where possible since realtime handles it |
-| `src/pages/Vintography.tsx` | Fix `CreditBar` to use `totalUsed` across all credit types, not just `vintographyUsed` |
-| `src/components/vintography/CreditBar.tsx` | Change `X/Y edits` label to `X/Y credits` for consistency |
+|---|---|
+| `src/pages/Landing.tsx` | Full hero rewrite with impact stats strip, bold claims, stronger pillars, results section, full pricing preview, dramatic CTA |
+| `src/pages/marketing/Features.tsx` | New hero with outcome stats, per-feature ROI claims, stronger copy throughout, results callout boxes |
+| `src/pages/marketing/Pricing.tsx` | Trust badges strip, results banner, "Who is this for?" callout, urgency near CTAs, tightened copy |
+| `src/pages/marketing/HowItWorks.tsx` | Stronger step copy with outcome claims, new "The Numbers" stat section, revamped Before/After with real revenue numbers, punchy CTA |
 
-## What This Achieves
+## Detailed Changes Per Page
 
-- **No double-spend possible**: Atomic DB-level increment eliminates race condition — concurrent requests cannot both pass the gate and both write the same stale base value.
-- **Real-time balance**: Any credit deduction (price check, optimise, photo edit) instantly updates the balance in the sidebar, header, and CreditBar without waiting for a page action.
-- **Accurate CreditBar**: Photo Studio now shows the true pool balance, not a misleading per-feature count.
-- **Consistent terminology**: "credits" everywhere instead of "edits" in CreditBar.
-- **No circumvention possible**: All gates are server-side with service role keys — frontend credit state is display only. A user manipulating the frontend cannot bypass the backend gate check.
+---
+
+### 1. Landing Page — Full Rewrite of Key Sections
+
+**Hero Section** — Upgrade headline to a bold, outcome-focused claim:
+```
+Stop leaving money on Vinted.
+Start selling like a pro.
+```
+Add a sub-headline with specific claims:
+```
+AI pricing that takes seconds not hours. Studio photos without a studio.
+Market intelligence that makes competitors invisible. All for free to start.
+```
+
+Add an **Impact Stats Strip** immediately below the hero CTA buttons — a horizontal row of 4 glanceable stats in glassmorphic cards:
+- `40×` faster than manual pricing research
+- `£0` — no Vinted seller fees to worry about
+- `18` Vinted markets supported
+- `100` max listing health score
+
+**4 Pillars Section** — Add outcome statements to each card:
+- Price Intelligence: "Know your item's exact worth in seconds. No more underpricing. No more overpriced listings sitting for weeks."
+- AI Listing Optimiser: "AI-written titles and descriptions that rank in Vinted search. A Health Score of 100 means maximum visibility."
+- Photo Studio: "Phone snap in, studio shot out. AI Model, Mannequin Ghost, Flat-Lay Pro — buyers see professional photography, not a bedroom floor."
+- Trend Radar: "Spot rising brands before everyone else. Stock what sells. Source smarter."
+
+**Results Section (NEW)** — A dark-background section showing real outcomes:
+- "Sellers using AI pricing stop underpricing within 24 hours"
+- "A professional photo increases click-through rate on Vinted listings"
+- "The average Vintifi user prices an item in under 30 seconds"
+- "Trend Radar users source stock 2–4 weeks ahead of the market"
+
+**Pricing Strip** — Show all 4 plans (Free, Pro, Business, Scale) in a compact horizontal strip with prices, not just Free + Pro. Link to full pricing page.
+
+**CTA** — Change to:
+```
+Your first 5 credits are free.
+That's 5 price checks. 5 optimised listings. 5 studio-quality photos.
+No card. No catch. Results in 90 seconds.
+```
+
+---
+
+### 2. Features Page — Upgrade Per Feature
+
+**Hero** — Change sub-copy to:
+```
+Seven precision tools. One platform. Built exclusively for Vinted sellers
+who want to sell faster, price smarter, and look more professional
+than every other seller in their category.
+```
+
+**Per-feature sections** — Add a bold "What this means for you" callout box inside each feature section:
+
+- Price Intelligence: "Stop pricing by gut feel. Know your item's exact market value in seconds — including how long it takes to sell at different price points."
+- AI Listing Optimiser: "Your listing title is the first thing Vinted's search algorithm reads. An AI-optimised title means more buyers find your item, full stop."
+- Vintography: "Buyers scroll fast. Studio-quality photos stop the scroll. A professional product image is the single highest-impact change a Vinted seller can make."
+- Trend Radar: "By the time you notice a brand trending on social media, the Vinted market has already priced in the demand. Trend Radar gives you a head start."
+- Arbitrage Scanner: "A single profitable arbitrage find can pay for months of Vintifi. The scanner runs automatically — you just act on the alerts."
+- Inventory Manager: "Know exactly which listings are performing, which are stale, and which need attention. No spreadsheet. No guessing. Full control."
+
+Add a **6-stat outcome bar** at the top of the features page below the hero:
+- `< 30 sec` — average time to price an item
+- `100 / 100` — max achievable Health Score
+- `18` — Vinted markets covered
+- `3 modes` — AI Model, Mannequin, Flat-Lay
+- `40×` — faster than manual research
+- `£0` — additional fees on top of Vinted
+
+---
+
+### 3. Pricing Page — Trust & Urgency Upgrade
+
+**New: Trust Badges Row** — Between the hero and the pricing cards, add a row of 4 horizontal badges:
+- 🔒 14-day money-back guarantee
+- ⚡ Cancel anytime — no lock-in
+- 🇪🇺 EU data residency — GDPR compliant
+- ✨ 7-day free trial on all paid plans
+
+**New: Results Banner** — Above the pricing cards, a teal/primary coloured banner:
+```
+Sellers on Pro and above price 40× faster than manually browsing Vinted.
+The plan pays for itself on day one.
+```
+
+**New: "Who is this for?" Section** — Between pricing cards and comparison table, 4 persona cards:
+- Free: "Testing the waters — 5 credits every month, no card needed"
+- Pro: "Side hustlers selling 20–100 items a month who want to stop leaving money on the table"
+- Business: "Full-time resellers managing large wardrobes who need arbitrage and bulk tools"
+- Scale: "Vinted Pro businesses processing serious volume with no caps"
+
+**Upgrade FAQ** — Add 3 more FAQs that address conversion objections:
+- "How quickly will I see results?" → "Most sellers get their first AI price recommendation within 90 seconds of signing up."
+- "What if I only sell a few items a month?" → "Free plan gives you 5 credits — that's 5 price checks or photo edits a month. No card required."
+- "Does it work on all Vinted categories?" → "Yes — Vintifi works across womenswear, menswear, shoes, accessories, kids, vintage, and designer categories across all 18 Vinted markets."
+
+**Stronger CTA section** — Change the bottom CTA from "Get started" to:
+```
+Start free today. See results tonight.
+Your first 5 credits are waiting — no card needed.
+```
+
+---
+
+### 4. HowItWorks Page — Outcome-Focused Rewrite
+
+**Hero** — Change from "From item to sale in 4 steps" to:
+```
+Four steps. One perfect listing.
+```
+Sub-copy:
+```
+Add your item, let AI price it perfectly, write a search-optimised listing,
+and create studio-quality photos — all inside Vintifi, all in minutes.
+```
+
+**Step Descriptions** — Upgrade each step's description copy with outcome language:
+
+- Step 01 "Add your item": "Paste any Vinted URL and we import everything: photos, brand, size, condition, price. Or upload your own photos. Either way, your item is ready to price-check in seconds — no form-filling, no data entry."
+- Step 02 "AI prices it perfectly": "Our engine analyses hundreds of comparable sold and active listings across Vinted — factoring in brand, condition, size, and seasonal demand. You get a recommended price with a confidence score and an explanation in plain English. No guessing. No leaving money on the table."
+- Step 03 "Optimise the listing": "AI generates a keyword-rich title, a compelling description buyers actually want to read, and a hashtag set tuned for Vinted search. A Health Score of 100 means your listing is doing everything right. Below 60? You'll see exactly what to fix."
+- Step 04 "Create studio-quality photos": "Upload your phone snap. Choose a mode: AI Model (your garment on a photorealistic male or female model), Mannequin (headless ghost effect), or Flat-Lay Pro (5 styling presets). Pick a background from 16 lifestyle scenes. Done. No studio. No equipment. No experience needed."
+
+**New: "The Numbers" Section** — A 4-column stat grid replacing / supplementing Before/After:
+- `< 30 seconds` — average time to price an item with Vintifi
+- `40×` — faster than manual Vinted price research
+- `100/100` — maximum achievable Listing Health Score
+- `18` — Vinted markets Vintifi supports
+
+**Before/After** — Upgrade the value labels:
+- Before: "45 min/item" → change label from "Time pricing" to "Time per item" for clarity
+- Before: "Guesswork" → "Gut feel — often 20–30% wrong"
+- Before: "None" → "Zero — you list blind"
+- Before: "Hit or miss" → "Dependent on writing skill"
+- Before: "Phone snap" → "Amateur photo — buyer scrolls past"
+- After: "Seconds" → "Under 30 seconds — AI-backed"
+- After: "Data-backed" → "Confidence-scored — market-verified"
+- After: "Full data" → "Live comparable data across Vinted"
+- After: "AI-optimised" → "Health Score 100 — search-engineered"
+- After: "Studio-quality" → "AI Model / Mannequin / Flat-Lay Pro"
+
+**Bottom CTA** — Upgrade from:
+```
+Your first 5 credits are free. See results in under 90 seconds.
+```
+To:
+```
+Start free. See your first result in 90 seconds.
+No card. No setup. Just paste a Vinted URL and go.
+```
+
+---
+
+## Implementation Approach
+
+All 4 files are complete rewrites / heavy edits. The existing component structure (MarketingLayout, Framer Motion, Recharts-based mocks, card system) stays exactly the same — only the content, copy, and new visual sections change. No new dependencies needed.
+
+Each page gets:
+1. Stronger hero headline + sub-copy with specific outcome claims
+2. A stats/trust strip (new section)
+3. Upgraded feature/step descriptions with outcome language
+4. Stronger CTAs with specificity and urgency
+5. Full mobile-first responsive treatment (same patterns already in use)
+
+The anti-AI style guide is respected throughout: no "elevate", "sophisticated", "effortless", "game-changer", "must-have", or "investment piece" — just honest, direct, British English claims about what the platform actually does.
