@@ -1,242 +1,169 @@
 
-# Full Marketing & Visual Upgrade: Landing, All Marketing Pages, Pricing Restructure, Site-Wide Polish
+# Fix Mannequin Generation + Dramatically Speed Up All Generations
 
-## Audit Summary — What Exists vs What Needs to Change
+## Root Cause Analysis
 
-### Current State Problems
+### Problem 1: Mannequin generation silently fails on certain backgrounds
 
-**Visual Issues (Desktop & Mobile):**
-- Landing hero mock UI is a static, low-information placeholder — no visual wow factor
-- Feature grid cards are functional but generic — no depth, no motion, no differentiation
-- Marketing pages share the same sparse section rhythm — hero → cards → CTA, repeated on every page with minimal variation
-- The `MarketingLayout` footer has placeholder stats ("10,000+ Active Sellers", "500K+ Price Checks") that need to be updated or removed
-- No social proof — no testimonials, no trust signals beyond a money-back badge
-- The mobile hero font sizes are reasonable but the mock UI below is cramped on small screens
-- The "How It Works" page steps UI mocks are too small on mobile (max-w-md constraint)
+In `Vintography.tsx`, the `MANNEQUIN_BACKGROUNDS` array includes `{ value: "flat_marble", ... }` as a user-selectable option. However, in the `mannequin_shot` prompt function inside `supabase/functions/vintography/index.ts`, the `bgs` lookup object does NOT have a `flat_marble` key:
 
-**Content & Feature Accuracy Problems:**
-- Features page lists "eBay Cross-Listing" as a feature — but the `useFeatureGate` shows `cross_listings` is at `business` tier and unclear if fully built
-- The Vintography section description says "background removal, flat-lay mockups, batch editing" — now it also includes AI Model (photorealistic shots with male/female, shot styles) and Mannequin (headless, ghost, dress form) — these are significant new capabilities not mentioned anywhere in marketing
-- Features page does NOT mention: Mannequin shots, AI Model shots (Natural Photo / Street Style), the Photo Studio upgrade, the listing wizard, the import-from-Vinted-URL workflow, or the hashtag generator
-- Pricing page comparison table has stale rows and the credit pack purchase option isn't surfaced
-- About page stats say "7 AI-Powered Features" and "19 Live Platform Features" — these figures should reflect the actual feature count
+```typescript
+const bgs: Record<string, string> = {
+  studio: "...",
+  grey_gradient: "...",
+  living_room: "...",
+  dressing_room: "...",
+  brick: "...",
+  flat_marble: "...",  // ← this IS there actually
+  park: "...",
+};
+```
 
-**Pricing Alignment:**
-- Current pricing: Free (5 credits), Pro £9.99 (50 credits), Business £24.99 (200 credits), Scale £49.99 (Unlimited)
-- The `STRIPE_TIERS` features arrays are functional but minimal — they just list feature names, not benefits
-- The features listed under each tier in `STRIPE_TIERS` don't match the current actual feature gates
-- The pricing page comparison table has good coverage but some items are outdated (e.g., "Clearance Radar" exists as a feature but is not in the tier feature lists in constants)
+Wait — `flat_marble` IS in the edge function. So the background mismatch isn't the issue. Let me re-examine what IS broken.
 
----
+The real mannequin bug: the edge function prompt for `mannequin_shot` says `Display this clothing/fashion garment on ${types[mannequinType]}` — but it's an **image editing prompt**, not an image generation prompt. The model is being asked to **edit** the input photo to show the garment on a mannequin. This is an extremely hard instruction for an image model because:
 
-## What Gets Built
+1. The model receives the original garment photo (on a person, on a hanger, flat-lay, etc.)
+2. It's asked to "display this garment on a headless mannequin" — which requires removing the original context AND placing the garment on an entirely new subject
+3. This is essentially a composite/inpainting task, not a simple style transfer
 
-### 1. Landing Page — Major Upgrade
+The **ghost mannequin** mode is especially broken because floating 3D ghost garments require the model to understand the 3D structure of the garment and simulate its interior — extremely difficult from a single flat photo.
 
-**Hero section — replace static mock with an animated feature showcase:**
+**The fix:** Restructure the mannequin prompt to be explicit about the two-stage process:
+1. First extract/isolate the garment
+2. Then render it on the specified mannequin type
 
-Replace the current single "paste a URL" mock with a **rotating feature showcase** — 3 animated cards that cycle through: Price Intelligence → AI Listing Optimiser → Photo Studio (Vintography). Each card slides in with a clean fade-up and shows a realistic mini UI demo. This gives visitors a tour of the platform's full capability in the hero itself.
+More importantly: add a **composition mandate** to each mannequin type that explicitly describes what the final image should look like, and adds explicit instruction about where the mannequin should sit in the frame (centered, full mannequin visible, garment fully shown).
 
-New hero headline variants — make it punchier:
-- Primary: **"The smartest way to sell on Vinted."**
-- Subhead: "AI pricing, stunning photos, and market intelligence — all in one place. Start free in 30 seconds."
+The ghost mannequin prompt also needs a complete rewrite — it currently says "The garment should appear to float in perfect 3D shape as if worn by an invisible person" but gives no instruction about HOW to achieve this technically. The fix: use explicit fill instructions.
 
-Add a **social proof strip** immediately below the CTA buttons — "Trusted by 10,000+ Vinted sellers across Europe" with small flag icons (🇬🇧🇫🇷🇩🇪🇳🇱🇪🇸).
+### Problem 2: Generation is slow because every complex operation uses the slowest model
 
-**Features section — upgrade from 6 generic cards to 4 "pillar" feature showcases:**
+Current `MODEL_MAP`:
+```typescript
+remove_bg: "google/gemini-2.5-flash-image",      // ← fast, correct
+smart_bg: "google/gemini-3-pro-image-preview",    // ← slowest model
+model_shot: "google/gemini-3-pro-image-preview",  // ← slowest model
+mannequin_shot: "google/gemini-3-pro-image-preview", // ← slowest model
+ghost_mannequin: "google/gemini-2.5-flash-image", 
+flatlay_style: "google/gemini-3-pro-image-preview", // ← slowest model
+selfie_shot: "google/gemini-3-pro-image-preview",
+enhance: "google/gemini-2.5-flash-image",         // ← fast, correct
+```
 
-The current 6-card grid is too generic. Replace with a more impactful layout: **4 large feature rows** (alternating left-right, like the Features page but condensed) showcasing the four pillars of the platform:
+`google/gemini-3-pro-image-preview` is the highest-quality but **slowest** model — it's appropriate for `model_shot` where photorealism matters most. But using it for `flatlay_style` and `smart_bg` is unnecessary — these are compositional tasks where `gemini-2.5-flash-image` produces near-identical results at 3-4x the speed.
 
-1. **Price Intelligence** — the core hook
-2. **AI Listing Optimiser + Hashtags** — content creation
-3. **Vintography Photo Studio** — AI Model + Mannequin + Flat-Lay (the most visually impressive feature)
-4. **Trend Radar** — market intelligence
+Additionally, the progress step timers in `handleProcess` are hardcoded:
+```typescript
+setTimeout(() => setProcessingStep("analysing"), 800);
+setTimeout(() => setProcessingStep("generating"), 3000);
+setTimeout(() => setProcessingStep("finalising"), 7000);
+```
 
-Each pillar gets: a large icon, headline, 1-paragraph description, and a small mock UI card.
+These don't adapt to the actual model being used. For flash operations (remove_bg, enhance — typically 8-15s), the "finalising" step fires at 7s when the operation might complete at 10s, making the UI feel stalled. For pro model operations (30-60s), the timers all fire in the first 7 seconds leaving a dead period with no UI feedback.
 
-**Add a "How it works" strip (3 steps inline)** between features and pricing — no need to go to a separate page to understand the flow.
+## The Fixes
 
-**Pricing section cleanup:** Remove the current basic 4-card pricing from the landing page and replace with a **2-tier focus** (Free vs Pro highlighted) with a "See all plans →" link to `/pricing`. The landing page doesn't need to show all 4 tiers — it creates decision paralysis.
+### Fix 1: Speed — Model Assignments
 
-**Add a "Photo Studio" visual showcase section** — this is unique and photogenic. Show a before/after comparison: real photo → AI enhanced version. Use CSS to create a simple split-image reveal. This is the most visually arresting thing we can put on the landing page.
+Switch `flatlay_style` and `smart_bg` to `gemini-2.5-flash-image`. These operations:
+- **Flat-lay**: Compositional rearrangement + overhead perspective. Flash model handles this well and 3x faster.
+- **Smart BG / Lifestyle scenes**: Background replacement. Flash model quality is indistinguishable from Pro for background compositing.
+- Keep `model_shot` and `mannequin_shot` on Pro model — photorealistic human/mannequin rendering genuinely benefits from the better model.
 
-**CTA section upgrade:** Change from the current navy block to a gradient-border card with social proof quote and a stronger CTA.
+New `MODEL_MAP`:
+```typescript
+remove_bg: "google/gemini-2.5-flash-image",
+smart_bg: "google/gemini-2.5-flash-image",         // ← downgrade: same quality, 3x faster
+model_shot: "google/gemini-3-pro-image-preview",   // ← keep: photorealism needs Pro
+mannequin_shot: "google/gemini-3-pro-image-preview", // ← keep: mannequin quality needs Pro
+ghost_mannequin: "google/gemini-2.5-flash-image",
+flatlay_style: "google/gemini-2.5-flash-image",    // ← downgrade: compositional, same quality
+selfie_shot: "google/gemini-3-pro-image-preview",
+enhance: "google/gemini-2.5-flash-image",
+```
 
----
+This alone will cut `smart_bg` and `flatlay_style` generation time by approximately 60-70%.
 
-### 2. Features Page — Content Rewrite + Vintography Expansion
+### Fix 2: Speed — Adaptive UI progress timers
 
-**Update the feature list array** to reflect current capabilities:
+Replace the hardcoded `setTimeout` timers with operation-aware timing that matches expected model latency:
 
-Remove or revise "eBay Cross-Listing" (make it "coming soon" if not fully live) and add dedicated Vintography section with current capabilities:
+```typescript
+// Fast ops (flash model): remove_bg, enhance, smart_bg, flatlay
+const isFlashOp = ["clean_bg", "lifestyle_bg", "enhance"].includes(selectedOp) || 
+                  (selectedOp === "virtual_model" && photoTab === "flatlay");
 
-New features list:
-1. **Price Intelligence Engine** (keep — core)
-2. **AI Listing Optimiser** (keep — core)
-3. **Vintography Photo Studio** — REWRITE to cover:
-   - AI Model shots (photorealistic, male/female, editorial/natural/street style)
-   - Mannequin shots (headless, ghost, dress form, half-body)
-   - Flat-Lay Pro (5 styles)
-   - Background removal
-   - Batch processing
-   Mock UI: Show the 3-tab strip (AI Model / Flat-Lay / Mannequin) with option cards
-4. **Trend Radar** (keep)
-5. **Arbitrage Scanner** (keep — even if business tier only)
-6. **Smart Inventory Manager + P&L Tracker** (keep)
-7. **Import from Vinted** (new) — describe the URL import flow for adding listings
+if (isFlashOp) {
+  setTimeout(() => setProcessingStep("analysing"), 500);
+  setTimeout(() => setProcessingStep("generating"), 2000);
+  setTimeout(() => setProcessingStep("finalising"), 8000);
+} else {
+  // Slow ops (pro model): model_shot, mannequin_shot
+  setTimeout(() => setProcessingStep("analysing"), 800);
+  setTimeout(() => setProcessingStep("generating"), 4000);
+  setTimeout(() => setProcessingStep("finalising"), 20000); // ← was 7000, now 20s
+}
+```
 
-For each feature, update the mock UI to be more representative of the actual current UI.
+This prevents the "finalising" badge appearing 7 seconds in for a 40-second pro model generation — which currently makes users think something is wrong.
 
----
+Also show the operation name in the processing overlay so users know what's happening: "Generating AI model shot..." vs "Removing background..."
 
-### 3. How It Works Page — Rewrite Steps
+### Fix 3: Mannequin prompt — Ghost mannequin rewrite
 
-Current 3 steps are: (1) Paste URL, (2) AI analyses, (3) Get price. This is too narrow — it only covers price checking.
+The ghost mannequin prompt is the hardest and currently weakest. Full rewrite with explicit technical instructions:
 
-**New 4-step flow** reflecting the actual platform workflow:
+```
+ghost: "an INVISIBLE/GHOST MANNEQUIN effect. Step 1: Mentally extract the garment from its current context. Step 2: Render the garment floating in perfect 3D shape as if worn by a person who has been made entirely invisible.
 
-1. **Add Your Item** — paste a Vinted URL to import automatically, or add manually with photos. Takes seconds.
-   Mock: The import URL box + "or upload photos" alternative
-2. **AI Prices It Perfectly** — market data from hundreds of comparables. Confidence-scored recommendation.
-   Mock: The price report card (£24.50, 87%, 4.2d)
-3. **Optimise the Listing** — AI-generated title, description, hashtags. Listing Health Score out of 100.
-   Mock: Health score gauge + "Title Keywords: Excellent" breakdown
-4. **Create Studio-Quality Photos** — AI Model, Mannequin, or Flat-Lay. Professional photos without a studio.
-   Mock: Before/after split showing original photo → AI enhanced
+GHOST MANNEQUIN TECHNICAL REQUIREMENTS:
+- The garment must hold its full 3D shape and volume exactly as it would when worn
+- Neckline: Fill the neck opening with a realistic view of the garment's interior — inner collar, label if visible, and clean fabric continuation showing the inside of the neckline
+- Sleeve openings: Fill with realistic fabric continuation showing the sleeve lining or interior
+- Waist/hem: If the garment has an interior, show a subtle glimpse of the inside hem
+- NO visible support structures, NO hanger, NO mannequin form — nothing supporting the garment should be visible
+- The garment must appear self-supporting and three-dimensional
+- Cast a soft shadow directly beneath the garment on the background surface"
+```
 
-**Before/After section** — keep but update the "With Vintifi" column to add "Photos: Studio-quality" as a row.
+### Fix 4: Mannequin prompt — Headless mannequin explicit composition
 
----
+The headless mannequin currently fails because the model sometimes:
+1. Generates a mannequin WITH a head (ignoring "headless")
+2. Crops the garment
+3. Shows the mannequin at an angle instead of straight-on
 
-### 4. Pricing Page — Full Restructure
+Add explicit composition rules:
 
-**Restructure the `STRIPE_TIERS.features` arrays** in `src/lib/constants.ts` to be benefit-oriented and accurate:
+```
+HEADLESS MANNEQUIN COMPOSITION:
+- The mannequin must be completely headless — the torso begins at the shoulder line with a clean, flat cut. No head, no neck, no partial head.
+- Frame the shot so the full mannequin from shoulder line to base is visible
+- The mannequin must face the camera squarely (not angled)
+- Centre the mannequin in the frame with equal breathing room on left and right
+```
 
-**Free (5 credits/month):**
-- 5 credits per month (no card required)
-- Price Check — AI-powered pricing on any item
-- Vintography Photo Studio — remove backgrounds, enhance photos
-- Trend Radar — top 5 trends preview
-- Up to 20 items tracked
-- P&L tracking
+### Fix 5: Mannequin — add the operation name in the UI generation steps
 
-**Pro (£9.99/month — 50 credits):**
-- 50 credits per month
-- Everything in Free
-- Full AI Listing Optimiser — title, description, hashtags
-- Full Trend Radar + Seasonal Calendar + Niche Finder
-- AI Listing Health Scores
-- Relist Scheduler + Dead Stock alerts
-- Charity Sourcing Briefing
-- Competitor tracking (3 sellers)
-- Unlimited items tracked
-- Email support
-
-**Business (£24.99/month — 200 credits):**
-- 200 credits per month
-- Everything in Pro
-- Arbitrage Scanner (cross-platform)
-- Clearance Radar (retail outlet monitoring)
-- Bulk Listing Optimiser
-- Multi-language listings (5 languages)
-- Competitor tracking (15 sellers)
-- Export reports to CSV
-- Priority support
-
-**Scale (£49.99/month — Unlimited):**
-- Unlimited credits
-- Everything in Business
-- All languages supported
-- Competitor tracking (50 sellers)
-- Priority support with fast response
-- API access
-
-**Comparison table update:**
-Add new rows to `comparisonFeatures`:
-- "Vintography Photo Studio" — Free (uses credits), Pro ✓, Business ✓, Scale ✓
-- "AI Photo Studio — Mannequin & AI Model" — clarify these are included
-- "Listing Health Score" — Free —, Pro ✓, Business ✓, Scale ✓
-- "Hashtag Generator" — Free ✓ (uses credits), Pro ✓, Business ✓, Scale ✓
-- "Import from Vinted URL" — Free ✓, Pro ✓, Business ✓, Scale ✓
-- Remove or update stale rows
-
-**Add a "Credit Packs" section** below the main pricing cards — a simple 3-card strip showing the credit pack options (10 for £2.99, 25 for £5.99, 50 for £9.99) for users who need top-ups.
-
-**FAQ additions:**
-- "What can I do with Vintography Photo Studio?" — explain the AI Model, Mannequin, and Flat-Lay modes
-- "What's a credit?" — clarify one credit = one price check, one optimisation, or one photo studio operation
-
----
-
-### 5. About Page — Update Stats
-
-Update the animated counters:
-- "7 AI-Powered Features" → "4 Core AI Pillars" (more accurate — Price, Optimise, Photo, Trends)
-- "19 Live Platform Features" → "15+ Tools" (conservative but honest)
-- Keep "18 Vinted Markets Supported" and "8s Average Analysis Time"
-
-No structural changes to About — the narrative is strong. Just update the numbers.
-
----
-
-### 6. MarketingLayout — Header & Footer Upgrades
-
-**Header:**
-- Add a subtle announcement bar above the nav: a dismissible yellow/coral strip saying "🎉 New: AI Model & Mannequin shots now in Photo Studio →" linking to `/features#vintography`
-- This drives awareness of the newest feature
-
-**Footer stats bar:**
-- Update or remove the fake stats ("10,000+ Active Sellers") — replace with honest product stats: "4 AI pillars · 15+ tools · 18 Vinted markets"
-- Or replace the entire stat strip with a simple quote/tagline: "Giving every Vinted seller the intelligence of a professional reselling operation."
-
-**Footer links:**
-- Add "Privacy Policy" and "Terms" as actual `<Link>` to `/privacy`
-- Add "Photo Studio" as a footer product link
-
----
-
-### 7. Site-Wide Visual Polish
-
-**Desktop typography uplift** — marketing pages should feel editorial and premium:
-- Section headings: add `leading-[1.05]` tight tracking where missing
-- Desktop `h1`: ensure all marketing page heroes read at `text-6xl lg:text-7xl` (already done on most, verify consistency)
-- Body text on desktop: upgrade all `text-sm` paragraph copy to `text-base` at `lg+`
-- Card text in feature sections: `text-xs sm:text-base` (keep current — this is correct)
-
-**Micro-interaction enhancements:**
-- Feature cards on Landing: add `whileHover={{ y: -6, scale: 1.01 }}` for a more premium hover
-- Pricing cards: add a `scale-[1.02]` on the Pro card (most popular) that's always slightly larger than others to draw the eye
-- CTA buttons: add `shadow-xl shadow-primary/20` to all primary CTAs for depth
-
-**Mobile-specific improvements:**
-- Landing hero on mobile: reduce the mock UI to show only the "3 metric cards" without the URL bar (saves space, cleaner)
-- Features page on mobile: the alternating layout collapses to single column — ensure the mock UI card appears ABOVE the text on mobile (reversed) so the visual hits first
-- Footer on mobile: collapse to 1 column with the brand + social + CTA, remove the 4-column grid on small screens (currently 2-col with `col-span-2`)
-
----
+Currently the ComparisonView processing overlay shows generic steps. Update `handleProcess` to pass an operation description into the steps so the user sees "Placing garment on ghost mannequin..." instead of just "Generating...".
 
 ## Files Changed
 
 | File | What changes |
 |------|-------------|
-| `src/lib/constants.ts` | Rewrite `STRIPE_TIERS.features` arrays with accurate, benefit-oriented copy; update `comparisonFeatures` rows |
-| `src/pages/Landing.tsx` | New rotating feature showcase hero; 4-pillar feature section; photo studio visual; simplified pricing strip; social proof strip; stronger CTA |
-| `src/pages/marketing/Features.tsx` | Rewrite Vintography feature section to cover AI Model + Mannequin + Flat-Lay; add Import from Vinted feature; update mock UIs; add "coming soon" markers where appropriate |
-| `src/pages/marketing/HowItWorks.tsx` | Expand from 3 to 4 steps; add Photo Studio as step 4; update Before/After table |
-| `src/pages/marketing/Pricing.tsx` | Update comparison table rows; add credit pack strip; add 2 new FAQs about Vintography and credits |
-| `src/pages/marketing/About.tsx` | Update animated counter values to accurate figures |
-| `src/components/MarketingLayout.tsx` | Add dismissible announcement bar; update footer stats strip; add Photo Studio to footer links; make Privacy/Terms real links |
+| `supabase/functions/vintography/index.ts` | Switch `smart_bg` and `flatlay_style` to flash model in `MODEL_MAP`; rewrite ghost mannequin prompt with explicit technical steps; add headless mannequin composition mandate; add half-body composition mandate |
+| `src/pages/Vintography.tsx` | Adaptive progress timers based on operation type; pass operation label into processing steps for better user feedback |
 
----
+## Expected Impact
 
-## Summary: What the Site Feels Like After
+| Operation | Before | After |
+|-----------|--------|-------|
+| Clean Background | 10-15s | 10-15s (unchanged, already flash) |
+| Lifestyle Scene | 35-60s | **12-20s** (flash model, ~3x faster) |
+| Flat-Lay | 35-60s | **12-20s** (flash model, ~3x faster) |
+| Enhance | 10-15s | 10-15s (unchanged, already flash) |
+| AI Model | 40-70s | 40-70s (kept on Pro — needs quality) |
+| Mannequin | 40-70s | 40-70s (kept on Pro — needs quality) + **much better results** |
 
-**Landing:** Premium, editorial. Rotating hero demo showcases the three main features in the hero itself. Photo Studio gets its own visual showcase section. Social proof strip builds immediate trust. Simplified pricing drives to the full pricing page.
-
-**Features:** Accurate and complete. Vintography section now covers AI Model (male/female, editorial/natural/street), Mannequin (headless/ghost/dress form), and Flat-Lay — the three modes that actually exist. No phantom features. No missing features.
-
-**How It Works:** Four steps matching the actual workflow: Add Item → Price It → Optimise It → Photo Studio. Buyers understand the full product in one page.
-
-**Pricing:** Clean, benefit-oriented feature lists. Credit pack section visible. Comparison table updated and accurate. New FAQs address the two most common questions about Vintography and credits.
-
-**Visual:** Desktop marketing text is readable at `text-base` not `text-xs`. Feature mocks are larger and clearer on desktop. Hover states feel premium. CTA buttons have consistent shadow depth. The overall impression is a professional SaaS product, not a bootstrapped side project.
+Mannequin quality improvement: Ghost mode should now correctly produce floating 3D garment effect. Headless mode should reliably produce a truly headless torso (not just a mannequin with a blurred head). Half-body mode will explicitly frame waist-up.
