@@ -1,164 +1,199 @@
 
-# Fix: Colour Guardrails + AI Insights "Read More" in Sell Wizard
+# Desktop Polish: Sell Wizard Responsive Upgrade
 
-## What's Broken (Root Cause Analysis)
+## Root Cause
 
-### Bug 1: AI Invents Wrong Colour
-When the user uploads a photo and leaves the Colour field blank, the `optimize-listing` edge function passes `colour: "Not specified"` to the AI. The AI system prompt explicitly instructs: *"Opening: Describe the item naturally. What is it, **what colour**, what brand."* With no colour data provided but a photo attached, the AI looks at the photo and guesses — and can guess wrong (e.g., seeing the Nike logo against a light background and calling a black jumper "grey").
+The entire Sell Wizard is locked inside `max-w-lg mx-auto` (512px max-width) with typography written exclusively for mobile — `text-[10px]`, `text-xs`, `text-[9px]`, `text-[8px]` everywhere — and zero `lg:` responsive variants. On a 1440px desktop screen, this creates a tiny narrow column with barely readable text surrounded by dead whitespace.
 
-This is a two-part failure:
-- Colour is not a required field in Step 1, so users skip it
-- The AI prompt instructs the AI to include colour even when it was not provided by the user, leading to hallucination
-
-### Bug 2: AI Insights "Read More" toggle
-Looking at the code at lines 977-987, the `insightsExpanded` state and "Read more" button are already implemented. However, the trigger condition `priceResult.ai_insights.length > 160` may be too low — the text uses `line-clamp-3` which can show roughly 200-250 characters depending on screen width, so short insights may show the button unnecessarily. This is a minor polish fix.
+The wizard was built mobile-first but never graduated to responsive — it needs desktop breakpoint scaling across:
+1. Container width
+2. Typography (headings, labels, body text)
+3. Spacing and padding
+4. Step progress bar
+5. Entry method cards
+6. Form fields and grid layout
+7. Step-specific content (price hero, health score card, photo preview)
+8. Header bar
+9. Footer navigation bar
+10. CTA buttons
 
 ---
 
-## The Fix: 3-Part Solution
+## Layout Strategy: Centred Wide Column (Not 2-Column Split)
 
-### Part 1: Make Colour a Required Field with AI Auto-Detection on Photo Upload
+The wizard is a linear flow — a 2-column split would add complexity and risk breaking step logic. Instead, the fix is:
 
-**In `SellWizard.tsx` — Step 1 form:**
+- Widen the content column from `max-w-lg` (512px) to `max-w-lg lg:max-w-2xl` (672px desktop)
+- Scale all typography with `lg:` variants
+- Increase spacing and padding at `lg:` breakpoint
+- Make the progress bar, cards, and form fields feel "web-scale"
 
-Add a `Colour` input field to the details form (`renderDetailsForm`). Currently, `colour` exists in the form state but there is no visible input for it in the wizard form — it only gets populated via URL import. The field needs to be surfaced prominently.
+This preserves all existing logic while delivering a dramatically improved desktop experience.
 
-Add a "Detect from photo" button next to the Colour field. When the user has uploaded a photo, clicking this button calls a lightweight AI vision check (via the `optimize-listing` edge function in a new `detectColourOnly` mode, or directly via a small Supabase Edge Function call) to detect the primary colour from the uploaded image.
+---
 
-**Alternatively** (simpler and faster): When photos are uploaded in Step 1, automatically trigger a colour detection call using a vision model. This runs in the background and pre-fills the Colour field before the user even sees the details form.
+## Specific Changes by Section
 
-The Colour field should also show a yellow pulsing ring (same as Condition) when it's empty and photos have been uploaded — prompting the user to fill it in.
-
-### Part 2: Strict Guardrails in the `optimize-listing` Edge Function
-
-Three changes to the AI prompt in `supabase/functions/optimize-listing/index.ts`:
-
-**Change 1 — Colour instruction becomes conditional:**
-Replace the unconditional "what colour" instruction with a conditional one:
-
+### 1. Content Container (Line 1522)
 ```
-COLOUR RULE (CRITICAL):
-${colour && colour !== "Not specified"
-  ? `The seller has confirmed the colour is: ${colour}. You MUST use this exact colour in the title and description. Do NOT use any other colour.`
-  : `The seller has NOT specified a colour. You MUST NOT mention any colour in the title or description. Omit colour entirely. Do NOT guess or infer colour from photos.`
-}
+Before: max-w-lg mx-auto px-4 py-6 pb-32
+After:  max-w-lg lg:max-w-2xl mx-auto px-4 lg:px-8 py-6 lg:py-10 pb-32 lg:pb-36
 ```
 
-**Change 2 — Add to banned behaviour list:**
-Add a "NEVER INVENT" section to the system prompt:
-
+### 2. Header Bar (Line 1495)
 ```
-NEVER INVENT:
-- NEVER assume or guess the colour if it was not explicitly provided by the seller
-- NEVER infer colour from photos (lighting, shadows, and screen calibration make photo colour unreliable)
-- NEVER add any attribute (colour, material, style) that the seller did not provide
-- If colour is "Not specified", leave it out of title and description entirely
+Before: px-4 h-14
+After:  px-4 lg:px-8 h-14 lg:h-16
 ```
-
-**Change 3 — Colour-aware title formula:**
-Update the title formula section to make colour conditional:
-
-Replace:
+Header title text:
 ```
-[Brand] [Item Type] [Key Detail/Colour] [Size] [Condition Word]
-```
-With:
-```
-[Brand] [Item Type] [Colour if provided — omit if not] [Size] [Condition Word]
+Before: font-bold text-sm
+After:  font-bold text-sm lg:text-base
 ```
 
-### Part 3: Colour Field UI in Step 1 Wizard Form
+### 3. Progress Bar (ProgressBar component, lines 107–147)
+- Step circle: `w-7 h-7` → `w-7 h-7 lg:w-10 lg:h-10`
+- Step number font: `text-[10px]` → `text-[10px] lg:text-sm`
+- Step label: `text-[8px] sm:text-[9px]` → `text-[8px] sm:text-[9px] lg:text-xs`
+- Check icon: `w-3.5 h-3.5` → `w-3.5 h-3.5 lg:w-4 lg:h-4`
+- Overall padding: `px-3 pt-2.5 pb-1` → `px-3 lg:px-8 pt-2.5 lg:pt-3 pb-1 lg:pb-2`
 
-**In `renderDetailsForm()`** — add a full-width Colour field (currently the field exists in state but has no UI input):
+### 4. Step Header (Lines 1534–1540)
+- Title: `text-xl` → `text-xl lg:text-3xl`
+- Subtitle: `text-xs` → `text-xs lg:text-sm`
+- Bottom margin: `mb-5` → `mb-5 lg:mb-8`
 
-- Position: below the Size/Brand row, as a full-width text input (or a colour chip selector for common colours)
-- Label: "Colour" with a "(helps AI accuracy)" hint
-- When photos are uploaded and colour is blank: show a subtle "Detect from photo" button that calls a quick vision check
-- When colour is blank and photos exist: show the same yellow pulsing ring treatment as the Condition field
+### 5. Step 1 — Entry Method Cards (Lines 761–778)
+- Card padding: `p-4` → `p-4 lg:p-6`
+- Icon container: `w-10 h-10` → `w-10 h-10 lg:w-14 lg:h-14`
+- Icon size: `w-5 h-5` → `w-5 h-5 lg:w-6 lg:h-6`
+- Title: `text-sm` → `text-sm lg:text-base`
+- Subtitle: `text-[11px]` → `text-[11px] lg:text-sm`
+- Arrow icon: `w-4 h-4` → `w-4 h-4 lg:w-5 lg:h-5`
+- Container gap: `space-y-3` → `space-y-3 lg:space-y-4`
 
-**UI for colour chips** (optional enhancement): show a horizontal scroll of colour chips (Black, White, Grey, Navy, Blue, Green, Red, Pink, Brown, Beige, Cream, Purple, Yellow, Orange, Multi) as quick-tap options, with a text override. This makes filling in colour fast and eliminates typos.
+### 6. Details Form (renderDetailsForm, lines 871–999)
+
+**Labels:**
+- `text-xs font-semibold uppercase tracking-wider` → `text-xs lg:text-[11px] font-semibold uppercase tracking-wider` (uppercase labels are intentionally small, but can gain a touch on desktop)
+
+**Inputs:**
+- Height: `h-10` → `h-10 lg:h-12`
+- The title input already has `text-base` (good)
+
+**Grid layout for fields:**
+- Current `grid-cols-2` pairs (Condition/Category, Brand/Size) → on desktop, keep 2-col but give more vertical space
+
+**Colour chip row:**
+- Chip text: `text-[11px]` → `text-[11px] lg:text-xs`
+- Chip padding: `px-2.5 py-1` → `px-2.5 py-1 lg:px-3 lg:py-1.5`
+
+**CTA button:**
+- `h-11` → `h-11 lg:h-12`
+- `text` at default → add `lg:text-base`
+
+### 7. Step 2 — Price Check
+
+**Loading spinner area:**
+- `py-12` → `py-12 lg:py-20`
+- `w-8 h-8` → `w-8 h-8 lg:w-12 lg:h-12`
+- `text-xs` → `text-xs lg:text-sm`
+
+**Recommended price hero:**
+- `p-4` → `p-4 lg:p-8`
+- `text-[10px] uppercase` label → `text-[10px] lg:text-xs uppercase`
+- Price: `text-4xl` → `text-4xl lg:text-6xl`
+- Confidence: `text-xs` → `text-xs lg:text-sm`
+
+**Market range bar:**
+- `p-3` → `p-3 lg:p-5`
+- Range numbers: `text-xs font-bold` → `text-xs lg:text-sm font-bold`
+- Range bar height: `h-2` → `h-2 lg:h-3`
+- The dot marker: `w-3.5 h-3.5` → `w-3.5 h-3.5 lg:w-5 lg:h-5`
+
+**AI insights:**
+- `text-xs` → `text-xs lg:text-sm`
+- Container: `p-3` → `p-3 lg:p-5`
+
+**Accept price button:**
+- `h-11` → `h-11 lg:h-13`
+
+### 8. Step 3 — Optimise
+
+**Loading:**
+- `py-12` → `py-12 lg:py-20`
+
+**Health score card:**
+- `p-3` → `p-3 lg:p-5`
+- Health score text: `text-xs font-semibold` → `text-xs lg:text-sm font-semibold`
+- Score sub: `text-[10px]` → `text-[10px] lg:text-xs`
+- Breakdown grid: `grid-cols-4` stays, but `text-[9px]` → `text-[9px] lg:text-xs`
+
+**Optimised Title:**
+- `p-3` → `p-3 lg:p-5`
+- Title text: `text-sm font-semibold` → `text-sm lg:text-base font-semibold`
+- Label: `text-[10px]` → `text-[10px] lg:text-xs`
+
+**Optimised Description:**
+- `p-3` → `p-3 lg:p-5`
+- Body: `text-xs` → `text-xs lg:text-sm`
+- Read more button: `text-[10px]` → `text-[10px] lg:text-xs`
+
+### 9. Step 4 — Photos
+
+**Photo preview:**
+- `max-w-[220px]` → `max-w-[220px] lg:max-w-[320px]`
+- Photo caption: `text-[10px]` → `text-[10px] lg:text-xs`
+
+**Buttons:**
+- `h-11` → `h-11 lg:h-12`
+
+### 10. Step 5 — Pack Ready
+
+**Celebration header:**
+- Emoji: `text-3xl` → `text-3xl lg:text-5xl`
+- Title: `text-lg` → `text-lg lg:text-2xl`
+- Sub: `text-xs` → `text-xs lg:text-sm`
+
+**Listed URL section:**
+- `p-4` → `p-4 lg:p-6`
+- Title: `text-xs font-semibold` → `text-xs lg:text-sm font-semibold`
+
+**Bottom action buttons:**
+- `h-11` → `h-11 lg:h-13`
+
+### 11. Footer Nav Bar (Lines 1550–1571)
+```
+Before: px-4 pt-3 pb-4
+After:  px-4 lg:px-8 pt-3 lg:pt-4 pb-4 lg:pb-6
+```
+- Buttons: `h-12` → `h-12 lg:h-13`
+- Blocked reason: `text-[11px]` → `text-[11px] lg:text-xs`
+
+### 12. CopyBtn helper (Lines 81–101)
+- Container text: `text-[10px]` → `text-[10px] lg:text-xs`
 
 ---
 
 ## Files to Change
 
 | File | Change |
-|------|---------|
-| `supabase/functions/optimize-listing/index.ts` | Add conditional colour rule, NEVER INVENT section, colour-aware title formula |
-| `src/pages/SellWizard.tsx` | Add Colour field to `renderDetailsForm`, yellow pulsing ring when colour blank + photos exist, "Detect from photo" button logic, pass `colour` from `form` not just `createdItem` to optimise call |
+|------|--------|
+| `src/pages/SellWizard.tsx` | All responsive `lg:` additions described above — no logic changes, pure CSS class upgrades |
 
 ---
 
-## Technical Details
+## What This Achieves
 
-### Colour Detection Flow
+| Aspect | Before | After |
+|--------|--------|-------|
+| Max content width | 512px (max-w-lg) | 672px desktop (max-w-2xl) |
+| Step heading | 20px (text-xl) | 20px mobile / 30px desktop (text-3xl) |
+| Body text | 12px (text-xs) | 12px mobile / 14px desktop (text-sm) |
+| Labels | 10-11px | 10-11px mobile / 12px desktop |
+| Price display | 36px (text-4xl) | 36px mobile / 60px desktop (text-6xl) |
+| Step circles | 28px | 28px mobile / 40px desktop |
+| Cards | Compact 12px padding | 12px mobile / 20px desktop |
+| Buttons | 44px (h-11) | 44px mobile / 48px desktop (h-12) |
 
-When user uploads photos in Step 1 (photo entry method), after photos are set via `handlePhotoSelect`, trigger a background colour detect:
-
-```typescript
-const detectColourFromPhoto = async (photoUrl: string) => {
-  // Only run if colour is still blank
-  if (form.colour) return;
-  setColourDetecting(true);
-  const { data } = await supabase.functions.invoke("optimize-listing", {
-    body: {
-      photoUrls: [photoUrl],
-      detectColourOnly: true,  // new lightweight mode flag
-    },
-  });
-  if (data?.detected_colour) {
-    setForm(f => ({ ...f, colour: data.detected_colour }));
-    toast.success(`Colour detected: ${data.detected_colour}`);
-  }
-  setColourDetecting(false);
-};
-```
-
-In `optimize-listing`, handle `detectColourOnly: true` — send only the photo to the vision model with a minimal prompt asking for the primary colour, return just `{ detected_colour: "Black" }`. This costs minimal credits and runs in ~1 second.
-
-### State Additions to SellWizard
-
-```typescript
-const [colourDetecting, setColourDetecting] = useState(false);
-// Computed: true when photos exist but colour is blank
-const colourNeedsAttention = photoUrls.length > 0 && !form.colour && !colourDetecting;
-```
-
-### Colour Pulsing Ring (same CSS as Condition)
-
-Apply the same `condition-pulse` animation already defined in `src/index.css` to the Colour input when `colourNeedsAttention` is true. The ring clears as soon as colour is filled.
-
-### guardrail in prompt — exact wording
-
-In the optimize-listing system prompt, change:
-
-**Before:**
-```
-Colour: ${colour || "Not specified"}
-```
-
-**After:**
-```
-Colour: ${colour || "NOT PROVIDED — DO NOT INCLUDE COLOUR IN TITLE OR DESCRIPTION"}
-```
-
-And in the title formula instructions, add:
-
-```
-CRITICAL COLOUR RULE: If the Colour field above says "NOT PROVIDED", you MUST omit colour 
-from the title entirely. The formula becomes: [Brand] [Item Type] [Size] [Condition Word].
-Never substitute a guessed colour. The seller will be angry if you get the colour wrong.
-```
-
----
-
-## Expected Outcome
-
-| Scenario | Before | After |
-|----------|--------|-------|
-| Black jumper, colour field blank | AI guesses "Grey" from photo | AI omits colour: "Nike Crewneck Jumper M Very Good" |
-| Black jumper, colour = "Black" entered | AI uses "Black" correctly | AI uses "Black" correctly |
-| Photo uploaded | No colour detection | Background colour detect auto-fills "Black" |
-| Colour field | Hidden (no UI) | Visible with colour chip selector + detect button |
-
-The primary fix is the guardrail in the edge function: if colour is not explicitly provided, the AI must not mention any colour. This is a one-line change with massive impact — it prevents hallucination from photos where lighting, shadows, and screen calibration make colour detection unreliable.
+No logic, state, or routing changes. Pure responsive polishing.
