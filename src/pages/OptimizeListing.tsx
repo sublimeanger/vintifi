@@ -147,6 +147,12 @@ export default function OptimizeListing() {
       const isUnlimited = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
       if (!isUnlimited) toast("−1 credit used", { duration: 2000 });
 
+      // Milestone: first AI optimisation ever
+      if (!localStorage.getItem("vintifi_first_optimisation_seen")) {
+        localStorage.setItem("vintifi_first_optimisation", "1");
+        localStorage.setItem("vintifi_first_optimisation_seen", "1");
+      }
+
       if (itemId && data?.health_score) {
         const updatePayload: Record<string, any> = {
           health_score: data.health_score.overall,

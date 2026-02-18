@@ -286,11 +286,23 @@ export default function SellWizard() {
     }
   }, [currentStep]);
 
-  // ─── Set first-listing celebration flag when Pack step is reached ───
+  // ─── Set milestone flags when Pack step is reached ───
   useEffect(() => {
-    if (currentStep === 5 && createdItem) {
-      // Only set on the very first wizard completion — flag is consumed by Dashboard once
+    if (currentStep === 5 && createdItem && user) {
+      // Always set first-listing flag (Dashboard de-dupes via localStorage remove)
       localStorage.setItem("vintifi_first_listing_complete", "1");
+
+      // Check if this is the 5th listing
+      supabase
+        .from("listings")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .then(({ count }) => {
+          if (count === 5) {
+            localStorage.setItem("vintifi_five_listings_complete", "1");
+          }
+        });
     }
   }, [currentStep, createdItem]);
 
