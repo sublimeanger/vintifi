@@ -685,12 +685,12 @@ export default function ItemDetail() {
             )}
           </div>
 
-          {/* ── Quick Hashtags ── */}
-          <Card className="p-2.5 sm:p-4">
+          {/* ── Quick Hashtags — only shown when listing hasn't been optimised yet ── */}
+          {!item.last_optimised_at && <Card className="p-2.5 sm:p-4">
             <div className="flex items-center justify-between mb-2.5">
               <div className="flex items-center gap-1.5">
                 <Hash className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold text-muted-foreground">Quick Hashtags</span>
+                <span className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold text-muted-foreground">Generate Hashtags</span>
               </div>
               <div className="flex items-center gap-1.5">
                 {hashtags.length > 0 && (
@@ -752,7 +752,7 @@ export default function ItemDetail() {
                 </motion.p>
               )}
             </AnimatePresence>
-          </Card>
+          </Card>}
         </TabsContent>
 
         {/* ═══ PRICE TAB ═══ */}
