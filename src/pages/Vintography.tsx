@@ -176,6 +176,9 @@ export default function Vintography() {
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
 
+  // Chained second operation
+  const [secondaryOp, setSecondaryOp] = useState<Operation | null>(null);
+
   // Saving state
   const [savingToItem, setSavingToItem] = useState(false);
   const [resultReady, setResultReady] = useState(false);
@@ -508,27 +511,44 @@ export default function Vintography() {
         setTimeout(() => setProcessingStep("finalising"), 20000);
       }
 
-      const result = await processImage(activePhotoUrl, getOperation(), getParams());
-      if (result) {
-        setProcessedUrl(result);
-        setResultReady(true);
-        fetchGallery();
+      // Step 1: primary operation
+      const step1Result = await processImage(activePhotoUrl, getOperation(), getParams());
+      if (!step1Result) return;
 
-        // Store per-photo edit state
-        setPhotoEditStates((prev) => ({
-          ...prev,
-          [activePhotoUrl]: {
-            editedUrl: result,
-            savedToItem: false,
-            operationApplied: selectedOp,
-          },
-        }));
+      let finalResult = step1Result;
 
-        setTimeout(() => {
-          resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 200);
-        setTimeout(() => setResultReady(false), 3000);
+      // Step 2: optional chained operation
+      if (secondaryOp) {
+        toast.info(`Step 1 done — now applying ${OPERATIONS.find(o => o.id === secondaryOp)?.label}...`, { duration: 2500 });
+        setProcessingStep("generating");
+
+        // Build params for the secondary op (simple ops — no sub-params needed)
+        const secondaryParams: Record<string, string> = {};
+        if (secondaryOp === "decrease") secondaryParams.intensity = decreaseIntensity;
+
+        const step2Op = OP_MAP[secondaryOp];
+        const step2Result = await processImage(step1Result, step2Op, secondaryParams);
+        if (step2Result) finalResult = step2Result;
       }
+
+      setProcessedUrl(finalResult);
+      setResultReady(true);
+      fetchGallery();
+
+      // Store per-photo edit state
+      setPhotoEditStates((prev) => ({
+        ...prev,
+        [activePhotoUrl]: {
+          editedUrl: finalResult,
+          savedToItem: false,
+          operationApplied: selectedOp,
+        },
+      }));
+
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 200);
+      setTimeout(() => setResultReady(false), 3000);
     } catch (err: any) { toast.error(err.message || "Processing failed. Try again."); }
     finally { setProcessing(false); setProcessingStep(null); }
   };
@@ -586,6 +606,14 @@ export default function Vintography() {
   // ─── Generate button shared component ───
   const GenerateButton = () => {
     const isAiModel = selectedOp === "ai_model";
+    const primaryCredits = isAiModel ? 4 : 1;
+    const secondaryCredits = secondaryOp ? (secondaryOp === "ai_model" ? 4 : 1) : 0;
+    const totalCredits = primaryCredits + secondaryCredits;
+    const label = secondaryOp
+      ? `Apply both effects · ${totalCredits} credit${totalCredits !== 1 ? "s" : ""}`
+      : isAiModel
+        ? "Generate · 4 credits"
+        : `Apply ${OPERATIONS.find(o => o.id === selectedOp)?.label || ""}`;
     return (
       <Button
         onClick={handleProcess}
@@ -593,11 +621,7 @@ export default function Vintography() {
         className="w-full h-12 lg:h-11 font-semibold text-sm lg:text-base active:scale-95 transition-transform"
       >
         {processing ? <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />}
-        {processing
-          ? getOperationLabel()
-          : isAiModel
-            ? "Generate · 4 credits"
-            : `Apply ${OPERATIONS.find(o => o.id === selectedOp)?.label || ""}`}
+        {processing ? getOperationLabel() : label}
       </Button>
     );
   };
@@ -1119,6 +1143,57 @@ export default function Vintography() {
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  {/* ─── Chain a second effect ─── */}
+                  {selectedOp !== "ai_model" && (
+                    <Card className="p-3 lg:p-4 space-y-2.5 border-dashed border-primary/20 bg-primary/[0.02]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Plus className="w-3.5 h-3.5 text-primary" />
+                          <p className="text-xs lg:text-sm font-semibold">Add a second effect</p>
+                        </div>
+                        {secondaryOp && (
+                          <button
+                            onClick={() => setSecondaryOp(null)}
+                            className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                          >
+                            <X className="w-3 h-3" /> Remove
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
+                        Chain a second edit — applied automatically after the first. Perfect for <span className="font-medium text-foreground">Steam → Clean BG</span> or <span className="font-medium text-foreground">Clean BG → Enhance</span>.
+                      </p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {OPERATIONS.filter(op => op.id !== selectedOp && op.id !== "ai_model").map((op) => {
+                          const sel = secondaryOp === op.id;
+                          return (
+                            <motion.button
+                              key={op.id}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => setSecondaryOp(sel ? null : op.id)}
+                              className={`flex flex-col items-center gap-1 rounded-lg p-2 border text-center transition-all text-[10px] font-medium leading-tight ${
+                                sel
+                                  ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
+                                  : "border-border hover:border-primary/30 text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              <op.icon className={`w-3.5 h-3.5 ${sel ? "text-primary" : "text-muted-foreground"}`} />
+                              {op.label}
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                      {secondaryOp && (
+                        <div className="flex items-center gap-1.5 rounded-lg bg-primary/[0.05] border border-primary/15 px-2.5 py-1.5">
+                          <Check className="w-3 h-3 text-primary shrink-0" />
+                          <p className="text-[10px] text-muted-foreground">
+                            Will apply <span className="font-medium text-foreground">{OPERATIONS.find(o => o.id === selectedOp)?.label}</span> → then <span className="font-medium text-foreground">{OPERATIONS.find(o => o.id === secondaryOp)?.label}</span> automatically
+                          </p>
+                        </div>
+                      )}
+                    </Card>
+                  )}
 
                   {/* Generate button — desktop only in left panel */}
                   <div className="hidden lg:block">
