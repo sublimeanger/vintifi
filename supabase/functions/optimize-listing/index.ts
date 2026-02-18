@@ -9,8 +9,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const body = await req.json();
-    const { photoUrls, brand, category, size, condition, colour, material, currentTitle, currentDescription, vintedUrl, fetchOnly } = body;
+  const body = await req.json();
+    const { photoUrls, brand, category, size, condition, colour, material, currentTitle, currentDescription, vintedUrl, fetchOnly, detectColourOnly } = body;
 
     // Auth
     const authHeader = req.headers.get("Authorization");
@@ -176,6 +176,36 @@ serve(async (req) => {
       });
     }
 
+    // ─── detectColourOnly: lightweight vision call to detect primary colour ───
+    if (detectColourOnly) {
+      const finalPhotoUrlsForDetect = body.photoUrls || photoUrls || [];
+      if (finalPhotoUrlsForDetect.length === 0) {
+        return new Response(JSON.stringify({ detected_colour: null }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_KEY) throw new Error("AI not configured");
+      const colourContent: any[] = [
+        { type: "text", text: "Look at this clothing item photo. Reply with ONLY the primary colour of the item as a single word or short phrase (e.g. Black, White, Grey, Navy, Blue, Red, Green, Pink, Brown, Beige, Cream, Purple, Yellow, Orange, Multi). Nothing else — just the colour." },
+        { type: "image_url", image_url: { url: finalPhotoUrlsForDetect[0] } },
+      ];
+      const colourRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{ role: "user", content: colourContent }],
+          max_tokens: 20,
+        }),
+      });
+      const colourData = await colourRes.json();
+      const detectedColour = colourData.choices?.[0]?.message?.content?.trim() || null;
+      return new Response(JSON.stringify({ detected_colour: detectedColour }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Re-read photoUrls after potential Vinted scrape enrichment
     const finalPhotoUrls = body.photoUrls || photoUrls || [];
 
@@ -213,18 +243,37 @@ Item details provided by seller:
 - Category: ${category || "Not specified"}
 - Size: ${size || "Not specified"}
 - Condition: ${condition || "Not specified"}
-- Colour: ${colour || "Not specified"}
+- Colour: ${colour && colour.trim() ? colour.trim() : "NOT PROVIDED — DO NOT INCLUDE COLOUR IN TITLE OR DESCRIPTION"}
 - Material: ${material || "Not specified"}
 - Current title: ${currentTitle || "None"}
 - Current description: ${currentDescription || "None"}
 
 ═══════════════════════════════════════════
+COLOUR RULE — CRITICAL — READ THIS FIRST
+═══════════════════════════════════════════
+${colour && colour.trim()
+  ? `The seller has confirmed the colour is: ${colour.trim()}. You MUST use this exact colour in the title and description. Do NOT use any other colour.`
+  : `The seller has NOT specified a colour. You MUST NOT mention any colour anywhere in the title or description. Omit colour entirely. Do NOT guess, infer, or estimate colour from photos — lighting, shadows, and screen calibration make photo colour unreliable. The seller will be angry if you get the colour wrong.`
+}
+
+NEVER INVENT:
+- NEVER assume or guess the colour if it was not explicitly provided by the seller above
+- NEVER infer colour from photos
+- NEVER add any attribute (colour, material, style descriptor) that the seller did not provide
+- If colour is "NOT PROVIDED", leave it out of title and description entirely
+
+═══════════════════════════════════════════
 TITLE FORMULA (max 100 chars)
 ═══════════════════════════════════════════
 Vinted's search algorithm weights the first 5 words most heavily. Follow this exact pattern:
-[Brand] [Item Type] [Key Detail/Colour] [Size] [Condition Word]
+${colour && colour.trim()
+  ? "[Brand] [Item Type] [Colour] [Size] [Condition Word]"
+  : "[Brand] [Item Type] [Size] [Condition Word]  ← IMPORTANT: NO COLOUR since it was not provided"
+}
 
-Examples of perfect titles:
+CRITICAL COLOUR RULE: If the Colour field above says "NOT PROVIDED", you MUST omit colour from the title entirely. Never substitute a guessed colour.
+
+Examples of perfect titles (with colour provided):
 - "Nike Air Max 90 White UK 9 Excellent"
 - "Levi's 501 Straight Jeans W32 L32 Like New"
 - "Zara Oversized Wool Coat Black M Brand New"
@@ -244,7 +293,10 @@ Write like a real person selling their own clothes. Use casual British English. 
 
 STRUCTURE — flowing paragraphs, NOT bullet points:
 
-Opening (1-2 sentences): Describe the item naturally. What is it, what colour, what brand. Keep it simple and honest. Example: "Really nice Nike crewneck sweatshirt in black, size M."
+${colour && colour.trim()
+  ? `Opening (1-2 sentences): Describe the item naturally. What is it, what colour (use "${colour.trim()}"), what brand. Example: "Really nice Nike crewneck sweatshirt in ${colour.trim()}, size M."`
+  : `Opening (1-2 sentences): Describe the item naturally — what it is and what brand. DO NOT mention any colour since it was not provided. Example: "Really nice Nike crewneck sweatshirt, size M."`
+}
 
 Feel & fit (1-2 sentences): Describe what it's actually like to wear. How does the fabric feel? How does it fit? Example: "The cotton blend makes it properly warm without being too heavy — perfect for layering or wearing on its own. Fits true to size with a relaxed but not baggy cut."
 
@@ -254,27 +306,7 @@ Closing (1 sentence): Friendly sign-off. Example: "Happy to answer any questions
 
 Shipping (1 line): "Shipped within 1-2 days."
 
-Hashtags (final line, separated by blank line): 3-5 compound hashtags only. These should mirror how real buyers search on Vinted. Combine words into single hashtags. Examples: #nikecrew #menssweatshirt #streetwearuk #blacksweatshirt #vintedfind. NEVER use more than 5 hashtags. Vinted is NOT Instagram.
-
-EXAMPLE OF A PERFECT DESCRIPTION:
-"Really nice Nike crewneck sweatshirt in black, size M. The cotton blend makes it properly warm without being too heavy — perfect for layering or wearing on its own. Fits true to size with a relaxed but not baggy cut.
-
-In very good condition — worn a handful of times and well looked after. No marks, no bobbling, just a solid everyday piece.
-
-Comes from a smoke-free home. Happy to answer any questions about fit or bundle with other items for a discount.
-
-Shipped within 1-2 days.
-
-#nikecrew #menssweatshirt #streetwearuk"
-
-ANOTHER EXAMPLE:
-"Gorgeous pair of Levi's 501s in classic blue wash, W32 L32. Proper rigid denim that's broken in just right — not too stiff, not too soft. These have loads of life left in them.
-
-Small fade on the left knee which honestly just adds to the look. No rips or damage anywhere else.
-
-Can post next day. Drop me a message if you want to see more photos or need measurements.
-
-#levis501 #vintagedenim #mensjeans"
+Hashtags (final line, separated by blank line): 3-5 compound hashtags only. These should mirror how real buyers search on Vinted. Combine words into single hashtags. Examples: #nikecrew #menssweatshirt #streetwearuk #vintedfind. NEVER use more than 5 hashtags. Vinted is NOT Instagram.
 
 ═══════════════════════════════════════════
 BANNED WORDS — NEVER USE THESE
