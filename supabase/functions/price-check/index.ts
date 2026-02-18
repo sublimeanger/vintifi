@@ -24,22 +24,104 @@ function conditionLabel(condition: string): string {
   return map[c] || condition;
 }
 
-/** Build a broad search term: brand + generic item type (not the full verbose title) */
-function buildSearchTerm(brand: string, category: string, title: string): string {
-  // If we have brand + category, that's the best generic search
-  if (brand && category) return `${brand} ${category}`;
-  // Fall back to title but strip size/condition noise
+/**
+ * Build a specific Vinted search term — prioritises item title for specificity.
+ * "Nike crewneck jumper mens black M" → "Nike crewneck jumper"
+ */
+function buildVintedSearchTerm(brand: string, category: string, title: string): string {
   if (title) {
     return title
-      .replace(/\b(XS|S|M|L|XL|XXL|XXXL|UK\s?\d+)\b/gi, "")
-      .replace(/\b(great|good|very good|excellent|new|used|condition)\b/gi, "")
+      .replace(/\b(XS|S|M|L|XL|XXL|XXXL|UK\s?\d+|\d+\s?cm|\d+\s?inch)\b/gi, "")
+      .replace(/\b(great|good|very good|excellent|condition|new|used|worn|pristine)\b/gi, "")
       .replace(/\s{2,}/g, " ")
-      .trim();
+      .trim()
+      .substring(0, 60);
   }
+  if (brand && category) return `${brand} ${category}`;
   return brand || category || "clothing item";
 }
 
-// --- Perplexity market research ---
+/**
+ * Build a Vinted catalog search URL with condition filter.
+ */
+function buildVintedSearchUrl(brand: string, category: string, title: string, condition: string): string {
+  const searchText = buildVintedSearchTerm(brand, category, title);
+
+  // Vinted condition IDs
+  const conditionMap: Record<string, string> = {
+    new_with_tags: "6",
+    new_without_tags: "1",
+    very_good: "2",
+    good: "3",
+    satisfactory: "4",
+  };
+  const normCondition = condition.toLowerCase().replace(/[\s-]/g, "_");
+  const conditionId = conditionMap[normCondition];
+
+  const params = new URLSearchParams({ search_text: searchText, order: "relevance" });
+  if (conditionId) params.set("catalog[]", conditionId);
+
+  return `https://www.vinted.co.uk/catalog?${params.toString()}`;
+}
+
+/**
+ * Compute median of a number array.
+ */
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// --- Firecrawl: Scrape live Vinted search results ---
+
+async function scrapeVintedPrices(
+  brand: string,
+  category: string,
+  title: string,
+  condition: string,
+  firecrawlKey: string,
+): Promise<{ prices: number[]; listings: string; searchUrl: string }> {
+  const searchUrl = buildVintedSearchUrl(brand, category, title, condition);
+  console.log(`Firecrawl scraping Vinted: ${searchUrl}`);
+
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: searchUrl,
+        formats: ["markdown"],
+        onlyMainContent: true,
+        waitFor: 3000,
+      }),
+    });
+
+    const data = await res.json();
+    const markdown: string = data.data?.markdown || data.markdown || "";
+    console.log(`Firecrawl returned ${markdown.length} chars of markdown`);
+
+    // Extract £X or £X.XX prices from the rendered page
+    const priceMatches = markdown.match(/£(\d+(?:\.\d{2})?)/g) || [];
+    const prices = priceMatches
+      .map((p) => parseFloat(p.replace("£", "")))
+      .filter((p) => p > 0.5 && p < 500);
+
+    console.log(`Extracted ${prices.length} prices from Vinted: ${prices.slice(0, 10).join(", ")}`);
+
+    return {
+      prices,
+      listings: markdown.substring(0, 4000),
+      searchUrl,
+    };
+  } catch (e) {
+    console.error("Firecrawl Vinted scrape failed:", e);
+    return { prices: [], listings: "", searchUrl };
+  }
+}
+
+// --- Perplexity: Broad secondhand market context (NOT primary price source) ---
 
 async function fetchViaPerplexity(
   searchTerm: string,
@@ -47,16 +129,15 @@ async function fetchViaPerplexity(
   condition: string,
   perplexityKey: string,
 ): Promise<{ marketData: string; citations: string[] }> {
-  const isNew = isNewCondition(condition);
   const condLabel = conditionLabel(condition);
-
-  // First attempt: specific search with size
   const sizeNote = size ? `, size ${size}` : "";
-  const searchQuery = `${searchTerm}${sizeNote} price UK`;
 
-  console.log(`Perplexity search query: "${searchQuery}"`);
+  // No domain filter — use Perplexity for what it's good at: broad context
+  const query = `What price range do "${searchTerm}"${sizeNote} sell for secondhand in the UK? Include eBay, Depop, charity shop and resale market context. What is the typical Vinted price range versus eBay? How does demand look?`;
 
-  const makeRequest = async (query: string) => {
+  console.log(`Perplexity context query: "${query}"`);
+
+  try {
     const res = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
@@ -68,29 +149,13 @@ async function fetchViaPerplexity(
         messages: [
           {
             role: "system",
-            content: `You are a UK secondhand clothing price researcher. Search Vinted UK, eBay UK, and Depop for real listing prices in GBP (£). Report every price you find — both active listings and sold items. Include ALL conditions (new and used) but label each one clearly. Be thorough and specific.`,
+            content: `You are a UK secondhand clothing market analyst. Provide broad market context, platform comparisons, and demand signals for items. Focus on UK resale prices across eBay, Depop, Vinted and charity shops. Note that Vinted prices are typically 50-70% LOWER than eBay because Vinted has zero seller fees.`,
           },
           {
             role: "user",
-            content: `I need to price a "${searchTerm}"${sizeNote}${condition ? ` (${condLabel} condition)` : ""} for resale on Vinted UK.
-
-Search vinted.co.uk, ebay.co.uk, and depop.com for this item and report:
-
-1. LIST every specific listing you find with exact prices in £. Format each as: "Title - £XX (Platform, Condition: new/used/very good/etc)"
-   Include BOTH new and used listings but clearly label the condition of each one.
-
-2. PRICE RANGE: What's the lowest and highest price you found?
-
-3. SOLD ITEMS: Any recently sold/completed listings? What did they sell for?
-
-4. PLATFORM COMPARISON: How do Vinted prices compare to eBay and Depop for this item?
-
-5. SUPPLY: Roughly how many active listings exist across all platforms?
-
-Be thorough. I need real prices from real listings to make a pricing decision. If you find fewer than 5 exact matches, broaden your search to similar items from the same brand in the same category.`,
+            content: query,
           },
         ],
-        search_domain_filter: ["vinted.co.uk", "ebay.co.uk", "depop.com"],
         search_recency_filter: "month",
       }),
     });
@@ -98,69 +163,25 @@ Be thorough. I need real prices from real listings to make a pricing decision. I
     if (!res.ok) {
       const errText = await res.text();
       console.error("Perplexity error:", res.status, errText);
-      throw new Error(`Perplexity search failed: ${res.status}`);
+      return { marketData: "", citations: [] };
     }
 
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content || "";
     const citations: string[] = data.citations || [];
-    return { content, citations };
-  };
-
-  // First attempt with domain filtering
-  let result = await makeRequest(searchQuery);
-  console.log(`Perplexity attempt 1: ${result.content.length} chars, ${result.citations.length} citations`);
-
-  // If data is thin (< 800 chars or < 3 citations), retry WITHOUT domain filter and with broader terms
-  if (result.content.length < 800 || result.citations.length < 3) {
-    console.log("Thin data detected — retrying with broader search...");
-
-    const broadRes = await fetch("https://api.perplexity.ai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${perplexityKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "sonar-pro",
-        messages: [
-          {
-            role: "system",
-            content: `You are a UK secondhand clothing price researcher. Find real prices in GBP (£) for items on resale platforms. Be thorough — list every price you find.`,
-          },
-          {
-            role: "user",
-            content: `What do "${searchTerm}" sell for on UK resale platforms like Vinted, eBay, and Depop?
-
-List specific items with prices in £. Include both active listings and recently sold items. Label each with platform and condition (new/used). I need at least 5-10 price points to understand the market. If exact matches are scarce, include similar items from ${searchTerm.split(" ")[0] || "the same brand"}.`,
-          },
-        ],
-        search_recency_filter: "month",
-      }),
-    });
-
-    if (broadRes.ok) {
-      const broadData = await broadRes.json();
-      const broadContent = broadData.choices?.[0]?.message?.content || "";
-      const broadCitations: string[] = broadData.citations || [];
-      console.log(`Perplexity retry: ${broadContent.length} chars, ${broadCitations.length} citations`);
-
-      // Use the better result
-      if (broadContent.length > result.content.length) {
-        result = { content: broadContent, citations: broadCitations };
-      }
-    }
+    console.log(`Perplexity context: ${content.length} chars, ${citations.length} citations`);
+    return { marketData: content, citations };
+  } catch (e) {
+    console.error("Perplexity failed:", e);
+    return { marketData: "", citations: [] };
   }
-
-  console.log("Perplexity market data preview:", result.content.substring(0, 500));
-  return { marketData: result.content, citations: result.citations };
 }
 
-// --- Firecrawl URL extraction ---
+// --- Firecrawl: Extract item context from Vinted listing URL ---
 
 async function extractVintedItemContext(
   url: string,
-  firecrawlKey: string
+  firecrawlKey: string,
 ): Promise<{ brand: string; title: string; category: string; condition: string; size: string }> {
   try {
     const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
@@ -215,7 +236,7 @@ serve(async (req) => {
     // Check credits
     const creditsRes = await fetch(
       `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}&select=price_checks_used,optimizations_used,vintography_used,credits_limit`,
-      { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+      { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
     );
     const creditsData = await creditsRes.json();
     if (creditsData.length > 0) {
@@ -225,7 +246,7 @@ serve(async (req) => {
         if (totalUsed >= c.credits_limit) {
           return new Response(
             JSON.stringify({ error: "Monthly credit limit reached. Upgrade your plan for more." }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
       }
@@ -238,8 +259,9 @@ serve(async (req) => {
     let itemSize = size || "";
     let itemTitle = title || "";
 
+    const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
+
     if (url && url.includes("vinted")) {
-      const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
       if (firecrawlKey) {
         const context = await extractVintedItemContext(url, firecrawlKey);
         itemBrand = itemBrand || context.brand;
@@ -251,19 +273,30 @@ serve(async (req) => {
       }
     }
 
-    // --- Perplexity market research ---
-    const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
-    if (!perplexityKey) throw new Error("Perplexity API not configured.");
-
-    const searchTerm = buildSearchTerm(itemBrand, itemCategory, itemTitle);
+    const searchTerm = buildVintedSearchTerm(itemBrand, itemCategory, itemTitle);
     console.log(`Search term: "${searchTerm}" | Size: "${itemSize}" | Condition: "${itemCondition}"`);
 
-    const { marketData, citations } = await fetchViaPerplexity(
-      searchTerm,
-      itemSize,
-      itemCondition,
-      perplexityKey,
-    );
+    // --- Run Firecrawl Vinted scrape + Perplexity context in parallel ---
+    const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
+    if (!perplexityKey) throw new Error("Perplexity API not configured.");
+    if (!firecrawlKey) throw new Error("Firecrawl API not configured.");
+
+    const [vintedScrape, { marketData, citations }] = await Promise.all([
+      scrapeVintedPrices(itemBrand, itemCategory, itemTitle, itemCondition, firecrawlKey),
+      fetchViaPerplexity(searchTerm, itemSize, itemCondition, perplexityKey),
+    ]);
+
+    // Compute Vinted price statistics
+    const vintedPrices = vintedScrape.prices;
+    const vintedMedian = median(vintedPrices);
+    const vintedMin = vintedPrices.length > 0 ? Math.min(...vintedPrices) : 0;
+    const vintedMax = vintedPrices.length > 0 ? Math.max(...vintedPrices) : 0;
+    const lowConfidence = vintedPrices.length < 3;
+
+    console.log(`Vinted live data: ${vintedPrices.length} prices, median £${vintedMedian}, range £${vintedMin}–£${vintedMax}`);
+
+    // Confidence cap based on data quality
+    const maxConfidence = vintedPrices.length >= 5 ? 95 : vintedPrices.length >= 3 ? 80 : 60;
 
     // --- AI Analysis ---
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -278,7 +311,30 @@ serve(async (req) => {
     const condLabel = conditionLabel(itemCondition);
     const fullItemDesc = itemTitle || [itemBrand, itemCategory, itemSize].filter(Boolean).join(" ");
 
-    const aiPrompt = `You are a Vinted UK pricing analyst. Analyse the REAL market data below and price this specific item.
+    // Build SOURCE 1 section
+    let source1Text: string;
+    if (vintedPrices.length >= 3) {
+      source1Text = `SOURCE 1 — VINTED UK LIVE PRICES (ground truth — HIGHEST WEIGHT):
+Scraped directly from: ${vintedScrape.searchUrl}
+Actual prices found: ${vintedPrices.slice(0, 20).map(p => `£${p}`).join(", ")}
+Computed stats: Median £${vintedMedian.toFixed(2)}, Range £${vintedMin}–£${vintedMax}, N=${vintedPrices.length} listings
+
+Raw listing content (first 3000 chars of search results):
+${vintedScrape.listings}
+
+⚠️ CRITICAL PRICING RULE: The recommended_price MUST be within ±30% of the Vinted median (£${vintedMedian.toFixed(2)}).
+The Vinted live prices above are the ground truth. Do NOT adjust upward toward eBay prices.`;
+    } else {
+      source1Text = `SOURCE 1 — VINTED UK LIVE PRICES (LIMITED DATA — low confidence):
+Scraped from: ${vintedScrape.searchUrl}
+Only ${vintedPrices.length} price(s) found: ${vintedPrices.map(p => `£${p}`).join(", ") || "none"}
+Vinted JavaScript may not have rendered fully. Use SOURCE 2 but apply 50-60% discount from eBay prices.
+
+IMPORTANT: Vinted prices are typically 50-70% LOWER than eBay because Vinted has zero seller fees.
+A Nike jumper at £20 on eBay would typically be £6-10 on Vinted.`;
+    }
+
+    const aiPrompt = `You are a Vinted UK pricing analyst. Analyse the REAL market data below and price this specific item ACCURATELY for Vinted UK.
 
 ITEM TO PRICE:
 - Full description: "${fullItemDesc}"
@@ -289,45 +345,60 @@ ITEM TO PRICE:
 - URL: ${url || "N/A"}
 
 ═══════════════════════════════════════════
-LIVE MARKET DATA (from real-time web search):
+PRICING DATA — TWO SOURCES:
 ═══════════════════════════════════════════
-${marketData}
+
+${source1Text}
+
+───────────────────────────────────────────
+SOURCE 2 — BROADER MARKET CONTEXT (eBay/Depop reference — lower weight):
+───────────────────────────────────────────
+${marketData || "No broader market data available."}
 ${citationsText}
 
-PRICING RULES:
+═══════════════════════════════════════════
+CRITICAL PRICING RULES:
+═══════════════════════════════════════════
+1. SOURCE 1 (Vinted live prices) is the GROUND TRUTH. Base recommended_price on these.
+2. Vinted prices are typically 50-70% LOWER than eBay prices because Vinted has zero seller fees.
+3. If SOURCE 1 has ≥3 prices: recommended_price MUST be within ±30% of the computed Vinted median.
+4. If SOURCE 1 has <3 prices: use SOURCE 2 but discount eBay prices by 55% to estimate Vinted price.
+5. Do NOT anchor to eBay/Depop prices as if they were Vinted prices.
+6. A used Nike basic crewneck sweatshirt on Vinted typically sells for £5-15, NOT £20-30.
+
+ITEM CONDITION:
 - This item is ${condType} in ${condLabel} condition.
 ${isNew
-  ? "- Price against NEW listings only. Ignore used prices."
-  : "- Price against USED/pre-owned listings. Used items typically sell for 40-70% of new listing prices. If the market data mostly shows new items, discount accordingly."
-}
-- If market data shows prices for BOTH new and used, clearly separate them in condition_price_breakdown and use ONLY the relevant ones for recommended_price.
-- If few exact matches exist, use similar items from the same brand/category to estimate.
+    ? "- Price against NEW listings only."
+    : "- Price against USED/pre-owned Vinted listings. This is what Vinted buyers actually pay."
+  }
 
 CALCULATE:
-- recommended_price: realistic Vinted sell price for THIS condition
+- recommended_price: realistic Vinted sell price (ANCHORED TO VINTED LIVE DATA)
 - buy_price_good: sourcing price for 50%+ margin after fees
 - buy_price_max: max buy price for 40%+ margin
-- estimated_fees: ~5% of resale
+- estimated_fees: ~5% of resale (Vinted has no seller fees, buyer pays protection fee)
 - estimated_shipping: £3-5
-- net_profit_estimate: resale - fees - shipping
+- net_profit_estimate: resale - fees - shipping - purchase_price (use buy_price_good)
+- confidence_score: maximum ${maxConfidence} (data quality cap)${lowConfidence ? " — MUST be ≤60 due to limited Vinted data" : ""}
 
 AI INSIGHTS — write exactly 3 paragraphs separated by \\n\\n:
 
-PARAGRAPH 1 — MARKET POSITION: Where this item sits in the market. Reference specific prices from the data. How many comparable listings exist? Is the market crowded or sparse? Use real numbers.
+PARAGRAPH 1 — MARKET POSITION: Where this item sits in the Vinted market specifically. Reference the actual Vinted prices from SOURCE 1. How competitive is the market? Use real numbers.
 
-PARAGRAPH 2 — PRICING STRATEGY: "List at £X for 7 days. If no sale, drop to £Y. Accept offers above £Z." Include best day/time to list for this category. Be specific and actionable.
+PARAGRAPH 2 — PRICING STRATEGY: "List at £X for 7 days. If no sale, drop to £Y. Accept offers above £Z." Be specific and actionable with real Vinted-appropriate prices.
 
-PARAGRAPH 3 — SELLER EDGE: One specific insight — a cross-platform price gap, supply shortage, or demand trend. Must reference data above.
+PARAGRAPH 3 — SELLER EDGE: One specific insight about cross-platform price gaps, demand, or timing. Must reference real data.
 
 CONSTRAINTS:
 - Every sentence must contain a specific £ price, number, or actionable recommendation.
-- If data is limited, use what's available and state confidence level — never pad with generic filler.
 - Write in plain, direct British English.
+- BANNED WORDS: elevate, sophisticated, timeless, versatile, effortless, staple, wardrobe essential, investment piece, must-have, stunning, gorgeous, boasts, game-changer, trendy, chic, exquisite, premium quality.
 
 Return raw JSON only (no markdown):
 {
   "recommended_price": <number>,
-  "confidence_score": <integer 0-100>,
+  "confidence_score": <integer 0-${maxConfidence}>,
   "price_range_low": <number>,
   "price_range_high": <number>,
   "item_title": "<descriptive title>",
@@ -362,8 +433,6 @@ Return raw JSON only (no markdown):
   ]
 }`;
 
-    const BANNED_WORDS_NOTICE = `BANNED WORDS — NEVER use: elevate, elevated, sophisticated, timeless, versatile, effortless, staple, wardrobe essential, investment piece, must-have, perfect addition, stunning, gorgeous, absolutely, boasts, game-changer, trendy, chic, standout, exquisite, premium quality, top-notch, level up.`;
-
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -373,7 +442,10 @@ Return raw JSON only (no markdown):
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: `Vinted UK pricing analyst. Return valid JSON only. Be precise. ${BANNED_WORDS_NOTICE}` },
+          {
+            role: "system",
+            content: `Vinted UK pricing analyst. Return valid JSON only. Be precise. Ground all prices in Vinted UK reality — items sell for significantly less on Vinted than eBay due to zero seller fees.`,
+          },
           { role: "user", content: aiPrompt },
         ],
       }),
@@ -397,6 +469,11 @@ Return raw JSON only (no markdown):
     } catch {
       console.error("Failed to parse AI response:", content);
       throw new Error("AI returned invalid response");
+    }
+
+    // Enforce confidence cap
+    if (report.confidence_score > maxConfidence) {
+      report.confidence_score = maxConfidence;
     }
 
     // Save report
@@ -440,7 +517,7 @@ Return raw JSON only (no markdown):
           Prefer: "return=minimal",
         },
         body: JSON.stringify({ price_checks_used: (creditsData[0]?.price_checks_used || 0) + 1 }),
-      }
+      },
     );
 
     return new Response(JSON.stringify(report), {
@@ -450,7 +527,7 @@ Return raw JSON only (no markdown):
     console.error("price-check error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
