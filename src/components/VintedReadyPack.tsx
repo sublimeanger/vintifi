@@ -97,6 +97,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 
 export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReadyPackProps) {
   const [downloading, setDownloading] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
 
   const isReady = !!item.last_optimised_at;
   const score = item.health_score;
@@ -249,7 +250,7 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
           );
         })()}
 
-        {/* ── Description Section ── */}
+        {/* ── Description Section ── Polish 3: Read more toggle */}
         {cleanDescription && (
           <motion.div variants={fadeUp} className="rounded-lg border border-border bg-background/60 p-3.5">
             <div className="flex items-center justify-between mb-1.5">
@@ -259,9 +260,17 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
               </div>
               <CopyButton text={cleanDescription} label="Description" />
             </div>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto scrollbar-hide">
+            <p className={`text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed ${descExpanded ? "" : "line-clamp-5"}`}>
               {cleanDescription}
             </p>
+            {cleanDescription.length > 300 && (
+              <button
+                onClick={() => setDescExpanded((v) => !v)}
+                className="text-[10px] text-primary hover:underline mt-1.5 font-medium"
+              >
+                {descExpanded ? "Show less" : "Read more"}
+              </button>
+            )}
           </motion.div>
         )}
 
