@@ -1,360 +1,170 @@
 
-# My Listings: Date Added + Comprehensive Filtering System
+# Sales Recording: Best-in-Class "Mark as Sold" System
 
-## What's Being Added
+## The Problem
 
-Two clear improvements to `src/pages/Listings.tsx`:
+The current system has the right database columns (`sale_price`, `sold_at`, `status`) but the experience is broken in four ways:
 
-1. **Date Added display** — show the exact date (and local time) each item was listed, replacing the current `{daysListed}d` duration-only display with both the human-readable date and the relative days count.
+1. **`sold_at` is never written** — the `saveEdit` function updates `status` and optionally `sale_price`, but never stamps `sold_at`. So there is permanently no record of when anything sold.
 
-2. **Filtering system** — a proper, expandable filter panel with multiple filter dimensions beyond the existing status chips: category, condition, price range, sort order, and health score range.
+2. **No dedicated "Mark as Sold" flow** — selling is buried inside a tiny status dropdown chip. There's no moment to record the actual sale price, confirm the sale date, or celebrate the transaction.
 
----
+3. **Sold cards look identical to active cards** — no visual distinction, no sale price shown, no days-to-sell displayed.
 
-## Current State Analysis
-
-### What already exists
-- **Status chips** — "all", "active", "needs_optimising", "sold", "reserved", "inactive"
-- **Search bar** — searches `title` and `brand` fields
-- **`filteredListings`** — a single filter function that combines `searchQuery` + `statusFilter`
-- **`getDaysListed()`** — calculates days from `created_at` using `Date.now()`, shows as `{daysListed}d` in a `Calendar` icon row
-- **`Listing` type** — already includes `created_at: string`, `category`, `condition`, `current_price`, `health_score`
-
-### What's missing
-- No display of the actual `created_at` date/time — only the duration in days
-- No filter by category, condition, price range, sort order, health band
-- No sort control (currently always sorted by `created_at DESC` from the DB query)
+4. **Dashboard is blind to sales** — no "sold this week", no "this month's revenue", no profit flash.
 
 ---
 
-## Changes to `Listings.tsx`
+## What Changes
 
-### 1. Date Added Display
+### File 1: `src/pages/Listings.tsx`
 
-**Where:** The metrics row on each listing card (line ~781 in the current file), next to the `Calendar` icon.
+#### A. "Mark as Sold" sheet/modal
+Replace the buried status dropdown with a proper **"Mark as Sold" bottom sheet** triggered from the card dropdown menu. The sheet contains:
+- A pre-filled sale price field (defaults to `current_price`)
+- A sale date picker (defaults to today)
+- A notes field (optional, e.g. "buyer collected", "posted Royal Mail")
+- A "Confirm Sale" button
 
-**Current output:**
+On confirm, it writes:
 ```
-📅 14d
-```
-
-**New output:**
-```
-📅 14d · 4 Feb, 09:41
-```
-
-**Implementation:**
-
-Add a `formatAddedDate` helper function alongside the existing `getDaysListed`:
-
-```tsx
-function formatAddedDate(createdAt: string): string {
-  const d = new Date(createdAt);
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) +
-    ", " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-}
+status: "sold"
+sale_price: <entered value>
+sold_at: <entered date ISO string>
 ```
 
-This uses the browser's `Intl` locale automatically — so a UK user sees "4 Feb, 09:41", a French user sees "4 févr., 09:41". No library required.
+The existing inline status dropdown (`saveEdit`) is also updated to stamp `sold_at: new Date().toISOString()` when changing status to "sold".
 
-The `title` attribute on the calendar span gets the full ISO timestamp so hovering (on desktop) shows the precise moment.
+#### B. Sold item card visual
+When `listing.status === "sold"`, the card shows a distinct visual treatment:
+- A green "Sold" badge (already styled as `bg-primary/10 text-primary`)
+- The **sale price** shown prominently (not the listed price)
+- **Profit** shown inline: `+£12` in success green or `-£3` in red
+- **Days to sell**: calculated as `sold_at - created_at` (e.g. "Sold in 4 days") — uses `sold_at` if set, otherwise falls back to `updated_at`
+- The date shown under the calendar icon becomes the **sold date**, not the listed date, for sold items
 
-**In the card render, replace:**
-```tsx
-<span className={`text-[10px] sm:text-xs flex items-center gap-0.5 ...`}>
-  <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-  {daysListed}d
-</span>
-```
+#### C. Filter system additions (extending the approved plan)
+Since the filtering plan was approved but not yet implemented, the sold-specific additions slot in naturally:
 
-**With:**
-```tsx
-<span
-  className={`text-[10px] sm:text-xs flex items-center gap-0.5 ...`}
-  title={new Date(listing.created_at).toLocaleString()}
->
-  <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-  {daysListed}d
-  <span className="hidden sm:inline text-muted-foreground/70">
-    · {formatAddedDate(listing.created_at)}
-  </span>
-</span>
-```
+- `sortBy` gains a `"profit"` option — sort by highest net profit (sale_price minus purchase_price)
+- The "sold" status chip already exists — no change needed
+- When the "sold" filter is active, the result count line shows total revenue: `"5 sold · £247 total revenue"`
 
-On mobile: still shows `14d` (compact, preserves current mobile density).
-On desktop (`sm:` breakpoint): shows `14d · 4 Feb, 09:41`.
+#### D. Date display (from the previously approved plan — implement alongside)
+Add `formatAddedDate` helper and show `14d · 4 Feb, 09:41` on desktop. For sold items, show the **sold date** instead of the listed date, with a sold icon instead of the calendar icon.
 
 ---
 
-### 2. Filter Panel
+### File 2: `src/pages/ItemDetail.tsx`
 
-**Design approach:** A collapsible filter panel revealed by a "Filter" button next to the search bar. When any filter is active, the button shows a coloured dot/badge indicator so users know filters are applied. Filters work client-side (no DB round-trips — all data is already fetched).
+#### A. "Mark as Sold" action on the Overview tab
+Add a prominent **"Mark as Sold"** button in the quick actions row (alongside Price, Improve, Photos) — shown only when `item.status !== "sold"`.
 
-#### New state variables
+When clicked, opens the same sale confirmation sheet (shared component or inline state).
 
-```tsx
-const [showFilters, setShowFilters] = useState(false);
-const [filterCategory, setFilterCategory] = useState<string>("all");
-const [filterCondition, setFilterCondition] = useState<string>("all");
-const [filterMinPrice, setFilterMinPrice] = useState<string>("");
-const [filterMaxPrice, setFilterMaxPrice] = useState<string>("");
-const [filterHealthBand, setFilterHealthBand] = useState<string>("all");  // all | good | fair | poor
-const [sortBy, setSortBy] = useState<string>("newest");  // newest | oldest | price_high | price_low | health | days
-```
+#### B. Sold state UI on Item Detail
+When `item.status === "sold"`:
+- Show a **sold confirmation card** at the top of the Overview tab with: sale price, profit (if cost is known), days to sell, sold date
+- The "Price" metric card updates to show sale price instead of listed price, labelled "Sold for"
+- The "Profit" metric card shows actual profit (sale_price - purchase_price) if both are known
+- The workflow stepper gains a 5th step: "Sold ✓" shown in primary colour
 
-#### Derived filter options (built from actual data)
-Extract unique categories and conditions dynamically from the listings array so the dropdowns only show options that actually exist:
-
-```tsx
-const availableCategories = useMemo(() => 
-  [...new Set(listings.map(l => l.category).filter(Boolean))].sort(),
-  [listings]
-);
-const availableConditions = useMemo(() => 
-  [...new Set(listings.map(l => l.condition).filter(Boolean))].sort(),
-  [listings]
-);
-```
-
-#### Updated `filteredListings` logic
-
-The existing filter function (lines 249–259) is expanded to incorporate all new filters and the sort:
-
-```tsx
-const activeFilterCount = [
-  filterCategory !== "all",
-  filterCondition !== "all",
-  filterMinPrice !== "",
-  filterMaxPrice !== "",
-  filterHealthBand !== "all",
-  sortBy !== "newest",
-].filter(Boolean).length;
-
-const filteredListings = useMemo(() => {
-  let result = listings.filter((l) => {
-    // existing
-    const matchesSearch = !searchQuery ||
-      l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.brand?.toLowerCase().includes(searchQuery.toLowerCase());
-    const isNeedsOptimising = statusFilter === "needs_optimising";
-    if (isNeedsOptimising) return matchesSearch && l.status === "active" && !l.description && l.health_score == null;
-    const matchesStatus = statusFilter === "all" || l.status === statusFilter;
-    
-    // new filters
-    const matchesCategory = filterCategory === "all" || l.category === filterCategory;
-    const matchesCondition = filterCondition === "all" || l.condition === filterCondition;
-    const price = l.current_price ?? l.recommended_price;
-    const matchesMinPrice = filterMinPrice === "" || (price != null && price >= parseFloat(filterMinPrice));
-    const matchesMaxPrice = filterMaxPrice === "" || (price != null && price <= parseFloat(filterMaxPrice));
-    const matchesHealth = filterHealthBand === "all" ||
-      (filterHealthBand === "good" && (l.health_score ?? 0) >= 80) ||
-      (filterHealthBand === "fair" && (l.health_score ?? 0) >= 60 && (l.health_score ?? 0) < 80) ||
-      (filterHealthBand === "poor" && (l.health_score ?? 0) < 60 && l.health_score != null);
-    
-    return matchesSearch && matchesStatus && matchesCategory && matchesCondition && matchesMinPrice && matchesMaxPrice && matchesHealth;
-  });
-
-  // sort
-  result = [...result].sort((a, b) => {
-    switch (sortBy) {
-      case "oldest":    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      case "price_high": return (b.current_price ?? b.recommended_price ?? 0) - (a.current_price ?? a.recommended_price ?? 0);
-      case "price_low":  return (a.current_price ?? a.recommended_price ?? 0) - (b.current_price ?? b.recommended_price ?? 0);
-      case "health":     return (b.health_score ?? -1) - (a.health_score ?? -1);
-      case "days":       return getDaysListed(b.created_at) - getDaysListed(a.created_at);
-      default:           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime(); // newest
-    }
-  });
-  return result;
-}, [listings, searchQuery, statusFilter, filterCategory, filterCondition, filterMinPrice, filterMaxPrice, filterHealthBand, sortBy]);
-```
-
-#### Filter UI — the search/filter row
-
-Replace the current search row (lines 478–491):
-
-```tsx
-{/* Search + Filter Bar */}
-<div className="flex gap-1.5 sm:gap-2 mb-3 sm:mb-4">
-  <div className="relative flex-1">
-    <Search ... />
-    <Input ... />
-  </div>
-  {/* Filter toggle button — shows dot badge if any filter active */}
-  <Button
-    variant={showFilters || activeFilterCount > 0 ? "default" : "outline"}
-    size="icon"
-    className="h-10 w-10 shrink-0 rounded-xl relative"
-    onClick={() => setShowFilters(v => !v)}
-    title="Filter listings"
-  >
-    <SlidersHorizontal className="w-3.5 h-3.5" />
-    {activeFilterCount > 0 && (
-      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[9px] text-white flex items-center justify-center font-bold">
-        {activeFilterCount}
-      </span>
-    )}
-  </Button>
-  <Button variant="outline" size="icon" onClick={fetchListings} className="h-10 w-10 shrink-0 rounded-xl">
-    <RefreshCw className="w-3.5 h-3.5" />
-  </Button>
-</div>
-```
-
-#### Filter panel (shown below search bar when `showFilters`)
-
-```tsx
-{showFilters && (
-  <motion.div
-    initial={{ opacity: 0, height: 0 }}
-    animate={{ opacity: 1, height: "auto" }}
-    exit={{ opacity: 0, height: 0 }}
-    className="mb-3 sm:mb-4"
-  >
-    <Card className="p-3 sm:p-4 border-border/60 bg-muted/20">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
-        
-        {/* Sort By */}
-        <div className="col-span-2 sm:col-span-1">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Sort</label>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest first</SelectItem>
-              <SelectItem value="oldest">Oldest first</SelectItem>
-              <SelectItem value="price_high">Price: High → Low</SelectItem>
-              <SelectItem value="price_low">Price: Low → High</SelectItem>
-              <SelectItem value="health">Best health score</SelectItem>
-              <SelectItem value="days">Listed longest</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Category */}
-        <div>
-          <label className="text-[10px] font-semibold ...">Category</label>
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger ...><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {availableCategories.map(c => <SelectItem key={c} value={c!}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Condition */}
-        <div>
-          <label ...>Condition</label>
-          <Select value={filterCondition} onValueChange={setFilterCondition}>
-            <SelectTrigger ...><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All conditions</SelectItem>
-              {availableConditions.map(c => <SelectItem key={c} value={c!}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Price Min */}
-        <div>
-          <label ...>Min price (£)</label>
-          <Input
-            type="number"
-            placeholder="0"
-            value={filterMinPrice}
-            onChange={e => setFilterMinPrice(e.target.value)}
-            className="h-9 text-xs"
-          />
-        </div>
-
-        {/* Price Max */}
-        <div>
-          <label ...>Max price (£)</label>
-          <Input
-            type="number"
-            placeholder="Any"
-            value={filterMaxPrice}
-            onChange={e => setFilterMaxPrice(e.target.value)}
-            className="h-9 text-xs"
-          />
-        </div>
-
-        {/* Health Score Band */}
-        <div>
-          <label ...>Health</label>
-          <Select value={filterHealthBand} onValueChange={setFilterHealthBand}>
-            <SelectTrigger ...><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any</SelectItem>
-              <SelectItem value="good">Excellent (80+)</SelectItem>
-              <SelectItem value="fair">Good (60–79)</SelectItem>
-              <SelectItem value="poor">Needs work (&lt;60)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Clear filters row */}
-      {activeFilterCount > 0 && (
-        <div className="flex justify-end mt-2 pt-2 border-t border-border/40">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-muted-foreground gap-1.5"
-            onClick={() => {
-              setFilterCategory("all");
-              setFilterCondition("all");
-              setFilterMinPrice("");
-              setFilterMaxPrice("");
-              setFilterHealthBand("all");
-              setSortBy("newest");
-            }}
-          >
-            <X className="w-3 h-3" /> Clear {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""}
-          </Button>
-        </div>
-      )}
-    </Card>
-  </motion.div>
-)}
-```
-
-#### Result count line (between filter panel and status chips)
-
-When filters are active, show a small "Showing X of Y listings" pill so users know how many results their filters returned:
-
-```tsx
-{activeFilterCount > 0 && !loading && (
-  <p className="text-xs text-muted-foreground mb-2">
-    Showing {filteredListings.length} of {listings.length} listings
-  </p>
-)}
-```
+#### C. Edit sale details
+On the sold confirmation card, a small "Edit sale" link allows correcting the sale price or date after the fact (opens inline edit state).
 
 ---
 
-## New Imports Needed
+### File 3: `src/pages/Dashboard.tsx`
 
-- `SlidersHorizontal` from `lucide-react` (filter icon)
-- `useMemo` from `react` (for derived filter logic)
+Add a third metric card to the existing 2-card row (Active, Attention) — or replace the 2-col grid with a 3-col grid:
 
----
+**"Sold This Month"** card:
+- Queries `listings` where `status = "sold"` and `sold_at >= start of current month` (or `updated_at` as fallback)
+- Shows count (e.g. `7`) with total revenue below (e.g. `£183`)
+- Tapping it navigates to `/listings?status=sold`
+- Styled with success green border-left
 
-## What This Does NOT Change
-
-- DB query is unchanged — still fetches all user listings on mount. All filtering is client-side, which is fast and avoids extra round-trips.
-- Status chips row is unchanged — still works the same as before.
-- Mobile layout is unchanged — the date addition is `sm:inline` only; the filter panel collapses to a 2-column grid on mobile.
-- The `selectedIds` and bulk delete logic is unaffected.
-- The card click navigation and inline editing are unaffected.
+The dashboard fetch in `fetchAll` adds a fourth parallel query for this count.
 
 ---
 
-## File Changed
+## New "Mark as Sold" Sheet Component
 
-| File | Lines affected |
-|------|---------------|
-| `src/pages/Listings.tsx` | ~10 imports, ~6 new state vars, filter logic (~40 lines), filter UI (~80 lines), date display (~3 lines) |
+A new lightweight component `MarkAsSoldSheet` (or inline sheet state in Listings) containing:
 
-Total: one file, no schema changes, no edge functions, no new dependencies.
+```
+Title: "Mark as Sold"
+Subtitle: "{item title}"
+
+[Sale price input] — pre-filled with current_price
+[Date sold input] — date picker, defaults to today
+[Optional notes] — placeholder "e.g. Royal Mail Tracked 48"
+
+[Cancel]  [Confirm Sale ✓]
+```
+
+On "Confirm Sale":
+1. Updates `listings` row: `status = "sold"`, `sale_price = <input>`, `sold_at = <date>`
+2. Shows a toast: "🎉 Sold for £X — profit: +£Y" (if cost is known)
+3. Closes sheet and updates local state
+
+---
+
+## Filter & Sort Additions for Sold Items
+
+Inside the filter panel (from the approved plan):
+
+**New sort option:**
+- `"profit"` — Sort by highest profit (sale_price - purchase_price). Only meaningful when sold items are visible.
+
+**Revenue summary line:**
+When `statusFilter === "sold"`:
+```
+"5 items · £247 revenue · £89 profit"
+```
+This replaces the generic "Showing X of Y" line with something sellers actually care about.
+
+---
+
+## `sold_at` Fallback Strategy
+
+Since `sold_at` has never been written for existing sold items, a graceful fallback is needed throughout:
+- If `sold_at` is set → use it as the definitive sold date
+- If `sold_at` is null but `status === "sold"` → fall back to `updated_at` as an approximation, shown as "~{date}" to indicate it's estimated
+- "Days to sell" = `sold_at ?? updated_at` minus `created_at`
+
+---
+
+## Listing Type Update
+
+The `Listing` type in `Listings.tsx` needs one addition:
+```typescript
+sold_at: string | null;
+```
+
+And the `select("*")` query already returns all columns, so no query change is needed.
+
+---
+
+## Summary of Files Changed
+
+| File | What changes |
+|------|-------------|
+| `src/pages/Listings.tsx` | Mark as Sold sheet, sold card visuals, sold_at stamping in saveEdit, date display, filter plan implementation, sold revenue summary line |
+| `src/pages/ItemDetail.tsx` | Mark as Sold button + sheet, sold confirmation card, "Sold for" price display, sold workflow step |
+| `src/pages/Dashboard.tsx` | Third metric card — "Sold This Month" with count + revenue |
+
+No schema changes needed — `sold_at`, `sale_price`, and `status` already exist. No new edge functions. No new dependencies.
+
+---
+
+## What This Achieves
+
+| Before | After |
+|--------|-------|
+| `sold_at` never written | Stamped on every sale going forward; fallback to `updated_at` for existing sold items |
+| Status change buried in tiny dropdown | Dedicated "Mark as Sold" sheet with sale price + date capture |
+| Sold cards look identical to active | Green sold badge, sale price, profit, days to sell all visible on card |
+| Dashboard blind to sales | "Sold This Month" card with count + revenue |
+| No profit-sorted view | Sort by profit option in filter panel |
+| No revenue summary | "5 sold · £247 revenue" when sold filter is active |
