@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { AppShellV2 } from "@/components/AppShellV2";
 import {
   Search, Loader2, Zap, Package, AlertTriangle,
-  ChevronRight, Sparkles, ImageIcon,
+  ChevronRight, Sparkles, ImageIcon, ArrowDown, Rocket,
 } from "lucide-react";
 
 type RecentItem = {
@@ -91,25 +91,70 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        {/* Quick Actions */}
-        <div className="flex gap-1.5 sm:gap-2">
-          <Button
-            variant="outline"
-            className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
-            onClick={() => navigate("/sell")}
+        {/* Quick Actions — or first-listing nudge for new users */}
+        {loaded && activeCount === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
           >
-            <Package className="w-4 h-4 mr-1" />
-            Add Item
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
-            onClick={() => navigate("/optimize")}
-          >
-            <Sparkles className="w-4 h-4 mr-1" />
-            Optimise
-          </Button>
-        </div>
+            <button
+              onClick={() => navigate("/sell")}
+              className="w-full rounded-2xl border-2 border-dashed border-primary/40 bg-primary/[0.04] hover:bg-primary/[0.08] active:scale-[0.98] transition-all p-4 sm:p-5 text-left group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-md group-hover:shadow-primary/30 transition-shadow">
+                    <Rocket className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  {/* Ping ring */}
+                  <span className="absolute inset-0 rounded-xl bg-primary/40 animate-ping" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display font-bold text-sm text-foreground">List your first item</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    The Sell Wizard takes &lt;2 min — AI pricing &amp; optimisation included
+                  </p>
+                </div>
+                <motion.div
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                >
+                  <ChevronRight className="w-5 h-5 text-primary shrink-0" />
+                </motion.div>
+              </div>
+              {/* Animated downward arrow hint */}
+              <div className="flex items-center justify-center gap-1.5 mt-3 pt-3 border-t border-primary/15">
+                <p className="text-[10px] text-primary/70 font-medium">Tap to start the wizard</p>
+                <motion.div
+                  animate={{ y: [0, 3, 0] }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
+                >
+                  <ArrowDown className="w-3 h-3 text-primary/60" />
+                </motion.div>
+              </div>
+            </button>
+          </motion.div>
+        ) : (
+          <div className="flex gap-1.5 sm:gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+              onClick={() => navigate("/sell")}
+            >
+              <Package className="w-4 h-4 mr-1" />
+              Add Item
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+              onClick={() => navigate("/optimize")}
+            >
+              <Sparkles className="w-4 h-4 mr-1" />
+              Optimise
+            </Button>
+          </div>
+        )}
 
         {/* 2 Metric Cards */}
         <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
