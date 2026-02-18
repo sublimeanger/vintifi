@@ -95,6 +95,8 @@ ${QUALITY_MANDATE}`;
     const pose = p?.pose || "standing_front";
     const look = p?.model_look || "classic";
     const bg = p?.model_bg || "studio";
+    const shotStyle = p?.shot_style || "editorial";
+    const fullBody = p?.full_body !== "false"; // default true
 
     const looks: Record<string, string> = {
       classic: "clean-cut, approachable, commercial model look. Natural makeup, healthy glowing skin, friendly but composed expression. Think Cos or Uniqlo campaign",
@@ -127,45 +129,84 @@ ${QUALITY_MANDATE}`;
       dressing_room: "personal dressing room with clothing rail, full-length mirror, warm Edison bulb lighting. Aspirational walk-in wardrobe energy",
     };
 
+    const shotStyleMandates: Record<string, string> = {
+      editorial: "SHOT STYLE: Clean, professional editorial photography. Perfect studio or location lighting. Every element intentional and composed. Think a high-end fashion campaign — polished, aspirational, precise.",
+      natural_photo: "PHOTOREALISM MANDATE: This image must be completely indistinguishable from a real photograph taken by a professional photographer on location. Natural light physics — the light behaves exactly as it would in reality. Real environment textures with depth and character. Authentic depth of field with natural bokeh. ABSOLUTELY NO studio compositing artefacts, no AI smoothing, no perfect symmetry. The model should look like they genuinely exist in this environment — not placed into it. If outdoor, show real sky and ambient fill. If indoor, show realistic room light falloff and ambient shadows. The final image must pass as a real photograph taken on a full-frame camera.",
+      street_style: "STREET STYLE MANDATE: Authentic street photography energy. Candid, slightly imperfect framing that feels real rather than staged. Natural pose — the model is caught mid-moment, not posing for a campaign. Urban environment with authentic depth. Overcast or golden-hour natural light — no flash, no studio fill. Think a real influencer photo taken by a friend on the street, or a candid street style shot from a fashion week photographer. The image should feel spontaneous, effortless, and real.",
+    };
+
+    const fullBodyMandate = fullBody
+      ? `\nCOMPOSITION (NON-NEGOTIABLE): The model must be framed head-to-toe. The COMPLETE garment from neckline to bottom hem must be fully visible in the frame. NEVER crop the garment — not at the hem, not at the sleeves, not at the neckline. If the background feels tight, zoom out. Leave deliberate negative space below the hem and above the head. The garment is the product — it must be entirely visible. A cropped garment is a failed shot.\n`
+      : "";
+
     const garmentCtx = p?.garment_context ? `\n\nGARMENT IDENTITY (CRITICAL — READ BEFORE GENERATING): The garment is: ${p.garment_context}. Generate this EXACT garment type. If it says "crewneck sweatshirt", the model MUST wear a crewneck sweatshirt with a round neckline and NO hood. If it says "t-shirt", it must be a t-shirt. DO NOT substitute with any other garment type. DO NOT add a hood. DO NOT change the neckline.\n` : "";
 
-    return `You are a world-class fashion photographer shooting a lookbook. Create a photo-realistic image of a ${gender} model wearing this exact garment.
+    return `You are a world-class fashion photographer. Create a photo-realistic image of a ${gender} model wearing this exact garment.
 ${garmentCtx}
+${shotStyleMandates[shotStyle] || shotStyleMandates.editorial}
+${fullBodyMandate}
 MODEL REQUIREMENTS:
-- Body: Natural, healthy proportions appropriate for the garment's size. Realistic body type — not exaggerated.
-- Skin: Photo-realistic skin with natural pores, subtle imperfections, and realistic subsurface scattering. ABSOLUTELY NO plastic, waxy, or AI-smoothed skin. Must look like a real photograph of a real person.
-- Hands: Exactly 5 fingers per hand, natural proportions, relaxed pose. Fingernails clean and natural.
-- Face: ${looks[look] || looks.classic}. Natural expression — no uncanny valley. Eyes should have realistic catchlights from the lighting setup. Real-looking hair with individual strand detail.
+- Body: Natural, healthy proportions appropriate for the garment's size. Realistic body type — not exaggerated or idealised.
+- Skin: Photo-realistic skin texture with natural pores, subtle imperfections, and realistic subsurface scattering. ABSOLUTELY NO plastic, waxy, AI-smoothed, or airbrushed skin. Must look like a real photograph of a real person with real skin.
+- Hands: Exactly 5 fingers per hand — count them. Natural proportions, relaxed. Fingernails clean and natural length. No extra fingers, no merged fingers, no missing fingers.
+- Face: ${looks[look] || looks.classic}. Natural expression — no uncanny valley. Eyes must have realistic catchlights from the scene's light source. Real-looking hair with individual strand definition.
 - Pose: ${poses[pose] || poses.standing_front}
 
 GARMENT FIT:
-- The garment must show realistic fabric physics — natural gravity, proper drape based on fabric weight, visible tension points at shoulders and closures, natural wrinkles at elbows and waist. The fabric should react to the pose realistically.
-- Sizing should look correct — not too tight, not too loose. Professional fit as you'd see in a well-styled photoshoot.
+- The garment must show realistic fabric physics — natural gravity, proper drape based on fabric weight, visible tension at shoulders and closures, natural wrinkles at elbows and waist. Fabric must react to the pose realistically.
+- Sizing looks correct for the model — not too tight, not too loose.
 
 CAMERA SIMULATION:
 - Shot on a full-frame camera with a 50mm f/1.8 lens at approximately 6-8 feet distance.
 - Background: ${bgs[bg] || bgs.studio}
-- Sharp focus on the garment and model's face, with natural depth-of-field falloff.
+- Sharp focus on the garment and model's face, with natural depth-of-field falloff into the background.
 
 ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`;
   },
 
   mannequin_shot: (p) => {
-    const gender = p?.gender || "female";
+    const mannequinType = p?.mannequin_type || "headless";
     const bg = p?.model_bg || "studio";
+    const lighting = p?.lighting_style || "soft_studio";
 
-    const bgs: Record<string, string> = {
-      studio: "clean white studio backdrop with professional even lighting from two softboxes",
-      grey_gradient: "smooth grey gradient studio backdrop with professional three-point lighting",
-      urban: "urban street setting with blurred city background and natural daylight",
-      park: "outdoor park setting with soft green bokeh and golden-hour warmth",
-      brick: "exposed brick wall backdrop with warm directional lighting",
+    const types: Record<string, string> = {
+      headless: "a professional retail display mannequin — sleek, matte white/light grey, headless (no head or neck whatsoever), with realistic torso, arms, and legs proportioned for an adult. The mannequin should look like a high-end boutique display fixture you'd see in a premium fashion store. Clean seams, professional finish.",
+      ghost: "an invisible/ghost mannequin effect. The garment should appear to float in perfect 3D shape as if worn by an invisible person. Fill the interior of the garment at necklines, sleeve openings, and waistbands with realistic fabric continuation showing the garment's natural inner structure and lining. The result should be indistinguishable from premium e-commerce imagery — think Net-a-Porter or ASOS Premium product shots. The garment holds its shape perfectly with no visible support.",
+      dress_form: "a traditional tailor's dress form / seamstress dummy — fabric-covered in natural linen or canvas colour, with visible topstitching and adjustment seams. Mounted on a simple elegant black iron stand with a stable base. The form should look authentic and artisanal, as used in a real couture atelier or bespoke dressing room. The stand adds to the craft-studio aesthetic.",
+      half_body: "a professional waist-up half-body retail display mannequin — headless (no head or neck), matte white finish, realistic torso and arm proportions to just below the hips. Ideal for displaying tops, jackets, shirts, and knitwear. The mannequin base is clean and minimal. Professional boutique quality.",
     };
 
-    return `Display this clothing/fashion garment on a ${gender} shop mannequin/dress form. Use a realistic retail display mannequin — smooth, neutral-coloured (matte white or light grey), with a clean professional appearance. No facial features on the mannequin.
+    const lightings: Record<string, string> = {
+      soft_studio: "perfectly even wraparound studio lighting with two large softboxes positioned camera-left and camera-right at 45° angles. No harsh shadows anywhere on the garment. Clean, bright, professional e-commerce product lighting — the gold standard for online fashion retail. White balance 5500K.",
+      dramatic: "a single strong key light from 45° camera-left creating defined, dramatic shadows that give the garment real dimension, depth, and texture. A weak fill light at 1/4 the key power from camera-right prevents pure black shadows. The result is editorial and impactful — the shadows sculpt the garment and make it look three-dimensional and exciting.",
+      natural: "warm, soft window-simulated natural light from camera-left. The light has the quality of afternoon sun filtered through a sheer linen curtain — directional but beautifully diffused. Slightly warm colour temperature (4000K). A soft reflector on camera-right fills shadows with warm ambient bounce light. The result feels organic, premium, and real.",
+    };
 
-The garment should drape naturally on the mannequin form, showing its true 3D shape and fit with natural fabric behaviour. Background: ${bgs[bg] || bgs.studio}. Professional retail product photography style with even, wrap-around lighting and no harsh shadows.
+    const bgs: Record<string, string> = {
+      studio: "a professional photography studio with a pure white seamless paper sweep backdrop. Clean, minimal, professional e-commerce quality",
+      grey_gradient: "a smooth mid-grey gradient studio backdrop, transitioning from darker grey at the edges to lighter grey at centre. Refined and sophisticated",
+      living_room: "a beautifully styled contemporary living room — neutral stone-coloured sofa softly visible in the background, a healthy plant catching ambient light, warm blonde oak flooring. Aspirational lifestyle setting",
+      dressing_room: "a stylish personal dressing room with a clothing rail of curated garments softly visible in the background, warm Edison bulb lighting from above. Aspirational walk-in wardrobe energy",
+      brick: "an exposed red-brown brick wall backdrop with authentic texture and character. Warm tungsten-style accent lighting creating interesting shadows in the mortar lines. Industrial-chic editorial feel",
+      flat_marble: "an elegant white Carrara marble surface with delicate grey veining, shot from a slightly elevated angle. Soft overhead lighting with gentle shadows. Luxury fashion aesthetic",
+      park: "a beautiful park setting with soft green foliage bokeh in the background. Natural daylight with warm ambient fill. Fresh, outdoor lifestyle feel",
+    };
+
+    return `Display this clothing/fashion garment on ${types[mannequinType]}.
+
+GARMENT DISPLAY (NON-NEGOTIABLE):
+- The garment must be positioned perfectly centred on the mannequin with completely natural fabric drape and realistic weight
+- Show the COMPLETE garment from neckline to bottom hem — NEVER crop the garment at any edge
+- Fabric must show natural gravity, proper drape based on fabric weight and construction, and realistic wrinkle physics
+- All buttons, zippers, and closures should be in their natural wearing position (buttoned/zipped unless it's a jacket that would naturally be open)
+- The garment must fill the mannequin form convincingly — not baggy or ill-fitting
+
+LIGHTING: ${lightings[lighting] || lightings.soft_studio}
+
+BACKGROUND: ${bgs[bg] || bgs.studio}
+
+SHADOW: Cast a realistic, soft shadow beneath the mannequin/garment that grounds it convincingly in the scene. The shadow direction must be consistent with the lighting setup.
 
 ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`;
@@ -258,7 +299,7 @@ const MODEL_MAP: Record<string, string> = {
 // Operations allowed per tier
 const TIER_OPERATIONS: Record<string, string[]> = {
   free: ["remove_bg", "enhance"],
-  pro: ["remove_bg", "enhance", "smart_bg", "selfie_shot", "flatlay_style", "model_shot"],
+  pro: ["remove_bg", "enhance", "smart_bg", "flatlay_style", "model_shot", "mannequin_shot", "selfie_shot"],
   business: ["remove_bg", "enhance", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
   scale: ["remove_bg", "enhance", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
 };
