@@ -166,6 +166,8 @@ export default function SellWizard() {
   const [entryMethod, setEntryMethod] = useState<EntryMethod | null>(null);
   const [vintedUrl, setVintedUrl] = useState("");
   const [scraping, setScraping] = useState(false);
+  // Track whether a URL import was done with no condition returned — to show pulsing ring
+  const [urlImportedNoCondition, setUrlImportedNoCondition] = useState(false);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -204,6 +206,7 @@ export default function SellWizard() {
     completeness_score?: number;
   } | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [insightsExpanded, setInsightsExpanded] = useState(false);
   const [optimiseLoading, setOptimiseLoading] = useState(false);
   const [optimiseSaved, setOptimiseSaved] = useState(false);
 
@@ -461,22 +464,25 @@ export default function SellWizard() {
       const { data: result, error } = await supabase.functions.invoke("scrape-vinted-url", { body: { url } });
       if (error) throw error;
       if (result && !result.error) {
+        const importedCondition = result.condition || "";
         setForm((f) => ({
           ...f,
           title: result.title || f.title,
           brand: result.brand || f.brand,
           category: result.category || f.category,
           size: result.size || f.size,
-          condition: result.condition || f.condition,
+          condition: importedCondition || f.condition,
           colour: result.colour || f.colour,
           material: result.material || f.material,
           description: result.description || f.description,
           currentPrice: result.price != null ? String(result.price) : f.currentPrice,
         }));
+        // Flag if condition is empty after import — triggers pulsing ring
+        setUrlImportedNoCondition(!importedCondition);
         if (Array.isArray(result.photos) && result.photos.length > 0) {
           setPhotoUrls(result.photos.filter((u: string) => typeof u === "string" && u.startsWith("http")));
         }
-        toast.success("Listing details imported!");
+        toast.success(importedCondition ? "Listing details imported!" : "Listing imported — please verify the Condition field");
       }
     } catch {
       toast.info("Couldn't auto-detect details — fill them in manually");
@@ -825,9 +831,23 @@ export default function SellWizard() {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition *</Label>
-          <Select value={form.condition} onValueChange={(v) => setForm((f) => ({ ...f, condition: v }))}>
-            <SelectTrigger className="h-10"><SelectValue placeholder="Select…" /></SelectTrigger>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            Condition *
+            {urlImportedNoCondition && !form.condition && (
+              <span className="text-[10px] font-normal" style={{ color: "hsl(38 92% 50%)" }}>— please verify</span>
+            )}
+          </Label>
+          <Select value={form.condition} onValueChange={(v) => { setForm((f) => ({ ...f, condition: v })); setUrlImportedNoCondition(false); }}>
+            <SelectTrigger
+              className="h-10"
+              style={urlImportedNoCondition && !form.condition ? {
+                boxShadow: "0 0 0 2px hsl(38 92% 50% / 0.7)",
+                borderColor: "hsl(38 92% 50% / 0.5)",
+                animation: "condition-pulse 1.8s ease-in-out infinite",
+              } : undefined}
+            >
+              <SelectValue placeholder="Select…" />
+            </SelectTrigger>
             <SelectContent>{conditions.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
@@ -953,8 +973,18 @@ export default function SellWizard() {
 
           {/* AI insight */}
           {priceResult.ai_insights && (
-            <div className="rounded-lg border border-border bg-background p-3">
-              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{priceResult.ai_insights}</p>
+            <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
+              <p className={`text-xs text-muted-foreground leading-relaxed ${insightsExpanded ? "" : "line-clamp-3"}`}>
+                {priceResult.ai_insights}
+              </p>
+              {priceResult.ai_insights.length > 160 && (
+                <button
+                  onClick={() => setInsightsExpanded((v) => !v)}
+                  className="text-[10px] font-medium text-primary hover:underline"
+                >
+                  {insightsExpanded ? "Show less" : "Read more"}
+                </button>
+              )}
             </div>
           )}
 
