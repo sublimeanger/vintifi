@@ -1402,10 +1402,6 @@ export default function SellWizard() {
                 <span className="text-muted-foreground">Sell Price</span>
                 <span>£{createdItem.current_price.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center text-sm text-muted-foreground">
-                <span>Vinted fee (~5%)</span>
-                <span>-£{(createdItem.current_price * 0.05).toFixed(2)}</span>
-              </div>
               {(() => {
                 const netProfit = createdItem.current_price * 0.95 - createdItem.purchase_price;
                 const marginPct = createdItem.purchase_price > 0
