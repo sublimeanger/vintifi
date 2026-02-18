@@ -366,11 +366,11 @@ ${QUALITY_MANDATE}`,
 const MODEL_MAP: Record<string, string> = {
   remove_bg: "google/gemini-2.5-flash-image",
   smart_bg: "google/gemini-2.5-flash-image",         // flash: background compositing, same quality 3x faster
-  model_shot: "google/gemini-3-pro-image-preview",   // pro: photorealistic human rendering needs quality
-  mannequin_shot: "google/gemini-3-pro-image-preview", // pro: mannequin quality needs top model
+  model_shot: "google/gemini-3-pro-image-preview",   // pro: photorealistic human rendering — justified at 4 credits
+  mannequin_shot: "google/gemini-2.5-flash-image",   // flash: no human face/skin needed, same mannequin quality
   ghost_mannequin: "google/gemini-2.5-flash-image",
   flatlay_style: "google/gemini-2.5-flash-image",    // flash: compositional task, same quality 3x faster
-  selfie_shot: "google/gemini-3-pro-image-preview",
+  selfie_shot: "google/gemini-2.5-flash-image",      // flash: switched from pro — ~93% cost saving
   enhance: "google/gemini-2.5-flash-image",
   decrease: "google/gemini-2.5-flash-image",         // flash: fabric smoothing, no complex scene-building needed
 };
@@ -460,11 +460,17 @@ serve(async (req) => {
     const used = credits?.vintography_used || 0;
     const limit = credits?.credits_limit ?? 5;
 
+    // AI Model shots cost 4 credits (uses expensive Pro model); everything else costs 1
+    const creditsToDeduct = operation === "model_shot" ? 4 : 1;
+
     if (credits && limit < 999) {
       const totalUsed = (credits.price_checks_used || 0) + (credits.optimizations_used || 0) + (credits.vintography_used || 0);
-      if (totalUsed >= limit) {
+      if (totalUsed + creditsToDeduct > limit) {
+        const msg = operation === "model_shot"
+          ? `AI Model shots cost 4 credits. You have ${limit - totalUsed} credit${limit - totalUsed === 1 ? "" : "s"} remaining. Upgrade your plan or top up.`
+          : "Monthly credit limit reached. Upgrade your plan for more.";
         return new Response(
-          JSON.stringify({ error: "Monthly credit limit reached. Upgrade your plan for more." }),
+          JSON.stringify({ error: msg }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -587,7 +593,7 @@ serve(async (req) => {
 
     await adminClient
       .from("usage_credits")
-      .update({ vintography_used: used + 1 })
+      .update({ vintography_used: used + creditsToDeduct })
       .eq("user_id", user.id);
 
     return new Response(
@@ -595,7 +601,8 @@ serve(async (req) => {
         job_id: job.id,
         processed_url: publicUrl.publicUrl,
         operation,
-        credits_used: used + 1,
+        credits_used: used + creditsToDeduct,
+        credits_deducted: creditsToDeduct,
         credits_limit: limit,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
