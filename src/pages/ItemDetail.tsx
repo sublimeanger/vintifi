@@ -16,8 +16,9 @@ import {
   Eye, Heart, Calendar, PoundSterling, TrendingUp,
   Package, MoreHorizontal, Clock, Zap, Tag, Ruler,
   ShieldCheck, Loader2, Copy, Check, ExternalLink,
-  ArrowRight, Download, Hash, Flame, Rocket,
+  ArrowRight, Download, Hash, Flame, Rocket, CheckCircle2,
 } from "lucide-react";
+import { MarkAsSoldSheet } from "@/components/MarkAsSoldSheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +53,7 @@ type Listing = {
   days_listed: number | null;
   created_at: string;
   updated_at: string;
+  sold_at: string | null;
   last_price_check_at: string | null;
   last_optimised_at: string | null;
   last_photo_edit_at: string | null;
@@ -109,6 +111,7 @@ export default function ItemDetail() {
   const [editingShipping, setEditingShipping] = useState(false);
   const [shippingInput, setShippingInput] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [soldSheetOpen, setSoldSheetOpen] = useState(false);
 
   // Quick Hashtags state
   const [hashtags, setHashtags] = useState<string[]>([]);
@@ -237,9 +240,20 @@ export default function ItemDetail() {
     }
   };
 
-  const profit = item && item.current_price != null && item.purchase_price != null
-    ? item.current_price - item.purchase_price
+  const profit = item
+    ? item.status === "sold" && item.sale_price != null && item.purchase_price != null
+      ? item.sale_price - item.purchase_price
+      : item.current_price != null && item.purchase_price != null
+        ? item.current_price - item.purchase_price
+        : null
     : null;
+
+  const soldDateStr = item?.sold_at ?? (item?.status === "sold" ? item?.updated_at : null);
+  const isEstimatedSoldDate = item?.status === "sold" && !item?.sold_at;
+
+  const handleSoldConfirmed = (id: string, salePrice: number, soldAt: string) => {
+    if (item) setItem({ ...item, status: "sold", sale_price: salePrice, sold_at: soldAt });
+  };
 
   if (loading) {
     return (
@@ -546,6 +560,41 @@ export default function ItemDetail() {
             </Card>
           </div>
 
+          {/* Sold confirmation card */}
+          {item.status === "sold" && (
+            <Card className="p-3 sm:p-5 border-primary/30 bg-primary/[0.03]">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="w-4 h-4 text-primary" />
+                <span className="text-xs sm:text-sm font-bold text-primary">Sold!</span>
+                {soldDateStr && (
+                  <span className="text-[10px] text-muted-foreground ml-auto">
+                    {isEstimatedSoldDate ? "~" : ""}{format(new Date(soldDateStr), "d MMM yyyy")}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Sold for</p>
+                  <p className="font-display font-bold text-base">{item.sale_price != null ? `£${item.sale_price.toFixed(2)}` : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Profit</p>
+                  <p className={`font-display font-bold text-base ${profit != null && profit >= 0 ? "text-success" : "text-destructive"}`}>
+                    {profit != null ? `${profit >= 0 ? "+" : ""}£${profit.toFixed(2)}` : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Days to sell</p>
+                  <p className="font-display font-bold text-base">
+                    {soldDateStr
+                      ? Math.max(0, Math.floor((new Date(soldDateStr).getTime() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24)))
+                      : "—"}d
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* Workflow Progress */}
           <Card className="p-2.5 sm:p-5">
             <h3 className="text-[11px] sm:text-sm font-semibold mb-1.5 sm:mb-4">Workflow</h3>
@@ -555,6 +604,7 @@ export default function ItemDetail() {
                 { label: "Optimised", done: !!item.last_optimised_at, icon: Sparkles },
                 { label: "Photos", done: !!item.last_photo_edit_at || !!item.image_url, icon: ImageIcon },
                 { label: "Listed", done: !!item.vinted_url || item.status === "sold", icon: Package },
+                { label: "Sold ✓", done: item.status === "sold", icon: CheckCircle2, isPrimary: true },
               ];
               const doneCount = steps.filter(s => s.done).length;
               return (
@@ -563,7 +613,7 @@ export default function ItemDetail() {
                     <p className="text-xs font-bold">{doneCount}/{steps.length}</p>
                     <div className="flex-1 flex gap-1">
                       {steps.map((step) => (
-                        <div key={step.label} className={`flex-1 h-1.5 rounded-full ${step.done ? "bg-success" : "bg-muted"}`} />
+                        <div key={step.label} className={`flex-1 h-1.5 rounded-full ${step.done ? (step.isPrimary ? "bg-primary" : "bg-success") : "bg-muted"}`} />
                       ))}
                     </div>
                   </div>
@@ -571,14 +621,16 @@ export default function ItemDetail() {
                     {steps.map((step, i) => (
                       <div key={step.label} className="flex items-center gap-2 flex-1">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                          step.done ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                          step.done
+                            ? step.isPrimary ? "bg-primary/10 text-primary" : "bg-success/10 text-success"
+                            : "bg-muted text-muted-foreground"
                         }`}>
                           {step.done ? <Check className="w-4 h-4" /> : <step.icon className="w-3.5 h-3.5" />}
                         </div>
                         <span className={`text-xs font-medium ${step.done ? "text-foreground" : "text-muted-foreground"}`}>
                           {step.label}
                         </span>
-                        {i < 3 && <div className={`flex-1 h-px ${step.done ? "bg-success/40" : "bg-border"}`} />}
+                        {i < steps.length - 1 && <div className={`flex-1 h-px ${step.done ? "bg-success/40" : "bg-border"}`} />}
                       </div>
                     ))}
                   </div>
@@ -588,7 +640,7 @@ export default function ItemDetail() {
           </Card>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+          <div className={`grid gap-1.5 sm:gap-3 ${item.status !== "sold" ? "grid-cols-4" : "grid-cols-3"}`}>
             <Button
               variant={!item.last_price_check_at ? "default" : "outline"}
               className="justify-center h-auto py-3 sm:py-3 px-2 sm:px-4 flex-col sm:flex-row active:scale-95 transition-transform touch-card"
@@ -597,11 +649,6 @@ export default function ItemDetail() {
               <Search className="w-4 h-4 sm:mr-2 shrink-0" />
               <div className="text-center sm:text-left">
                 <p className="text-[11px] sm:text-sm font-semibold">Price</p>
-                <p className="text-[9px] sm:text-[10px] opacity-70 hidden sm:block">
-                  {item.last_price_check_at
-                    ? `Last: ${format(new Date(item.last_price_check_at), "dd MMM")}`
-                    : "Not checked"}
-                </p>
               </div>
             </Button>
             <Button
@@ -612,11 +659,6 @@ export default function ItemDetail() {
               <Sparkles className="w-4 h-4 sm:mr-2 shrink-0" />
               <div className="text-center sm:text-left">
                 <p className="text-[11px] sm:text-sm font-semibold">Improve</p>
-                <p className="text-[9px] sm:text-[10px] opacity-70 hidden sm:block">
-                  {item.last_optimised_at
-                    ? `Last: ${format(new Date(item.last_optimised_at), "dd MMM")}`
-                    : "Not optimised"}
-                </p>
               </div>
             </Button>
             <Button
@@ -627,13 +669,20 @@ export default function ItemDetail() {
               <ImageIcon className="w-4 h-4 sm:mr-2 shrink-0" />
               <div className="text-center sm:text-left">
                 <p className="text-[11px] sm:text-sm font-semibold">Photos</p>
-                <p className="text-[9px] sm:text-[10px] opacity-70 hidden sm:block">
-                  {item.last_photo_edit_at
-                    ? `Last: ${format(new Date(item.last_photo_edit_at), "dd MMM")}`
-                    : "No edits"}
-                </p>
               </div>
             </Button>
+            {item.status !== "sold" && (
+              <Button
+                variant="outline"
+                className="justify-center h-auto py-3 px-2 sm:px-4 flex-col sm:flex-row active:scale-95 transition-transform touch-card border-success/40 text-success hover:bg-success/10"
+                onClick={() => setSoldSheetOpen(true)}
+              >
+                <CheckCircle2 className="w-4 h-4 sm:mr-2 shrink-0" />
+                <div className="text-center sm:text-left">
+                  <p className="text-[11px] sm:text-sm font-semibold">Sold</p>
+                </div>
+              </Button>
+            )}
           </div>
 
           {/* ── Quick Hashtags ── */}
