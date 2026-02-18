@@ -147,9 +147,9 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
             </div>
           )}
         </div>
-        <div className="p-2">
-          <p className="text-xs font-medium truncate">{opLabel}</p>
-          <p className="text-[10px] text-muted-foreground">
+        <div className="p-2 lg:p-3">
+          <p className="text-xs lg:text-sm font-medium truncate">{opLabel}</p>
+          <p className="text-[10px] lg:text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
           </p>
         </div>
