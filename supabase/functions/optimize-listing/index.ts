@@ -247,6 +247,7 @@ Item details provided by seller:
 - Material: ${material || "Not specified"}
 - Current title: ${currentTitle || "None"}
 - Current description: ${currentDescription || "None"}
+- Number of photos: ${finalPhotoUrls.length}
 
 ═══════════════════════════════════════════
 COLOUR RULE — CRITICAL — READ THIS FIRST
@@ -340,15 +341,15 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
   "detected_condition": "<assessed condition>",
   "detected_colour": "<detected primary colour>",
   "detected_material": "<detected primary material>",
-  "health_score": {
+    "health_score": {
     "overall": <0-100>,
     "title_score": <0-25>,
     "description_score": <0-25>,
-    "photo_score": <0-25>,
+    "photo_score": <DETERMINISTIC — base this ONLY on the "Number of photos" field above, NOT on any visual assessment: 0 photos = 0, 1 photo = 10, 2 photos = 18, 3 or more photos = 25>,
     "completeness_score": <0-25>,
     "title_feedback": "<specific tip>",
     "description_feedback": "<specific tip>",
-    "photo_feedback": "<specific tip>",
+    "photo_feedback": "<based ONLY on photo count: 0 photos = 'No photos added yet — listings with photos sell 3x faster', 1 photo = 'Add 2–3 more photos showing different angles for best results', 2 photos = 'Good start — consider adding a care label and detail shots', 3+ photos = 'Great photo coverage!'>",
     "completeness_feedback": "<specific tip>"
   },
   "improvements": ["<specific improvement made>"],
