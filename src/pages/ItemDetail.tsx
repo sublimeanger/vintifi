@@ -336,7 +336,7 @@ export default function ItemDetail() {
             </Card>
             <Card className="p-2 sm:p-4">
               <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Target</p>
-              <p className="text-sm sm:text-xl font-display font-bold text-success truncate">
+              <p className={`text-sm sm:text-xl font-display font-bold truncate ${item.recommended_price != null ? "text-success" : "text-muted-foreground"}`}>
                 {item.recommended_price != null ? `£${item.recommended_price.toFixed(0)}` : "—"}
               </p>
             </Card>

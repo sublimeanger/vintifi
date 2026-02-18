@@ -41,7 +41,7 @@ function getOpportunityStyle(score: number | null) {
 function getSaturationLabel(ratio: number | null): { label: string; color: string } {
   if (ratio === null) return { label: "Unknown", color: "text-muted-foreground" };
   if (ratio < 0.5) return { label: "Scarce Opportunity", color: "text-success" };
-  if (ratio < 1.5) return { label: "Balanced", color: "text-accent" };
+  if (ratio < 1.5) return { label: "Balanced", color: "text-primary" };
   if (ratio < 3) return { label: "Competitive", color: "text-warning" };
   return { label: "Crowded", color: "text-destructive" };
 }
@@ -251,7 +251,7 @@ export default function TrendRadar() {
       )}
 
       {/* ── Filters ── */}
-      <div className="flex gap-2 flex-wrap mb-4">
+      <div className="space-y-2 mb-4">
         <div className="flex gap-1 flex-wrap">
           {CATEGORIES.map((cat) => (
             <button
@@ -265,7 +265,7 @@ export default function TrendRadar() {
             </button>
           ))}
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap">
           {DIRECTIONS.map((d) => (
             <button
               key={d}

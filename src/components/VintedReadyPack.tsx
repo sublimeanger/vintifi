@@ -220,16 +220,16 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
 
         {/* ── Condition Transparency Block ── */}
         {item.condition && (() => {
-          const conditionMap: Record<string, { label: string; note: string; color: string; badge: string }> = {
-            new_with_tags: { label: "New with tags", note: "Unworn, original tags still attached. As good as it gets.", color: "text-success", badge: "bg-success/10 border-success/30 text-success" },
-            new_without_tags: { label: "New without tags", note: "Unworn, no tags but in perfect condition.", color: "text-success", badge: "bg-success/10 border-success/30 text-success" },
-            very_good: { label: "Very Good", note: "Worn a few times, no visible flaws. Like new to the eye.", color: "text-primary", badge: "bg-primary/10 border-primary/30 text-primary" },
-            good: { label: "Good", note: "Has been worn and shows minor signs of use. Still great.", color: "text-accent", badge: "bg-accent/10 border-accent/30 text-accent" },
-            satisfactory: { label: "Satisfactory", note: "Shows visible signs of wear. Priced accordingly.", color: "text-warning", badge: "bg-warning/10 border-warning/30 text-warning" },
+        const conditionMap: Record<string, { label: string; note: string; color: string; badge: string; bg: string; border: string }> = {
+            new_with_tags: { label: "New with tags", note: "Unworn, original tags still attached. As good as it gets.", color: "text-success", badge: "bg-success/10 border-success/30 text-success", bg: "bg-success/8", border: "border-success/25" },
+            new_without_tags: { label: "New without tags", note: "Unworn, no tags but in perfect condition.", color: "text-success", badge: "bg-success/10 border-success/30 text-success", bg: "bg-success/8", border: "border-success/25" },
+            very_good: { label: "Very Good", note: "Worn a few times, no visible flaws. Like new to the eye.", color: "text-primary", badge: "bg-primary/10 border-primary/30 text-primary", bg: "bg-primary/8", border: "border-primary/25" },
+            good: { label: "Good", note: "Has been worn and shows minor signs of use. Still great.", color: "text-accent", badge: "bg-accent/10 border-accent/30 text-accent", bg: "bg-accent/8", border: "border-accent/25" },
+            satisfactory: { label: "Satisfactory", note: "Shows visible signs of wear. Priced accordingly.", color: "text-warning", badge: "bg-warning/10 border-warning/30 text-warning", bg: "bg-warning/8", border: "border-warning/25" },
           };
-          const cond = conditionMap[item.condition] || { label: item.condition, note: "Condition as described.", color: "text-muted-foreground", badge: "bg-muted/40 border-border text-muted-foreground" };
+          const cond = conditionMap[item.condition] || { label: item.condition, note: "Condition as described.", color: "text-muted-foreground", badge: "bg-muted/40 border-border text-muted-foreground", bg: "bg-muted/20", border: "border-border" };
           return (
-            <motion.div variants={fadeUp} className={`rounded-lg border p-3.5 ${cond.badge.split(" ").slice(0, 1).join(" ")}/20 border-opacity-40`} style={{ background: "hsl(var(--background) / 0.6)" }}>
+            <motion.div variants={fadeUp} className={`rounded-lg border p-3.5 ${cond.bg} ${cond.border}`}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className={`flex items-center gap-1.5 ${cond.color}`}>
                   <ShieldCheck className="w-3.5 h-3.5" />
