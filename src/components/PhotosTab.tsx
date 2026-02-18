@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
-import { ImageIcon, GripVertical, Save, Loader2, Plus, Upload } from "lucide-react";
+import { ImageIcon, GripVertical, Save, Loader2, Plus, Upload, X, Wand2 } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -45,11 +46,15 @@ function SortableThumbnail({
   index,
   isSelected,
   onSelect,
+  onDelete,
+  onEditInStudio,
 }: {
   url: string;
   index: number;
   isSelected: boolean;
   onSelect: () => void;
+  onDelete: () => void;
+  onEditInStudio: () => void;
 }) {
   const {
     attributes,
@@ -77,22 +82,41 @@ function SortableThumbnail({
             : "border-border hover:border-primary/40"
         }`}
       >
-        <img src={url} alt={`Thumb ${index + 1}`} className="w-full h-full object-cover" />
+        <img src={url} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
       </button>
 
       {/* Drag handle */}
       <div
         {...attributes}
         {...listeners}
-        className="absolute top-1 left-1 w-6 h-6 rounded bg-background/80 border border-border flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 sm:group-hover:opacity-100 touch-none transition-opacity"
+        className="absolute top-1 left-1 w-5 h-5 rounded bg-background/80 border border-border flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 touch-none transition-opacity z-10"
         style={{ touchAction: "none" }}
       >
-        <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+        <GripVertical className="w-3 h-3 text-muted-foreground" />
       </div>
 
+      {/* Delete button — top-right, hover on desktop, always on touch */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity z-10"
+        title="Remove photo"
+      >
+        <X className="w-2.5 h-2.5 text-destructive-foreground" />
+      </button>
+
+      {/* Edit in Photo Studio — bottom-left, hover only */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onEditInStudio(); }}
+        className="absolute bottom-1 left-1 w-5 h-5 rounded-full bg-primary/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        title="Edit in Photo Studio"
+      >
+        <Wand2 className="w-2.5 h-2.5 text-primary-foreground" />
+      </button>
+
+      {/* Primary badge — only on index 0 */}
       {index === 0 && (
-        <span className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[8px] font-bold px-1.5 py-0.5 rounded">
-          Cover
+        <span className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[7px] font-bold px-1.5 py-0.5 rounded pointer-events-none">
+          Primary
         </span>
       )}
     </div>
@@ -101,6 +125,7 @@ function SortableThumbnail({
 
 export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -171,6 +196,25 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
     }
   };
 
+  const handleDeletePhoto = async (url: string) => {
+    if (!user) return;
+    const updatedPhotos = photos.filter((p) => p !== url);
+    const newImageUrl = updatedPhotos[0] || null;
+    const newImagesArray = updatedPhotos.slice(1);
+
+    const { error } = await supabase
+      .from("listings")
+      .update({ image_url: newImageUrl, images: newImagesArray })
+      .eq("id", item.id)
+      .eq("user_id", user.id);
+
+    if (error) { toast.error("Failed to remove photo"); return; }
+    setPhotos(updatedPhotos);
+    setSelectedIdx((prev) => Math.min(prev, Math.max(0, updatedPhotos.length - 1)));
+    onItemUpdate((prev: any) => ({ ...prev, image_url: newImageUrl, images: newImagesArray }));
+    toast.success("Photo removed");
+  };
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -178,11 +222,9 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
     setPhotos((prev) => {
       const oldIndex = prev.indexOf(active.id as string);
       const newIndex = prev.indexOf(over.id as string);
-      const next = arrayMove(prev, oldIndex, newIndex);
-      return next;
+      return arrayMove(prev, oldIndex, newIndex);
     });
 
-    // Update selected index to follow the item if it was selected
     setSelectedIdx((prevIdx) => {
       const oldIndex = photos.indexOf(active.id as string);
       const newIndex = photos.indexOf(over.id as string);
@@ -205,10 +247,7 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
 
       const { error } = await supabase
         .from("listings")
-        .update({
-          image_url: newImageUrl,
-          images: newImagesArray,
-        })
+        .update({ image_url: newImageUrl, images: newImagesArray })
         .eq("id", item.id)
         .eq("user_id", user.id);
 
@@ -264,8 +303,15 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
   return (
     <>
       <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUploadPhotos} />
+
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Photos ({photos.length})</h3>
+        <div>
+          <h3 className="text-sm font-semibold">Photos ({photos.length})</h3>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            First photo is your <span className="font-semibold text-primary">Primary</span> image — used by Photo Studio AI for edits
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           {hasReordered && (
             <Button size="sm" onClick={handleSaveOrder} disabled={saving}>
@@ -278,7 +324,7 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
             Add
           </Button>
           <Button size="sm" variant="outline" onClick={onEditPhotos}>
-            <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> Photo Studio
+            <Wand2 className="w-3.5 h-3.5 mr-1.5" /> Photo Studio
           </Button>
         </div>
       </div>
@@ -298,7 +344,7 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
           />
           {safeIdx === 0 && (
             <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
-              Cover
+              Primary
             </span>
           )}
         </motion.div>
@@ -306,8 +352,9 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
 
       {/* Drag-and-drop thumbnail strip */}
       <div>
-        <p className="text-[10px] text-muted-foreground mb-1">Drag thumbnails to reorder · first photo becomes the cover</p>
-        <p className="text-[10px] text-muted-foreground/70 mb-2">💡 The cover photo is used by Photo Studio for AI editing. A full front view gives the best results.</p>
+        <p className="text-[10px] text-muted-foreground mb-2">
+          Drag to reorder · hover for quick actions
+        </p>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={photos} strategy={rectSortingStrategy}>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
@@ -318,6 +365,10 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
                   index={i}
                   isSelected={i === safeIdx}
                   onSelect={() => setSelectedIdx(i)}
+                  onDelete={() => handleDeletePhoto(url)}
+                  onEditInStudio={() =>
+                    navigate(`/vintography?itemId=${item.id}&image_url=${encodeURIComponent(url)}`)
+                  }
                 />
               ))}
             </div>

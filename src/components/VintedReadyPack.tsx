@@ -136,9 +136,12 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
         const a = document.createElement("a");
         a.href = url;
         a.download = `vintifi-${item.title.slice(0, 20).replace(/\s+/g, "-")}-${i + 1}.png`;
+        a.style.display = "none";
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        await new Promise((r) => setTimeout(r, 300));
+        await new Promise((r) => setTimeout(r, 400));
       } catch {}
     }
     setDownloading(false);
