@@ -183,6 +183,7 @@ export default function SellWizard() {
   const [form, setForm] = useState({
     title: "", brand: "", category: "", size: "", condition: "",
     colour: "", material: "", description: "", currentPrice: "", purchasePrice: "",
+    seller_notes: "",
   });
 
   // Created item — set after step 1 saves to DB
@@ -210,6 +211,7 @@ export default function SellWizard() {
     description_score?: number;
     photo_score?: number;
     completeness_score?: number;
+    seller_notes_disclosed?: boolean;
   } | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
   const [insightsExpanded, setInsightsExpanded] = useState(false);
@@ -277,7 +279,7 @@ export default function SellWizard() {
     setPhotoUrls([]);
     setUploading(false);
     setCreating(false);
-    setForm({ title: "", brand: "", category: "", size: "", condition: "", colour: "", material: "", description: "", currentPrice: "", purchasePrice: "" });
+    setForm({ title: "", brand: "", category: "", size: "", condition: "", colour: "", material: "", description: "", currentPrice: "", purchasePrice: "", seller_notes: "" });
     setCreatedItem(null);
     setPriceResult(null);
     setPriceLoading(false);
@@ -577,6 +579,7 @@ export default function SellWizard() {
         images: allImages.length > 0 ? allImages : [],
         status: "active",
         source_type: entryMethod === "url" ? "vinted_url" : entryMethod === "photo" ? "photo_upload" : "manual",
+        source_meta: form.seller_notes.trim() ? { seller_notes: form.seller_notes.trim() } : {},
       }).select("*").single();
 
       if (error) throw error;
@@ -645,10 +648,10 @@ export default function SellWizard() {
     if (!createdItem) return;
     setOptimiseLoading(true);
     try {
+      const storedNotes = (createdItem as any)?.source_meta?.seller_notes || "";
       const { data, error } = await supabase.functions.invoke("optimize-listing", {
         body: {
           itemId: createdItem.id,
-          // Edge function destructures 'currentTitle' and 'currentDescription'
           currentTitle: createdItem.title,
           currentDescription: createdItem.description,
           brand: createdItem.brand,
@@ -657,6 +660,7 @@ export default function SellWizard() {
           condition: createdItem.condition,
           colour: createdItem.colour || form.colour,
           material: createdItem.material,
+          seller_notes: form.seller_notes.trim() || storedNotes,
         },
       });
       if (error) throw error;
@@ -670,6 +674,7 @@ export default function SellWizard() {
         description_score: typeof hs === "object" ? (hs?.description_score ?? undefined) : undefined,
         photo_score: typeof hs === "object" ? (hs?.photo_score ?? undefined) : undefined,
         completeness_score: typeof hs === "object" ? (hs?.completeness_score ?? undefined) : undefined,
+        seller_notes_disclosed: data?.seller_notes_disclosed,
       });
       setDescExpanded(false);
     } catch {
@@ -982,6 +987,23 @@ export default function SellWizard() {
           </div>
         );
       })()}
+      {/* Seller notes / defect disclosure */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Anything the buyer should know?
+          <span className="text-[10px] font-normal text-muted-foreground ml-1">(optional)</span>
+        </Label>
+        <Textarea
+          value={form.seller_notes}
+          onChange={(e) => setForm((f) => ({ ...f, seller_notes: e.target.value }))}
+          placeholder="e.g. Small bobble on the back, faded slightly on the left shoulder, tiny mark on the inside collar — these things happen with worn items. Leave blank if none."
+          rows={2}
+          className="text-sm resize-none"
+        />
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          Honest disclosures build trust with buyers and protect you from disputes. The AI will weave these naturally into the description.
+        </p>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sell Price (£)</Label>
@@ -1282,13 +1304,29 @@ export default function SellWizard() {
               <Check className="w-4 h-4 mr-2" /> Save optimised listing
             </Button>
           ) : (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
-              <Check className="w-4 h-4 shrink-0" />
-              {optimiseResult.health_score >= 80
-                ? "Saved — your listing looks excellent!"
-                : optimiseResult.health_score >= 60
-                ? "Saved — good listing, photos will boost it further."
-                : "Saved — enhance photos next to improve the score."}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
+                <Check className="w-4 h-4 shrink-0" />
+                {optimiseResult.health_score >= 80
+                  ? "Saved — your listing looks excellent!"
+                  : optimiseResult.health_score >= 60
+                  ? "Saved — good listing, photos will boost it further."
+                  : "Saved — enhance photos next to improve the score."}
+              </div>
+              {/* Disclosure confirmation */}
+              {form.seller_notes.trim() && (
+                optimiseResult.seller_notes_disclosed === false ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/25 text-warning text-xs font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    We couldn't confirm your notes were included — please review the description before saving.
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/8 border border-primary/15 text-primary text-xs font-medium">
+                    <Check className="w-3.5 h-3.5 shrink-0" />
+                    Your item notes were included in the description
+                  </div>
+                )
+              )}
             </div>
           )}
         </div>

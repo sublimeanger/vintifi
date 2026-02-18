@@ -48,6 +48,7 @@ type WizardData = {
   description: string;
   currentPrice: string;
   purchasePrice: string;
+  seller_notes: string;
 };
 
 const initialData: WizardData = {
@@ -65,6 +66,7 @@ const initialData: WizardData = {
   description: "",
   currentPrice: "",
   purchasePrice: "",
+  seller_notes: "",
 };
 
 const conditions = [
@@ -250,6 +252,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
         images: allImages.length > 0 ? allImages : [],
         status: "active",
         source_type: data.method === "url" ? "vinted_url" : data.method === "photo" ? "photo_upload" : "manual",
+        source_meta: data.seller_notes.trim() ? { seller_notes: data.seller_notes.trim() } : {},
       }).select("id").single();
 
       if (error) throw error;
@@ -662,6 +665,24 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                     rows={2}
                     className="text-sm resize-none"
                   />
+                </div>
+
+                {/* Seller notes / defect disclosure */}
+                <div className="space-y-1">
+                  <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Anything the buyer should know?
+                    <span className="text-[10px] font-normal text-muted-foreground ml-1">(optional)</span>
+                  </Label>
+                  <Textarea
+                    value={data.seller_notes}
+                    onChange={(e) => update({ seller_notes: e.target.value })}
+                    placeholder="e.g. Small bobble on the back, faded slightly on the left shoulder, tiny mark on the inside collar. Leave blank if none."
+                    rows={2}
+                    className="text-sm resize-none"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Honest disclosures build trust. The AI will weave these naturally into the description.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
