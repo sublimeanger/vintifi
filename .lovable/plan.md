@@ -1,199 +1,172 @@
 
-# Desktop Polish: Sell Wizard Responsive Upgrade
+# Sell Wizard: Comprehensive UX & Polish Pass
 
-## Root Cause
+## Issues Found During End-to-End Testing
 
-The entire Sell Wizard is locked inside `max-w-lg mx-auto` (512px max-width) with typography written exclusively for mobile — `text-[10px]`, `text-xs`, `text-[9px]`, `text-[8px]` everywhere — and zero `lg:` responsive variants. On a 1440px desktop screen, this creates a tiny narrow column with barely readable text surrounded by dead whitespace.
-
-The wizard was built mobile-first but never graduated to responsive — it needs desktop breakpoint scaling across:
-1. Container width
-2. Typography (headings, labels, body text)
-3. Spacing and padding
-4. Step progress bar
-5. Entry method cards
-6. Form fields and grid layout
-7. Step-specific content (price hero, health score card, photo preview)
-8. Header bar
-9. Footer navigation bar
-10. CTA buttons
+After a thorough audit of all 5 steps on both desktop (1440px) and mobile (390px), the following bugs and polish gaps were identified:
 
 ---
 
-## Layout Strategy: Centred Wide Column (Not 2-Column Split)
+### Bug 1 — Step 1 header stays "Choose how to add the item…" inside sub-flows
+When a user selects "Manual Entry" (or URL/Photo), the top step heading still reads "Add your item / Choose how to add the item — we'll guide you through the rest." This is confusing — you're now on a form, not a method chooser. The heading should update to "Item details / Fill in the information below." once inside a method sub-flow.
 
-The wizard is a linear flow — a 2-column split would add complexity and risk breaking step logic. Instead, the fix is:
-
-- Widen the content column from `max-w-lg` (512px) to `max-w-lg lg:max-w-2xl` (672px desktop)
-- Scale all typography with `lg:` variants
-- Increase spacing and padding at `lg:` breakpoint
-- Make the progress bar, cards, and form fields feel "web-scale"
-
-This preserves all existing logic while delivering a dramatically improved desktop experience.
+**Fix:** Add a conditional `stepMeta` override when `entryMethod` is set in Step 1. When `currentStep === 1 && entryMethod`, show a different title/subtitle.
 
 ---
 
-## Specific Changes by Section
+### Bug 2 — Tiny "Back" link inside sub-flows (Desktop)
+The `< Back` text link inside Manual/Photo/URL entry sub-flows is `text-xs` and easy to miss on desktop, especially since the form extends below it. On mobile it's fine; on desktop it should be more prominent.
 
-### 1. Content Container (Line 1522)
-```
-Before: max-w-lg mx-auto px-4 py-6 pb-32
-After:  max-w-lg lg:max-w-2xl mx-auto px-4 lg:px-8 py-6 lg:py-10 pb-32 lg:pb-36
-```
+**Fix:** Upgrade the in-form Back link from a bare text button to a proper `Button variant="ghost"` with icon, matching the footer Back button style.
 
-### 2. Header Bar (Line 1495)
-```
-Before: px-4 h-14
-After:  px-4 lg:px-8 h-14 lg:h-16
-```
-Header title text:
-```
-Before: font-bold text-sm
-After:  font-bold text-sm lg:text-base
-```
+---
 
-### 3. Progress Bar (ProgressBar component, lines 107–147)
-- Step circle: `w-7 h-7` → `w-7 h-7 lg:w-10 lg:h-10`
-- Step number font: `text-[10px]` → `text-[10px] lg:text-sm`
-- Step label: `text-[8px] sm:text-[9px]` → `text-[8px] sm:text-[9px] lg:text-xs`
-- Check icon: `w-3.5 h-3.5` → `w-3.5 h-3.5 lg:w-4 lg:h-4`
-- Overall padding: `px-3 pt-2.5 pb-1` → `px-3 lg:px-8 pt-2.5 lg:pt-3 pb-1 lg:pb-2`
+### Bug 3 — No entry method breadcrumb / context indicator
+Once inside "Manual Entry" or "Upload Photos", there's no indicator of which path was chosen. Users who accidentally click the wrong method have no easy visual confirmation of their current context.
 
-### 4. Step Header (Lines 1534–1540)
-- Title: `text-xl` → `text-xl lg:text-3xl`
-- Subtitle: `text-xs` → `text-xs lg:text-sm`
-- Bottom margin: `mb-5` → `mb-5 lg:mb-8`
+**Fix:** Add a small pill/badge below the Back button showing the selected method (e.g. `✏️ Manual Entry` or `📷 Upload Photos`), so users know where they are.
 
-### 5. Step 1 — Entry Method Cards (Lines 761–778)
-- Card padding: `p-4` → `p-4 lg:p-6`
-- Icon container: `w-10 h-10` → `w-10 h-10 lg:w-14 lg:h-14`
-- Icon size: `w-5 h-5` → `w-5 h-5 lg:w-6 lg:h-6`
-- Title: `text-sm` → `text-sm lg:text-base`
-- Subtitle: `text-[11px]` → `text-[11px] lg:text-sm`
-- Arrow icon: `w-4 h-4` → `w-4 h-4 lg:w-5 lg:h-5`
-- Container gap: `space-y-3` → `space-y-3 lg:space-y-4`
+---
 
-### 6. Details Form (renderDetailsForm, lines 871–999)
+### Bug 4 — "Create Item & Set Price" button not sticky on mobile
+The CTA button in the details form is inside the scrollable content. On a phone with a long colour chip list, the user has to scroll to find the button. On mobile this is a critical UX failure — the primary action should always be visible.
 
-**Labels:**
-- `text-xs font-semibold uppercase tracking-wider` → `text-xs lg:text-[11px] font-semibold uppercase tracking-wider` (uppercase labels are intentionally small, but can gain a touch on desktop)
+**Fix:** Make the form's CTA sticky at the bottom of the viewport when `entryMethod` is set, using a `fixed bottom-0` container on mobile only (not on desktop where the content fits on screen). Apply `pb-20` to the form content to prevent overlap.
 
-**Inputs:**
-- Height: `h-10` → `h-10 lg:h-12`
-- The title input already has `text-base` (good)
+---
 
-**Grid layout for fields:**
-- Current `grid-cols-2` pairs (Condition/Category, Brand/Size) → on desktop, keep 2-col but give more vertical space
+### Bug 5 — Step 2 & 3 loading states have no skeleton placeholder
+When the price check or optimiser fires (auto-triggered on step entry), the step header shows "Price it right / AI analyses live market data" but the content area just shows a spinner. The shift from empty → results is jarring. There's no skeleton to manage user expectations.
 
-**Colour chip row:**
-- Chip text: `text-[11px]` → `text-[11px] lg:text-xs`
-- Chip padding: `px-2.5 py-1` → `px-2.5 py-1 lg:px-3 lg:py-1.5`
+**Fix:** Replace the bare `py-12 lg:py-20` spinner containers with a proper skeleton card showing the shape of the results (recommended price card shape, market range bar shape, AI insights card shape) while loading.
 
-**CTA button:**
-- `h-11` → `h-11 lg:h-12`
-- `text` at default → add `lg:text-base`
+---
 
-### 7. Step 2 — Price Check
+### Bug 6 — Step 2 "Re-run" and Step 3 "Re-generate" buttons are too small on desktop
+These are `text-[10px] text-primary hover:underline` inline text links — barely tappable and visually weak on desktop where there's space for a real button.
 
-**Loading spinner area:**
-- `py-12` → `py-12 lg:py-20`
-- `w-8 h-8` → `w-8 h-8 lg:w-12 lg:h-12`
-- `text-xs` → `text-xs lg:text-sm`
+**Fix:** Change to `Button variant="ghost" size="sm"` with a `RotateCcw` icon, right-aligned. Same visual weight as the header actions on other pages.
 
-**Recommended price hero:**
-- `p-4` → `p-4 lg:p-8`
-- `text-[10px] uppercase` label → `text-[10px] lg:text-xs uppercase`
-- Price: `text-4xl` → `text-4xl lg:text-6xl`
-- Confidence: `text-xs` → `text-xs lg:text-sm`
+---
 
-**Market range bar:**
-- `p-3` → `p-3 lg:p-5`
-- Range numbers: `text-xs font-bold` → `text-xs lg:text-sm font-bold`
-- Range bar height: `h-2` → `h-2 lg:h-3`
-- The dot marker: `w-3.5 h-3.5` → `w-3.5 h-3.5 lg:w-5 lg:h-5`
+### Bug 7 — Large `pb-32 lg:pb-36` bottom padding causes excessive empty space on desktop
+The main scroll container has `pb-32 lg:pb-36` (128px and 144px respectively). On steps 1 and 5 where there's no sticky footer nav, this creates a large blank area below the content.
 
-**AI insights:**
-- `text-xs` → `text-xs lg:text-sm`
-- Container: `p-3` → `p-3 lg:p-5`
+**Fix:** Only apply the large bottom padding when `showFooterNav` is true (steps 2/3/4). On steps 1 and 5, use `pb-8 lg:pb-16` instead.
 
-**Accept price button:**
-- `h-11` → `h-11 lg:h-13`
+---
 
-### 8. Step 3 — Optimise
+### Bug 8 — Step 5 "warning" banner appears immediately below the celebration header
+When health score < 60 (common after quick manual entry without Photo Studio), the fallback immediately shows a warning banner (`Listing score below 60`) directly after "🎉 You're ready to list!" — extremely jarring. The celebration just happened; hitting the user with an orange warning kills the energy.
 
-**Loading:**
-- `py-12` → `py-12 lg:py-20`
+**Fix:** Change the warning banner to a softer "tip" tone: replace the `AlertCircle` + warning colour with a neutral info style (`Sparkles` icon + `bg-muted/50 border-border`), and soften the copy to: "Tip: Re-run the Optimiser or add enhanced photos to boost your listing score before going live."
 
-**Health score card:**
-- `p-3` → `p-3 lg:p-5`
-- Health score text: `text-xs font-semibold` → `text-xs lg:text-sm font-semibold`
-- Score sub: `text-[10px]` → `text-[10px] lg:text-xs`
-- Breakdown grid: `grid-cols-4` stays, but `text-[9px]` → `text-[9px] lg:text-xs`
+---
 
-**Optimised Title:**
-- `p-3` → `p-3 lg:p-5`
-- Title text: `text-sm font-semibold` → `text-sm lg:text-base font-semibold`
-- Label: `text-[10px]` → `text-[10px] lg:text-xs`
+### Bug 9 — No Profit Calculator on Step 5 (Pack)
+After spending 2+ minutes going through the wizard, sellers reach Step 5 with no visibility into their potential profit. The `purchase_price` was captured in Step 1 and `current_price` is set in Step 2, but no profit calculation is shown.
 
-**Optimised Description:**
-- `p-3` → `p-3 lg:p-5`
-- Body: `text-xs` → `text-xs lg:text-sm`
-- Read more button: `text-[10px]` → `text-[10px] lg:text-xs`
+**Fix:** Add a compact "Profit Estimate" card on Step 5, below the celebration header and above the VintedReadyPack. Show: Cost £X, Sell Price £Y, Vinted fee ~5% → **Est. profit £Z**. Only show when both `purchase_price` and `current_price` are set on `createdItem`.
 
-### 9. Step 4 — Photos
+---
 
-**Photo preview:**
-- `max-w-[220px]` → `max-w-[220px] lg:max-w-[320px]`
-- Photo caption: `text-[10px]` → `text-[10px] lg:text-xs`
+### Bug 10 — Sell Wizard desktop header loses the sidebar nav context
+The wizard is a full-page takeover that replaces the app shell (no sidebar). The only exit is "← Items" in the header. On desktop, users accustomed to the sidebar feel disoriented — they can't quickly jump to Trends, Dashboard, or Price Check while mid-wizard.
 
-**Buttons:**
-- `h-11` → `h-11 lg:h-12`
+**Fix:** No sidebar (correct — wizard should be focused), but: change "← Items" to a `Home` icon link to dashboard, AND add a keyboard shortcut hint `[Esc to exit]` tooltip on the back button on desktop. This gives a clear escape route without cluttering the UI.
 
-### 10. Step 5 — Pack Ready
+---
 
-**Celebration header:**
-- Emoji: `text-3xl` → `text-3xl lg:text-5xl`
-- Title: `text-lg` → `text-lg lg:text-2xl`
-- Sub: `text-xs` → `text-xs lg:text-sm`
+### Polish 1 — Progress bar connector lines don't fill with colour as steps complete
+The connector lines (`flex-1 h-px`) only turn `bg-success/60` when a step is `isDone` (before current). But the lines between steps look thin and hard to see against the background. On desktop with larger circles, the lines look even more disconnected.
 
-**Listed URL section:**
-- `p-4` → `p-4 lg:p-6`
-- Title: `text-xs font-semibold` → `text-xs lg:text-sm font-semibold`
+**Fix:** Increase line height from `h-px` to `h-0.5` on desktop (`lg:h-0.5`). Also ensure the active step's left connector is coloured success, not just past-step connectors.
 
-**Bottom action buttons:**
-- `h-11` → `h-11 lg:h-13`
+---
 
-### 11. Footer Nav Bar (Lines 1550–1571)
-```
-Before: px-4 pt-3 pb-4
-After:  px-4 lg:px-8 pt-3 lg:pt-4 pb-4 lg:pb-6
-```
-- Buttons: `h-12` → `h-12 lg:h-13`
-- Blocked reason: `text-[11px]` → `text-[11px] lg:text-xs`
+### Polish 2 — Desktop form inputs lack `lg:h-12` for Select fields (Condition/Category)
+Looking at the current code: `SelectTrigger` has `h-10 lg:h-12` — this is already applied. However the brand/size inputs (`Input`) are missing the `lg:h-12` class, creating a height mismatch between Select dropdowns and text inputs in the same grid row.
 
-### 12. CopyBtn helper (Lines 81–101)
-- Container text: `text-[10px]` → `text-[10px] lg:text-xs`
+**Fix:** Add `className="h-10 lg:h-12"` to Brand and Size Input elements to match the Select height.
+
+---
+
+### Polish 3 — VintedReadyPack description has no "Read more" toggle
+The description in the Pack card uses `max-h-48 overflow-y-auto scrollbar-hide` — the scrollbar is hidden, so users don't know they can scroll. On desktop there's space for a proper expand toggle.
+
+**Fix:** Add a `descExpanded` state to the VintedReadyPack component. Show `line-clamp-5` by default with a "Read more" button if description is > 300 characters.
+
+---
+
+### Polish 4 — Step 1 "How would you like to add your item?" question is redundant on desktop
+The text "How would you like to add your item?" repeats the step heading intent on a large screen where both are visible simultaneously.
+
+**Fix:** Remove this redundant question text from the method picker section; the cards are self-explanatory and the heading "Add your item" already sets context.
 
 ---
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `src/pages/SellWizard.tsx` | All responsive `lg:` additions described above — no logic changes, pure CSS class upgrades |
+| File | Changes |
+|------|---------|
+| `src/pages/SellWizard.tsx` | Bugs 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 + Polish 1, 2, 4 |
+| `src/components/VintedReadyPack.tsx` | Polish 3 (Read more toggle for description) |
 
 ---
 
-## What This Achieves
+## Implementation Detail
 
-| Aspect | Before | After |
-|--------|--------|-------|
-| Max content width | 512px (max-w-lg) | 672px desktop (max-w-2xl) |
-| Step heading | 20px (text-xl) | 20px mobile / 30px desktop (text-3xl) |
-| Body text | 12px (text-xs) | 12px mobile / 14px desktop (text-sm) |
-| Labels | 10-11px | 10-11px mobile / 12px desktop |
-| Price display | 36px (text-4xl) | 36px mobile / 60px desktop (text-6xl) |
-| Step circles | 28px | 28px mobile / 40px desktop |
-| Cards | Compact 12px padding | 12px mobile / 20px desktop |
-| Buttons | 44px (h-11) | 44px mobile / 48px desktop (h-12) |
+### Bug 1 — Conditional step meta
+```tsx
+// In the stepMeta definition or the render:
+const step1Title = entryMethod
+  ? "Item details"
+  : "Add your item";
+const step1Sub = entryMethod
+  ? "Fill in the fields below — the AI uses these to price and optimise your listing."
+  : "Choose how to add the item — we'll guide you through the rest.";
+```
 
-No logic, state, or routing changes. Pure responsive polishing.
+### Bug 4 — Mobile sticky CTA
+The `createdItem` check already controls "Continue vs Create" button. Add a wrapper:
+```tsx
+<div className={entryMethod && !createdItem ? "sm:relative fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-sm px-4 pb-[env(safe-area-inset-bottom)] pt-3 border-t border-border sm:border-0 sm:bg-transparent sm:backdrop-blur-0 sm:p-0" : ""}>
+  <Button ...>Create Item & Set Price</Button>
+</div>
+```
+
+### Bug 5 — Loading skeleton
+Replace spinner containers in Steps 2 and 3 with skeleton cards that mirror the shape of results:
+```tsx
+// Step 2 loading skeleton
+<div className="space-y-3 animate-pulse">
+  <div className="rounded-xl border bg-muted/40 h-32 lg:h-44" /> {/* Price hero */}
+  <div className="rounded-lg border bg-muted/30 h-20 lg:h-24" /> {/* Range bar */}
+  <div className="rounded-lg border bg-muted/20 h-16 lg:h-20" /> {/* AI insights */}
+</div>
+```
+
+### Bug 9 — Profit Calculator
+```tsx
+{createdItem?.purchase_price && createdItem?.current_price && (
+  <div className="rounded-xl border border-border bg-muted/30 p-4 lg:p-6">
+    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Profit Estimate</p>
+    <div className="flex justify-between items-center text-sm">
+      <span className="text-muted-foreground">Cost Price</span>
+      <span>£{createdItem.purchase_price.toFixed(2)}</span>
+    </div>
+    <div className="flex justify-between items-center text-sm">
+      <span className="text-muted-foreground">Sell Price</span>
+      <span>£{createdItem.current_price.toFixed(2)}</span>
+    </div>
+    <div className="flex justify-between items-center text-sm text-muted-foreground">
+      <span>Vinted fee (~5%)</span>
+      <span>-£{(createdItem.current_price * 0.05).toFixed(2)}</span>
+    </div>
+    <div className="border-t border-border mt-2 pt-2 flex justify-between items-center font-bold text-success">
+      <span>Est. Net Profit</span>
+      <span>£{(createdItem.current_price * 0.95 - createdItem.purchase_price).toFixed(2)}</span>
+    </div>
+  </div>
+)}
+```
