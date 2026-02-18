@@ -38,23 +38,41 @@ ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`,
 
   smart_bg: (p) => {
-    const style = p?.bg_style || "studio";
+    const style = p?.bg_style || "studio_white";
     const styles: Record<string, string> = {
-      studio: "a professional photography studio with two softboxes creating soft, even lighting and a subtle grey-to-white gradient backdrop. The lighting should feel like a Profoto B10 setup — clean, professional, with gentle wrap-around illumination",
-      wooden_floor: "a warm honey-toned European oak wooden floor surface. Soft natural side-lighting from a large window (camera-left), creating gentle directional shadows. The wood grain should be visible but not distracting. Lifestyle product photo aesthetic with warm 4500K colour temperature",
-      outdoor: "a bright outdoor setting with beautifully blurred green foliage bokeh (f/2.8 depth of field). Golden-hour natural daylight streaming from camera-right, creating warm rim lighting on the garment. The background should feel like a sun-dappled garden with creamy circular bokeh shapes",
-      marble: "an elegant white Carrara marble surface with subtle grey veining. Soft directional lighting from above-left, creating refined shadows. Luxury fashion e-commerce aesthetic. Cool-neutral colour temperature (5800K). The marble texture should be visible but secondary to the garment",
-      vintage: "a warm vintage aesthetic with aged cream-coloured paper or linen texture. Muted earth tones in the background. Soft, warm tungsten-style lighting (3200K) with gentle vignetting at edges. Film-photography feel with slight warmth",
-      concrete: "a minimalist raw concrete surface with subtle aggregate texture. Industrial-chic aesthetic. Cool even lighting (6000K) with soft shadows. The concrete should have a slightly polished finish, not rough",
-      linen: "a soft natural Belgian linen fabric surface with gentle organic folds. Warm side-lighting from camera-left creating soft shadows in the fabric creases. Warm neutral colour temperature. Organic, tactile, lifestyle feel",
-      summer: "a bright, sun-drenched Mediterranean beach scene with soft golden sand and a softly blurred turquoise ocean in the background (f/2.0 bokeh). Summer golden-hour light with warm lens flare. Fresh, aspirational, holiday vibes",
-      autumn: "a warm autumnal setting with scattered golden and amber fallen leaves. Rich warm tones (burnt orange, deep red, golden yellow). Soft diffused overcast lighting with warm colour temperature. Cozy, seasonal atmosphere",
-      winter: "a cool-toned Scandinavian winter scene with soft frost textures, clean crisp whites, and icy blue undertones. Bright, clear winter light (6500K). Fresh and clean with subtle sparkle in the frost",
-      bedroom: "a stylish modern Scandi-minimal bedroom with a neatly made bed in neutral linen tones. Soft ambient window light with gentle shadows. Warm, inviting, aspirational lifestyle setting",
-      cafe: "a cozy artisan coffee shop corner with warm reclaimed wood tones, exposed brick, and soft tungsten pendant lighting creating warm bokeh points. Lifestyle editorial feel with shallow depth of field",
+      // Legacy values for backward compat
+      studio: "a professional photography studio with two softboxes creating soft, even lighting and a subtle grey-to-white gradient backdrop",
+      wooden_floor: "a warm honey-toned European oak wooden floor surface with soft natural side-lighting from a large window",
+      outdoor: "a bright outdoor setting with beautifully blurred green foliage bokeh (f/2.8). Golden-hour natural daylight",
+      marble: "an elegant white Carrara marble surface with subtle grey veining and soft directional lighting",
+      vintage: "a warm vintage aesthetic with aged cream-coloured paper or linen texture. Muted earth tones, warm tungsten-style lighting",
+      concrete: "a minimalist raw concrete surface with subtle aggregate texture. Industrial-chic aesthetic",
+      linen: "a soft natural Belgian linen fabric surface with gentle organic folds. Warm side-lighting from camera-left",
+      summer: "a bright sun-drenched Mediterranean beach scene with soft golden sand and softly blurred turquoise ocean (f/2.0 bokeh)",
+      autumn: "a warm autumnal setting with scattered golden and amber fallen leaves. Rich warm tones",
+      winter: "a cool-toned Scandinavian winter scene with soft frost textures and icy blue undertones",
+      bedroom: "a stylish modern Scandi-minimal bedroom with a neatly made bed in neutral linen tones and soft ambient window light",
+      cafe: "a cozy artisan coffee shop corner with warm reclaimed wood tones and soft tungsten pendant lighting",
+      // New enhanced values
+      studio_white: "a professional photography studio with a pure white seamless paper sweep backdrop, illuminated with two large softboxes from 45° camera-left and camera-right creating perfectly even, shadowless lighting. The background transitions smoothly from white at the top to barely-off-white at the floor. Professional e-commerce quality — think ASOS or Net-a-Porter",
+      studio_grey: "a smooth mid-grey gradient studio backdrop, transitioning from charcoal at the outer edges to lighter grey at the centre. Professional three-point lighting: key light camera-left, fill camera-right, rim light from above-behind creating a subtle halo effect on the garment. Dramatic but refined — editorial fashion quality",
+      marble_luxury: "an elegant white Carrara marble surface with delicate grey and gold veining. Soft overhead lighting with a single key light camera-left creating refined directional shadows. The marble veining is visible but secondary to the garment. Luxury fashion e-commerce aesthetic — think Bottega Veneta or The Row campaign",
+      linen_flat: "a soft natural Belgian linen fabric surface with gentle organic weave texture and subtle warm-toned creases. Warm side-lighting from camera-left creating soft shadow in the linen fibres. Warm neutral colour temperature (4000K). Organic, tactile, artisan lifestyle feel — think Kinfolk magazine",
+      living_room_sofa: "a beautifully styled contemporary living room — a neutral stone-coloured sofa visible in soft focus behind the garment, a healthy monstera plant catching afternoon light, and warm blonde oak wood flooring. Late afternoon golden hour sunlight streaming through unseen windows from camera-right. Aspirational but achievable home lifestyle setting",
+      bedroom_mirror: "a stylish bedroom with a full-length standing mirror against a neutral wall. Soft morning light from a large window (camera-left) creates a warm, flattering glow. The bed with crisp white linen is softly visible in the mirror reflection. Aspirational, morning-routine lifestyle feel",
+      kitchen_counter: "a beautiful kitchen counter scene — white marble countertop, a French press coffee, a croissant, fresh flowers in a small vase. Soft, bright Sunday morning window light. Clean and aspirational — brunch aesthetic. The kind of kitchen you'd see in an interior design magazine",
+      dressing_room: "a stylish personal dressing room with a clothing rail of curated garments visible softly in the background, a full-length mirror, and warm Edison bulb lighting from above. Aspirational 'walk-in wardrobe' energy. Warm, golden-toned ambient light",
+      reading_nook: "a cozy reading nook — a plush armchair in warm-toned fabric, floor-to-ceiling bookshelves softly visible in the background, a floor lamp casting warm amber light. Late evening atmosphere with soft pools of warm tungsten light (3000K). Hygge aesthetic",
+      bathroom_shelf: "a clean, minimal bathroom shelf setting — white subway tiles with thin grey grout, a vanity light strip creating flattering even illumination. Small green plant, clean glass bottles on the shelf. Bright, clean, spa-like atmosphere. 5000K daylight colour temperature",
+      golden_hour_park: "a beautiful park setting captured at golden hour (last 30 minutes before sunset). Lush green foliage in the background rendered as creamy circular bokeh (f/2.0 equivalent). Warm amber-gold rim light from camera-right kissing the garment edges. Long soft shadows. The most flattering light in nature",
+      city_street: "a contemporary urban street — blurred city architecture and pedestrian life in the background (f/2.0 bokeh depth of field). Natural overcast daylight (the best street photography light — even, shadow-free). Authentic street-style editorial feel — think Dover Street Market lookbook",
+      beach_summer: "a bright summer beach setting — soft, sun-bleached golden sand surface. Turquoise and cerulean ocean visible as beautiful soft bokeh in the far background. Bright, direct summer sunlight slightly diffused by thin cloud creating flattering even beach light. Fresh, aspirational, holiday lifestyle",
+      brick_wall: "an exposed red-brown brick wall backdrop with authentic texture, character, and patina. Warm directional tungsten-style accent lighting from camera-left creating dramatic shadows in the brick mortar lines. Industrial-chic editorial — think Dazed & Confused or i-D magazine shoot",
+      autumn_leaves: "a rich autumnal outdoor setting — scattered golden, amber, and russet fallen oak leaves covering the ground surface. Warm ambient light (overcast autumn sky creating soft, shadow-free, evenly diffused illumination). The colour palette is warm: ochre, burnt orange, deep red, golden yellow. Cozy seasonal atmosphere",
+      christmas_market: "a magical winter market evening setting — strings of warm fairy lights rendered as beautiful golden bokeh (f/1.8 equivalent) filling the background with romantic light points. Cold, crisp air atmosphere. Softly blurred market stalls and wooden huts in the far background. Festive, enchanting, winter lifestyle",
     };
 
-    return `You are an editorial fashion photographer creating lifestyle product imagery. Take this clothing item and place it naturally into the following scene: ${styles[style] || styles.studio}.
+    return `You are an editorial fashion photographer creating lifestyle product imagery. Take this clothing item and place it naturally into the following scene: ${styles[style] || styles.studio_white}.
 
 DEPTH OF FIELD: The garment must be tack-sharp with the background showing natural photographic bokeh (as if shot at f/2.8 on a 50mm lens). The transition from sharp garment to blurred background should be smooth and natural.
 
@@ -102,6 +120,11 @@ ${QUALITY_MANDATE}`;
       urban: "urban street setting with blurred architectural elements and city life in the background (f/2.0 bokeh). Natural daylight with a mix of sun and shade. Authentic street-style feel",
       park: "outdoor park setting with soft green foliage bokeh. Golden-hour lighting (last hour before sunset) creating warm rim light and long gentle shadows",
       brick: "exposed red-brown brick wall backdrop with character and texture. Warm tungsten-style accent lighting. Industrial-chic with editorial feel",
+      living_room: "beautifully styled living room — neutral stone sofa, monstera plant, afternoon golden light streaming through windows. Aspirational home lifestyle setting",
+      city_street: "contemporary urban street with blurred architecture and pedestrians (f/2.0 bokeh). Overcast natural daylight creating even, shadow-free illumination",
+      golden_park: "park at golden hour — lush green foliage as creamy circular bokeh, warm amber rim light, long soft shadows",
+      beach: "summer beach — soft-focus turquoise ocean bokeh in background, bright summer sunlight",
+      dressing_room: "personal dressing room with clothing rail, full-length mirror, warm Edison bulb lighting. Aspirational walk-in wardrobe energy",
     };
 
     const garmentCtx = p?.garment_context ? `\n\nGARMENT IDENTITY (CRITICAL — READ BEFORE GENERATING): The garment is: ${p.garment_context}. Generate this EXACT garment type. If it says "crewneck sweatshirt", the model MUST wear a crewneck sweatshirt with a round neckline and NO hood. If it says "t-shirt", it must be a t-shirt. DO NOT substitute with any other garment type. DO NOT add a hood. DO NOT change the neckline.\n` : "";
@@ -162,15 +185,35 @@ ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`,
 
   flatlay_style: (p) => {
-    const style = p?.flatlay_style || "minimal";
+    const style = p?.flatlay_style || "minimal_white";
     const styles: Record<string, string> = {
-      minimal: "Clean minimal flat-lay styling. Neatly arrange the garment with intentional, clean folds showing the garment's best features. Pure white or very light grey background. Subtle natural drop shadow beneath. No props — let the garment speak. Shot from directly overhead with even, diffused lighting",
-      styled: "Styled editorial flat-lay with carefully curated complementary accessories — add tasteful items like designer sunglasses, a leather watch, quality shoes, or a structured bag arranged with intentional spacing following the golden ratio. Maintain generous breathing room. Soft natural shadows. Light neutral background. Magazine-quality styling",
-      seasonal: "Seasonal themed flat-lay with contextual natural elements. For spring: fresh flowers and green sprigs. Summer: shells, sand texture, dried citrus. Autumn: scattered golden leaves and warm-toned berries. Winter: pine sprigs, knit textures, and warm wood elements. The garment remains the hero — seasonal elements frame it. Warm, inviting composition with professional overhead lighting",
+      minimal_white: "Clean minimal flat-lay styling. Neatly arrange the garment with intentional, clean folds showing the garment's best features. Pure white background (#FFFFFF). Subtle natural drop shadow beneath. No props — let the garment speak. Shot from directly overhead with even, perfectly diffused softbox lighting. Professional e-commerce quality.",
+      styled_accessories: "Styled editorial flat-lay with carefully curated complementary accessories — add tasteful items like designer sunglasses, a leather watch strap, quality leather wallet, or a structured belt arranged with intentional spacing following the golden ratio. Maintain generous breathing room around the garment. Soft natural shadows. Light neutral linen or white background. Magazine-quality styling — think Monocle or Kinfolk.",
+      seasonal_props: "Seasonal themed flat-lay with contextual natural elements. For spring/summer: fresh flowers, green eucalyptus sprigs, and dried citrus slices. Autumn: scattered golden oak leaves, acorns, and warm-toned dried botanicals. The garment remains the clear hero — seasonal elements frame it with restraint. Warm, inviting overhead composition with soft diffused lighting.",
+      denim_denim: "Flat-lay on a rich indigo denim fabric background — the texture of the denim surface creates a complementary backdrop that contrasts beautifully with the garment. Shot from directly overhead with even lighting that shows both the garment detail and the textured denim surface beneath. Fashion-editorial overhead perspective.",
+      wood_grain: "Flat-lay on a warm honey-toned oak wood surface photographed directly from above. The wood grain creates natural texture and warmth in the composition. Even, diffused overhead lighting with soft shadows showing the garment's three-dimensional structure. Clean, lifestyle product photography — think Sunday morning market aesthetic.",
     };
-    return `Create a professional overhead flat-lay product photo. ${styles[style] || styles.minimal}
+    return `Create a professional overhead flat-lay product photo. ${styles[style] || styles.minimal_white}
 
 Straighten and neaten the garment layout so it looks professionally styled — no accidental creases or messy folds. Every fold should be intentional. Even, diffused overhead lighting with no harsh shadows. Professional product photography for e-commerce and social media.
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`;
+  },
+
+  selfie_shot: (p) => {
+    const scene = p?.selfie_scene || "mirror_selfie_bedroom";
+    const scenes: Record<string, string> = {
+      mirror_selfie_bedroom: `A casual bedroom mirror selfie taken on a smartphone. The background is a real, lived-in bedroom — a neatly made bed with neutral linen bedding, a houseplant, some items on a side table. Natural morning window light from camera-left. The phone is visible at the top of the frame at a natural arm's length angle, as if the person is actually taking the selfie. Slightly imperfect framing — not perfectly centred. The overall vibe is authentic, aspirational, and real. Shot at f/2.2 equivalent with natural phone bokeh on a modern iPhone/Samsung camera.`,
+      mirror_selfie_bathroom: `A bathroom mirror selfie. Clean white subway tiles, a vanity light strip above the mirror creating flattering even illumination. The phone visible in the reflection at mid-chest height. Clean, honest, relatable. Background slightly blurred as per phone camera behaviour. A few toiletries on the shelf add authenticity. Daylight bulbs (5000K), bright and clear.`,
+      fitting_room: `A retail fitting room photo. A curtained fitting room cubicle, warm overhead LED lighting. Shot from slightly below shoulder height, as if self-photographed. Curtain slightly open behind. The kind of photo you'd see on a real Vinted listing — honest, direct, well-lit. The garment is the clear focus.`,
+      hand_held_outside: `An outdoor candid photo taken hand-held on a smartphone at arm's length. Natural daylight, slightly overcast (diffused light, no harsh shadows). A softly blurred street, park, or building in the background. The photo has the energy of a real person photographing their outfit — direct camera angle, authentic framing. Shot equivalent to f/1.8 on a modern smartphone, background softly defocused.`,
+    };
+    return `You are simulating a photorealistic smartphone photograph. Create an image that is completely indistinguishable from a real photo taken by a real person — NOT a rendered or AI-generated image. The key is authentic imperfection: real lighting variation, natural depth of field from a phone camera, genuine environment with lived-in details.
+
+Scene: ${scenes[scene] || scenes.mirror_selfie_bedroom}
+
+PHOTOREALISM MANDATE: This image must pass as a real photograph. No AI rendering artefacts. No perfect symmetry. No studio-clean lighting. Real environments, real lighting physics, real phone camera characteristics (slight lens distortion at edges, natural bokeh shape, authentic skin rendering).
 
 ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`;
@@ -208,15 +251,16 @@ const MODEL_MAP: Record<string, string> = {
   mannequin_shot: "google/gemini-3-pro-image-preview",
   ghost_mannequin: "google/gemini-2.5-flash-image",
   flatlay_style: "google/gemini-3-pro-image-preview",
+  selfie_shot: "google/gemini-3-pro-image-preview",
   enhance: "google/gemini-2.5-flash-image",
 };
 
 // Operations allowed per tier
 const TIER_OPERATIONS: Record<string, string[]> = {
-  free: ["remove_bg", "enhance", "flatlay_style"],
-  pro: ["remove_bg", "enhance", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style"],
-  business: ["remove_bg", "enhance", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style"],
-  scale: ["remove_bg", "enhance", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style"],
+  free: ["remove_bg", "enhance"],
+  pro: ["remove_bg", "enhance", "smart_bg", "selfie_shot", "flatlay_style", "model_shot"],
+  business: ["remove_bg", "enhance", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
+  scale: ["remove_bg", "enhance", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
 };
 
 serve(async (req) => {

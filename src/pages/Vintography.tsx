@@ -9,12 +9,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
   Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock,
-  RefreshCw, Coins, Package, Info, X, Plus, Check,
+  RefreshCw, Coins, Package, Info, X, Plus, Check, Layers, Smartphone,
 } from "lucide-react";
 
 import { CreditBar } from "@/components/vintography/CreditBar";
@@ -25,6 +26,22 @@ import { ModelPicker } from "@/components/vintography/ModelPicker";
 import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
 
 type Operation = "clean_bg" | "lifestyle_bg" | "virtual_model" | "enhance";
+type PhotorealisticTab = "selfie" | "ai_model" | "flatlay";
+
+const SELFIE_SCENES = [
+  { value: "mirror_selfie_bedroom", label: "Bedroom Mirror", desc: "Natural morning light, lived-in room", emoji: "🛏️" },
+  { value: "mirror_selfie_bathroom", label: "Bathroom Mirror", desc: "Vanity light, clean white tiles", emoji: "🚿" },
+  { value: "fitting_room", label: "Fitting Room", desc: "Retail curtained cubicle, well-lit", emoji: "🧵" },
+  { value: "hand_held_outside", label: "Outdoor Hand-held", desc: "Daylight, arm's length, candid", emoji: "🌤️" },
+];
+
+const FLATLAY_STYLES = [
+  { value: "minimal_white", label: "Clean White", desc: "No props, pure product focus" },
+  { value: "styled_accessories", label: "With Accessories", desc: "Sunglasses, watch, wallet" },
+  { value: "seasonal_props", label: "Seasonal Styled", desc: "Flowers, leaves, botanicals" },
+  { value: "denim_denim", label: "Denim Surface", desc: "Indigo denim texture below" },
+  { value: "wood_grain", label: "Wood Surface", desc: "Warm oak overhead shot" },
+];
 
 const OPERATIONS: {
   id: Operation;
@@ -36,26 +53,26 @@ const OPERATIONS: {
   afterGradient: string;
 }[] = [
   {
-    id: "clean_bg", icon: ImageOff, label: "Clean Background", desc: "White or solid background",
-    detail: "Removes any background and replaces with pure white — perfect for Vinted listings",
+    id: "clean_bg", icon: ImageOff, label: "Clean Background", desc: "Pure white — Vinted's favourite",
+    detail: "Removes any background and replaces with pure white — the standard for Vinted listings",
     beforeGradient: "from-amber-200/60 via-stone-300/40 to-emerald-200/50",
     afterGradient: "from-white to-white",
   },
   {
-    id: "lifestyle_bg", icon: Paintbrush, label: "Lifestyle", desc: "AI scene placement",
-    detail: "Places your garment in a beautiful styled scene with matched lighting and shadows",
+    id: "lifestyle_bg", icon: Paintbrush, label: "Lifestyle Scenes", desc: "Place in a styled environment",
+    detail: "Places your garment in a beautiful styled scene — living room, golden park, marble studio and more",
     beforeGradient: "from-white to-gray-100",
     afterGradient: "from-amber-100/80 via-orange-50 to-yellow-50",
   },
   {
-    id: "virtual_model", icon: UserIcon, label: "AI Model Concept", desc: "AI-generated model shot",
-    detail: "AI-generated model wearing your style of garment. Exact details like logos may differ.",
+    id: "virtual_model", icon: UserIcon, label: "Photorealistic", desc: "Model, selfie & flat-lay styles",
+    detail: "Choose from selfie-style real-life shots, AI model concepts, or professional flat-lay photography",
     beforeGradient: "from-gray-200 to-gray-100",
     afterGradient: "from-rose-100/60 via-pink-50 to-purple-50/40",
   },
   {
-    id: "enhance", icon: Sparkles, label: "Enhance", desc: "Fix lighting & clarity",
-    detail: "Professional-grade colour correction, sharpening, and lighting improvement",
+    id: "enhance", icon: Sparkles, label: "Enhance", desc: "Pro retouch, lighting & sharpness",
+    detail: "Pro retouch — fix lighting, sharpen details, boost colours to professional e-commerce standard",
     beforeGradient: "from-gray-300/80 to-gray-200/60",
     afterGradient: "from-sky-100/50 via-blue-50/30 to-indigo-50/20",
   },
@@ -83,12 +100,16 @@ export default function Vintography() {
   const [processingStep, setProcessingStep] = useState<ProcessingStep>(null);
 
   // Lifestyle BG params
-  const [bgStyle, setBgStyle] = useState("studio");
+  const [bgStyle, setBgStyle] = useState("studio_white");
   // Virtual model params
   const [modelGender, setModelGender] = useState("female");
   const [modelPose, setModelPose] = useState("standing_front");
   const [modelLook, setModelLook] = useState("classic");
   const [modelBg, setModelBg] = useState("studio");
+  // Photorealistic sub-mode
+  const [photoTab, setPhotoTab] = useState<PhotorealisticTab>("selfie");
+  const [selfieScene, setSelfieScene] = useState("mirror_selfie_bedroom");
+  const [flatlayStyle, setFlatlayStyle] = useState("minimal_white");
 
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
@@ -287,10 +308,26 @@ export default function Vintography() {
     const params: Record<string, string> = {};
     if (selectedOp === "lifestyle_bg") params.bg_style = bgStyle;
     if (selectedOp === "virtual_model") {
-      params.gender = modelGender; params.pose = modelPose;
-      params.model_look = modelLook; params.model_bg = modelBg;
+      if (photoTab === "selfie") {
+        params.selfie_scene = selfieScene;
+      } else if (photoTab === "flatlay") {
+        params.flatlay_style = flatlayStyle;
+      } else {
+        params.gender = modelGender; params.pose = modelPose;
+        params.model_look = modelLook; params.model_bg = modelBg;
+      }
     }
     return params;
+  };
+
+  // Resolve actual edge function operation based on sub-mode
+  const getOperation = (): string => {
+    if (selectedOp === "virtual_model") {
+      if (photoTab === "selfie") return "selfie_shot";
+      if (photoTab === "flatlay") return "flatlay_style";
+      return "model_shot";
+    }
+    return OP_MAP[selectedOp];
   };
 
   const handleProcess = async () => {
@@ -303,7 +340,7 @@ export default function Vintography() {
       setTimeout(() => setProcessingStep("generating"), 3000);
       setTimeout(() => setProcessingStep("finalising"), 7000);
 
-      const result = await processImage(originalUrl, OP_MAP[selectedOp], getParams());
+      const result = await processImage(originalUrl, getOperation(), getParams());
       if (result) {
         setProcessedUrl(result);
         setSavedToItem(false); // reset save state for new result
@@ -347,7 +384,7 @@ export default function Vintography() {
       setActiveBatchIndex(i); setOriginalUrl(url); setProcessedUrl(null);
       setProcessingStep("analysing");
       try {
-        const result = await processImage(url, OP_MAP[selectedOp], getParams());
+        const result = await processImage(url, getOperation(), getParams());
         setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, processedUrl: result, status: result ? "done" : "error" } : it));
         if (result) { setProcessedUrl(result); doneCount++; }
       } catch {
@@ -547,8 +584,8 @@ export default function Vintography() {
                             <Coins className="w-2 h-2 mr-0.5" />1
                           </Badge>
                           {op.id === "virtual_model" && (
-                            <Badge variant="outline" className="text-[7px] px-1 py-0 text-warning border-warning/40">
-                              AI concept
+                            <Badge variant="outline" className="text-[7px] px-1 py-0 text-primary border-primary/40">
+                              New ✦
                             </Badge>
                           )}
                         </div>
@@ -605,11 +642,82 @@ export default function Vintography() {
                 )}
                 {selectedOp === "virtual_model" && (
                   <motion.div key="model_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                    <ModelPicker
-                      gender={modelGender} look={modelLook} pose={modelPose} bg={modelBg}
-                      onGenderChange={setModelGender} onLookChange={setModelLook}
-                      onPoseChange={setModelPose} onBgChange={setModelBg}
-                    />
+                    <Card className="p-4 space-y-3">
+                      {/* Sub-mode tab strip */}
+                      <Tabs value={photoTab} onValueChange={(v) => setPhotoTab(v as PhotorealisticTab)}>
+                        <TabsList className="w-full grid grid-cols-3">
+                          <TabsTrigger value="selfie" className="text-xs gap-1">
+                            <Smartphone className="w-3 h-3" /> Selfie Style
+                          </TabsTrigger>
+                          <TabsTrigger value="ai_model" className="text-xs gap-1">
+                            <UserIcon className="w-3 h-3" /> AI Model
+                          </TabsTrigger>
+                          <TabsTrigger value="flatlay" className="text-xs gap-1">
+                            <Layers className="w-3 h-3" /> Flat-Lay Pro
+                          </TabsTrigger>
+                        </TabsList>
+
+                        {/* Selfie Style */}
+                        <TabsContent value="selfie" className="mt-3">
+                          <p className="text-[10px] text-muted-foreground mb-2.5 leading-relaxed">
+                            Photorealistic phone-style photos — the kind real sellers take. Looks like an actual photo, not AI-generated.
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {SELFIE_SCENES.map((scene) => {
+                              const selected = selfieScene === scene.value;
+                              return (
+                                <motion.button
+                                  key={scene.value}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => setSelfieScene(scene.value)}
+                                  className={`flex flex-col items-start gap-1 rounded-xl p-3 border text-left transition-all ${
+                                    selected ? "border-primary ring-1 ring-primary/30 bg-primary/[0.04]" : "border-border hover:border-primary/20"
+                                  }`}
+                                >
+                                  <span className="text-xl">{scene.emoji}</span>
+                                  <span className={`text-[11px] font-semibold ${selected ? "text-primary" : "text-foreground"}`}>{scene.label}</span>
+                                  <span className="text-[9px] text-muted-foreground leading-tight">{scene.desc}</span>
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </TabsContent>
+
+                        {/* AI Model */}
+                        <TabsContent value="ai_model" className="mt-3">
+                          <ModelPicker
+                            gender={modelGender} look={modelLook} pose={modelPose} bg={modelBg}
+                            onGenderChange={setModelGender} onLookChange={setModelLook}
+                            onPoseChange={setModelPose} onBgChange={setModelBg}
+                          />
+                        </TabsContent>
+
+                        {/* Flat-Lay Pro */}
+                        <TabsContent value="flatlay" className="mt-3">
+                          <p className="text-[10px] text-muted-foreground mb-2.5 leading-relaxed">
+                            Professional overhead flat-lay photography. Great for showing garment shape and detail.
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {FLATLAY_STYLES.map((style) => {
+                              const selected = flatlayStyle === style.value;
+                              return (
+                                <motion.button
+                                  key={style.value}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => setFlatlayStyle(style.value)}
+                                  className={`flex flex-col items-start gap-0.5 rounded-xl p-3 border text-left transition-all ${
+                                    selected ? "border-primary ring-1 ring-primary/30 bg-primary/[0.04]" : "border-border hover:border-primary/20"
+                                  }`}
+                                >
+                                  <span className={`text-[11px] font-semibold ${selected ? "text-primary" : "text-foreground"}`}>{style.label}</span>
+                                  <span className="text-[9px] text-muted-foreground">{style.desc}</span>
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </Card>
                   </motion.div>
                 )}
               </AnimatePresence>
