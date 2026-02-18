@@ -286,6 +286,14 @@ export default function SellWizard() {
     }
   }, [currentStep]);
 
+  // ─── Set first-listing celebration flag when Pack step is reached ───
+  useEffect(() => {
+    if (currentStep === 5 && createdItem) {
+      // Only set on the very first wizard completion — flag is consumed by Dashboard once
+      localStorage.setItem("vintifi_first_listing_complete", "1");
+    }
+  }, [currentStep, createdItem]);
+
   // ─── Cleanup polling ───
   useEffect(() => {
     return () => {

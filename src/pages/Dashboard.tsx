@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,11 +6,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AppShellV2 } from "@/components/AppShellV2";
 import {
   Search, Loader2, Zap, Package, AlertTriangle,
-  ChevronRight, Sparkles, ImageIcon, ArrowDown, Rocket,
+  ChevronRight, Sparkles, ImageIcon, ArrowDown, Rocket, X,
 } from "lucide-react";
 
 type RecentItem = {
@@ -33,6 +33,8 @@ export default function Dashboard() {
   const [needsAttentionCount, setNeedsAttentionCount] = useState(0);
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const celebrationDismissed = useRef(false);
 
   useEffect(() => {
     if (!user) return;
@@ -43,10 +45,21 @@ export default function Dashboard() {
         supabase.from("listings").select("id, title, brand, image_url, status, updated_at, health_score, last_price_check_at, last_optimised_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(5),
       ]);
 
-      setActiveCount(activeRes.count || 0);
+      const count = activeRes.count || 0;
+      setActiveCount(count);
       setNeedsAttentionCount(needsAttRes.count || 0);
       setRecentItems((recentRes.data || []) as RecentItem[]);
       setLoaded(true);
+
+      // Check for first-listing celebration flag
+      if (
+        !celebrationDismissed.current &&
+        localStorage.getItem("vintifi_first_listing_complete") === "1"
+      ) {
+        localStorage.removeItem("vintifi_first_listing_complete");
+        // Small delay so the dashboard has painted first
+        setTimeout(() => setShowCelebration(true), 400);
+      }
     };
     fetchAll();
   }, [user]);
@@ -66,6 +79,48 @@ export default function Dashboard() {
           </h2>
           <p className="text-muted-foreground text-[10px] sm:text-sm">Your selling command centre</p>
         </motion.div>
+
+        {/* First-listing celebration banner */}
+        <AnimatePresence>
+          {showCelebration && (
+            <motion.div
+              initial={{ opacity: 0, y: -12, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative rounded-2xl bg-gradient-to-r from-primary/10 via-accent/10 to-success/10 border border-primary/20 p-3.5 sm:p-4 overflow-hidden"
+            >
+              {/* Subtle shimmer sweep */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer-sweep pointer-events-none" />
+              <div className="flex items-start gap-3 relative z-10">
+                <div className="text-2xl sm:text-3xl leading-none select-none">🎉</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display font-bold text-sm sm:text-base text-foreground leading-tight">
+                    First listing complete!
+                  </p>
+                  <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                    You're officially a data-driven seller. Price check &amp; AI optimisation done — you're ahead of the pack.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="mt-2 h-7 px-2.5 text-[11px] text-primary hover:bg-primary/10 -ml-1"
+                    onClick={() => { setShowCelebration(false); navigate("/listings"); }}
+                  >
+                    View my listing <ChevronRight className="w-3 h-3 ml-0.5" />
+                  </Button>
+                </div>
+                <button
+                  onClick={() => { setShowCelebration(false); celebrationDismissed.current = true; }}
+                  className="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-90"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Quick Price Check */}
         <Card className="gradient-border p-2.5 sm:p-6 border-primary/20">
