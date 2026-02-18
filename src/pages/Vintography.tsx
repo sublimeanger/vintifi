@@ -27,7 +27,7 @@ import { BatchStrip, type BatchItem } from "@/components/vintography/BatchStrip"
 import { ModelPicker } from "@/components/vintography/ModelPicker";
 import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
 
-type Operation = "clean_bg" | "lifestyle_bg" | "virtual_model" | "enhance";
+type Operation = "clean_bg" | "lifestyle_bg" | "virtual_model" | "enhance" | "decrease";
 type PhotorealisticTab = "ai_model" | "flatlay" | "mannequin";
 
 const MANNEQUIN_TYPES = [
@@ -100,6 +100,12 @@ const OPERATIONS: {
     beforeGradient: "from-gray-300/80 to-gray-200/60",
     afterGradient: "from-sky-100/50 via-blue-50/30 to-indigo-50/20",
   },
+  {
+    id: "decrease", icon: Wind, label: "Steam & Press", desc: "Remove all creases, instantly",
+    detail: "AI-powered crease removal — makes every garment look freshly steamed. No iron needed. Preserves fabric texture, logo, and colour perfectly.",
+    beforeGradient: "from-stone-300/60 via-stone-400/40 to-stone-300/60",
+    afterGradient: "from-background via-muted/30 to-background",
+  },
 ];
 
 const OP_MAP: Record<Operation, string> = {
@@ -107,6 +113,7 @@ const OP_MAP: Record<Operation, string> = {
   lifestyle_bg: "smart_bg",
   virtual_model: "model_shot",
   enhance: "enhance",
+  decrease: "decrease",
 };
 
 export default function Vintography() {
@@ -139,6 +146,9 @@ export default function Vintography() {
   // Mannequin params
   const [mannequinType, setMannequinType] = useState("headless");
   const [mannequinLighting, setMannequinLighting] = useState("soft_studio");
+
+  // Decrease (Steam & Press) params
+  const [decreaseIntensity, setDecreaseIntensity] = useState<"light" | "standard" | "deep">("standard");
 
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
@@ -329,6 +339,7 @@ export default function Vintography() {
   const getParams = (): Record<string, string> => {
     const params: Record<string, string> = {};
     if (selectedOp === "lifestyle_bg") params.bg_style = bgStyle;
+    if (selectedOp === "decrease") params.intensity = decreaseIntensity;
     if (selectedOp === "virtual_model") {
       if (photoTab === "flatlay") {
         params.flatlay_style = flatlayStyle;
@@ -361,6 +372,7 @@ export default function Vintography() {
   const getOperationLabel = (): string => {
     if (selectedOp === "clean_bg") return "Removing background...";
     if (selectedOp === "enhance") return "Enhancing photo...";
+    if (selectedOp === "decrease") return "Steaming & pressing garment...";
     if (selectedOp === "lifestyle_bg") return "Creating lifestyle scene...";
     if (selectedOp === "virtual_model") {
       if (photoTab === "flatlay") return "Creating flat-lay shot...";
@@ -375,7 +387,7 @@ export default function Vintography() {
 
   // Fast ops use flash model (~10-20s); slow ops use pro model (~40-70s)
   const isFlashOp = (): boolean => {
-    if (selectedOp === "clean_bg" || selectedOp === "enhance") return true;
+    if (selectedOp === "clean_bg" || selectedOp === "enhance" || selectedOp === "decrease") return true;
     if (selectedOp === "lifestyle_bg") return true;
     if (selectedOp === "virtual_model" && photoTab === "flatlay") return true;
     return false;
@@ -635,9 +647,9 @@ export default function Vintography() {
                   <BatchStrip items={batchItems} activeIndex={activeBatchIndex} onSelect={handleBatchSelect}
                     onRemove={handleBatchRemove} onDownloadAll={handleDownloadAll} />
 
-                  {/* 4 Operation Cards */}
+                  {/* 4 Operation Cards (2x2 grid — transformation tools) */}
                   <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                    {OPERATIONS.map((op) => {
+                    {OPERATIONS.filter(op => op.id !== "decrease").map((op) => {
                       const isSelected = selectedOp === op.id;
                       return (
                         <Card
@@ -692,6 +704,64 @@ export default function Vintography() {
                     })}
                   </div>
 
+                  {/* Steam & Press — full-width finishing tool card */}
+                  {(() => {
+                    const op = OPERATIONS.find(o => o.id === "decrease")!;
+                    const isSelected = selectedOp === "decrease";
+                    return (
+                      <Card
+                        onClick={() => setSelectedOp("decrease")}
+                        className={`p-3 lg:p-4 cursor-pointer transition-all active:scale-[0.97] ${
+                          isSelected
+                            ? "ring-2 ring-primary border-primary/30 bg-primary/[0.04]"
+                            : "hover:border-primary/20"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 lg:gap-4">
+                          {/* Wide before/after strip */}
+                          <div className="flex gap-1 items-center shrink-0 w-32 lg:w-44">
+                            <div
+                              className="flex-1 h-10 lg:h-12 rounded border border-border/50"
+                              style={{
+                                background: "repeating-linear-gradient(135deg, hsl(var(--muted)) 0px, hsl(var(--muted)) 2px, hsl(var(--muted-foreground) / 0.15) 2px, hsl(var(--muted-foreground) / 0.15) 6px, hsl(var(--muted)) 6px, hsl(var(--muted)) 10px, hsl(var(--muted-foreground) / 0.08) 10px, hsl(var(--muted-foreground) / 0.08) 12px)",
+                              }}
+                            />
+                            <ChevronRight className="w-2.5 h-2.5 lg:w-3 lg:h-3 text-muted-foreground/60 shrink-0" />
+                            <div className="flex-1 h-10 lg:h-12 rounded bg-gradient-to-br from-background via-muted/30 to-background border border-primary/20" />
+                          </div>
+
+                          {/* Label + detail */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <Wind className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary shrink-0" />
+                              <p className="font-semibold text-xs lg:text-sm leading-tight">{op.label}</p>
+                              <Badge variant="outline" className="text-[7px] lg:text-[9px] px-1 py-0 text-primary border-primary/40 shrink-0">
+                                New ✦
+                              </Badge>
+                            </div>
+                            <p className="text-[10px] lg:text-xs text-muted-foreground">{op.desc}</p>
+                            <AnimatePresence>
+                              {isSelected && (
+                                <motion.p
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: "auto" }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="text-[10px] lg:text-xs text-muted-foreground mt-1 leading-relaxed"
+                                >
+                                  {op.detail}
+                                </motion.p>
+                              )}
+                            </AnimatePresence>
+                          </div>
+
+                          <Badge variant="secondary" className="text-[8px] lg:text-[10px] px-1 py-0 shrink-0 self-start mt-0.5">
+                            <Coins className="w-2 h-2 lg:w-2.5 lg:h-2.5 mr-0.5" />1
+                          </Badge>
+                        </div>
+                      </Card>
+                    );
+                  })()}
+
                   {/* Garment description input */}
                   {(selectedOp === "virtual_model" || selectedOp === "lifestyle_bg") && (
                     <Card className="p-3 lg:p-4 space-y-2 lg:space-y-3">
@@ -717,6 +787,43 @@ export default function Vintography() {
 
                   {/* Operation-specific params */}
                   <AnimatePresence mode="wait">
+                    {selectedOp === "decrease" && (
+                      <motion.div key="decrease_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                        <Card className="p-4 lg:p-5 space-y-3 lg:space-y-4">
+                          <div className="flex items-center gap-2">
+                            <Wind className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
+                            <p className="text-sm lg:text-base font-semibold">Press Intensity</p>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 lg:gap-2.5">
+                            {([
+                              { value: "light", label: "Light Press", sub: "Sharp packing lines only" },
+                              { value: "standard", label: "Steam", sub: "All storage creases gone" },
+                              { value: "deep", label: "Deep Press", sub: "Showroom perfect" },
+                            ] as const).map((opt) => {
+                              const sel = decreaseIntensity === opt.value;
+                              return (
+                                <motion.button
+                                  key={opt.value}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => setDecreaseIntensity(opt.value)}
+                                  className={`flex flex-col items-center gap-1 lg:gap-1.5 rounded-xl p-2.5 lg:p-3.5 border text-center transition-all ${
+                                    sel ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30" : "border-border hover:border-primary/20 bg-background"
+                                  }`}
+                                >
+                                  <span className={`text-[11px] lg:text-xs font-semibold leading-tight ${sel ? "text-primary" : "text-foreground"}`}>{opt.label}</span>
+                                  <span className="text-[9px] lg:text-[10px] text-muted-foreground leading-tight">{opt.sub}</span>
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
+                            {decreaseIntensity === "light" && "Gentle only — removes sharp packing lines, preserves natural fabric drape."}
+                            {decreaseIntensity === "standard" && "All storage creases removed. Looks professionally steamed."}
+                            {decreaseIntensity === "deep" && "Brand new look. Immaculate — every wrinkle eliminated."}
+                          </p>
+                        </Card>
+                      </motion.div>
+                    )}
                     {selectedOp === "lifestyle_bg" && (
                       <motion.div key="bg_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
                         <BackgroundPicker value={bgStyle} onChange={setBgStyle} />
