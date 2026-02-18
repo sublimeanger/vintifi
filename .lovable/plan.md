@@ -1,292 +1,271 @@
 
+# AI Description Upgrades: Defect Disclosures + Hyper-Optimised Copy
 
-# Photo Studio — Complete Flow Redesign
+## The Core Problem: What's Missing Today
 
-## The Core Problem
+The AI currently generates descriptions with zero knowledge of item-specific defects, flaws, or special notes the seller wants to disclose. This creates two compounding failures:
 
-The current Photo Studio was designed around a single-photo workflow and then "batch" was bolted on. The result is incoherent for anyone with multiple listing photos. Let me map every flaw precisely:
+**Problem 1: Trust gap with buyers**
+Vinted has a strict buyer protection policy. If a garment arrives with a hole, a stain, or a pulled thread that wasn't mentioned, the buyer can claim a refund. Sellers who don't disclose defects create disputes and get bad reviews. The AI currently writes: "In very good condition — worn a handful of times and well looked after. No marks, no bobbling." If the item actually has a small stain on the sleeve, this description is actively harmful.
 
-**Flaw 1: Wrong mental model for linked items**
-When arriving from an item (`/vintography?itemId=xxx`), the code fetches ALL the item's photos and dumps them into the `BatchStrip`. The only available action then becomes "Process All X Photos" — forcing the same operation on every photo. A seller who has 4 photos — front, back, label, detail — might only want to:
-- Steam & Press the front (it's creased)
-- Clean background on the back (it's cluttered)
-- Leave the label photo untouched
-- Enhance the detail shot
+**Problem 2: Condition-description mismatch**
+The condition selector (new/very good/good/satisfactory) is a categorical grade. But the *description* says things like "No marks, no bobbling" regardless of what condition was selected. A seller might choose "Good" because there's a small bobble on the back, but the AI writes a description that implies perfect condition.
 
-None of this is possible today.
+**Problem 3: Incomplete data passed to the AI**
+The `runOptimise` call in SellWizard only passes: `currentTitle`, `currentDescription`, `brand`, `category`, `size`, `condition`, `colour`, `material`. It does NOT pass any seller notes, defects, photos from the listing (just metadata), or any of the seller's free-text description where they may have mentioned flaws.
 
-**Flaw 2: Batch Processing = wrong framing**
-The `BatchStrip` at the top of the left panel is designed for uploaded files queued for mass processing. It reads "Batch Queue — 0/3 done." This language and pattern implies all photos will get the same treatment. That is the wrong mental model for a seller managing their listing photos.
+**Problem 4: The prompt's condition section is generic**
+The current condition section of the prompt says:
+> "Condition (1-2 sentences): Be honest and specific. Example: 'In very good condition — worn a handful of times and well looked after. No marks, no bobbling, just a solid everyday piece.'"
 
-**Flaw 3: Save to Item adds instead of replaces**
-When you enhance a photo and click "Save to Item", the code does:
-```typescript
-const updatedImages = [...existingImages, newProcessedUrl];
-```
-It **appends** the processed photo. So now the listing has the original creased front AND the steamed front. The seller has to go back to the Photos tab and manually delete the old one. This is terrible UX.
-
-**Flaw 4: No per-photo edit state**
-There's one `originalUrl` and one `processedUrl`. If you process photo 1, then click photo 2 in the batch strip to process it, you lose the result for photo 1 (unless it's been saved). There's no persistent per-photo edit state.
-
-**Flaw 5: The wand icon (deep-link to studio from PhotosTab) ignores multi-photo context**
-When a user taps the wand on a specific thumbnail in the Photos tab, it navigates to `/vintography?itemId=xxx&image_url=yyy`. The `image_url` param loads just that one photo — but then the `itemId` effect ALSO runs and loads ALL photos into the batch strip. There's a race condition between these two `useEffect` hooks.
-
-**Flaw 6: After processing, "the operation applies to whatever is currently in originalUrl"**
-The batch strip "selecting" a photo just sets `originalUrl` without clearing context. The Generate button applies to whichever photo was most recently selected in the strip — not necessarily the one the user is looking at in the preview.
+The example is always clean. There's no branching: if condition is "satisfactory" or the seller notes there are defects, the example has no guidance for that. The AI defaults to positive language regardless.
 
 ---
 
-## The Right Mental Model
+## The Complete Solution
 
-The new model is an **image-by-image editing workspace** that's aware of the full listing photo set. The user sees their photos as a filmstrip, picks which one they want to work on, chooses an operation, processes it, then decides what to do with the result (replace the original, add as extra, download).
+Four interlocking changes across four areas:
 
-This means:
-- Photos are shown as an **editable filmstrip**, not a batch queue
-- Each photo can have its own edit state (original / edited / untouched)
-- Selecting a photo loads it into the editing workspace
-- Processing produces a result for THAT specific photo
-- "Save to Item" replaces that specific photo (with an option to keep original)
-- Some photos can stay untouched; others can have multiple edits tried
+1. **New `seller_notes` field** — a free-text "anything the buyer should know" box added to the wizard flow at the point of AI generation
+2. **Condition-aware prompt sections** — the AI prompt branches based on condition grade, with specific defect disclosure language for "Good" and "Satisfactory" conditions
+3. **Defect injection into the prompt** — seller notes are passed directly into the AI with hard constraints: if notes mention defects, they MUST appear in the description
+4. **Title optimisation refinements** — currently the title formula is underexploiting category-specific search patterns on Vinted, and the description structure needs better paragraph logic
 
 ---
 
-## Redesigned Components
+## What Changes and Where
 
-### 1. New `PhotoFilmstrip` component (replaces `BatchStrip`)
+### Change 1: Add `seller_notes` field to the SellWizard (Step 1 details form)
 
-Location: `src/components/vintography/PhotoFilmstrip.tsx`
+**File: `src/pages/SellWizard.tsx`**
 
-This component replaces the `BatchStrip` entirely and has a completely different mental model:
+Add `seller_notes: ""` to the `form` state object.
 
-```
-[ Photo 1 ]  [ Photo 2 ]  [ Photo 3 ]  [ Photo 4 ]  [ + Add ]
-  Primary      ✓ Edited      Active →    Untouched
-```
+In `renderDetailsForm()`, add a new textarea field below the Colour section, above the price fields. Position matters: it comes after the factual attributes and before the financial data. Label: **"Anything the buyer should know?"** — this is deliberately casual and open-ended, not "Defects" (which sounds alarming and discourages honest disclosure).
 
-Each thumbnail shows:
-- The current best version of that photo (processed if done, original if not)
-- A status indicator: `✓ Edited` (green dot), `Active` (primary ring + subtle pulse), `Untouched` (default)
-- A "Primary" badge on photo index 0
-- Photo index number in the corner
+The placeholder copy:
+> "e.g. Small bobble on the back, faded slightly on the left shoulder, tiny mark on the inside collar — these things happen with worn items. Leave blank if none."
 
-Key differences from `BatchStrip`:
-- No "Batch Queue" language anywhere
-- No "0/3 done" counter — this is not a queue, it's a photo gallery
-- Clicking a photo selects it for editing (makes it Active)
-- An `onAddPhoto` callback allows adding more photos to the listing directly from the strip (triggers file picker, uploads to listing)
-- When viewing from an item, shows an edit history pill below each photo: "2 edits" or "Steam + BG" as tiny badges
+Below the textarea, a micro-tip in muted text:
+> "Honest disclosures build trust with buyers and protect you from disputes. The AI will weave these naturally into the description."
 
-### 2. Per-photo edit state tracking
+This field saves into a new `source_meta` JSON key on the listing (`source_meta.seller_notes`) — no schema change needed since `source_meta` is already `JSONB` on the `listings` table.
 
-A `photoEditState` map in `Vintography.tsx` that tracks per-URL state:
+Update `createItem` / `executeSave` to include `source_meta: { seller_notes: form.seller_notes }` when saving.
+
+Update `runOptimise` to pass `seller_notes: form.seller_notes || createdItem?.source_meta?.seller_notes` to the edge function.
+
+**File: `src/components/NewItemWizard.tsx`**
+
+Add the same `seller_notes` field to the `WizardData` type and the details step. Same placement, same copy.
+
+### Change 2: Add `seller_notes` field to `ListingWizard.tsx`
+
+**File: `src/components/ListingWizard.tsx`**
+
+The ListingWizard is the on-page sheet for existing items. Its Step 1 ("Details") needs the same disclosure field. Read existing `source_meta.seller_notes` from the listing on load. Include in the optimise call.
+
+### Change 3: Rewire the edge function — `optimize-listing/index.ts`
+
+**File: `supabase/functions/optimize-listing/index.ts`**
+
+**A. Destructure `seller_notes` from body:**
 ```typescript
-type PhotoState = {
-  editedUrl: string | null;     // most recent processed result for this photo
-  savedToItem: boolean;          // whether it's been saved back
-  operationApplied: string | null; // which operation was last applied
-};
-
-const [photoEditStates, setPhotoEditStates] = useState<Record<string, PhotoState>>({});
+const { photoUrls, brand, category, size, condition, colour, material, currentTitle, currentDescription, vintedUrl, fetchOnly, detectColourOnly, seller_notes } = body;
 ```
 
-When `processImage` returns a result for the active photo, store it in `photoEditStates[activePhotoUrl]`. This means switching between photos doesn't lose your work — the edited version stays associated with its original.
+**B. Build a `DEFECT_SECTION` string:**
+```typescript
+const hasDefects = seller_notes && seller_notes.trim().length > 0;
+const DEFECT_SECTION = hasDefects
+  ? `
+SELLER DISCLOSURE (MANDATORY — MUST APPEAR IN DESCRIPTION):
+The seller has reported the following about this item:
+"${seller_notes.trim()}"
 
-### 3. Smart "Save to Item" — Replace vs. Add
+DEFECT RULES:
+- Every item mentioned in the seller disclosure MUST appear in the description
+- Do NOT soften, hide, omit, or euphemise any disclosed defect
+- Write disclosures honestly and casually — like a genuine seller would
+- Disclosures go in the Condition paragraph — naturally integrated, not as a list
+- Example: "There's a small bobble on the back and the collar's faded slightly on one side — nothing you'd notice when wearing it, but want to be upfront."
+- NEVER write "No marks" or "No flaws" or "Pristine" when defects have been disclosed
+`
+  : `No defects reported by seller. Write the condition section positively but honestly.`;
+```
 
-Currently saves always append. The new behaviour:
+**C. Restructure the condition guidance in the prompt to branch per grade:**
 
-When the user clicks "Save to Item", show a brief confirmation with two clear choices:
-- **Replace original** — swaps `image_url` (if primary) or replaces the specific URL in the `images` array with the edited version. The old creased/original photo is removed.
-- **Add alongside** — keeps original AND adds edited version (current behaviour, useful if they want both)
+Replace the current generic condition section with:
 
-Implementation: `updateLinkedItem` gets a `mode: "replace" | "add"` parameter. In `replace` mode, it finds the original URL in the listings table and substitutes it with the processed URL, rather than appending.
+```typescript
+const conditionGuidance = (() => {
+  const c = (condition || "").toLowerCase().replace(/[\s-]/g, "_");
+  if (c === "new_with_tags") return `CONDITION GRADE: New with tags
+Write: "Brand new, never worn, tags still attached." One sentence. No elaboration needed.
+${hasDefects ? "IMPORTANT: Seller has noted defects — mention these even for new items (manufacturing flaw, return item, etc.)" : ""}`;
+  if (c === "new_without_tags") return `CONDITION GRADE: New without tags
+Write: "Brand new condition, never worn — just doesn't have the tags."
+${hasDefects ? "IMPORTANT: Seller has noted defects — include them honestly." : ""}`;
+  if (c === "very_good") return `CONDITION GRADE: Very Good
+Write: Worn a small number of times (think: 1-5 wears). No notable flaws. Fabric in excellent shape.
+Typical language: "Really good condition — only worn a few times and always washed carefully."
+${hasDefects ? "IMPORTANT: Seller has noted defects below — these MUST be disclosed honestly. Do not contradict them by writing 'no flaws'." : "Do NOT say 'no marks, no bobbling' as a generic filler — only say this if it's genuinely applicable."}`;
+  if (c === "good") return `CONDITION GRADE: Good
+Write: Clearly used but well looked after. May have minor signs of wear — slight fading, light pilling, small marks — but nothing structural.
+Typical language: "Good condition — definitely been worn but looks after itself well. [specific minor issue if noted]"
+${hasDefects ? "IMPORTANT: Defects MUST be disclosed. This is a 'Good' item — buyers expect minor issues and will appreciate honesty." : "If no specific defects noted, say something like 'shows gentle signs of wear consistent with age.'"}`;
+  if (c === "satisfactory") return `CONDITION GRADE: Satisfactory
+IMPORTANT: This is the lowest Vinted condition grade. Buyers choosing this grade KNOW the item has visible wear.
+Write condition with full transparency. The description must be upfront — this protects the seller.
+Typical language: "Satisfactory condition — shows clear signs of use. [specific issues]. Still has plenty of life in it, priced accordingly."
+${hasDefects ? "CRITICAL: All disclosed defects MUST appear explicitly. Do NOT try to minimise or soften them." : "Even without specific defects noted, acknowledge the item shows wear commensurate with its condition grade."}`;
+  return `CONDITION GRADE: ${condition || "Not specified"}
+Be honest about condition. If defects are noted below, include them.`;
+})();
+```
 
-The default should be **Replace** — that's what 95% of sellers want. They don't want the creased version AND the pressed version. They want the pressed version instead.
+**D. Inject into the main prompt — restructure condition section:**
 
-### 4. Filmstrip appears at the top of the RIGHT panel (above preview), not the left panel
+Replace the current generic condition paragraph in the description instructions with:
 
-The current batch strip is in the LEFT panel (config side). This is wrong placement — the strip is about WHICH PHOTO you're working on, not WHAT OPERATION you're applying. Moving it to the top of the RIGHT panel (preview side) makes the mental model clear:
-- Left panel = "what do you want to do?" (operation + params)
-- Right panel = "which photo? here's the before/after"
+```
+${conditionGuidance}
 
-On mobile, the filmstrip is horizontal-scrollable above the ComparisonView card.
+${DEFECT_SECTION}
 
-### 5. Active photo shows both original and edited state at a glance
+Condition paragraph writing rules:
+- Write 2-3 sentences for the condition section
+- If seller_notes are provided, integrate them naturally (not as a list)
+- NEVER write "No marks, no flaws, pristine" when condition is Good or Satisfactory
+- If condition is New (either type), the condition sentence can be very short
+- If condition is Satisfactory, the description MUST acknowledge visible wear — this is legally and commercially the right thing to do
+```
 
-In the filmstrip, the active photo thumbnail shows a split diagonal preview (original on top-left triangle, edited on bottom-right triangle) if an edited version exists — exactly like the ComparisonView slider but as a tiny thumbnail signal.
+**E. Title formula improvements — what's currently underoptimised:**
 
-### 6. Upload Zone improvements when coming from an item
+The current formula: `[Brand] [Item Type] [Colour] [Size] [Condition Word]`
 
-Currently: if arriving with `itemId`, the upload zone is completely hidden (replaced by the editor with the batch strip). But what if the item has no photos yet? The user sees a confused state.
+This is good but misses some important Vinted-specific patterns. Improvements:
 
-New behaviour:
-- If `itemId` present AND item has photos → show filmstrip + editor (no upload zone)
-- If `itemId` present AND item has NO photos → show the upload zone with a note: "No photos yet — upload your first photo for [Item Title]"
-- The upload zone is also accessible FROM the filmstrip via the `+` button
+1. **Gender signal in title** — Vinted buyers often search "mens Nike hoodie" not "Nike hoodie mens". The AI should add M/W/Men's/Women's after the brand when category implies gender.
+2. **Condition word mapping** — the current prompt just says "end with a condition keyword" — no mapping. Add explicit mapping:
+   - new_with_tags → "New Tags"
+   - new_without_tags → "Brand New" 
+   - very_good → "Excellent Condition" (not "Very Good" — "Excellent" converts better on search)
+   - good → "Good Condition"
+   - satisfactory → "Good Used" (softer framing for search but honest in description)
+3. **Character budget awareness** — Vinted title limit is 80 chars (not 100 as currently stated). Update the formula.
+4. **No filler words** — ban: "stunning", "perfect", "beautiful" from titles
+
+Updated title section:
+```
+TITLE FORMULA (max 80 chars — Vinted's actual limit):
+Pattern: [Brand] [Gender if applicable] [Item Type] [Descriptor] [Colour if provided] [Size] [Condition Signal]
+
+CONDITION SIGNAL mapping (use these exact terms — they perform well in search):
+- new_with_tags → "BNWT" (Brand New With Tags — widely searched on Vinted)
+- new_without_tags → "Brand New"
+- very_good → "Excellent Condition" 
+- good → "Good Condition"
+- satisfactory → "Good Used"
+
+GENDER SIGNAL: Add "Mens" or "Womens" (no apostrophe — cleaner in titles) when:
+- Category is clearly gendered (e.g. Womenswear, Menswear, Men's shoes)
+- Brand is gender-neutral (Nike, Adidas, Carhartt, Stone Island) — always add gender
+- Skip for obviously gendered brands (ASOS Women's, Zara Women) to avoid redundancy
+```
+
+**F. Description structure improvements — two specific upgrades:**
+
+Currently the description always uses the same 5-part structure regardless of item type. Two upgrades:
+
+1. **Measurements prompt** — for items where size matters (jeans, shoes, coats), add a placeholder instruction: "If you know measurements, include them — pit-to-pit for tops, waist/inseam for jeans, UK size for shoes." Currently this is mentioned but the AI often skips it. Add a MUST: "If the category is Jeans, Trousers, or Shoes and a size is provided, always include the size in the description naturally."
+
+2. **Bundle nudge** — the current closing sentence sometimes says "Happy to answer any questions or bundle." This is good but generic. Improve: "If the item's price is £15 or under, add: 'Great for bundling — message me and I'll sort you a deal.' If over £15, skip the bundle nudge."
+
+**G. Output JSON schema — add `seller_notes_disclosed` field:**
+
+Add to the output:
+```json
+"seller_notes_disclosed": true/false  // confirms whether seller notes were woven in
+"condition_disclosure_added": "<what was written about condition in the description>"
+```
+
+This allows the frontend to verify the AI actually included the disclosures.
 
 ---
 
-## Data Flow Changes
+### Change 4: Frontend display of disclosures in SellWizard Step 3
 
-### New `useEffect` for item photos (fixes the race condition)
+**File: `src/pages/SellWizard.tsx`**
 
-The existing code has two competing `useEffect` hooks:
-1. One watches `searchParams` for `image_url` param
-2. One watches `itemId` to load all photos
+After `optimiseResult` loads (in `renderStep3`), if `seller_notes` was provided, add a small "Disclosure check" indicator below the description preview:
 
-They both call `setOriginalUrl()` and can race each other. Fix: combine into a single effect that checks `image_url` param first (deep link to specific photo wins), then falls back to loading the full item photo set.
-
-```typescript
-useEffect(() => {
-  const imageUrl = searchParams.get("image_url");
-  const itemId = searchParams.get("itemId");
-  
-  if (!user) return;
-  
-  if (imageUrl) {
-    // Deep-linked to specific photo — load just this one
-    // But still fetch item's other photos for the filmstrip
-    setActivePhotoUrl(imageUrl);
-    if (itemId) fetchItemPhotos(itemId, imageUrl); // loads filmstrip but keeps imageUrl as active
-  } else if (itemId) {
-    // Load item photos, set first as active
-    fetchItemPhotos(itemId, null);
-  }
-}, [searchParams, user]);
+```
+✓ Your item notes were included in the description
 ```
 
-### `handleProcess` changes
+This reassures the seller that their disclosed flaws made it into the copy — they don't have to manually read the whole description hunting for the mention.
 
-Instead of calling `processImage(originalUrl, ...)`, it now calls `processImage(activePhotoUrl, ...)` and on result:
+If `seller_notes` was provided but the AI somehow failed to include the disclosure (detectable by `seller_notes_disclosed: false` in the response), show a warning:
 
-```typescript
-const result = await processImage(activePhotoUrl, getOperation(), getParams());
-if (result) {
-  // Store in per-photo state
-  setPhotoEditStates(prev => ({
-    ...prev,
-    [activePhotoUrl]: {
-      editedUrl: result,
-      savedToItem: false,
-      operationApplied: selectedOp,
-    }
-  }));
-  setProcessedUrl(result); // Still drives the ComparisonView
-}
 ```
-
-### `handleSaveToItem` — replace mode
-
-```typescript
-const handleSaveToItem = async (mode: "replace" | "add") => {
-  if (!processedUrl || !itemId || !activePhotoUrl) return;
-  
-  if (mode === "replace") {
-    // Find and replace the specific URL in the listing record
-    await replaceListingPhoto(itemId, activePhotoUrl, processedUrl);
-    // Update the filmstrip — show the edited version in the thumbnail
-    setItemPhotos(prev => prev.map(u => u === activePhotoUrl ? processedUrl : u));
-    setActivePhotoUrl(processedUrl); // Now working on the edited version
-  } else {
-    await updateLinkedItem(processedUrl); // existing append behaviour
-  }
-  
-  setPhotoEditStates(prev => ({
-    ...prev,
-    [activePhotoUrl]: { ...prev[activePhotoUrl], savedToItem: true }
-  }));
-};
-```
-
-`replaceListingPhoto` function:
-```typescript
-const replaceListingPhoto = async (itemId: string, oldUrl: string, newUrl: string) => {
-  const { data } = await supabase.from("listings")
-    .select("image_url, images").eq("id", itemId).eq("user_id", user.id).maybeSingle();
-  
-  const isImageUrl = data?.image_url === oldUrl;
-  const rawImages = Array.isArray(data?.images) ? data.images as string[] : [];
-  const newImages = rawImages.map(u => u === oldUrl ? newUrl : u);
-  
-  await supabase.from("listings").update({
-    image_url: isImageUrl ? newUrl : data?.image_url,
-    images: newImages,
-    last_photo_edit_at: new Date().toISOString(),
-  }).eq("id", itemId).eq("user_id", user.id);
-};
+⚠ We couldn't confirm your notes were included — please review the description before saving.
 ```
 
 ---
 
-## UI Layout Summary
+## Data Flow: End-to-End
 
-### Desktop (lg:grid-cols-[440px_1fr])
+```text
+SellWizard Step 1
+└── seller_notes field added to form
+└── saved to listings.source_meta.seller_notes on createItem()
 
-**LEFT PANEL** (unchanged purpose — configuration):
-- Operation cards (2x2 grid + Steam & Press full-width)
-- Operation-specific params (background picker, mannequin options, etc.)
-- Generate button (pinned at bottom)
+SellWizard Step 3 (Optimise)
+└── runOptimise() passes seller_notes to edge function
+└── Edge function builds condition-aware prompt + DEFECT_SECTION
+└── AI returns description WITH disclosures integrated
+└── Frontend shows disclosure confirmation badge
 
-**RIGHT PANEL** (preview + photo management):
-- **[NEW] PhotoFilmstrip** — horizontal scroll, all listing photos, active indicator, edit status badges, `+` button to add photos
-- **ComparisonView** — before/after of the active photo
-- **Action row** — Replace Original (primary, green), Add Alongside (secondary outline), Download, Try Again
-- **Next Steps card** (existing — unchanged)
-
-### Mobile
-
-- PhotoFilmstrip — horizontal scroll, full width
-- ComparisonView — full width
-- Operation cards (scrollable left panel collapses under a drawer or accordion on mobile)
-- Action buttons below preview
+VintedReadyPack (Step 5)
+└── Description with disclosures already embedded — seller copies as-is
+```
 
 ---
 
-## Files Changed
+## Changes Needed in `NewItemWizard.tsx` and `ListingWizard.tsx`
+
+Both need the same `seller_notes` field. The placement in all three flows:
+- After colour/material fields
+- Before the price fields
+- Clearly optional, with encouraging copy ("helps AI be accurate")
+
+For `ListingWizard.tsx`: on mount, read `source_meta?.seller_notes` from the existing item and pre-fill the field. Pass it through to `runOptimise`.
+
+---
+
+## Files Changed Summary
 
 | File | Change |
 |---|---|
-| `src/pages/Vintography.tsx` | Major refactor: unified effect, `photoEditStates` map, `activePhotoUrl` as primary state, `handleSaveToItem` with mode param, filmstrip placement in right panel, `replaceListingPhoto` function |
-| `src/components/vintography/PhotoFilmstrip.tsx` | **New file** — replaces `BatchStrip` with per-photo awareness, edit status badges, `+` add button, Primary label, active ring |
-| `src/components/vintography/BatchStrip.tsx` | Removed (or kept only for non-item batch upload scenarios as a fallback) |
-| `src/components/vintography/ComparisonView.tsx` | Minor: remove hardcoded "Enhanced" badge label — should reflect the actual operation name (e.g., "Steamed", "Background Removed") |
+| `src/pages/SellWizard.tsx` | Add `seller_notes` to form state; add field to `renderDetailsForm()`; pass to `runOptimise()`; show disclosure badge in Step 3 |
+| `src/components/NewItemWizard.tsx` | Add `seller_notes` to `WizardData`; add field to details step |
+| `src/components/ListingWizard.tsx` | Add `seller_notes` to state; read from `source_meta` on mount; add field in details step; pass to optimise call |
+| `supabase/functions/optimize-listing/index.ts` | Destructure `seller_notes`; build condition-aware `conditionGuidance`; build `DEFECT_SECTION`; update title formula (80 chars, condition signal map, gender signal); description structure improvements; add `seller_notes_disclosed` to output |
+
+No database schema changes needed — `source_meta` JSONB column already exists on `listings`.
 
 ---
 
-## What The New Flow Looks Like Step By Step
+## Why This Matters for Listing Quality
 
-**Scenario: Seller has 4 photos on a Nike jumper listing and wants to:**
-1. Steam & Press the front photo
-2. Clean background on the back photo
-3. Leave label and detail shots as-is
+The current AI can generate a description saying "Great condition — no marks, no bobbling" for an item the seller told us is "Good" condition because it has a small tear on the pocket. That's a problem on two levels:
 
-**Old flow:**
-→ Goes to Photo Studio from item
-→ Sees batch strip with 4 photos, "Process All 4 Photos" button
-→ Has to use the same operation for all
-→ Can't selectively process
-→ Processed photos get appended, not replaced
+1. It could lead to a Vinted dispute and a refund — costing the seller money and trust
+2. Buyers who receive undisclosed flaws leave bad reviews — damaging the seller's profile
 
-**New flow:**
-→ Goes to Photo Studio from item (or from wand icon on specific photo)
-→ Filmstrip shows all 4 photos at top of preview panel. Photo 1 is highlighted (Active).
-→ Selects "Steam & Press" operation, hits Generate
-→ ComparisonView shows before/after for photo 1
-→ Clicks "Replace Original" — photo 1 in the filmstrip updates to show the steamed version
-→ Clicks photo 2 in the filmstrip — it becomes Active in the ComparisonView
-→ Selects "Clean Background" operation, hits Generate
-→ Clicks "Replace Original" — photo 2 updates
-→ Photos 3 and 4 remain untouched (no action needed)
-→ "Next Steps" card shows "Your item has 4 photos — 2 enhanced" with "View Item" button
+The new system makes it structurally impossible for the AI to write "no flaws" when defects have been disclosed. The seller notes become a hard constraint, not optional context. This makes descriptions both more accurate AND more trustworthy to buyers — which actually converts better. Buyers respond well to honest descriptions because they eliminate uncertainty. "There's a tiny mark on the inside collar — you'd never see it when wearing it" is a better description than "Pristine condition" because it answers the buyer's question before they ask it.
 
-Total time to selectively process 2 of 4 photos: under 2 minutes. Previously: impossible without multiple trips back and forth.
-
----
-
-## Edge Cases
-
-- **Standalone upload (no itemId)**: PhotoFilmstrip is hidden. Only ComparisonView + single photo workflow. No change from today.
-- **Single photo on item**: Filmstrip shows 1 photo + the `+` add button. Still useful as a clear "you're editing THIS photo" indicator.
-- **Photo uploaded fresh from Studio (not from item)**: Goes into the existing standalone flow. The `+` button in filmstrip only appears when `itemId` is present.
-- **Saving with "Replace" when photo has been chained** (e.g., background removed, then steamed): the `activePhotoUrl` tracks the URL being worked on. If the seller saves the background-removed version first, `activePhotoUrl` becomes the new URL. Applying Steam & Press then works on the clean-background version, and Replace updates the listing correctly.
-
+The title optimisations (80-char limit, condition signal mapping, gender signal) are straightforward fixes that will meaningfully improve search ranking within Vinted's algorithm, which weights recent and well-structured titles.
