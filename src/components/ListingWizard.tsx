@@ -340,7 +340,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
       setOptimiseResult({
         optimised_title: data?.optimised_title || "",
         optimised_description: data?.optimised_description || "",
-        health_score: data?.health_score || 0,
+        health_score: typeof data?.health_score === "object" ? (data.health_score?.overall ?? 0) : (data?.health_score ?? 0),
       });
       setStepStatus((s) => ({ ...s, 3: "pending" }));
     } catch {
