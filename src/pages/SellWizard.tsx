@@ -198,7 +198,12 @@ export default function SellWizard() {
     optimised_title: string;
     optimised_description: string;
     health_score: number;
+    title_score?: number;
+    description_score?: number;
+    photo_score?: number;
+    completeness_score?: number;
   } | null>(null);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [optimiseLoading, setOptimiseLoading] = useState(false);
   const [optimiseSaved, setOptimiseSaved] = useState(false);
 
@@ -600,11 +605,18 @@ export default function SellWizard() {
         },
       });
       if (error) throw error;
+      const hs = data?.health_score;
+      const overall = typeof hs === "object" ? (hs?.overall ?? 0) : (hs ?? 0);
       setOptimiseResult({
         optimised_title: data?.optimised_title || "",
         optimised_description: data?.optimised_description || "",
-        health_score: typeof data?.health_score === "object" ? (data.health_score?.overall ?? 0) : (data?.health_score ?? 0),
+        health_score: overall,
+        title_score: typeof hs === "object" ? (hs?.title_score ?? undefined) : undefined,
+        description_score: typeof hs === "object" ? (hs?.description_score ?? undefined) : undefined,
+        photo_score: typeof hs === "object" ? (hs?.photo_score ?? undefined) : undefined,
+        completeness_score: typeof hs === "object" ? (hs?.completeness_score ?? undefined) : undefined,
       });
+      setDescExpanded(false);
     } catch {
       toast.error("Optimisation failed — try again");
     } finally {
@@ -1069,14 +1081,14 @@ export default function SellWizard() {
             {/* Score breakdown explanation */}
             <div className="grid grid-cols-4 gap-1 pt-1 border-t border-border/50">
               {[
-                { label: "Title", pts: 25 },
-                { label: "Description", pts: 25 },
-                { label: "Photos", pts: 25 },
-                { label: "Details", pts: 25 },
-              ].map(({ label, pts }) => (
+                { label: "Title", pts: optimiseResult.title_score ?? 25, max: 25 },
+                { label: "Desc", pts: optimiseResult.description_score ?? 25, max: 25 },
+                { label: "Photos", pts: optimiseResult.photo_score ?? "?", max: 25 },
+                { label: "Details", pts: optimiseResult.completeness_score ?? "?", max: 25 },
+              ].map(({ label, pts, max }) => (
                 <div key={label} className="text-center">
                   <p className="text-[9px] text-muted-foreground font-medium">{label}</p>
-                  <p className="text-[9px] font-bold text-foreground/70">{pts}pts</p>
+                  <p className={`text-[9px] font-bold ${typeof pts === "number" && pts < max ? "text-warning" : "text-success"}`}>{pts}/{max}</p>
                 </div>
               ))}
             </div>
@@ -1100,7 +1112,10 @@ export default function SellWizard() {
               <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Optimised Description</p>
               <CopyBtn text={optimiseResult.optimised_description} label="Description" />
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-5">{optimiseResult.optimised_description}</p>
+            <p className={`text-xs text-muted-foreground leading-relaxed ${descExpanded ? "" : "line-clamp-5"}`}>{optimiseResult.optimised_description}</p>
+            <button onClick={() => setDescExpanded(v => !v)} className="text-[10px] text-primary hover:underline mt-1">
+              {descExpanded ? "Show less" : "Read more"}
+            </button>
           </div>
 
           {!optimiseSaved ? (
