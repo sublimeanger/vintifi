@@ -18,6 +18,15 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.15 } },
 };
 
+const outcomeStats = [
+  { value: "< 30 sec", label: "Average time to price an item" },
+  { value: "100/100", label: "Max achievable Health Score" },
+  { value: "18", label: "Vinted markets covered" },
+  { value: "3 modes", label: "AI Model, Mannequin, Flat-Lay" },
+  { value: "40×", label: "Faster than manual research" },
+  { value: "£0", label: "Extra fees on top of Vinted" },
+];
+
 const features = [
   {
     icon: Zap,
@@ -27,8 +36,9 @@ const features = [
     headline: "Know exactly what your item is worth — in seconds",
     desc1: "Paste any Vinted listing URL and get an AI-powered pricing report in seconds. We analyse comparable sold and active listings across the marketplace, factoring in brand desirability, condition, seasonal demand, and market saturation.",
     desc2: "Get a recommended sell price with confidence scoring, price distribution data, average days-to-sell, and plain-English AI insights explaining the market dynamics behind every recommendation.",
-    stat: "Saves hours",
-    statLabel: "of manual price research per week",
+    callout: "Stop pricing by gut feel. Know your item's exact market value in seconds — including how long it takes to sell at different price points.",
+    stat: "40×",
+    statLabel: "faster than manual price research across Vinted",
     mockTitle: "Price Intelligence Report",
     mockContent: (
       <div className="space-y-3">
@@ -60,6 +70,7 @@ const features = [
     headline: "Add any item in seconds — just paste a URL",
     desc1: "Paste any Vinted listing URL and Vintifi imports the full item details: photos, title, brand, size, condition, and current price. No manual data entry. The item is ready to price-check and optimise immediately.",
     desc2: "Alternatively, upload your own photos and fill in minimal details. Our AI analyses images to auto-detect brand markers and suggest categories. The workflow adapts to however you prefer to work.",
+    callout: "No form-filling. No data entry. Paste the URL — your item is ready in seconds.",
     stat: "Seconds",
     statLabel: "to import a full item with all details",
     mockTitle: "Import Listing",
@@ -98,8 +109,9 @@ const features = [
     headline: "Listings that sell themselves — written by AI",
     desc1: "Upload your photos and provide minimal details. Our AI generates a complete, SEO-optimised listing engineered for Vinted's search algorithm — including a keyword-rich title, compelling description, and hashtag set ready to copy-paste.",
     desc2: "Every listing gets a Health Score out of 100 measuring title keywords, description quality, photo count, price competitiveness, and category accuracy. Items scoring below 60 get flagged with specific, actionable improvements.",
-    stat: "Minutes",
-    statLabel: "not hours — to create a perfect listing",
+    callout: "Your listing title is the first thing Vinted's search algorithm reads. An AI-optimised title means more buyers find your item, full stop.",
+    stat: "100/100",
+    statLabel: "maximum achievable Listing Health Score",
     mockTitle: "Listing Health Score",
     mockContent: (
       <div className="space-y-3">
@@ -133,6 +145,7 @@ const features = [
     headline: "Professional product photos — powered by AI",
     desc1: "Three shooting modes, one platform. AI Model places your garment on a photorealistic male or female model — choose Editorial, Natural Photo, or Street Style. Mannequin creates ghost, headless, or dress form effects. Flat-Lay Pro generates clean overhead compositions in 5 styles.",
     desc2: "16 background scenes, batch processing for multiple images at once, and a gallery to manage all your edits. Every enhanced photo is saved and can be applied to your listings with one tap. No studio. No equipment. No experience needed.",
+    callout: "Buyers scroll fast. Studio-quality photos stop the scroll. A professional product image is the single highest-impact change a Vinted seller can make.",
     stat: "3 modes",
     statLabel: "AI Model · Mannequin · Flat-Lay Pro",
     mockTitle: "Vintography Photo Studio",
@@ -153,15 +166,15 @@ const features = [
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg bg-muted/50 border border-border p-2 text-center">
             <div className="w-full h-14 rounded bg-muted flex items-center justify-center mb-1">
-              <span className="text-[10px] text-muted-foreground">Original</span>
+              <span className="text-[10px] text-muted-foreground">Phone snap</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">Phone snap</p>
+            <p className="text-[10px] text-muted-foreground">Before</p>
           </div>
           <div className="rounded-lg bg-success/5 border border-success/30 p-2 text-center">
             <div className="w-full h-14 rounded bg-gradient-to-br from-success/10 to-primary/10 flex items-center justify-center mb-1">
-              <span className="text-[10px] text-success font-medium">✨ Enhanced</span>
+              <span className="text-[10px] text-success font-medium">✨ Studio quality</span>
             </div>
-            <p className="text-[10px] text-success font-medium">Studio quality</p>
+            <p className="text-[10px] text-success font-medium">After</p>
           </div>
         </div>
       </div>
@@ -175,8 +188,9 @@ const features = [
     headline: "Catch trends before they peak — not after",
     desc1: "Our intelligence engine analyses search volumes, listing activity, and price movements across Vinted categories. The Trend Radar identifies brands, styles, and categories experiencing abnormal demand growth before they hit mainstream awareness.",
     desc2: "Get trend cards showing percentage increases, estimated remaining trend lifespan, sourcing suggestions, and current price trajectories. The Seasonal Demand Calendar shows exactly when to list specific categories for maximum impact. The Charity Sourcing Briefing tells you exactly what to look for on your next shop run.",
-    stat: "Early signals",
-    statLabel: "spot demand before competitors do",
+    callout: "By the time you notice a brand trending on social media, the Vinted market has already priced in the demand. Trend Radar gives you a head start.",
+    stat: "2–4 weeks",
+    statLabel: "ahead of competitors — spot demand before it peaks",
     mockTitle: "Trending Now",
     mockContent: (
       <div className="space-y-2 sm:space-y-2.5">
@@ -190,6 +204,9 @@ const features = [
             <span className="text-xs font-bold text-success">{t.change}</span>
           </div>
         ))}
+        <div className="rounded-lg bg-muted/40 p-2.5 text-xs text-muted-foreground">
+          ⏱ Updated daily · Based on real Vinted search volumes
+        </div>
       </div>
     ),
   },
@@ -201,26 +218,30 @@ const features = [
     headline: "Buy low elsewhere, sell high on Vinted",
     desc1: "Our cross-platform scanner identifies items listed significantly below their Vinted market value on eBay and other platforms. Every opportunity includes estimated profit after fees, shipping, and time costs. Available on Business and Scale plans.",
     desc2: "The Retail Clearance Radar monitors major outlet sites and cross-references sale prices against Vinted resale values. When margins exceed your threshold, you get sourcing alerts with everything you need to act fast.",
+    callout: "A single profitable arbitrage find can pay for months of Vintifi. The scanner runs automatically — you just act on the alerts.",
     stat: "Cross-platform",
-    statLabel: "profit opportunities found automatically",
+    statLabel: "profit opportunities found automatically, 24/7",
     mockTitle: "Opportunity Found",
     mockContent: (
-      <div className="rounded-lg bg-card p-3 sm:p-4 border border-border">
-        <p className="text-xs sm:text-sm font-medium text-foreground mb-2">Nike Air Max 90 — eBay</p>
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Buy Price</p>
-            <p className="text-base sm:text-lg font-display font-bold text-foreground">£15</p>
-          </div>
-          <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-          <div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Vinted Value</p>
-            <p className="text-base sm:text-lg font-display font-bold text-success">£45–£55</p>
-          </div>
-          <div className="rounded-full bg-success/10 px-2 sm:px-3 py-1 shrink-0">
-            <p className="text-[10px] sm:text-xs font-bold text-success">+£30</p>
+      <div className="space-y-2.5">
+        <div className="rounded-lg bg-card p-3 sm:p-4 border border-border">
+          <p className="text-xs sm:text-sm font-medium text-foreground mb-2">Nike Air Max 90 — eBay</p>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Buy Price</p>
+              <p className="text-base sm:text-lg font-display font-bold text-foreground">£15</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            <div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Vinted Value</p>
+              <p className="text-base sm:text-lg font-display font-bold text-success">£45–£55</p>
+            </div>
+            <div className="rounded-full bg-success/10 px-2 sm:px-3 py-1 shrink-0">
+              <p className="text-[10px] sm:text-xs font-bold text-success">+£30 profit</p>
+            </div>
           </div>
         </div>
+        <div className="text-[10px] text-muted-foreground text-center">Business & Scale plans · Runs automatically</div>
       </div>
     ),
   },
@@ -232,24 +253,26 @@ const features = [
     headline: "Your entire reselling business — one dashboard",
     desc1: "A centralised command centre for all your active listings with real-time status, engagement metrics, and price vs. market comparisons. Colour-coded traffic lights instantly show which items are on track, need attention, or are going stale.",
     desc2: "Built-in P&L tracking calculates net profit per item and per period. The Dead Stock engine identifies items that haven't sold and suggests price reductions, bundle pairings, or crosslisting actions to free up capital.",
+    callout: "Know exactly which listings are performing, which are stale, and which need attention. No spreadsheet. No guessing. Full control.",
     stat: "Full control",
     statLabel: "over your inventory, profit, and performance",
     mockTitle: "Inventory Overview",
     mockContent: (
       <div className="space-y-2">
         {[
-          { item: "Zara Blazer", status: "bg-success", price: "£18", days: "3d" },
-          { item: "H&M Dress", status: "bg-accent", price: "£12", days: "14d" },
-          { item: "Nike Hoodie", status: "bg-destructive", price: "£22", days: "31d" },
+          { item: "Zara Blazer", status: "bg-success", price: "£18", days: "3d", label: "On track" },
+          { item: "H&M Dress", status: "bg-accent", price: "£12", days: "14d", label: "Review price" },
+          { item: "Nike Hoodie", status: "bg-destructive", price: "£22", days: "31d", label: "Dead stock" },
         ].map((i) => (
           <div key={i.item} className="flex items-center justify-between rounded-lg bg-card p-2 sm:p-2.5 border border-border">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${i.status}`} />
               <span className="text-xs sm:text-sm text-foreground">{i.item}</span>
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground">
               <span>{i.price}</span>
               <span>{i.days}</span>
+              <span className={`text-[10px] font-medium ${i.status.replace("bg-", "text-")}`}>{i.label}</span>
             </div>
           </div>
         ))}
@@ -263,7 +286,7 @@ export default function Features() {
 
   usePageMeta(
     "Features — Vintifi",
-    "Price intelligence, AI listing optimiser, Vintography photo studio (AI Model, Mannequin, Flat-Lay), trend radar, arbitrage scanner, and inventory manager. Everything for Vinted sellers."
+    "Price intelligence, AI listing optimiser, Vintography photo studio, trend radar, arbitrage scanner, and inventory manager. Seven tools. One platform. Built for Vinted sellers."
   );
 
   return (
@@ -281,8 +304,11 @@ export default function Features() {
               <br />
               <span className="text-gradient">on Vinted</span>
             </motion.h1>
+            <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-2">
+              Seven precision tools. One platform. Built exclusively for Vinted sellers
+            </motion.p>
             <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8">
-              Seven powerful modules — from AI pricing to studio-quality photography — working together to make you a data-driven reselling machine.
+              who want to sell faster, price smarter, and look more professional than every other seller in their category.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button
@@ -295,6 +321,27 @@ export default function Features() {
               </Button>
             </motion.div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* 6-stat outcome bar */}
+      <section className="py-6 sm:py-10 bg-muted/40 border-y border-border">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 max-w-5xl mx-auto">
+            {outcomeStats.map((s, i) => (
+              <motion.div
+                key={s.value}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.07 }}
+                className="text-center p-2.5 sm:p-4"
+              >
+                <p className="font-display text-lg sm:text-2xl lg:text-3xl font-extrabold text-primary leading-none mb-1">{s.value}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{s.label}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -333,10 +380,15 @@ export default function Features() {
                 <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-3 sm:mb-4 text-xs sm:text-base">
                   {f.desc1}
                 </motion.p>
-                <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-4 sm:mb-6 text-xs sm:text-base">
+                <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-4 sm:mb-5 text-xs sm:text-base">
                   {f.desc2}
                 </motion.p>
-                <motion.div variants={fadeUp} className="flex items-baseline gap-2.5 sm:gap-3 rounded-xl bg-primary/5 border-l-4 border-primary p-3 sm:p-4">
+                {/* "What this means for you" callout */}
+                <motion.div variants={fadeUp} className="rounded-xl bg-primary/5 border-l-4 border-primary p-3 sm:p-4 mb-4 sm:mb-5">
+                  <p className="text-[10px] sm:text-xs font-semibold text-primary uppercase tracking-wider mb-1">What this means for you</p>
+                  <p className="text-xs sm:text-sm text-foreground leading-relaxed">{f.callout}</p>
+                </motion.div>
+                <motion.div variants={fadeUp} className="flex items-baseline gap-2.5 sm:gap-3 rounded-xl bg-muted/60 border border-border px-3 sm:px-4 py-2.5 sm:py-3">
                   <span className="font-display text-xl sm:text-3xl font-extrabold text-primary">{f.stat}</span>
                   <span className="text-[10px] sm:text-sm text-muted-foreground">{f.statLabel}</span>
                 </motion.div>
@@ -378,10 +430,13 @@ export default function Features() {
             variants={stagger}
           >
             <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-3xl md:text-5xl font-extrabold mb-3 sm:mb-4">
-              Ready to sell smarter?
+              Seven tools. Start using them free.
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-muted-foreground text-sm sm:text-lg mb-6 sm:mb-8 max-w-xl mx-auto">
-              Start with 5 free credits. No credit card required. See results in under 90 seconds.
+            <motion.p variants={fadeUp} className="text-muted-foreground text-sm sm:text-lg mb-2 max-w-xl mx-auto">
+              5 free credits. No credit card. See your first result in 90 seconds.
+            </motion.p>
+            <motion.p variants={fadeUp} className="text-muted-foreground/70 text-xs sm:text-sm mb-6 sm:mb-8 max-w-md mx-auto">
+              Price an item. Optimise a listing. Try the Photo Studio. All free, right now.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-xl shadow-primary/20 w-full sm:w-auto active:scale-95 transition-transform">

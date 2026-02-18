@@ -13,7 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import MarketingLayout from "@/components/MarketingLayout";
-import { Check, ArrowRight, Shield, Zap } from "lucide-react";
+import { Check, ArrowRight, Shield, Zap, Star } from "lucide-react";
 import { STRIPE_TIERS, CREDIT_PACKS, TierKey } from "@/lib/constants";
 
 const fadeUp = {
@@ -24,6 +24,41 @@ const fadeUp = {
 const stagger = {
   visible: { transition: { staggerChildren: 0.1 } },
 };
+
+const trustBadges = [
+  { icon: "🔒", title: "14-day money-back", sub: "No questions asked" },
+  { icon: "⚡", title: "Cancel anytime", sub: "No lock-in, ever" },
+  { icon: "🇪🇺", title: "EU data residency", sub: "GDPR compliant" },
+  { icon: "✨", title: "7-day free trial", sub: "On all paid plans" },
+];
+
+const personas = [
+  {
+    tier: "Free",
+    emoji: "👋",
+    headline: "Testing the waters",
+    desc: "5 credits every month, no card needed. Enough to price a few items and see if Vintifi is for you.",
+  },
+  {
+    tier: "Pro",
+    emoji: "💪",
+    headline: "Side hustlers",
+    desc: "Selling 20–100 items a month and want to stop leaving money on the table. Pro pays for itself on the first item you price correctly.",
+    highlight: true,
+  },
+  {
+    tier: "Business",
+    emoji: "🚀",
+    headline: "Full-time resellers",
+    desc: "Managing large wardrobes with 200+ items. You need arbitrage, bulk tools, and cross-platform intelligence.",
+  },
+  {
+    tier: "Scale",
+    emoji: "🏆",
+    headline: "Vinted Pro businesses",
+    desc: "Processing serious volume with no caps. Unlimited credits, API access, and priority support.",
+  },
+];
 
 const comparisonFeatures = [
   { name: "Credits / month", free: "5", pro: "50", business: "200", scale: "Unlimited" },
@@ -51,12 +86,24 @@ const comparisonFeatures = [
 
 const faqs = [
   {
+    q: "How quickly will I see results?",
+    a: "Most sellers get their first AI price recommendation within 90 seconds of signing up. Sign up, paste a Vinted URL, and you'll have a confidence-scored price report before you've finished your tea.",
+  },
+  {
+    q: "What if I only sell a few items a month?",
+    a: "Free plan gives you 5 credits — that's 5 price checks or photo edits a month. No card required. It's enough to stop underpricing your best items and start understanding what the market actually pays.",
+  },
+  {
+    q: "Does it work on all Vinted categories?",
+    a: "Yes — Vintifi works across womenswear, menswear, shoes, accessories, kids, vintage, and designer categories across all 18 Vinted markets including the UK, France, Germany, Netherlands, Spain, and more.",
+  },
+  {
     q: "What's a credit?",
     a: "One credit = one action. A Price Check costs 1 credit. An AI Listing Optimisation costs 1 credit. A Vintography photo edit (background removal, AI Model, Mannequin, or Flat-Lay) costs 1 credit. Credits reset monthly on your billing date.",
   },
   {
     q: "What can I do with Vintography Photo Studio?",
-    a: "Three modes: AI Model (place your garment on a photorealistic male or female model — Editorial, Natural Photo, or Street Style), Mannequin (Headless, Ghost, Dress Form, or Half-Body), and Flat-Lay Pro (5 styling presets). All include 16 background scene options. Available to all tiers — AI Model and Mannequin modes unlock on Pro and above.",
+    a: "Three modes: AI Model (place your garment on a photorealistic male or female model — Editorial, Natural Photo, or Street Style), Mannequin (Headless, Ghost, Dress Form, or Half-Body), and Flat-Lay Pro (5 styling presets). All include 16 background scene options.",
   },
   {
     q: "Can I really start for free?",
@@ -79,10 +126,6 @@ const faqs = [
     a: "Our AI analyses comparable sold and active listings in real-time. Confidence scores are provided with every recommendation — typically 80-95% accuracy based on data density.",
   },
   {
-    q: "Do you support multiple Vinted markets?",
-    a: "Yes! Vintifi works across 18 Vinted markets including UK, France, Germany, Netherlands, Spain, Italy, and more. Multi-language listing generation is available on Business and Scale plans.",
-  },
-  {
     q: "Is my data secure?",
     a: "All data is encrypted at rest and in transit. We use enterprise-grade infrastructure with EU data residency. We never share your selling data with third parties.",
   },
@@ -96,7 +139,7 @@ export default function Pricing() {
   const navigate = useNavigate();
   const [annual, setAnnual] = useState(false);
 
-  usePageMeta("Pricing — Vintifi", "Simple, transparent pricing. Start free, upgrade when you're ready. Plans from £9.99/month. 14-day money-back guarantee.");
+  usePageMeta("Pricing — Vintifi", "Start free with 5 credits. Pro from £9.99/month. 14-day money-back guarantee. No lock-in. See results in 90 seconds.");
 
   const tiers = Object.entries(STRIPE_TIERS) as [TierKey, (typeof STRIPE_TIERS)[TierKey]][];
 
@@ -111,12 +154,15 @@ export default function Pricing() {
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.h1 variants={fadeUp} className="font-display text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-4 sm:mb-6">
-              Simple pricing,
+              The plan pays for itself
               <br />
-              <span className="text-gradient">serious results</span>
+              <span className="text-gradient">on day one.</span>
             </motion.h1>
-            <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-10">
-              Start free — no card required. Upgrade when you're ready. Every paid plan includes a 7-day free trial.
+            <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-2">
+              Sellers on Pro and above price 40× faster than manually browsing Vinted.
+            </motion.p>
+            <motion.p variants={fadeUp} className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-6 sm:mb-10">
+              Start free — no card required. Every paid plan includes a 7-day free trial.
             </motion.p>
             <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 min-h-[44px]">
               <span className={`text-sm font-medium ${!annual ? "text-foreground" : "text-muted-foreground"}`}>Monthly</span>
@@ -126,6 +172,52 @@ export default function Pricing() {
                 <Badge className="bg-success text-success-foreground ml-1">Save 20%</Badge>
               )}
             </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Trust badges */}
+      <section className="pb-6 sm:pb-10">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 max-w-4xl mx-auto">
+            {trustBadges.map((b, i) => (
+              <motion.div
+                key={b.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                className="flex flex-col items-center text-center p-3 sm:p-4 rounded-xl border border-border bg-card"
+              >
+                <span className="text-2xl mb-1.5">{b.icon}</span>
+                <p className="font-semibold text-xs sm:text-sm text-foreground">{b.title}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{b.sub}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Results banner */}
+      <section className="pb-6 sm:pb-10">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="max-w-4xl mx-auto rounded-2xl bg-primary/10 border border-primary/20 p-4 sm:p-6 text-center"
+          >
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Star className="w-4 h-4 text-primary fill-primary" />
+              <Star className="w-4 h-4 text-primary fill-primary" />
+              <Star className="w-4 h-4 text-primary fill-primary" />
+              <Star className="w-4 h-4 text-primary fill-primary" />
+              <Star className="w-4 h-4 text-primary fill-primary" />
+            </div>
+            <p className="font-display text-base sm:text-xl font-extrabold text-foreground mb-1">
+              Sellers on Pro and above price 40× faster than manually browsing Vinted.
+            </p>
+            <p className="text-muted-foreground text-xs sm:text-sm">The plan pays for itself the first time you avoid underpricing an item.</p>
           </motion.div>
         </div>
       </section>
@@ -170,7 +262,7 @@ export default function Pricing() {
                         <p className="text-xs text-muted-foreground mt-1 line-through">£{tier.price}/mo</p>
                       )}
                       {tier.price > 0 && (
-                        <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">7-day free trial included</p>
+                        <p className="text-[10px] sm:text-xs text-success font-medium mt-1">7-day free trial included</p>
                       )}
                     </div>
                     <ul className="space-y-1.5 sm:space-y-2.5 mb-5 sm:mb-8 flex-1">
@@ -196,12 +288,54 @@ export default function Pricing() {
         </div>
       </section>
 
+      {/* Who is this for? */}
+      <section className="py-10 sm:py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <motion.h2
+            className="font-display text-xl sm:text-3xl md:text-4xl font-extrabold text-center mb-3 sm:mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            Which plan is right for you?
+          </motion.h2>
+          <motion.p
+            className="text-center text-muted-foreground text-sm sm:text-base mb-8 sm:mb-12 max-w-xl mx-auto"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+          >
+            Different sellers, different needs. Here's where most people land.
+          </motion.p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto">
+            {personas.map((p, i) => (
+              <motion.div
+                key={p.tier}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+              >
+                <Card className={`p-4 sm:p-5 h-full transition-all duration-300 ${p.highlight ? "border-primary ring-1 ring-primary shadow-xl shadow-primary/10" : "border-border/50"}`}>
+                  <div className="text-2xl mb-2">{p.emoji}</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{p.tier}</span>
+                  </div>
+                  <h3 className="font-display font-bold text-sm sm:text-base mb-2">{p.headline}</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{p.desc}</p>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Credit Packs */}
-      <section className="py-10 sm:py-16 bg-muted/30">
+      <section className="py-10 sm:py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-6 sm:mb-10">
             <h2 className="font-display text-lg sm:text-2xl md:text-3xl font-extrabold mb-2">Need a top-up?</h2>
-            <p className="text-muted-foreground text-sm sm:text-base">One-time credit packs — no subscription required.</p>
+            <p className="text-muted-foreground text-sm sm:text-base">One-time credit packs — no subscription required. Never expire.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-3xl mx-auto">
             {CREDIT_PACKS.map((pack, i) => (
@@ -235,12 +369,11 @@ export default function Pricing() {
               </motion.div>
             ))}
           </div>
-          <p className="text-center text-xs text-muted-foreground mt-4">Credit packs available after sign-up · Never expire</p>
         </div>
       </section>
 
       {/* Comparison table */}
-      <section className="py-10 sm:py-20">
+      <section className="py-10 sm:py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <motion.h2
             className="font-display text-xl sm:text-3xl md:text-4xl font-extrabold text-center mb-6 sm:mb-12"
@@ -300,7 +433,7 @@ export default function Pricing() {
       </section>
 
       {/* FAQ */}
-      <section className="py-10 sm:py-20 bg-muted/30">
+      <section className="py-10 sm:py-20">
         <div className="container mx-auto px-4 max-w-3xl">
           <motion.h2
             className="font-display text-xl sm:text-3xl md:text-4xl font-extrabold text-center mb-6 sm:mb-12"
@@ -350,15 +483,21 @@ export default function Pricing() {
               <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
               <span className="text-xs sm:text-sm font-medium text-secondary-foreground">14-day money-back guarantee on all paid plans</span>
             </motion.div>
-            <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 text-secondary-foreground">
-              Start selling smarter today
+            <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3 text-secondary-foreground">
+              Start free today. See results tonight.
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-secondary-foreground/70 text-sm sm:text-lg mb-6 sm:mb-8 max-w-xl mx-auto">
-              5 free credits. No card required. See results in 90 seconds.
+            <motion.p variants={fadeUp} className="text-secondary-foreground/70 text-sm sm:text-base mb-2 max-w-xl mx-auto">
+              Your first 5 credits are waiting — no card needed.
             </motion.p>
-            <motion.div variants={fadeUp}>
+            <motion.p variants={fadeUp} className="text-secondary-foreground/50 text-xs sm:text-sm mb-6 sm:mb-8">
+              5 price checks. 5 AI listings. 5 studio photos. All free.
+            </motion.p>
+            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-xl shadow-primary/20 w-full sm:w-auto active:scale-95 transition-transform">
                 Get Started Free <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+              <Button size="lg" variant="outline" onClick={() => navigate("/pricing")} className="text-sm sm:text-base h-12 w-full sm:w-auto active:scale-95 transition-transform border-secondary-foreground/20 text-secondary-foreground hover:bg-secondary-foreground/10">
+                Compare all plans
               </Button>
             </motion.div>
           </motion.div>
