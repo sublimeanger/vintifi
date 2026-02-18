@@ -555,7 +555,7 @@ export default function Landing() {
                       </div>
                       {'credits' in tier && (
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {tier.credits === -1 ? "Unlimited credits" : `${tier.credits} credits/month`}
+                          {`${tier.credits.toLocaleString()} credits/month`}
                         </p>
                       )}
                     </div>

@@ -55,33 +55,41 @@ const personas = [
   {
     tier: "Scale",
     emoji: "🏆",
+    headline: "High-volume sellers",
+    desc: "600 credits/month for serious Vinted sellers who need power without limits. API access and priority support included.",
+  },
+  {
+    tier: "Enterprise",
+    emoji: "🏢",
     headline: "Vinted Pro businesses",
-    desc: "Processing serious volume with no caps. Unlimited credits, API access, and priority support.",
+    desc: "1,500 credits/month for registered businesses running Vinted Pro at scale. Dedicated account manager, SLA guarantee, and invoice billing.",
   },
 ];
 
 const comparisonFeatures = [
-  { name: "Credits / month", free: "5", pro: "50", business: "200", scale: "Unlimited" },
-  { name: "AI Price Check", free: "✓", pro: "✓", business: "✓", scale: "✓" },
-  { name: "Import from Vinted URL", free: "✓", pro: "✓", business: "✓", scale: "✓" },
-  { name: "Vintography Photo Studio", free: "✓ (credits)", pro: "✓", business: "✓", scale: "✓" },
-  { name: "AI Model & Mannequin shots", free: "—", pro: "✓", business: "✓", scale: "✓" },
-  { name: "AI Listing Optimiser", free: "—", pro: "✓", business: "✓ + Bulk", scale: "✓ Unlimited" },
-  { name: "Listing Health Score", free: "—", pro: "✓", business: "✓", scale: "✓" },
-  { name: "Hashtag Generator", free: "✓ (credits)", pro: "✓", business: "✓", scale: "✓" },
-  { name: "Trend Radar", free: "Top 5", pro: "Full", business: "Full", scale: "Full" },
-  { name: "Seasonal Calendar + Niche Finder", free: "—", pro: "✓", business: "✓", scale: "✓" },
-  { name: "Arbitrage Scanner", free: "—", pro: "—", business: "✓", scale: "✓" },
-  { name: "Clearance Radar", free: "—", pro: "—", business: "✓", scale: "✓" },
-  { name: "Items Tracked", free: "20", pro: "Unlimited", business: "Unlimited", scale: "Unlimited" },
-  { name: "Competitor Tracking", free: "—", pro: "3", business: "15", scale: "50" },
-  { name: "Multi-language Listings", free: "—", pro: "—", business: "5 languages", scale: "All" },
-  { name: "P&L Tracking", free: "✓", pro: "✓", business: "✓ + CSV", scale: "✓ + CSV" },
-  { name: "Relist Scheduler", free: "—", pro: "✓", business: "✓", scale: "✓" },
-  { name: "Dead Stock Alerts", free: "—", pro: "✓", business: "✓", scale: "✓" },
-  { name: "Charity Sourcing Briefing", free: "—", pro: "✓", business: "✓", scale: "✓" },
-  { name: "Support", free: "Community", pro: "Email", business: "Priority", scale: "Priority (fast)" },
-  { name: "API Access", free: "—", pro: "—", business: "—", scale: "✓" },
+  { name: "Credits / month", free: "5", pro: "50", business: "200", scale: "600", enterprise: "1,500" },
+  { name: "AI Price Check", free: "✓", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Import from Vinted URL", free: "✓", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Vintography Photo Studio", free: "✓ (credits)", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "AI Model & Mannequin shots", free: "—", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "AI Listing Optimiser", free: "—", pro: "✓", business: "✓ + Bulk", scale: "✓", enterprise: "✓" },
+  { name: "Listing Health Score", free: "—", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Hashtag Generator", free: "✓ (credits)", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Trend Radar", free: "Top 5", pro: "Full", business: "Full", scale: "Full", enterprise: "Full" },
+  { name: "Seasonal Calendar + Niche Finder", free: "—", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Arbitrage Scanner", free: "—", pro: "—", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Clearance Radar", free: "—", pro: "—", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Items Tracked", free: "20", pro: "Unlimited", business: "Unlimited", scale: "Unlimited", enterprise: "Unlimited" },
+  { name: "Competitor Tracking", free: "—", pro: "3", business: "15", scale: "50", enterprise: "50" },
+  { name: "Multi-language Listings", free: "—", pro: "—", business: "5 languages", scale: "All", enterprise: "All" },
+  { name: "P&L Tracking", free: "✓", pro: "✓", business: "✓ + CSV", scale: "✓ + CSV", enterprise: "✓ + CSV" },
+  { name: "Relist Scheduler", free: "—", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Dead Stock Alerts", free: "—", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Charity Sourcing Briefing", free: "—", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
+  { name: "Support", free: "Community", pro: "Email", business: "Priority", scale: "Priority (fast)", enterprise: "Dedicated manager" },
+  { name: "API Access", free: "—", pro: "—", business: "—", scale: "✓", enterprise: "✓" },
+  { name: "SLA Guarantee", free: "—", pro: "—", business: "—", scale: "—", enterprise: "✓" },
+  { name: "Invoice Billing", free: "—", pro: "—", business: "—", scale: "—", enterprise: "✓" },
 ];
 
 const faqs = [
@@ -225,7 +233,7 @@ export default function Pricing() {
       {/* Pricing cards */}
       <section className="pb-10 sm:pb-20">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-5 max-w-7xl mx-auto">
             {tiers.map(([key, tier], i) => {
               const isPopular = key === "pro";
               const price = annual && tier.price > 0 && 'annual_price' in tier
@@ -307,7 +315,7 @@ export default function Pricing() {
           >
             Different sellers, different needs. Here's where most people land.
           </motion.p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 max-w-6xl mx-auto">
             {personas.map((p, i) => (
               <motion.div
                 key={p.tier}
@@ -385,9 +393,9 @@ export default function Pricing() {
           </motion.h2>
 
           {/* Desktop table */}
-          <div className="hidden lg:block max-w-5xl mx-auto">
+          <div className="hidden lg:block max-w-6xl mx-auto">
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
-              <div className="grid grid-cols-5 bg-muted/50 border-b border-border sticky top-0 z-10">
+              <div className="grid grid-cols-6 bg-muted/50 border-b border-border sticky top-0 z-10">
                 <div className="p-4 font-semibold text-sm">Feature</div>
                 {tiers.map(([key, tier]) => (
                   <div key={key} className={`p-4 text-center font-semibold text-sm ${key === "pro" ? "bg-primary/5 text-primary" : ""}`}>
@@ -398,13 +406,14 @@ export default function Pricing() {
               {comparisonFeatures.map((feature, i) => (
                 <div
                   key={feature.name}
-                  className={`grid grid-cols-5 border-b border-border last:border-0 ${i % 2 === 0 ? "" : "bg-muted/20"}`}
+                  className={`grid grid-cols-6 border-b border-border last:border-0 ${i % 2 === 0 ? "" : "bg-muted/20"}`}
                 >
                   <div className="p-4 text-sm text-foreground">{feature.name}</div>
                   <div className="p-4 text-center text-sm text-muted-foreground">{feature.free}</div>
                   <div className={`p-4 text-center text-sm bg-primary/5 ${feature.pro === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.pro}</div>
                   <div className={`p-4 text-center text-sm ${feature.business === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.business}</div>
                   <div className={`p-4 text-center text-sm ${feature.scale === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.scale}</div>
+                  <div className={`p-4 text-center text-sm ${feature.enterprise === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.enterprise}</div>
                 </div>
               ))}
             </div>

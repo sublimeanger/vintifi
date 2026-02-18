@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Zap, Crown, Sparkles, X, CreditCard } from "lucide-react";
+import { Loader2, Zap, Crown, Sparkles, X, CreditCard, Shield } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,9 +33,10 @@ const TIER_ICONS: Record<string, typeof Crown> = {
   pro: Sparkles,
   business: Zap,
   scale: Crown,
+  enterprise: Shield,
 };
 
-const UPGRADE_TIERS: TierKey[] = ["pro", "business", "scale"];
+const UPGRADE_TIERS: TierKey[] = ["pro", "business", "scale", "enterprise"];
 
 export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits }: UpgradeModalProps) {
   const isMobile = useIsMobile();
@@ -119,7 +120,7 @@ export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits 
                         <Badge className="text-[9px] py-0 bg-primary text-primary-foreground">Required</Badge>
                       )}
                     </div>
-                    <p className="text-[10px] text-muted-foreground">{t.credits === -1 || t.credits >= 999 ? "Unlimited" : t.credits} credits/mo</p>
+                    <p className="text-[10px] text-muted-foreground">{t.credits.toLocaleString()} credits/mo</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
