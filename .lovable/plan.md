@@ -1,185 +1,101 @@
 
-# Standalone "Sell" Wizard — Nav-Level Entry Point + Price Override
+# Fix: Step 6 Pack Renders Correctly + "View Item" Toast
 
-## The Vision
+## Root Causes Found
 
-Right now the Listing Wizard is a side-panel on the Item Detail page. This is backwards — it assumes the user already has an item and knows where to find the wizard. The world-class pattern (Depop, Vinted's own listing flow, Airbnb's "List your home") puts the primary creation flow **directly in the navigation** as its own dedicated page. One button. One clear path. No hunting around.
+### Issue 1 — VintedReadyPack silently returns null in the wizard
 
-The wizard should be a route: `/sell` — accessible from the sidebar and mobile bottom nav as a primary action. It becomes a full-page, multi-step experience (not a side sheet) that starts from scratch: Add Item → Details → Price → Optimise → Photos → Pack. The existing sheet wizard on ItemDetail stays as a "resume" shortcut for items already created.
-
----
-
-## Change 1 — New `/sell` Route: Full-Page Standalone Wizard
-
-### Route
-`/sell` — a new page that renders `<SellWizard />` (full-page, not a sheet).
-
-This page is a **7-step** flow that includes item creation at the top:
-
-```
-① Add Item   ② Details   ③ Price   ④ Optimise   ⑤ Photos   ⑥ Pack ✓
-```
-
-Step 0/1 is the "Add Item" step — this is the entry from `NewItemWizard` logic, already built. We reuse the same photo upload + URL import + manual entry options that exist in `NewItemWizard.tsx`, but render them inside the full-page sell wizard instead of a dialog.
-
-When step 1 (Add Item) completes and a listing is created in the DB, the wizard picks up the new item ID and continues through the remaining 5 steps (which are identical to the existing `ListingWizard` steps 1–5).
-
-### Visual Layout (Desktop)
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  ← Back to Items    🚀 Sell Wizard     Step 2 of 6       │
-├──────────────────────────────────────────────────────────┤
-│  ① ──── ② ──── ③ ──── ④ ──── ⑤ ──── ⑥                 │
-│  Add  Details  Price  Optimise Photos  Pack              │
-├──────────────────────────────────────────────────────────┤
-│                                                          │
-│              [Step content — max-w-lg centered]          │
-│                                                          │
-├──────────────────────────────────────────────────────────┤
-│  [← Back]                         [Continue →]          │
-└──────────────────────────────────────────────────────────┘
-```
-
-On **mobile**: full-screen with the progress strip pinned to top, content scrollable, footer CTA sticky at bottom — same pattern as Depop's listing flow.
-
-### Navigation Entry Points
-
-**Desktop sidebar** — a new nav item added between "Items" and "Price Check":
-```
-Dashboard
-Items
-→ 🚀 Sell (new, highlighted with primary colour accent)
-Price Check
-Optimise
-Trends
-Photo Studio
-```
-
-**Mobile bottom nav** — replace one of the 5 tabs with "Sell". The bottom tabs become:
-```
-Home | Items | 🚀 Sell | Trends | Optimise
-```
-The "Sell" tab is styled differently (primary background pill, always highlighted) so it reads as a CTA, not just a navigation item — same as Instagram's "+" tab or TikTok's centre record button.
-
-**Items list page** — the existing "+ New Item" button navigates to `/sell` instead of opening the `NewItemWizard` dialog.
-
-**Dashboard** — the "Add your first item" empty state and "Quick Actions" card link to `/sell`.
-
----
-
-## Change 2 — Price Override in Step 3 (Price Check)
-
-### Current Behaviour
-After the AI runs the price check, the only action is "Use £X as my listing price" — you must accept the AI recommendation. There is no way to type your own price.
-
-### New Behaviour
-After the price check result loads, show **two options** side by side:
-
-**Option A — Accept AI price (primary CTA, unchanged):**
-```
-[ ✓ Use £14.00 — AI recommended ]
-```
-
-**Option B — Set my own price (secondary, text input):**
-A small `"Or set your own price:"` section below with a `£` prefixed input field and a "Use this price" button. The user types any number, hits confirm, and that price gets saved to the DB — same `acceptPrice` function, just with the custom value instead of `priceResult.recommended_price`.
-
-The UX pattern:
-```
-┌─────────────────────────────────┐
-│  Recommended Price              │
-│  £14.00   88% confidence        │
-│  Market: £8 ──●─── £22         │
-│  [AI insight text...]           │
-│                                 │
-│  [✓ Use £14.00 — AI suggested] │
-│                                 │
-│  ─── or set your own price ─── │
-│  £ [12.00          ] [Use this] │
-└─────────────────────────────────┘
-```
-
-Once either price is accepted (AI or custom), the accepted price and "Price locked" confirmation state show as before. The `canAdvance()` check for step 3 remains: `priceAccepted === true`.
-
-The `acceptPrice` function needs to accept an optional `customPrice` parameter:
+`VintedReadyPack` has a hard gate at lines 101–106:
 ```ts
-const acceptPrice = async (customPrice?: number) => {
-  const price = customPrice ?? priceResult?.recommended_price;
-  if (!price) return;
-  // same DB write as before
-};
+const isReady = !!item.last_optimised_at;
+if (!isReady) return null;
+if (score != null && score < 60) return null;
 ```
 
----
+In `SellWizard`, the `saveOptimised()` function (line 445–462) updates the DB with `last_optimised_at: now` correctly, but the local state merge only copies back `optimised_title`, `optimised_description`, and `health_score` — it **never sets `last_optimised_at`** on `createdItem`. So when step 6 renders `<VintedReadyPack item={createdItem} />`, `createdItem.last_optimised_at` is still `null`, the gate fires, and the entire component invisibly returns `null`.
 
-## Files to Change
+### Issue 2 — "View Item" navigates but shows no success feedback
 
-| File | Action | What changes |
-|------|--------|-------------|
-| `src/pages/SellWizard.tsx` | **New file** | Full-page standalone wizard — 6 steps including item creation. Reuses all edge function calls and DB logic from `ListingWizard.tsx`. |
-| `src/App.tsx` | **Edit** | Add `/sell` route pointing to `SellWizard`. |
-| `src/components/AppShellV2.tsx` | **Edit** | Add "Sell" to desktop sidebar nav items + replace a mobile bottom tab with "Sell" styled as primary CTA. |
-| `src/components/ListingWizard.tsx` | **Edit** | Add price override input to Step 2, modify `acceptPrice` to accept `customPrice` param, add `customPriceInput` state. |
-| `src/pages/Listings.tsx` | **Edit** | Wire "+ New Item" button to `navigate('/sell')` instead of opening `NewItemWizard` dialog. |
-
----
-
-## Technical Detail: SellWizard.tsx Architecture
-
-The key difference from `ListingWizard.tsx` is that `SellWizard` is a **page** (not a sheet), starts with item creation, and owns the item state from scratch:
-
+The "View Item" button (line 994–998):
 ```tsx
-// SellWizard.tsx — simplified structure
-export default function SellWizard() {
-  const [step, setStep] = useState<1|2|3|4|5|6>(1);
-  const [createdItem, setCreatedItem] = useState<Listing | null>(null);
-  const navigate = useNavigate();
-
-  // Step 1: Item creation — inline (reuses NewItemWizard logic)
-  // Steps 2–6: Same as ListingWizard steps 1–5, but rendered full-page
-  // On step 6 complete: navigate to /items/:id with success toast
-}
+onClick={() => createdItem && navigate(`/items/${createdItem.id}`)}
 ```
-
-Steps 2–6 in `SellWizard` are the same logic as `ListingWizard` steps 1–5. To avoid full code duplication, we extract the step content components (Step1Details, Step2Price, etc.) from `ListingWizard.tsx` into named exports that both `ListingWizard` and `SellWizard` import. This keeps the price override fix in one place and both wizards benefit.
-
-Actually — to keep it simple and ship fast, `SellWizard.tsx` is self-contained (~500 lines) with the same logic inline. Both files share the same patterns. The item creation step (step 1 of SellWizard) is a simplified version of `NewItemWizard` — just the Manual entry path (title, brand, category, condition, price, photos) presented cleanly, since URL import and photo-first modes are secondary entry paths that can be added later.
-
-### Step 1 of SellWizard — "Add Your Item"
-Three entry method cards:
-- **Upload a photo** — drag and drop / camera roll, AI identifies the item
-- **Enter manually** — type title, brand, category, condition, price
-- **Import from URL** — paste a Vinted listing URL (scrape-vinted-url edge function)
-
-The user picks one, fills it in, hits "Create Item" — the item is inserted into `listings` table with `status: 'draft'`, the returned ID is stored in `createdItem`, and the wizard advances to step 2.
-
-### Progress Bar Difference
-`SellWizard` progress bar shows 6 steps (Add, Details, Price, Optimise, Photos, Pack). `ListingWizard` (sheet on ItemDetail) keeps 5 steps as today (skips the Add step since item already exists).
-
-### Mobile Bottom Nav Styling
-The "Sell" tab in the bottom nav uses a `+` icon in a filled primary-coloured pill — visually distinct from the other ghost-style tabs:
-
-```tsx
-// Sell tab — styled as primary CTA
-<button className="relative flex flex-col items-center justify-center flex-1 h-full">
-  <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shadow-md active:scale-90 transition-transform">
-    <Plus className="w-5 h-5 text-primary-foreground" />
-  </div>
-  <span className="text-[9px] font-bold text-primary mt-0.5">Sell</span>
-</button>
-```
-
-This is exactly the pattern Depop, Instagram, TikTok, and Vinted itself use for the primary create action in mobile bottom navigation.
+…just navigates silently. No toast, no confirmation.
 
 ---
 
-## Scope Summary
+## Fixes
 
-| What | Detail |
+### Fix 1 — Add `last_optimised_at` to the local state merge in `saveOptimised()`
+
+In `src/pages/SellWizard.tsx`, inside `saveOptimised()`, the `setCreatedItem` call needs to include `last_optimised_at: now`:
+
+**Current (line 454–459):**
+```ts
+setCreatedItem((prev) => prev ? {
+  ...prev,
+  optimised_title: optimiseResult.optimised_title,
+  optimised_description: optimiseResult.optimised_description,
+  health_score: optimiseResult.health_score,
+} : prev);
+```
+
+**Fixed:**
+```ts
+setCreatedItem((prev) => prev ? {
+  ...prev,
+  optimised_title: optimiseResult.optimised_title,
+  optimised_description: optimiseResult.optimised_description,
+  health_score: optimiseResult.health_score,
+  last_optimised_at: now,   // ← this was missing
+} : prev);
+```
+
+This one-line addition means when step 6 renders, `createdItem.last_optimised_at` is truthy, the gate passes, and `VintedReadyPack` renders in full with its title, condition block, description, hashtags, photos, and copy/download buttons.
+
+### Fix 2 — Add success toast to "View Item" button
+
+In `src/pages/SellWizard.tsx`, update the "View Item" button's `onClick` to fire a toast before navigating:
+
+**Current (line 994–998):**
+```tsx
+<Button
+  variant="outline"
+  className="flex-1 h-11 font-semibold"
+  onClick={() => createdItem && navigate(`/items/${createdItem.id}`)}
+>
+  View Item
+</Button>
+```
+
+**Fixed:**
+```tsx
+<Button
+  variant="outline"
+  className="flex-1 h-11 font-semibold"
+  onClick={() => {
+    if (!createdItem) return;
+    toast.success("🎉 Listing complete — here's your item!");
+    navigate(`/items/${createdItem.id}`);
+  }}
+>
+  View Item
+</Button>
+```
+
+---
+
+## Files Changed
+
+| File | Change |
 |------|--------|
-| New files | `src/pages/SellWizard.tsx` |
-| Edited files | `App.tsx`, `AppShellV2.tsx`, `ListingWizard.tsx`, `Listings.tsx` |
-| Database changes | None |
-| New edge functions | None — reuses `price-check`, `optimize-listing`, `scrape-vinted-url` |
-| New dependencies | None |
-| Result | A seller can click "Sell" in the nav and be guided from zero to a completed Vinted-Ready Pack in under 5 minutes, on any device, with full price control at the pricing step |
+| `src/pages/SellWizard.tsx` | Two edits: add `last_optimised_at: now` to `setCreatedItem` in `saveOptimised()` + add toast to "View Item" button |
+
+No other files need changing. `VintedReadyPack.tsx` is correct as-is — the gate logic is intentional and correct for the Item Detail page. The fix is entirely in how `SellWizard` maintains its local state copy.
+
+## Result
+
+After these two fixes:
+- Completing step 4 (Optimise) and clicking "Save optimised listing" will correctly propagate `last_optimised_at` into `createdItem` local state
+- Step 6 will render the full `VintedReadyPack` with: celebration header, optimised title with copy button, condition block, description with copy button, hashtags, photo thumbnails with download, and the master "Copy Full Listing" CTA
+- Clicking "View Item" fires a green success toast then navigates to `/items/:id`
