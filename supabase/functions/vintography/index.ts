@@ -295,6 +295,49 @@ ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`;
   },
 
+  decrease: (p) => {
+    const intensity = p?.intensity || "standard";
+
+    const intensities: Record<string, string> = {
+      light: "Remove only the most prominent creases — deep fold lines, sharp compression creases from storage, and crumpling wrinkles. Preserve gentle natural drape folds that occur when fabric hangs — these show fabric character. The result should look like the garment was gently hand-pressed but not dry-cleaned.",
+      standard: "Remove all storage creases, fold lines, compression wrinkles, and crumpling. Preserve only the structural fabric drape that occurs naturally from gravity — the way fabric hangs from shoulders or drapes over a body form. The result should look like the garment was professionally steamed for 60 seconds.",
+      deep: "Remove every wrinkle, crease, fold line, and texture distortion caused by storage, folding, handling, or poor presentation. The fabric surface should appear immaculate — as if the garment is brand new, freshly pressed, and on a high-street shop display rail for the first time. Preserve fabric texture (weave, knit pattern, cord ridges) but eliminate all deformation of that texture.",
+    };
+
+    return `You are a professional fashion retoucher specialising in fabric smoothing for e-commerce photography. Your task is to remove creases, wrinkles, and fold lines from this garment photo.
+
+INTENSITY: ${intensities[intensity] || intensities.standard}
+
+WHAT TO REMOVE — CREASES (eliminate these):
+- Sharp fold lines from being stored folded in a drawer or shipped in packaging
+- Compression wrinkles from being packed tightly
+- Crumpling wrinkles across the body of the fabric
+- Horizontal banding wrinkles across chest/sleeves from hanging or folding
+- Packing creases — the very defined lines from cardboard fold points
+- Any fabric deformation caused by poor storage, handling, or transit
+
+WHAT TO KEEP — NATURAL FABRIC BEHAVIOUR (preserve these):
+- The garment's overall silhouette and shape — do NOT change how the garment looks
+- Natural gravitational drape — the gentle curves of fabric as it hangs or is laid flat
+- Fabric texture: weave patterns, knit structure, corduroy ridges, denim twill lines — these are texture, not creases
+- Intentional design elements: pleats, gathers, ruched seams, smocking, or fabric tucks that are part of the garment's design
+- The accurate colour and shading of the fabric — do NOT bleach or overexpose
+- Any deliberate faded or distressed areas (important for denim/vintage)
+
+RETOUCHING TECHNIQUE:
+- Work methodically across the fabric surface — chest first, then sleeves, then body
+- Smooth fabric by "filling in" the crease valleys to match the surrounding fabric height and texture
+- Maintain consistent fabric texture across previously creased areas — the smoothed area should be indistinguishable from uncreased areas
+- Preserve natural lighting falloff across the garment — do NOT flatten the lighting or create an artificial airbrushed look
+- The final garment should look like it was pressed in a professional steamer for 2–3 minutes
+
+BACKGROUND: Leave the background completely unchanged — only edit the garment itself
+GARMENT IDENTITY: The garment type, colour, brand marks, logos, prints, fit, and silhouette must remain 100% identical to the original. Only the fabric surface texture (crease removal) changes.
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`;
+  },
+
   enhance: () =>
     `You are a professional retoucher enhancing this clothing/fashion product photo for premium e-commerce. Apply the following corrections while keeping the original background and composition exactly the same:
 
@@ -329,14 +372,15 @@ const MODEL_MAP: Record<string, string> = {
   flatlay_style: "google/gemini-2.5-flash-image",    // flash: compositional task, same quality 3x faster
   selfie_shot: "google/gemini-3-pro-image-preview",
   enhance: "google/gemini-2.5-flash-image",
+  decrease: "google/gemini-2.5-flash-image",         // flash: fabric smoothing, no complex scene-building needed
 };
 
 // Operations allowed per tier
 const TIER_OPERATIONS: Record<string, string[]> = {
-  free: ["remove_bg", "enhance"],
-  pro: ["remove_bg", "enhance", "smart_bg", "flatlay_style", "model_shot", "mannequin_shot", "selfie_shot"],
-  business: ["remove_bg", "enhance", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
-  scale: ["remove_bg", "enhance", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
+  free: ["remove_bg", "enhance", "decrease"],
+  pro: ["remove_bg", "enhance", "decrease", "smart_bg", "flatlay_style", "model_shot", "mannequin_shot", "selfie_shot"],
+  business: ["remove_bg", "enhance", "decrease", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
+  scale: ["remove_bg", "enhance", "decrease", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
 };
 
 serve(async (req) => {

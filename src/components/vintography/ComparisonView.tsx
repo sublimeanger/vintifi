@@ -50,6 +50,12 @@ const TIPS: Record<string, string[]> = {
     "Fabric textures become more visible with micro-contrast enhancement",
     "Phone photos can look like professional studio shots after enhancement",
   ],
+  decrease: [
+    "Works best with full garment photos — front view, hanger or flat-lay shots",
+    "Deep Press mode is perfect for items that came direct from storage or shipping",
+    "Fabric texture, logos, and prints are preserved — only creases are removed",
+    "Chain with Clean Background for a perfect Vinted listing in 2 credits",
+  ],
   default: [
     "Each operation uses 1 credit from your monthly allowance",
     "You can chain operations — try Clean Background then Lifestyle",
