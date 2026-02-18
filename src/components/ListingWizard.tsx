@@ -150,6 +150,8 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
   } | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceAccepted, setPriceAccepted] = useState(false);
+  const [customPriceInput, setCustomPriceInput] = useState("");
+  const [acceptingCustom, setAcceptingCustom] = useState(false);
 
   // Step 3 optimise state
   const [optimiseResult, setOptimiseResult] = useState<{
@@ -301,9 +303,9 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
     }
   };
 
-  const acceptPrice = async () => {
-    if (!priceResult?.recommended_price) return;
-    const price = priceResult.recommended_price;
+  const acceptPrice = async (customPrice?: number) => {
+    const price = customPrice ?? priceResult?.recommended_price;
+    if (!price) return;
     await supabase.from("listings").update({
       current_price: price,
       recommended_price: price,
@@ -634,18 +636,57 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
 
           {/* Accept button */}
           {!priceAccepted ? (
-            <Button
-              className="w-full h-11 font-semibold bg-success hover:bg-success/90 text-success-foreground active:scale-[0.98]"
-              onClick={acceptPrice}
-              disabled={!priceResult.recommended_price}
-            >
-              <Check className="w-4 h-4 mr-2" />
-              Use £{priceResult.recommended_price?.toFixed(2)} as my listing price
-            </Button>
+            <div className="space-y-3">
+              <Button
+                className="w-full h-11 font-semibold bg-success hover:bg-success/90 text-success-foreground active:scale-[0.98]"
+                onClick={() => acceptPrice()}
+                disabled={!priceResult.recommended_price}
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Use £{priceResult.recommended_price?.toFixed(2)} — AI suggested
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[10px] text-muted-foreground font-medium">or set your own price</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    value={customPriceInput}
+                    onChange={(e) => setCustomPriceInput(e.target.value)}
+                    placeholder="12.00"
+                    className="pl-8 h-11 text-base"
+                    inputMode="decimal"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && customPriceInput) acceptPrice(parseFloat(customPriceInput));
+                    }}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-11 px-4 font-semibold"
+                  disabled={!customPriceInput || parseFloat(customPriceInput) <= 0 || acceptingCustom}
+                  onClick={async () => {
+                    const v = parseFloat(customPriceInput);
+                    if (isNaN(v) || v <= 0) return;
+                    setAcceptingCustom(true);
+                    await acceptPrice(v);
+                    setAcceptingCustom(false);
+                  }}
+                >
+                  {acceptingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : "Use this"}
+                </Button>
+              </div>
+            </div>
           ) : (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
               <Check className="w-4 h-4 shrink-0" />
-              Price locked at £{priceResult.recommended_price?.toFixed(2)} — ready to continue!
+              Price locked at £{localItem.current_price?.toFixed(2)} — ready to continue!
             </div>
           )}
         </div>

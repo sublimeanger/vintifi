@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Package, Search, Sparkles, ImageIcon,
-  LogOut, Menu, Zap, Settings, TrendingUp,
+  LogOut, Menu, Zap, Settings, TrendingUp, Plus, Rocket,
 } from "lucide-react";
 
 type NavItem = {
@@ -26,6 +26,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Package, label: "Items", path: "/listings" },
+  { icon: Rocket, label: "Sell", path: "/sell" },
   { icon: Search, label: "Price Check", path: "/price-check" },
   { icon: Sparkles, label: "Optimise", path: "/optimize" },
   { icon: TrendingUp, label: "Trends", path: "/trends" },
@@ -35,7 +36,6 @@ const NAV_ITEMS: NavItem[] = [
 const BOTTOM_TABS: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
   { icon: Package, label: "Items", path: "/listings" },
-  { icon: Search, label: "Price", path: "/price-check" },
   { icon: TrendingUp, label: "Trends", path: "/trends" },
   { icon: Sparkles, label: "Optimise", path: "/optimize" },
 ];
@@ -192,7 +192,51 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
   const bottomNav = (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-background/90 backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-around h-14">
-        {BOTTOM_TABS.map((tab) => {
+        {/* First 2 tabs */}
+        {BOTTOM_TABS.slice(0, 2).map((tab) => {
+          const active = isActive(tab.path);
+          return (
+            <button
+              key={tab.path}
+              onClick={() => navigate(tab.path)}
+              className={cn(
+                "relative flex flex-col items-center justify-center gap-0 flex-1 h-full transition-all min-w-0 active:scale-90",
+                active ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              {active && (
+                <motion.div
+                  layoutId="bottom-nav-pill-v2"
+                  className="absolute inset-x-3 inset-y-2 bg-primary/8 rounded-xl"
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+              <tab.icon className={cn("w-5 h-5 relative z-10 transition-all", active && "w-[22px] h-[22px]")} />
+              <span className={cn("text-[9px] font-medium relative z-10 mt-0.5", active && "font-bold text-[10px]")}>
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+
+        {/* Centre Sell CTA */}
+        <button
+          onClick={() => navigate("/sell")}
+          className="relative flex flex-col items-center justify-center flex-1 h-full active:scale-90 transition-transform"
+        >
+          <div className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all",
+            isActive("/sell") ? "bg-primary scale-110" : "bg-primary"
+          )}>
+            <Plus className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <span className={cn("text-[9px] font-bold mt-0.5", isActive("/sell") ? "text-primary" : "text-muted-foreground")}>
+            Sell
+          </span>
+        </button>
+
+        {/* Last 2 tabs */}
+        {BOTTOM_TABS.slice(2).map((tab) => {
           const active = isActive(tab.path);
           return (
             <button

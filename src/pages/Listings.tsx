@@ -315,19 +315,19 @@ export default function Listings() {
       <Button variant="outline" size="icon" onClick={handleImportClick} className="sm:hidden h-9 w-9 rounded-xl" title="Import CSV">
         <Download className="w-4 h-4" />
       </Button>
-      <Button size="sm" className="font-semibold hidden sm:flex h-9" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
-          </Button>
-          <Button size="icon" className="sm:hidden h-9 w-9 rounded-xl" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="w-4 h-4" />
-          </Button>
-          <NewItemWizard
-            open={addDialogOpen}
-            onOpenChange={setAddDialogOpen}
-            onCreated={fetchListings}
-            listingCount={stats.active}
-            listingLimit={listingLimit}
-          />
+      <Button size="sm" className="font-semibold hidden sm:flex h-9" onClick={() => navigate("/sell")}>
+        <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
+      </Button>
+      <Button size="icon" className="sm:hidden h-9 w-9 rounded-xl" onClick={() => navigate("/sell")}>
+        <Plus className="w-4 h-4" />
+      </Button>
+      <NewItemWizard
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onCreated={fetchListings}
+        listingCount={stats.active}
+        listingLimit={listingLimit}
+      />
     </div>
   );
 
