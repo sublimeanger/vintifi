@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,13 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HealthScoreMini } from "@/components/HealthScoreGauge";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Search, Sparkles, ImageIcon,
   Eye, Heart, Calendar, PoundSterling, TrendingUp,
   Package, MoreHorizontal, Clock, Zap, Tag, Ruler,
   ShieldCheck, Loader2, Copy, Check, ExternalLink,
-  ArrowRight, Download,
+  ArrowRight, Download, Hash, Flame,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -108,10 +108,34 @@ export default function ItemDetail() {
   const [editingShipping, setEditingShipping] = useState(false);
   const [shippingInput, setShippingInput] = useState("");
 
+  // Quick Hashtags state
+  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [hashtagsLoading, setHashtagsLoading] = useState(false);
+  const [hashtagsCopied, setHashtagsCopied] = useState<string | null>(null);
+
+  // Trending match state
+  const [trendingMatch, setTrendingMatch] = useState<{ brand_or_item: string; opportunity_score: number } | null>(null);
+
   useEffect(() => {
     if (!user || !id) return;
     fetchItem();
   }, [user, id]);
+
+  // Fetch trending match when item loads
+  useEffect(() => {
+    if (!item?.brand) return;
+    supabase
+      .from("trends")
+      .select("brand_or_item, opportunity_score")
+      .ilike("brand_or_item", `%${item.brand}%`)
+      .gte("opportunity_score", 70)
+      .order("opportunity_score", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) setTrendingMatch(data[0]);
+        else setTrendingMatch(null);
+      });
+  }, [item?.brand]);
 
   const fetchItem = async () => {
     if (!id || !user) return;
@@ -131,6 +155,40 @@ export default function ItemDetail() {
     setItem(itemRes.data as Listing);
     setPriceReports((reportsRes.data || []) as PriceReport[]);
     setLoading(false);
+  };
+
+  const handleGenerateHashtags = useCallback(async () => {
+    if (!item) return;
+    setHashtagsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-hashtags", {
+        body: {
+          brand: item.brand,
+          category: item.category,
+          condition: item.condition,
+          title: item.optimised_title || item.title,
+        },
+      });
+      if (error) throw error;
+      if (data?.hashtags) setHashtags(data.hashtags);
+    } catch (e) {
+      toast.error("Couldn't generate hashtags right now");
+    } finally {
+      setHashtagsLoading(false);
+    }
+  }, [item]);
+
+  const handleCopyHashtag = (tag: string) => {
+    navigator.clipboard.writeText(tag);
+    setHashtagsCopied(tag);
+    toast.success(`${tag} copied`);
+    setTimeout(() => setHashtagsCopied(null), 1500);
+  };
+
+  const handleCopyAllHashtags = () => {
+    const text = hashtags.join(" ");
+    navigator.clipboard.writeText(text);
+    toast.success("All hashtags copied!");
   };
 
   const handlePriceCheck = () => {
@@ -253,6 +311,29 @@ export default function ItemDetail() {
       {/* Badge row */}
       <div className="flex items-center gap-1.5 sm:gap-2 mb-3 sm:mb-6 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
         <Badge variant="outline" className={`${status.className} shrink-0 text-[10px]`}>{status.label}</Badge>
+        {/* Trending Now chip */}
+        <AnimatePresence>
+          {trendingMatch && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, x: -8 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ type: "spring", stiffness: 400, damping: 22 }}
+              className="shrink-0"
+            >
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground shadow-sm">
+                <motion.span
+                  animate={{ scale: [1, 1.25, 1] }}
+                  transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
+                  className="inline-flex"
+                >
+                  <Flame className="w-3 h-3" />
+                </motion.span>
+                Trending Now
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {item.brand && <Badge variant="secondary" className="shrink-0 text-[10px]"><Tag className="w-3 h-3 mr-1" />{item.brand}</Badge>}
         {item.size && <Badge variant="secondary" className="shrink-0 text-[10px]"><Ruler className="w-3 h-3 mr-1" />{item.size}</Badge>}
         {item.condition && <Badge variant="secondary" className="shrink-0 text-[10px]"><ShieldCheck className="w-3 h-3 mr-1" />{item.condition.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</Badge>}
@@ -517,6 +598,75 @@ export default function ItemDetail() {
               </div>
             </Button>
           </div>
+
+          {/* ── Quick Hashtags ── */}
+          <Card className="p-2.5 sm:p-4">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-1.5">
+                <Hash className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold text-muted-foreground">Quick Hashtags</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {hashtags.length > 0 && (
+                  <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1" onClick={handleCopyAllHashtags}>
+                    <Copy className="w-3 h-3" /> Copy All
+                  </Button>
+                )}
+                <Button
+                  variant={hashtags.length > 0 ? "outline" : "default"}
+                  size="sm"
+                  className="h-7 text-[10px] gap-1 active:scale-95 transition-transform"
+                  onClick={handleGenerateHashtags}
+                  disabled={hashtagsLoading}
+                >
+                  {hashtagsLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3 h-3" />
+                  )}
+                  {hashtags.length > 0 ? "Refresh" : "Generate"}
+                </Button>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {hashtags.length > 0 ? (
+                <motion.div
+                  key="hashtags"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className="flex flex-wrap gap-1.5"
+                >
+                  {hashtags.map((tag) => (
+                    <motion.button
+                      key={tag}
+                      whileTap={{ scale: 0.92 }}
+                      onClick={() => handleCopyHashtag(tag)}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        hashtagsCopied === tag
+                          ? "bg-success/10 border-success/30 text-success"
+                          : "bg-muted/60 border-border text-foreground hover:bg-primary/10 hover:border-primary/30 hover:text-primary"
+                      }`}
+                    >
+                      {hashtagsCopied === tag ? <Check className="w-3 h-3" /> : <Hash className="w-3 h-3 opacity-50" />}
+                      {tag.startsWith("#") ? tag.slice(1) : tag}
+                    </motion.button>
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.p
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-xs text-muted-foreground"
+                >
+                  {hashtagsLoading ? "Generating 5 Vinted hashtags…" : "Tap Generate to get 5 AI hashtags for this item — no full optimisation needed."}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </Card>
         </TabsContent>
 
         {/* ═══ PRICE TAB ═══ */}
