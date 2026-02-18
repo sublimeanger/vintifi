@@ -1,187 +1,185 @@
 
-# Listing Wizard — "Get Ready to Sell" Full Guided Flow
+# Standalone "Sell" Wizard — Nav-Level Entry Point + Price Override
 
-## The Idea in Plain English
+## The Vision
 
-Right now, Vintifi's four pillars (Add Item → Price → Optimise → Photo Studio) are powerful individually, but they demand the user to *self-navigate* between separate pages. A seller has to understand the workflow, know where to go next, and not get lost. Most won't.
+Right now the Listing Wizard is a side-panel on the Item Detail page. This is backwards — it assumes the user already has an item and knows where to find the wizard. The world-class pattern (Depop, Vinted's own listing flow, Airbnb's "List your home") puts the primary creation flow **directly in the navigation** as its own dedicated page. One button. One clear path. No hunting around.
 
-The **Listing Wizard** is a single, modal-based experience that takes any item and marches the user through every step in order — inside one sheet that never leaves the page. The user doesn't navigate anywhere. The wizard brings each tool *to them*, one step at a time, with hand-holding copy, progress indicators, and blocked-forward logic (can't advance until the step is genuinely done). At the end, they get their completed Vinted-Ready Pack directly inside the wizard.
-
-This works as a **companion overlay on top of the existing Item Detail page**, so all the existing tabs, cards, and tools remain — the wizard is additive, not a replacement. A user can close it at any time and continue using the normal interface.
+The wizard should be a route: `/sell` — accessible from the sidebar and mobile bottom nav as a primary action. It becomes a full-page, multi-step experience (not a side sheet) that starts from scratch: Add Item → Details → Price → Optimise → Photos → Pack. The existing sheet wizard on ItemDetail stays as a "resume" shortcut for items already created.
 
 ---
 
-## Entry Points
+## Change 1 — New `/sell` Route: Full-Page Standalone Wizard
 
-Three natural entry points:
+### Route
+`/sell` — a new page that renders `<SellWizard />` (full-page, not a sheet).
 
-1. **Item Detail Overview tab** — a prominent "🚀 Start Wizard" card/button for items that don't yet have a Vinted-Ready Pack. This replaces (or sits above) the existing "Next Action" button for items that are incomplete.
-2. **Items list page** — a "Guide me through this" action on each item row.
-3. **After adding a new item** — the wizard auto-launches when a new item is created via the New Item Wizard, since those items always need the full flow.
-
----
-
-## The 5 Wizard Steps
-
-The wizard has 5 clearly labelled steps shown as a numbered progress strip at the top:
-
-```text
-① Details  ②  Price  ③  Optimise  ④  Photos  ⑤  Pack Ready ✓
-```
-
-### Step 1 — Details Review
-
-**Purpose:** Make sure the item has everything the AI tools need before spending credits.
-
-**What the user sees:**
-- Item photo (primary image) on the left, item details on the right.
-- A checklist of the 5 key fields: Title, Brand, Category, Condition, Price.
-- Any missing field shows an inline editable input (not a separate page). The user fills it in directly inside the wizard card.
-- A "confidence score" chip: "AI has what it needs ✓" (all 5 filled) or "Missing 2 fields — fill them for better results."
-- **CTA:** "Looks good, run Price Check →" (enabled only when title + condition filled as minimum).
-
-### Step 2 — Price Check
-
-**Purpose:** Get an AI-recommended sell price and lock it in.
-
-**What the user sees:**
-- This step *embeds* the price check result directly inside the wizard — it calls the same `price-check` Edge Function the Price Check page uses, but the results render inside the wizard step as a compact version: recommended price chip, market range bar, confidence badge, and 3-line AI insight.
-- Auto-starts immediately on entering this step if the item has enough data.
-- A green "Use this price (£XX) →" button accepts the recommended price and writes it to the listing in the DB before advancing.
-- If already price-checked, shows last result with "Update or Continue →".
-- **CTA:** "Use £XX as my listing price →"
-
-### Step 3 — Optimise Listing
-
-**Purpose:** AI-generate an SEO-ready title and description.
-
-**What the user sees:**
-- Calls the same `optimize-listing` Edge Function the Optimise page uses.
-- Auto-starts when entering the step (same auto-start logic already used in OptimizeListing.tsx).
-- Results shown as two compact copy blocks: Title and Description, both with individual copy buttons.
-- Health score gauge shown inline (compact version already exists as `HealthScoreMini`).
-- A "Save & Continue →" button writes `optimised_title`, `optimised_description`, and `health_score` to DB before advancing.
-- If already optimised, shows the saved optimised content with "Looks good, Continue →".
-- **CTA:** "Save optimised listing →"
-
-### Step 4 — Photo Studio
-
-**Purpose:** Get at least one AI-enhanced photo saved to the item.
-
-**What the user sees:**
-- If the item has no photos: an upload prompt (same pattern as PhotosTab) with a note: "Add your primary photo first so AI can enhance it."
-- If the item has photos: shows the primary image (thumbnail) with two prominent option buttons:
-  - "Enhance in Photo Studio →" — opens Photo Studio in a new tab/window targeting this specific item and photo. A "I've done this, continue →" button lets them advance manually after returning.
-  - "Skip for now →" — marks the step as optionally skipped (the step indicator shows amber rather than green).
-- **Design note:** The Photo Studio step is the only one we can't fully embed inside the wizard (Photo Studio is a complex full-screen tool). Instead, the wizard acts as a launch pad + return detector: it polls the item's `last_photo_edit_at` field every 5 seconds while showing a waiting state ("Waiting for photo studio... Return here when done"). When `last_photo_edit_at` updates, the wizard auto-advances to step 5.
-- **CTA:** "Open Photo Studio →" + "Continue without photo enhancement →"
-
-### Step 5 — Vinted-Ready Pack
-
-**Purpose:** Show the completed pack and get the user ready to list on Vinted.
-
-**What the user sees:**
-- The complete `VintedReadyPack` component rendered inside the wizard — exactly the same component already used on the Overview tab.
-- A final "🎉 You're ready to list!" celebration header with a confetti animation (framer-motion).
-- A prominent external link button: "Open Vinted & list this now →" (links to vinted.co.uk/upload).
-- A "Mark as Listed" button that lets them paste their Vinted listing URL and saves it to `vinted_url` in the DB, completing the workflow tracker.
-- **CTA:** "Mark as Listed on Vinted →"
-
----
-
-## Component Architecture
-
-The wizard is a single new component: `src/components/ListingWizard.tsx`
-
-It uses a Radix `Sheet` (the same one already in the codebase) with `side="right"` on desktop and `side="bottom"` on mobile — making it a full-height side panel on desktop (wide, not modal) and a tall bottom sheet on mobile.
-
-```text
-src/components/ListingWizard.tsx      ← New file: all wizard logic & steps
-src/pages/ItemDetail.tsx              ← Add wizard launch button on Overview tab
-```
-
-Only 2 files total (1 new, 1 edited).
-
-### Internal structure of ListingWizard.tsx
+This page is a **7-step** flow that includes item creation at the top:
 
 ```
-<Sheet>
-  <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
-    ← WizardProgressBar (steps 1–5)
-    ← WizardStepContent (renders current step's UI)
-    ← WizardNavFooter (Back / Next / primary CTA)
-  </SheetContent>
-</Sheet>
+① Add Item   ② Details   ③ Price   ④ Optimise   ⑤ Photos   ⑥ Pack ✓
 ```
 
-State is entirely local to the wizard component:
-- `currentStep: 1 | 2 | 3 | 4 | 5`
-- `stepStatus: Record<step, 'pending' | 'loading' | 'done' | 'skipped'>`
-- `priceResult` — the price check result from the edge function
-- `optimiseResult` — the optimise result
-- `localItem` — a local copy of the item, updated in real time as the user fills fields and saves, so the wizard always reflects current state
+Step 0/1 is the "Add Item" step — this is the entry from `NewItemWizard` logic, already built. We reuse the same photo upload + URL import + manual entry options that exist in `NewItemWizard.tsx`, but render them inside the full-page sell wizard instead of a dialog.
 
-The component takes `item` and `onItemUpdate` as props (same pattern as `PhotosTab`), so it can update the parent's item state after each step saves.
+When step 1 (Add Item) completes and a listing is created in the DB, the wizard picks up the new item ID and continues through the remaining 5 steps (which are identical to the existing `ListingWizard` steps 1–5).
+
+### Visual Layout (Desktop)
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  ← Back to Items    🚀 Sell Wizard     Step 2 of 6       │
+├──────────────────────────────────────────────────────────┤
+│  ① ──── ② ──── ③ ──── ④ ──── ⑤ ──── ⑥                 │
+│  Add  Details  Price  Optimise Photos  Pack              │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│              [Step content — max-w-lg centered]          │
+│                                                          │
+├──────────────────────────────────────────────────────────┤
+│  [← Back]                         [Continue →]          │
+└──────────────────────────────────────────────────────────┘
+```
+
+On **mobile**: full-screen with the progress strip pinned to top, content scrollable, footer CTA sticky at bottom — same pattern as Depop's listing flow.
+
+### Navigation Entry Points
+
+**Desktop sidebar** — a new nav item added between "Items" and "Price Check":
+```
+Dashboard
+Items
+→ 🚀 Sell (new, highlighted with primary colour accent)
+Price Check
+Optimise
+Trends
+Photo Studio
+```
+
+**Mobile bottom nav** — replace one of the 5 tabs with "Sell". The bottom tabs become:
+```
+Home | Items | 🚀 Sell | Trends | Optimise
+```
+The "Sell" tab is styled differently (primary background pill, always highlighted) so it reads as a CTA, not just a navigation item — same as Instagram's "+" tab or TikTok's centre record button.
+
+**Items list page** — the existing "+ New Item" button navigates to `/sell` instead of opening the `NewItemWizard` dialog.
+
+**Dashboard** — the "Add your first item" empty state and "Quick Actions" card link to `/sell`.
 
 ---
 
-## UX Details That Make This World-Class
+## Change 2 — Price Override in Step 3 (Price Check)
 
-**Progress strip:**
-- Step numbers shown as circles: grey (pending), blue/primary (current), green (done), amber (skipped).
-- Step names shown as small labels below circles on desktop, hidden on mobile (just circles + current step name).
-- A connecting line between circles fills green as steps complete.
+### Current Behaviour
+After the AI runs the price check, the only action is "Use £X as my listing price" — you must accept the AI recommendation. There is no way to type your own price.
 
-**Step transitions:**
-- `framer-motion` `AnimatePresence` with a horizontal slide — step 1 slides left as step 2 slides in from the right. Backward navigation reverses direction.
+### New Behaviour
+After the price check result loads, show **two options** side by side:
 
-**Auto-advance logic:**
-- Step 2 (Price): on entering the step, the wizard fires the price-check call immediately (with a loading state). When the result arrives, the "Use this price" CTA becomes active. No manual "run" button needed.
-- Step 3 (Optimise): same auto-start — the optimise call fires on entering the step.
-- Step 4 (Photos): polls `last_photo_edit_at` every 5 seconds via a `setInterval` that starts when the user clicks "Open Photo Studio". Auto-advances when the timestamp updates.
+**Option A — Accept AI price (primary CTA, unchanged):**
+```
+[ ✓ Use £14.00 — AI recommended ]
+```
 
-**Blocking rules:**
-- "Next" button is disabled (greyed) until the step's minimum requirement is met. The button label changes to explain why: "Add a title to continue" or "Run price check to continue."
+**Option B — Set my own price (secondary, text input):**
+A small `"Or set your own price:"` section below with a `£` prefixed input field and a "Use this price" button. The user types any number, hits confirm, and that price gets saved to the DB — same `acceptPrice` function, just with the custom value instead of `priceResult.recommended_price`.
 
-**Wizard launch button placement on ItemDetail:**
-- Appears as a full-width card with gradient border at the top of the Overview tab, *above* the VintedReadyPack. Shown only when `!item.vinted_url` (i.e., not yet listed). Label: "🚀 Get ready to list — guided walkthrough".
-- Once all 4 steps are green (price + optimise + photos done), the card changes to show the Pack preview inline with a "View Full Pack" link that scrolls to the VintedReadyPack below.
+The UX pattern:
+```
+┌─────────────────────────────────┐
+│  Recommended Price              │
+│  £14.00   88% confidence        │
+│  Market: £8 ──●─── £22         │
+│  [AI insight text...]           │
+│                                 │
+│  [✓ Use £14.00 — AI suggested] │
+│                                 │
+│  ─── or set your own price ─── │
+│  £ [12.00          ] [Use this] │
+└─────────────────────────────────┘
+```
 
-**Mobile behaviour:**
-- Sheet opens from bottom, takes up 92% of viewport height.
-- The progress bar pins to the top of the sheet.
-- Steps are vertically scrollable within the sheet.
-- The footer CTA button is sticky at the bottom of the sheet.
+Once either price is accepted (AI or custom), the accepted price and "Price locked" confirmation state show as before. The `canAdvance()` check for step 3 remains: `priceAccepted === true`.
+
+The `acceptPrice` function needs to accept an optional `customPrice` parameter:
+```ts
+const acceptPrice = async (customPrice?: number) => {
+  const price = customPrice ?? priceResult?.recommended_price;
+  if (!price) return;
+  // same DB write as before
+};
+```
 
 ---
 
-## Technical Steps
+## Files to Change
 
-### In ListingWizard.tsx (new file ~400 lines):
-1. Accept `item`, `isOpen`, `onClose`, `onItemUpdate` props.
-2. Step 1: Render editable field checklist. Inline save to Supabase on blur (same pattern as ItemDetail's inline price editing). Compute `missingFields` array to show confidence chip.
-3. Step 2: On `currentStep === 2`, call `supabase.functions.invoke("price-check", {...})` with item data. Render compact price report. On "Use this price" click, update `current_price` + `recommended_price` in DB.
-4. Step 3: On `currentStep === 3`, call `supabase.functions.invoke("optimize-listing", {...})`. Render title + description blocks with copy buttons + HealthScoreMini. On save, write `optimised_title`, `optimised_description`, `health_score`, `last_optimised_at` to DB.
-5. Step 4: Render photo summary. Launch Photo Studio link with `?itemId=...&image_url=...`. Poll `last_photo_edit_at` every 5 seconds (`setInterval`, clear on unmount/step-change). Auto-advance when it updates. Offer "Skip" button.
-6. Step 5: Render `<VintedReadyPack item={localItem} ... />`. Add celebration header. "Mark as Listed" input + save.
+| File | Action | What changes |
+|------|--------|-------------|
+| `src/pages/SellWizard.tsx` | **New file** | Full-page standalone wizard — 6 steps including item creation. Reuses all edge function calls and DB logic from `ListingWizard.tsx`. |
+| `src/App.tsx` | **Edit** | Add `/sell` route pointing to `SellWizard`. |
+| `src/components/AppShellV2.tsx` | **Edit** | Add "Sell" to desktop sidebar nav items + replace a mobile bottom tab with "Sell" styled as primary CTA. |
+| `src/components/ListingWizard.tsx` | **Edit** | Add price override input to Step 2, modify `acceptPrice` to accept `customPrice` param, add `customPriceInput` state. |
+| `src/pages/Listings.tsx` | **Edit** | Wire "+ New Item" button to `navigate('/sell')` instead of opening `NewItemWizard` dialog. |
 
-### In ItemDetail.tsx (1 addition):
-- Import `ListingWizard`.
-- Add `const [wizardOpen, setWizardOpen] = useState(false)`.
-- Add the wizard launch card above VintedReadyPack in the Overview tab (shown when `!item.vinted_url`).
-- Render `<ListingWizard item={item} isOpen={wizardOpen} onClose={...} onItemUpdate={...} />`.
+---
+
+## Technical Detail: SellWizard.tsx Architecture
+
+The key difference from `ListingWizard.tsx` is that `SellWizard` is a **page** (not a sheet), starts with item creation, and owns the item state from scratch:
+
+```tsx
+// SellWizard.tsx — simplified structure
+export default function SellWizard() {
+  const [step, setStep] = useState<1|2|3|4|5|6>(1);
+  const [createdItem, setCreatedItem] = useState<Listing | null>(null);
+  const navigate = useNavigate();
+
+  // Step 1: Item creation — inline (reuses NewItemWizard logic)
+  // Steps 2–6: Same as ListingWizard steps 1–5, but rendered full-page
+  // On step 6 complete: navigate to /items/:id with success toast
+}
+```
+
+Steps 2–6 in `SellWizard` are the same logic as `ListingWizard` steps 1–5. To avoid full code duplication, we extract the step content components (Step1Details, Step2Price, etc.) from `ListingWizard.tsx` into named exports that both `ListingWizard` and `SellWizard` import. This keeps the price override fix in one place and both wizards benefit.
+
+Actually — to keep it simple and ship fast, `SellWizard.tsx` is self-contained (~500 lines) with the same logic inline. Both files share the same patterns. The item creation step (step 1 of SellWizard) is a simplified version of `NewItemWizard` — just the Manual entry path (title, brand, category, condition, price, photos) presented cleanly, since URL import and photo-first modes are secondary entry paths that can be added later.
+
+### Step 1 of SellWizard — "Add Your Item"
+Three entry method cards:
+- **Upload a photo** — drag and drop / camera roll, AI identifies the item
+- **Enter manually** — type title, brand, category, condition, price
+- **Import from URL** — paste a Vinted listing URL (scrape-vinted-url edge function)
+
+The user picks one, fills it in, hits "Create Item" — the item is inserted into `listings` table with `status: 'draft'`, the returned ID is stored in `createdItem`, and the wizard advances to step 2.
+
+### Progress Bar Difference
+`SellWizard` progress bar shows 6 steps (Add, Details, Price, Optimise, Photos, Pack). `ListingWizard` (sheet on ItemDetail) keeps 5 steps as today (skips the Add step since item already exists).
+
+### Mobile Bottom Nav Styling
+The "Sell" tab in the bottom nav uses a `+` icon in a filled primary-coloured pill — visually distinct from the other ghost-style tabs:
+
+```tsx
+// Sell tab — styled as primary CTA
+<button className="relative flex flex-col items-center justify-center flex-1 h-full">
+  <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shadow-md active:scale-90 transition-transform">
+    <Plus className="w-5 h-5 text-primary-foreground" />
+  </div>
+  <span className="text-[9px] font-bold text-primary mt-0.5">Sell</span>
+</button>
+```
+
+This is exactly the pattern Depop, Instagram, TikTok, and Vinted itself use for the primary create action in mobile bottom navigation.
 
 ---
 
 ## Scope Summary
 
-| File | Action |
+| What | Detail |
 |------|--------|
-| `src/components/ListingWizard.tsx` | **New file** — ~400 lines, all 5 wizard steps |
-| `src/pages/ItemDetail.tsx` | **Edit** — add wizard trigger card + render `<ListingWizard>` |
-
-- No new edge functions (reuses existing `price-check` and `optimize-listing`)
-- No database changes
-- No new dependencies
-- Works on mobile and desktop
-- Estimated result: a user can go from a fresh item to a completed Vinted-Ready Pack in under 5 minutes without ever leaving the Item Detail page or having to navigate between tools
+| New files | `src/pages/SellWizard.tsx` |
+| Edited files | `App.tsx`, `AppShellV2.tsx`, `ListingWizard.tsx`, `Listings.tsx` |
+| Database changes | None |
+| New edge functions | None — reuses `price-check`, `optimize-listing`, `scrape-vinted-url` |
+| New dependencies | None |
+| Result | A seller can click "Sell" in the nav and be guided from zero to a completed Vinted-Ready Pack in under 5 minutes, on any device, with full price control at the pricing step |
