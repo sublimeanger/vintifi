@@ -592,13 +592,11 @@ serve(async (req) => {
       .eq("id", job.id);
 
     // Atomic increment — prevents race condition double-spend (passes weighted amount for model_shot)
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
       method: "POST",
       headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
+        apikey: supabaseServiceKey,
+        Authorization: `Bearer ${supabaseServiceKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ p_user_id: user.id, p_column: "vintography_used", p_amount: creditsToDeduct }),
