@@ -14,6 +14,7 @@ type Props = {
   processing: boolean;
   processingStep?: ProcessingStep;
   operationId?: string;
+  resultLabel?: string;
   variations: string[];
   currentVariation: number;
   onVariationChange: (idx: number) => void;

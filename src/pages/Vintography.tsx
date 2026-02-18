@@ -23,7 +23,7 @@ import {
 import { CreditBar } from "@/components/vintography/CreditBar";
 import { ComparisonView, type ProcessingStep } from "@/components/vintography/ComparisonView";
 import { GalleryCard, type VintographyJob } from "@/components/vintography/GalleryCard";
-import { BatchStrip, type BatchItem } from "@/components/vintography/BatchStrip";
+import { PhotoFilmstrip, type PhotoEditState } from "@/components/vintography/PhotoFilmstrip";
 import { ModelPicker } from "@/components/vintography/ModelPicker";
 import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
 
@@ -116,16 +116,33 @@ const OP_MAP: Record<Operation, string> = {
   decrease: "decrease",
 };
 
+// Human-readable operation names for the ComparisonView badge
+const OP_RESULT_LABEL: Record<Operation, string> = {
+  clean_bg: "Background Removed",
+  lifestyle_bg: "Lifestyle Scene",
+  virtual_model: "AI Model",
+  enhance: "Enhanced",
+  decrease: "Steamed",
+};
+
 export default function Vintography() {
   const { user, profile, credits, refreshCredits } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addPhotoInputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const itemId = searchParams.get("itemId");
 
-  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
+  // ─── Core photo state ───
+  // activePhotoUrl: the URL currently loaded in the editing workspace
+  // itemPhotos: ordered list of all listing photo URLs (for filmstrip)
+  // photoEditStates: per-URL edit state (edited result, saved flag, op applied)
+  const [activePhotoUrl, setActivePhotoUrl] = useState<string | null>(null);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
+  const [itemPhotos, setItemPhotos] = useState<string[]>([]);
+  const [photoEditStates, setPhotoEditStates] = useState<Record<string, PhotoEditState>>({});
+
   const [selectedOp, setSelectedOp] = useState<Operation>("clean_bg");
   const [processing, setProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<ProcessingStep>(null);
@@ -146,53 +163,55 @@ export default function Vintography() {
   // Mannequin params
   const [mannequinType, setMannequinType] = useState("headless");
   const [mannequinLighting, setMannequinLighting] = useState("soft_studio");
-
   // Decrease (Steam & Press) params
   const [decreaseIntensity, setDecreaseIntensity] = useState<"light" | "standard" | "deep">("standard");
 
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
 
-  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
-  const [activeBatchIndex, setActiveBatchIndex] = useState(0);
-
-  // Explicit save-to-item state
-  const [savedToItem, setSavedToItem] = useState(false);
+  // Saving state
   const [savingToItem, setSavingToItem] = useState(false);
   const [resultReady, setResultReady] = useState(false);
+
+  // Item metadata
+  const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
+  const [linkedItemTitle, setLinkedItemTitle] = useState<string>("");
+  const [garmentContext, setGarmentContext] = useState("");
 
   const vintographyUsed = (credits as any)?.vintography_used ?? 0;
   const creditsLimit = credits?.credits_limit ?? 5;
   const isUnlimited = (profile as any)?.subscription_tier === "scale" || creditsLimit >= 999;
 
-  // Load image from URL param
-  useEffect(() => {
-    const imageUrl = searchParams.get("image_url");
-    if (imageUrl && !originalUrl) {
-      setOriginalUrl(imageUrl);
-      setProcessedUrl(null);
-      setBatchItems([]);
-    }
-  }, [searchParams]);
+  // ─── Computed: the "working" URL for ComparisonView original slot ───
+  // Always show the original (unedited) version in ComparisonView's left/before side
+  const workingOriginalUrl = activePhotoUrl;
 
-  // Fetch item photos from DB when itemId is present
-  const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
-  const [linkedItemTitle, setLinkedItemTitle] = useState<string>("");
-  const [garmentContext, setGarmentContext] = useState("");
+  // Current active photo's saved edit (to restore when switching back)
+  const activeEditState = activePhotoUrl ? photoEditStates[activePhotoUrl] : null;
+
+  // ─── Unified effect: handles image_url param + itemId loading (fixes race condition) ───
   useEffect(() => {
-    if (!itemId || !user) return;
-    (async () => {
+    if (!user) return;
+
+    const imageUrl = searchParams.get("image_url");
+    const paramItemId = searchParams.get("itemId");
+
+    const fetchItemPhotos = async (id: string, pinUrl: string | null) => {
       const { data } = await supabase
         .from("listings")
         .select("image_url, images, last_optimised_at, title, brand, category, description, size, condition")
-        .eq("id", itemId)
+        .eq("id", id)
         .eq("user_id", user.id)
         .maybeSingle();
+
       if (!data) return;
+
       setItemData({ last_optimised_at: data.last_optimised_at });
       setLinkedItemTitle(data.title || "");
+
       const parts = [data.brand, data.title, data.category, data.size ? `size ${data.size}` : null, data.condition].filter(Boolean);
       if (parts.length > 0) setGarmentContext(parts.join(", "));
+
       const urls: string[] = [];
       if (data.image_url) urls.push(data.image_url);
       if (Array.isArray(data.images)) {
@@ -201,27 +220,33 @@ export default function Vintography() {
           if (u && !urls.includes(u)) urls.push(u);
         }
       }
-      if (urls.length === 0) return;
-      if (urls.length === 1) {
-        setOriginalUrl(urls[0]);
+
+      setItemPhotos(urls);
+
+      if (urls.length === 0) {
+        // No photos yet — show upload zone
+        setActivePhotoUrl(null);
         setProcessedUrl(null);
-        setBatchItems([]);
-      } else {
-        setOriginalUrl(urls[0]);
-        setProcessedUrl(null);
-        const items: BatchItem[] = urls.map((u, i) => ({
-          id: `item-${i}-${Date.now()}`,
-          file: null as any,
-          previewUrl: u,
-          uploadedUrl: u,
-          processedUrl: null,
-          status: "pending" as const,
-        }));
-        setBatchItems(items);
-        setActiveBatchIndex(0);
+        return;
       }
-    })();
-  }, [itemId, user]);
+
+      // If deep-linked to specific photo, pin it; otherwise default to first
+      const targetUrl = pinUrl && urls.includes(pinUrl) ? pinUrl : (pinUrl || urls[0]);
+      setActivePhotoUrl(targetUrl);
+      setProcessedUrl(null);
+    };
+
+    if (imageUrl) {
+      // Deep-linked to specific photo — set it as active immediately
+      setActivePhotoUrl(imageUrl);
+      setProcessedUrl(null);
+      // Also load all item photos for filmstrip context (non-blocking)
+      if (paramItemId) fetchItemPhotos(paramItemId, imageUrl);
+    } else if (paramItemId) {
+      // Load item photos, default first as active
+      fetchItemPhotos(paramItemId, null);
+    }
+  }, [searchParams, user]);
 
   const fetchGallery = useCallback(async () => {
     if (!user) return;
@@ -251,31 +276,97 @@ export default function Vintography() {
     return found?.label || op;
   };
 
-  const updateLinkedItem = async (newProcessedUrl: string) => {
+  // ─── Replace a specific photo URL in a listing (instead of appending) ───
+  const replaceListingPhoto = async (listingId: string, oldUrl: string, newUrl: string) => {
+    const { data } = await supabase
+      .from("listings")
+      .select("image_url, images")
+      .eq("id", listingId)
+      .eq("user_id", user!.id)
+      .maybeSingle();
+
+    if (!data) return;
+
+    const isPrimary = data.image_url === oldUrl;
+    const rawImages = Array.isArray(data.images) ? (data.images as string[]) : [];
+    const newImages = rawImages.map((u) => (u === oldUrl ? newUrl : u));
+
+    await supabase.from("listings").update({
+      image_url: isPrimary ? newUrl : data.image_url,
+      images: newImages as any,
+      last_photo_edit_at: new Date().toISOString(),
+    }).eq("id", listingId).eq("user_id", user!.id);
+  };
+
+  // ─── Append a new photo to a listing (add alongside) ───
+  const appendListingPhoto = async (newUrl: string) => {
     if (!itemId || !user) return;
+    const { data: listing } = await supabase
+      .from("listings").select("images, image_url").eq("id", itemId).eq("user_id", user.id).maybeSingle();
+    const existingImages = Array.isArray(listing?.images) ? (listing.images as string[]) : [];
+    const updatedImages = [...existingImages, newUrl];
+    await supabase.from("listings").update({
+      last_photo_edit_at: new Date().toISOString(),
+      images: updatedImages as any,
+      image_url: existingImages.length === 0 ? newUrl : listing?.image_url,
+    }).eq("id", itemId).eq("user_id", user.id);
+  };
+
+  // ─── Save to item: replace (default) or add alongside ───
+  const handleSaveToItem = async (mode: "replace" | "add") => {
+    if (!processedUrl || !itemId || !activePhotoUrl) return;
+    setSavingToItem(true);
+
     try {
-      const { data: listing } = await supabase
-        .from("listings").select("images").eq("id", itemId).eq("user_id", user.id).maybeSingle();
-      const existingImages = Array.isArray(listing?.images) ? (listing.images as string[]) : [];
-      const updatedImages = [...existingImages, newProcessedUrl];
-      await supabase.from("listings").update({
-        last_photo_edit_at: new Date().toISOString(),
-        images: updatedImages as any,
-        image_url: existingImages.length === 0 ? newProcessedUrl : undefined,
-      }).eq("id", itemId).eq("user_id", user.id);
+      if (mode === "replace") {
+        await replaceListingPhoto(itemId, activePhotoUrl, processedUrl);
+
+        // Update filmstrip to show edited version in thumbnail
+        setItemPhotos((prev) => prev.map((u) => (u === activePhotoUrl ? processedUrl : u)));
+
+        // Now working on the processed (replaced) version
+        const prevUrl = activePhotoUrl;
+        setActivePhotoUrl(processedUrl);
+        setPhotoEditStates((prev) => ({
+          ...prev,
+          [prevUrl]: { ...prev[prevUrl], savedToItem: true },
+          [processedUrl]: { editedUrl: null, savedToItem: false, operationApplied: null },
+        }));
+
+        toast.success("Photo replaced in your listing", {
+          description: "The original has been swapped with the enhanced version",
+          action: { label: "View Photos", onClick: () => navigate(`/items/${itemId}?tab=photos`) },
+          duration: 5000,
+        });
+      } else {
+        await appendListingPhoto(processedUrl);
+        // Update filmstrip to add the new photo
+        setItemPhotos((prev) => [...prev, processedUrl]);
+        setPhotoEditStates((prev) => ({
+          ...prev,
+          [activePhotoUrl]: { ...prev[activePhotoUrl], savedToItem: true },
+        }));
+
+        toast.success("Photo added to your listing", {
+          description: "Both the original and enhanced version are now in your listing",
+          action: { label: "View Photos", onClick: () => navigate(`/items/${itemId}?tab=photos`) },
+          duration: 5000,
+        });
+      }
+
+      // Log activity
       await supabase.from("item_activity").insert({
-        user_id: user.id, listing_id: itemId, type: "photo_edited",
-        payload: { operation: selectedOp, processed_url: newProcessedUrl },
+        user_id: user!.id,
+        listing_id: itemId,
+        type: "photo_edited",
+        payload: { operation: selectedOp, processed_url: processedUrl, mode },
       });
-      toast.success(linkedItemTitle ? `Photo saved to "${linkedItemTitle}"` : "Photo saved to your item", {
-        description: "Tap to view it in the Photos tab",
-        action: {
-          label: "View Photos",
-          onClick: () => navigate(`/items/${itemId}?tab=photos`),
-        },
-        duration: 6000,
-      });
-    } catch (err) { console.error("Failed to update linked item:", err); }
+    } catch (err) {
+      console.error("Failed to save photo to item:", err);
+      toast.error("Failed to save photo");
+    } finally {
+      setSavingToItem(false);
+    }
   };
 
   const uploadFile = async (file: File): Promise<string | null> => {
@@ -295,30 +386,41 @@ export default function Vintography() {
     const fileArr = Array.from(files).slice(0, 10);
     if (fileArr.length === 1) {
       const url = await uploadFile(fileArr[0]);
-      if (url) { setOriginalUrl(url); setProcessedUrl(null); setBatchItems([]); }
-    } else {
-      const items: BatchItem[] = fileArr.map((f) => ({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        file: f, previewUrl: URL.createObjectURL(f), uploadedUrl: null, processedUrl: null, status: "uploading" as const,
-      }));
-      setBatchItems(items);
-      setActiveBatchIndex(0);
-      const results = await Promise.allSettled(fileArr.map((f) => uploadFile(f)));
-      const updatedItems = items.map((item, i) => {
-        const result = results[i];
-        if (result.status === "fulfilled" && result.value) {
-          return { ...item, uploadedUrl: result.value, status: "pending" as const };
-        }
-        return { ...item, status: "error" as const };
-      });
-      setBatchItems(updatedItems);
-      const firstOk = updatedItems.find(it => it.status === "pending");
-      if (firstOk) {
-        setOriginalUrl(firstOk.uploadedUrl);
+      if (url) {
+        setActivePhotoUrl(url);
         setProcessedUrl(null);
+        setItemPhotos([]);
+        setPhotoEditStates({});
+      }
+    } else {
+      // Multiple files uploaded standalone (no itemId) — treat as independent photos
+      const uploaded: string[] = [];
+      for (const f of fileArr) {
+        const url = await uploadFile(f);
+        if (url) uploaded.push(url);
+      }
+      if (uploaded.length > 0) {
+        setItemPhotos(uploaded);
+        setActivePhotoUrl(uploaded[0]);
+        setProcessedUrl(null);
+        setPhotoEditStates({});
       }
     }
   }, [user]);
+
+  // Handle "Add Photo" from filmstrip + button (only when itemId present)
+  const handleAddPhoto = useCallback(async (files: FileList | null) => {
+    if (!files || !user || !itemId) return;
+    const file = files[0];
+    const url = await uploadFile(file);
+    if (!url) return;
+    // Append to listing
+    await appendListingPhoto(url);
+    setItemPhotos((prev) => [...prev, url]);
+    setActivePhotoUrl(url);
+    setProcessedUrl(null);
+    toast.success("Photo added to listing");
+  }, [user, itemId]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -368,7 +470,6 @@ export default function Vintography() {
     return OP_MAP[selectedOp];
   };
 
-  // Returns a human-readable description of the current operation for the processing overlay
   const getOperationLabel = (): string => {
     if (selectedOp === "clean_bg") return "Removing background...";
     if (selectedOp === "enhance") return "Enhancing photo...";
@@ -385,7 +486,6 @@ export default function Vintography() {
     return "Processing...";
   };
 
-  // Fast ops use flash model (~10-20s); slow ops use pro model (~40-70s)
   const isFlashOp = (): boolean => {
     if (selectedOp === "clean_bg" || selectedOp === "enhance" || selectedOp === "decrease") return true;
     if (selectedOp === "lifestyle_bg") return true;
@@ -394,7 +494,7 @@ export default function Vintography() {
   };
 
   const handleProcess = async () => {
-    if (!originalUrl) return;
+    if (!activePhotoUrl) return;
     setProcessing(true);
     setProcessingStep("uploading");
     try {
@@ -403,18 +503,27 @@ export default function Vintography() {
         setTimeout(() => setProcessingStep("generating"), 2000);
         setTimeout(() => setProcessingStep("finalising"), 8000);
       } else {
-        // Pro model ops (AI model, mannequin) take 40-70s — spread timers accordingly
         setTimeout(() => setProcessingStep("analysing"), 800);
         setTimeout(() => setProcessingStep("generating"), 4000);
         setTimeout(() => setProcessingStep("finalising"), 20000);
       }
 
-      const result = await processImage(originalUrl, getOperation(), getParams());
+      const result = await processImage(activePhotoUrl, getOperation(), getParams());
       if (result) {
         setProcessedUrl(result);
-        setSavedToItem(false);
         setResultReady(true);
         fetchGallery();
+
+        // Store per-photo edit state
+        setPhotoEditStates((prev) => ({
+          ...prev,
+          [activePhotoUrl]: {
+            editedUrl: result,
+            savedToItem: false,
+            operationApplied: selectedOp,
+          },
+        }));
+
         setTimeout(() => {
           resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 200);
@@ -424,12 +533,15 @@ export default function Vintography() {
     finally { setProcessing(false); setProcessingStep(null); }
   };
 
-  const handleSaveToItem = async () => {
-    if (!processedUrl || !itemId) return;
-    setSavingToItem(true);
-    await updateLinkedItem(processedUrl);
-    setSavedToItem(true);
-    setSavingToItem(false);
+  // Switch active photo in filmstrip — restores that photo's edit state
+  const handleFilmstripSelect = (url: string) => {
+    setActivePhotoUrl(url);
+    const editState = photoEditStates[url];
+    if (editState?.editedUrl) {
+      setProcessedUrl(editState.editedUrl);
+    } else {
+      setProcessedUrl(null);
+    }
   };
 
   const handleDownload = async () => {
@@ -441,100 +553,46 @@ export default function Vintography() {
     } catch { toast.error("Download failed"); }
   };
 
-  const handleBatchProcessAll = async () => {
-    if (batchItems.length <= 1) return;
-    setProcessing(true);
-    let doneCount = 0;
-    for (let i = 0; i < batchItems.length; i++) {
-      const item = batchItems[i];
-      const url = item.uploadedUrl;
-      if (!url || item.status === "error") {
-        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it));
-        continue;
-      }
-      setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "processing" } : it));
-      setActiveBatchIndex(i); setOriginalUrl(url); setProcessedUrl(null);
-      setProcessingStep("analysing");
-      try {
-        const result = await processImage(url, getOperation(), getParams());
-        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, processedUrl: result, status: result ? "done" : "error" } : it));
-        if (result) { setProcessedUrl(result); doneCount++; }
-      } catch {
-        setBatchItems((prev) => prev.map((it, idx) => idx === i ? { ...it, status: "error" } : it));
-      }
-    }
-    setProcessing(false); setProcessingStep(null);
-    fetchGallery();
-    toast.success(`${doneCount}/${batchItems.length} photos processed successfully`);
-  };
-
-  const handleBatchSelect = (idx: number) => {
-    setActiveBatchIndex(idx);
-    const item = batchItems[idx];
-    setOriginalUrl(item.uploadedUrl || item.previewUrl);
-    setProcessedUrl(item.processedUrl);
-  };
-
-  const handleBatchRemove = (idx: number) => {
-    setBatchItems((prev) => prev.filter((_, i) => i !== idx));
-    if (activeBatchIndex >= idx && activeBatchIndex > 0) setActiveBatchIndex((p) => p - 1);
-  };
-
-  const handleDownloadAll = async () => {
-    const downloadable = batchItems.filter(i => i.processedUrl);
-    if (downloadable.length === 0) return;
-    for (let i = 0; i < downloadable.length; i++) {
-      toast.info(`Downloading ${i + 1} of ${downloadable.length}…`);
-      try {
-        const res = await fetch(downloadable[i].processedUrl!);
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `vintography-${downloadable[i].id}.png`;
-        a.style.display = "none";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        await new Promise(r => setTimeout(r, 400));
-      } catch {}
-    }
-    toast.success("All downloads complete");
-  };
-
   const handleUseAsInput = (job: VintographyJob) => {
     const url = job.processed_url || job.original_url;
-    setOriginalUrl(url);
+    setActivePhotoUrl(url);
     setProcessedUrl(null);
-    setBatchItems([]);
+    setItemPhotos([]);
+    setPhotoEditStates({});
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const resetAll = () => {
-    setOriginalUrl(null); setProcessedUrl(null); setBatchItems([]); setActiveBatchIndex(0); setProcessingStep(null);
+    setActivePhotoUrl(null);
+    setProcessedUrl(null);
+    setItemPhotos([]);
+    setPhotoEditStates({});
+    setProcessingStep(null);
   };
 
   const returnTo = searchParams.get("returnTo");
   const fromWizard = returnTo === "/sell";
 
-  // ─── Generate / Process button — shared between mobile (below params) and desktop (in left panel) ───
+  // Whether we have a linked item with photos to show (filmstrip mode)
+  const hasFilmstrip = itemId && itemPhotos.length > 0;
+
+  // Count of edited photos in this session
+  const editedCount = Object.values(photoEditStates).filter((s) => s.editedUrl !== null).length;
+  const savedCount = Object.values(photoEditStates).filter((s) => s.savedToItem).length;
+
+  // The current active photo's saved state (drives button state)
+  const activePhotoSaved = activePhotoUrl ? photoEditStates[activePhotoUrl]?.savedToItem === true : false;
+
+  // ─── Generate button shared component ───
   const GenerateButton = () => (
-    <div className="flex flex-col gap-2">
-      {batchItems.length > 1 ? (
-        <Button onClick={handleBatchProcessAll} disabled={processing}
-          className="w-full h-12 lg:h-11 font-semibold text-sm lg:text-base active:scale-95 transition-transform">
-          {processing ? <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />}
-          {processing ? "Processing…" : `Process All ${batchItems.length} Photos`}
-        </Button>
-      ) : (
-        <Button onClick={handleProcess} disabled={processing}
-          className="w-full h-12 lg:h-11 font-semibold text-sm lg:text-base active:scale-95 transition-transform">
-          {processing ? <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />}
-          {processing ? "Processing…" : `Apply ${OPERATIONS.find(o => o.id === selectedOp)?.label}`}
-        </Button>
-      )}
-    </div>
+    <Button
+      onClick={handleProcess}
+      disabled={processing || !activePhotoUrl}
+      className="w-full h-12 lg:h-11 font-semibold text-sm lg:text-base active:scale-95 transition-transform"
+    >
+      {processing ? <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />}
+      {processing ? getOperationLabel() : `Apply ${OPERATIONS.find(o => o.id === selectedOp)?.label}`}
+    </Button>
   );
 
   return (
@@ -599,8 +657,8 @@ export default function Vintography() {
             </motion.div>
           )}
 
-          {!originalUrl ? (
-            /* ─── Upload Zone ─── */
+          {/* ─── No active photo: show upload zone ─── */}
+          {!activePhotoUrl ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <Card
                 className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-colors cursor-pointer p-8 sm:p-12 lg:p-20 text-center"
@@ -613,8 +671,19 @@ export default function Vintography() {
                     <Upload className="w-7 h-7 sm:w-9 sm:h-9 lg:w-11 lg:h-11 text-primary" />
                   </div>
                   <div>
-                    <p className="font-display font-bold text-base sm:text-xl lg:text-2xl">Drop your photos here</p>
-                    <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">or tap to upload · JPG, PNG, WebP · Max 10MB</p>
+                    {itemId && linkedItemTitle ? (
+                      <>
+                        <p className="font-display font-bold text-base sm:text-xl lg:text-2xl">No photos yet</p>
+                        <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
+                          Upload the first photo for <span className="font-semibold text-foreground">{linkedItemTitle}</span>
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-display font-bold text-base sm:text-xl lg:text-2xl">Drop your photos here</p>
+                        <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">or tap to upload · JPG, PNG, WebP · Max 10MB</p>
+                      </>
+                    )}
                   </div>
                   <Button size="lg" className="h-12 lg:h-14 px-8 lg:px-10 text-sm lg:text-base active:scale-95 transition-transform">
                     <Camera className="w-4 h-4 lg:w-5 lg:h-5 mr-2" /> Choose Photos
@@ -639,15 +708,12 @@ export default function Vintography() {
           ) : (
             /* ─── Editor: Two-column on desktop ─── */
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              {/* Desktop: lg:grid-cols-[440px_1fr] — Mobile: stacked */}
               <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-[440px_1fr] lg:gap-6 lg:items-start">
 
-                {/* ── LEFT PANEL: Config ── */}
+                {/* ── LEFT PANEL: Operation config ── */}
                 <div className="space-y-3 lg:space-y-4">
-                  <BatchStrip items={batchItems} activeIndex={activeBatchIndex} onSelect={handleBatchSelect}
-                    onRemove={handleBatchRemove} onDownloadAll={handleDownloadAll} />
 
-                  {/* 4 Operation Cards (2x2 grid — transformation tools) */}
+                  {/* 4 Operation Cards (2x2 grid) */}
                   <div className="grid grid-cols-2 gap-2 lg:gap-3">
                     {OPERATIONS.filter(op => op.id !== "decrease").map((op) => {
                       const isSelected = selectedOp === op.id;
@@ -989,23 +1055,73 @@ export default function Vintography() {
                     )}
                   </AnimatePresence>
 
-                  {/* Generate button — desktop: in left panel, mobile: hidden here (shown below preview) */}
+                  {/* Generate button — desktop only in left panel */}
                   <div className="hidden lg:block">
                     <GenerateButton />
                   </div>
                 </div>
 
-                {/* ── RIGHT PANEL: Preview + Actions (desktop sticky, mobile normal flow) ── */}
+                {/* ── RIGHT PANEL: Photo filmstrip + Preview + Actions ── */}
                 <div className="lg:sticky lg:top-6 space-y-3 lg:space-y-4">
+
+                  {/* PhotoFilmstrip — at the TOP of the right panel, above preview */}
+                  {hasFilmstrip && (
+                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+                      <Card className="p-3 lg:p-4">
+                        <PhotoFilmstrip
+                          photos={itemPhotos}
+                          activeUrl={activePhotoUrl}
+                          editStates={photoEditStates}
+                          itemId={itemId}
+                          onSelect={handleFilmstripSelect}
+                          onAddPhoto={() => addPhotoInputRef.current?.click()}
+                        />
+                        {editedCount > 0 && (
+                          <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t border-border">
+                            {savedCount > 0
+                              ? `${savedCount} of ${editedCount} edits saved to listing`
+                              : `${editedCount} photo${editedCount > 1 ? "s" : ""} edited — tap Save to apply`}
+                          </p>
+                        )}
+                      </Card>
+                      {/* Hidden file input for + add photo */}
+                      <input
+                        ref={addPhotoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleAddPhoto(e.target.files)}
+                      />
+                    </motion.div>
+                  )}
+
+                  {/* Non-item multi-photo filmstrip (standalone upload of multiple files) */}
+                  {!itemId && itemPhotos.length > 1 && (
+                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+                      <Card className="p-3 lg:p-4">
+                        <PhotoFilmstrip
+                          photos={itemPhotos}
+                          activeUrl={activePhotoUrl}
+                          editStates={photoEditStates}
+                          itemId={null}
+                          onSelect={handleFilmstripSelect}
+                        />
+                      </Card>
+                    </motion.div>
+                  )}
+
                   {/* Preview */}
                   <div
                     ref={resultRef}
                     className={`rounded-xl transition-all duration-700 ${resultReady ? "ring-2 ring-success ring-offset-2 shadow-lg shadow-success/20" : ""}`}
                   >
                     <ComparisonView
-                      originalUrl={originalUrl} processedUrl={processedUrl}
-                      processing={processing} processingStep={processingStep}
+                      originalUrl={workingOriginalUrl!}
+                      processedUrl={processedUrl}
+                      processing={processing}
+                      processingStep={processingStep}
                       operationId={selectedOp}
+                      resultLabel={OP_RESULT_LABEL[selectedOp]}
                       variations={[]} currentVariation={0} onVariationChange={() => {}}
                     />
                   </div>
@@ -1015,38 +1131,56 @@ export default function Vintography() {
                     <GenerateButton />
                   </div>
 
-                  {/* Secondary action buttons */}
+                  {/* ─── Action buttons after processing ─── */}
                   {processedUrl && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="space-y-2">
+                      {/* Save to Item — replace vs add alongside */}
                       {itemId && (
-                        <Button
-                          onClick={handleSaveToItem}
-                          disabled={savedToItem || savingToItem}
-                          className={`flex-1 min-w-[120px] h-10 lg:h-11 text-sm font-semibold active:scale-95 transition-all ${
-                            savedToItem
-                              ? "bg-success/90 text-success-foreground hover:bg-success/80"
-                              : "bg-success text-success-foreground hover:bg-success/90"
-                          }`}
-                        >
-                          {savingToItem ? (
-                            <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                          ) : savedToItem ? (
-                            <Check className="w-4 h-4 mr-1.5" />
-                          ) : (
-                            <ImageIcon className="w-4 h-4 mr-1.5" />
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleSaveToItem("replace")}
+                            disabled={activePhotoSaved || savingToItem}
+                            className={`flex-1 h-10 lg:h-11 text-sm font-semibold active:scale-95 transition-all ${
+                              activePhotoSaved
+                                ? "bg-success/90 text-success-foreground hover:bg-success/80"
+                                : "bg-success text-success-foreground hover:bg-success/90"
+                            }`}
+                          >
+                            {savingToItem ? (
+                              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                            ) : activePhotoSaved ? (
+                              <Check className="w-4 h-4 mr-1.5" />
+                            ) : (
+                              <ImageIcon className="w-4 h-4 mr-1.5" />
+                            )}
+                            {activePhotoSaved ? "Saved ✓" : "Replace Original"}
+                          </Button>
+                          {!activePhotoSaved && (
+                            <Button
+                              variant="outline"
+                              onClick={() => handleSaveToItem("add")}
+                              disabled={savingToItem}
+                              className="h-10 lg:h-11 text-sm active:scale-95 transition-transform px-3"
+                            >
+                              <Plus className="w-4 h-4 mr-1.5" />
+                              Add Alongside
+                            </Button>
                           )}
-                          {savedToItem ? "Saved ✓" : `Save to item`}
-                        </Button>
+                        </div>
                       )}
-                      <Button variant="outline" onClick={handleProcess} disabled={processing} className="h-10 lg:h-11 text-sm active:scale-95 transition-transform">
-                        <RefreshCw className="w-4 h-4 mr-1.5" /> Try Again
-                      </Button>
-                      <Button variant="outline" onClick={handleDownload} className="h-10 lg:h-11 text-sm active:scale-95 transition-transform">
-                        <Download className="w-4 h-4 mr-1.5" /> Download
-                      </Button>
-                      <Button variant="ghost" onClick={resetAll} className="h-10 lg:h-11 text-sm active:scale-95 transition-transform">
-                        <RotateCcw className="w-4 h-4 mr-1.5" /> New Photo
-                      </Button>
+
+                      {/* Secondary actions row */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={handleProcess} disabled={processing} className="h-10 lg:h-11 text-sm active:scale-95 transition-transform">
+                          <RefreshCw className="w-4 h-4 mr-1.5" /> Try Again
+                        </Button>
+                        <Button variant="outline" onClick={handleDownload} className="h-10 lg:h-11 text-sm active:scale-95 transition-transform">
+                          <Download className="w-4 h-4 mr-1.5" /> Download
+                        </Button>
+                        <Button variant="ghost" onClick={resetAll} className="h-10 lg:h-11 text-sm active:scale-95 transition-transform">
+                          <RotateCcw className="w-4 h-4 mr-1.5" /> New Photo
+                        </Button>
+                      </div>
                     </div>
                   )}
 
@@ -1062,7 +1196,24 @@ export default function Vintography() {
                     <Card className="p-3 lg:p-5 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
                       <p className="text-[10px] lg:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 lg:mb-3">Next Steps</p>
                       {itemId ? (
-                        itemData?.last_optimised_at ? (
+                        hasFilmstrip && editedCount > 0 ? (
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm lg:text-base font-semibold">
+                                {itemPhotos.length} photos · {editedCount} enhanced
+                              </p>
+                              <p className="text-xs lg:text-sm text-muted-foreground">
+                                {savedCount < editedCount
+                                  ? `Save your ${editedCount - savedCount} remaining edit${editedCount - savedCount > 1 ? "s" : ""} above, then view your item`
+                                  : "All edits saved — your listing is ready"}
+                              </p>
+                            </div>
+                            <Button size="sm" onClick={() => navigate(`/items/${itemId}?tab=photos`)} className="shrink-0 lg:h-10 lg:px-4">
+                              <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> View Photos
+                              <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                            </Button>
+                          </div>
+                        ) : itemData?.last_optimised_at ? (
                           <div className="flex items-center justify-between gap-3">
                             <div>
                               <p className="text-sm lg:text-base font-semibold text-success">Your item is ready!</p>
@@ -1126,7 +1277,10 @@ export default function Vintography() {
                 {gallery.map((job) => (
                   <GalleryCard key={job.id} job={job} opLabel={opLabel(job.operation)}
                     onRestore={(j) => {
-                      setOriginalUrl(j.original_url); setProcessedUrl(j.processed_url);
+                      setActivePhotoUrl(j.original_url);
+                      setProcessedUrl(j.processed_url);
+                      setItemPhotos([]);
+                      setPhotoEditStates({});
                     }}
                     onDelete={handleDeleteJob}
                     onUseAsInput={handleUseAsInput}
