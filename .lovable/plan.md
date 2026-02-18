@@ -1,128 +1,189 @@
 
-# End-to-End Audit Results — Bugs Found & Fix Plan
+# Photo Flow — Complete Cohesion Overhaul
 
-## What Was Tested
+## Issues Found (All Specific, All Actionable)
 
-Full live browser audit across desktop (1280px) and mobile (390px iPhone viewport):
+### Issue 1 — "Download All" only downloads 1 image (VintedReadyPack)
 
-- Listings page — clean, both items visible correctly
-- Per Una Denim Shirt item detail — opens correctly, no Vinted-Ready Pack (correct, not optimised yet)
-- Anne Klein dress item detail — Vinted-Ready Pack shows, but **2 bugs found**
-- Trend Radar — desktop and mobile, both working. Filters, Hot Right Now strip, Category Heat Map all render correctly. "Balanced" now correctly uses `text-primary`
-- Price Check — desktop, layout and "or pick from your items" link spacing correct
+**Root cause confirmed in `src/components/VintedReadyPack.tsx` lines 131–144.**
 
----
+The `handleDownloadAll` function correctly loops and calls `a.click()` — but modern browsers **block programmatic multi-download** unless triggered by direct user interaction. Each `.click()` call after the first is silently blocked by the browser's popup/download blocker. Only one file downloads.
 
-## Bugs Found
+**Fix:** Instead of sequential `a.click()` calls, we need to create a ZIP archive in-memory using `JSZip` (no new dependency needed — we can use the native `showSaveFilePicker` API, or more reliably, download each file by appending an `<iframe>` or triggering a Blob ZIP). The cleanest reliable cross-browser approach is to import `fflate` (lightweight, available via CDN import in edge) — but since we want no new deps, we'll solve this properly using `setTimeout` delays *and* also opening each in a new `<a>` tag with `document.body.appendChild` + `click` + immediate removal, which forces the browser to treat each as a real download. The existing code already does this with `300ms` delay, but the downloads aren't being appended to `document.body` — just `a.click()` on a detached element. The fix: `document.body.appendChild(a); a.click(); document.body.removeChild(a);`. This is the correct pattern for multi-file programmatic downloads.
 
-### Bug 1 — VintedReadyPack: Condition block shows generic note for most real items
-
-**File:** `src/components/VintedReadyPack.tsx` lines 223–230
-
-**Root cause:** The `conditionMap` keys are all snake_case (`very_good`, `new_with_tags`, etc.), but the database contains a mix of formats from different entry points:
-
-From live DB query:
-```
-"Very Good"   ← title case (older items / Vinted import)
-"Very good"   ← sentence case (older items)
-"good"        ← lowercase (some older items)
-"Good"        ← title case
-"very_good"   ← snake_case (new wizard)
-"new_with_tags" ← snake_case (new wizard)
-```
-
-The `conditionMap` lookup `conditionMap[item.condition]` fails for anything not snake_case, so it falls to the fallback `"Condition as described."` note, stripping all colour coding and descriptive context.
-
-**Fix:** Add a normalisation step before the lookup — convert the condition string to lowercase with underscores replacing spaces:
-```ts
-const normKey = (item.condition || "")
-  .toLowerCase()
-  .replace(/\s+/g, "_");
-const cond = conditionMap[normKey] || { fallback... };
-```
-
-This handles all variants in the DB: `"Very Good"` → `"very_good"`, `"Good"` → `"good"`, `"very good"` → `"very_good"`, etc.
+**Same bug in `src/pages/Vintography.tsx` `handleDownloadAll` at line 351–364** — identical fix needed there too.
 
 ---
 
-### Bug 2 — VintedReadyPack: Condition block background renders as transparent
+### Issue 2 — No way to delete a photo from the Photos tab
 
-**File:** `src/components/VintedReadyPack.tsx` line 224–229
+**In `src/components/PhotosTab.tsx` — the `SortableThumbnail` component has no delete capability.** You can drag to reorder, but there is no delete button anywhere. This is a critical missing feature — users have no way to remove unwanted photos from their listing.
 
-**Root cause:** The `bg` values use non-standard Tailwind opacity fractions:
-```ts
-bg: "bg-success/8"   // ← /8 is NOT in Tailwind's default opacity scale
-bg: "bg-primary/8"   // ← same issue
-bg: "bg-accent/8"    // ← same issue
-bg: "bg-warning/8"   // ← same issue
-```
-
-Tailwind's default opacity scale includes: 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 95. `/8` is not included, so in a project without JIT arbitrary-value mode enabled (or with PurgeCSS removing unrecognised classes), these render as transparent backgrounds. Looking at the screenshot — the condition block background appears white/borderless, confirming the background colour is not rendering.
-
-**Fix:** Change all `/8` values to `/10` (the next standard step up, which is already used elsewhere in the app for the same decorative tint purpose):
-```ts
-bg: "bg-success/10"
-bg: "bg-primary/10"
-bg: "bg-accent/10"
-bg: "bg-warning/10"
-```
+**Fix:** Add a `×` delete button on each thumbnail (visible on hover on desktop, always visible on mobile as a small corner badge). On click, remove the URL from state and save immediately to DB (same pattern as `handleSaveOrder`). No "are you sure" needed — it's reversible by re-uploading.
 
 ---
 
-### Bug 3 — ItemDetail: Per Una shirt condition `"good"` stored in DB (from the import)
+### Issue 3 — "Cover" label misleading — should be "Primary"
 
-The Per Una shirt has `condition: "good"` (lowercase) in the database. This would also fail the `conditionMap` lookup. The fix in Bug 1 (normalisation) handles this automatically.
+The word "Cover" appears twice:
+- Line 94 in `PhotosTab.tsx`: thumbnail badge says "Cover"
+- Line 300 in `PhotosTab.tsx`: large preview overlay says "Cover"
+- Line 309: instruction text says "first photo becomes the cover"
+
+The user correctly identifies this as confusing. This should be **"Primary"** — it communicates both that it's the main photo AND that the AI uses it. The instruction text should also change to: *"First photo is your primary image — this is what Photo Studio AI uses for edits"*.
 
 ---
 
-## What's Working Well (No Changes Needed)
+### Issue 4 — Photos tab has no direct "Open in Photo Studio" quick edit button on each thumbnail
 
-- Trend Radar: Hot Right Now strip scrolls, filter chips wrap to two rows on mobile, "Balanced" uses `text-primary` (correct), Category Heat Map at bottom renders, "I have this" and "Optimise" CTAs navigate correctly
-- Price Check: "or pick from your items" spacing correct with `pt-2`, no negative margins
-- Navigation: Trends in sidebar + mobile bottom tabs, active state pill animation works
-- Item Detail: Target price card correctly shows grey `—` when `recommended_price` is null (Anne Klein correctly shows `£20` in green)
-- Mobile responsiveness: Single-column cards, bottom nav, trend filter rows all correct on 390px
+On the Photos tab, there's a "Photo Studio" button in the header, but no way to select a specific photo and open it in Photo Studio pre-loaded. The user lands on Photo Studio with the first photo every time.
+
+**Fix:** Add a second hover-action on each thumbnail — a small `✨` wand button (alongside the new delete `×`) that navigates to `/vintography?itemId={item.id}&image_url={url}` to load that specific photo into Photo Studio.
+
+---
+
+### Issue 5 — Photo Studio: no clear "Use this photo for my listing" / import action after processing
+
+**In `src/pages/Vintography.tsx` — when a user processes a photo via Photo Studio**, the `updateLinkedItem` function (lines 189–206) automatically saves the processed photo back to the listing. But this is **completely invisible to the user**. There is no visual confirmation, no "this photo has been saved to your item" state, no clear button labelled "Use This Photo".
+
+The "Next Steps" card (line 594–633) says "Your item is ready!" with a "View Pack" button — but only if `last_optimised_at` is set. If not optimised yet, it says "Next: Optimise Your Listing". But in neither case does it confirm *"Your processed photo has been saved to your item"* — the user doesn't know it was saved.
+
+**Fix:** After `updateLinkedItem` succeeds, show a brief green success banner: *"Photo saved to [item title] ✓"* with a direct link back to the item's Photos tab. Also, when Photo Studio is opened with an `itemId`, show the item name in the page header with a back-arrow.
+
+---
+
+### Issue 6 — Photo Studio "Previous Edits" gallery: "Use as input" (Upload icon) is cryptically labelled
+
+In `GalleryCard.tsx` line 115, the `Upload` icon is used for "Use as input for another operation". This is the opposite of what upload means. The icon should be `Wand2` or `RefreshCw` with tooltip text "Edit again".
+
+---
+
+### Issue 7 — PhotosTab instruction text contradicts itself
+
+Line 309: `"Drag thumbnails to reorder · first photo becomes the cover"`
+Line 310: `"💡 The cover photo is used by Photo Studio for AI editing. A full front view gives the best results."`
+
+These two lines use the word "cover" which we're renaming to "primary". Also, the second line is very useful context that's buried in tiny muted text. It should be more prominent — part of the header section.
 
 ---
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `src/components/VintedReadyPack.tsx` | Bug 1: Add condition normalisation step before map lookup. Bug 2: Change all `bg-*/8` to `bg-*/10` |
-
-Just one file, two targeted fixes.
+| File | Changes |
+|------|---------|
+| `src/components/PhotosTab.tsx` | (1) Rename "Cover" → "Primary" everywhere. (2) Add delete button on thumbnails. (3) Add "Edit in Photo Studio" wand button on thumbnails. (4) Update instruction text to be clearer. (5) Fix download-all pattern. |
+| `src/components/VintedReadyPack.tsx` | Fix `handleDownloadAll` to use `document.body.appendChild/removeChild` pattern so all photos download. |
+| `src/pages/Vintography.tsx` | (1) Fix `handleDownloadAll` same way. (2) Show saved-to-item banner after `updateLinkedItem`. (3) Show item name in context when opened with `itemId`. (4) Pass `image_url` param to allow deep-linking to specific photo. |
+| `src/components/vintography/GalleryCard.tsx` | Fix "Use as input" icon from `Upload` to `Wand2` and add a `title="Edit again"` tooltip. |
 
 ---
 
 ## Technical Detail
 
-**Normalisation fix (Bug 1):**
-```ts
-// Before the conditionMap lookup, normalise to snake_case
-const normKey = (item.condition || "")
-  .toLowerCase()
-  .trim()
-  .replace(/\s+/g, "_");
+### Download All Fix (applies to both files)
 
-const cond = conditionMap[normKey] || {
-  label: item.condition || "Unknown",
-  note: "Condition as described.",
-  color: "text-muted-foreground",
-  badge: "bg-muted/40 border-border text-muted-foreground",
-  bg: "bg-muted/20",
-  border: "border-border",
+```ts
+// WRONG — browser blocks a.click() on detached element after first download
+const a = document.createElement("a");
+a.href = url;
+a.download = "file.png";
+a.click();  // ← silently blocked by browser after first call
+
+// CORRECT — attach to DOM, click, detach
+const a = document.createElement("a");
+a.href = url;
+a.download = "file.png";
+a.style.display = "none";
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+await new Promise(r => setTimeout(r, 400)); // browser needs time between downloads
+```
+
+### Delete Photo from Thumbnail
+
+```tsx
+// In SortableThumbnail: add onDelete prop
+function SortableThumbnail({ url, index, isSelected, onSelect, onDelete, onEditInStudio }) {
+  return (
+    <div ref={setNodeRef} style={style} className="relative group">
+      {/* Existing thumbnail button */}
+      
+      {/* Delete button — always visible on mobile, hover on desktop */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive flex items-center justify-center 
+                   opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 
+                   [@media(hover:none)]:opacity-100 transition-opacity z-10"
+      >
+        <X className="w-3 h-3 text-destructive-foreground" />
+      </button>
+      
+      {/* Edit in Photo Studio button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onEditInStudio(); }}
+        className="absolute bottom-1 left-1 w-5 h-5 rounded-full bg-primary/80 flex items-center justify-center 
+                   opacity-0 group-hover:opacity-100 transition-opacity z-10"
+      >
+        <Wand2 className="w-3 h-3 text-primary-foreground" />
+      </button>
+      
+      {/* "Primary" badge only on index 0 */}
+      {index === 0 && (
+        <span className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[8px] font-bold px-1.5 py-0.5 rounded">
+          Primary
+        </span>
+      )}
+    </div>
+  );
+}
+```
+
+### Delete Handler in PhotosTab
+
+```ts
+const handleDeletePhoto = async (url: string) => {
+  if (!user) return;
+  const updatedPhotos = photos.filter((p) => p !== url);
+  const newImageUrl = updatedPhotos[0] || null;
+  const newImagesArray = updatedPhotos.slice(1);
+  
+  const { error } = await supabase
+    .from("listings")
+    .update({ image_url: newImageUrl, images: newImagesArray })
+    .eq("id", item.id)
+    .eq("user_id", user.id);
+  
+  if (error) { toast.error("Failed to remove photo"); return; }
+  setPhotos(updatedPhotos);
+  if (selectedIdx >= updatedPhotos.length) setSelectedIdx(Math.max(0, updatedPhotos.length - 1));
+  onItemUpdate((prev: any) => ({ ...prev, image_url: newImageUrl, images: newImagesArray }));
+  toast.success("Photo removed");
 };
 ```
 
-**Background opacity fix (Bug 2):**
-Replace all 4 `bg: "bg-*/8"` entries in the conditionMap with `bg: "bg-*/10"` — matching the opacity already used by `badge` values like `"bg-success/10"` in the same map.
+### Photo Studio saved-to-item banner
+
+After `updateLinkedItem` succeeds, show:
+```tsx
+// In Vintography.tsx, after updateLinkedItem resolves
+if (itemId) {
+  toast.success("Photo saved to your item", {
+    description: "View it in the Photos tab",
+    action: {
+      label: "View",
+      onClick: () => navigate(`/items/${itemId}?tab=photos`)
+    }
+  });
+}
+```
 
 ---
 
 ## Scope
 
-- 1 file modified (`src/components/VintedReadyPack.tsx`)
+- 4 files modified
 - No database changes
+- No new dependencies (native browser APIs only)
 - No edge function changes
-- Approximately 8 lines changed total
