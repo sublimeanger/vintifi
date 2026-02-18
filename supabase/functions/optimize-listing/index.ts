@@ -501,20 +501,16 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
         .trim();
     }
 
-    // Increment optimisation usage
-    await fetch(
-      `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}`,
-      {
-        method: "PATCH",
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({ optimizations_used: (creditsData[0]?.optimizations_used || 0) + 1 }),
-      }
-    );
+    // Atomic increment — prevents race condition double-spend
+    await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ p_user_id: userId, p_column: "optimizations_used", p_amount: 1 }),
+    });
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

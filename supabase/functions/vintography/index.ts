@@ -591,10 +591,18 @@ serve(async (req) => {
       .update({ status: "completed", processed_url: publicUrl.publicUrl })
       .eq("id", job.id);
 
-    await adminClient
-      .from("usage_credits")
-      .update({ vintography_used: used + creditsToDeduct })
-      .eq("user_id", user.id);
+    // Atomic increment — prevents race condition double-spend (passes weighted amount for model_shot)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ p_user_id: user.id, p_column: "vintography_used", p_amount: creditsToDeduct }),
+    });
 
     return new Response(
       JSON.stringify({
