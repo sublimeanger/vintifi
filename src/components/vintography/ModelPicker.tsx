@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import {
   User, Users, Shirt, Dumbbell, GraduationCap, Baby,
   PersonStanding, Footprints, Armchair,
-  Zap, Building2, TreePine, Blocks,
+  Zap, Building2, TreePine, Blocks, Home, Waves, Flower,
 } from "lucide-react";
 
 type OptionCard = { value: string; label: string; icon: typeof User; desc?: string };
@@ -33,11 +33,14 @@ const poseOptions: OptionCard[] = [
 ];
 
 const bgOptions: OptionCard[] = [
-  { value: "studio", label: "White Studio", icon: Building2 },
-  { value: "grey_gradient", label: "Grey Gradient", icon: Building2 },
-  { value: "urban", label: "Urban Street", icon: Building2 },
-  { value: "park", label: "Park", icon: TreePine },
-  { value: "brick", label: "Brick Wall", icon: Blocks },
+  { value: "studio", label: "White Studio", icon: Building2, desc: "Clean & minimal" },
+  { value: "grey_gradient", label: "Grey Studio", icon: Building2, desc: "Soft gradient" },
+  { value: "living_room", label: "Living Room", icon: Home, desc: "Sofa, afternoon light" },
+  { value: "urban", label: "City Street", icon: Building2, desc: "Urban architecture" },
+  { value: "park", label: "Golden Park", icon: TreePine, desc: "Bokeh foliage" },
+  { value: "brick", label: "Brick Wall", icon: Blocks, desc: "Editorial feel" },
+  { value: "dressing_room", label: "Dressing Room", icon: Flower, desc: "Rail, warm bulbs" },
+  { value: "beach", label: "Beach / Summer", icon: Waves, desc: "Sand, ocean bokeh" },
 ];
 
 function OptionGrid({ title, options, value, onChange, cols = 3 }: {
@@ -50,7 +53,7 @@ function OptionGrid({ title, options, value, onChange, cols = 3 }: {
   return (
     <div>
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{title}</p>
-      <div className={`grid gap-1.5 ${cols === 2 ? "grid-cols-2" : cols === 3 ? "grid-cols-3" : "grid-cols-3 sm:grid-cols-6"}`}>
+      <div className={`grid gap-1.5 ${cols === 2 ? "grid-cols-2" : cols === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
         {options.map((opt) => {
           const selected = value === opt.value;
           return (
@@ -95,9 +98,6 @@ export const ModelPicker = forwardRef<HTMLDivElement, Props>(
           <User className="w-4 h-4 text-primary" />
           <p className="text-sm font-semibold">Model Configuration</p>
         </div>
-        <p className="text-[10px] text-muted-foreground bg-muted/50 rounded-lg px-2.5 py-1.5 leading-relaxed">
-          ℹ️ The AI creates a concept based on your garment style. Exact details like logos and prints may differ slightly from the original.
-        </p>
         <OptionGrid title="Gender" options={genderOptions} value={gender} onChange={onGenderChange} cols={2} />
         {showLook && (
           <OptionGrid title="Model Look" options={lookOptions} value={look} onChange={onLookChange} cols={3} />
@@ -105,7 +105,7 @@ export const ModelPicker = forwardRef<HTMLDivElement, Props>(
         {showLook && (
           <OptionGrid title="Pose" options={poseOptions} value={pose} onChange={onPoseChange} cols={3} />
         )}
-        <OptionGrid title="Background" options={bgOptions} value={bg} onChange={onBgChange} cols={3} />
+        <OptionGrid title="Background" options={bgOptions} value={bg} onChange={onBgChange} cols={4} />
       </Card>
     );
   }
