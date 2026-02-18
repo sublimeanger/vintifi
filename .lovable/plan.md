@@ -1,203 +1,360 @@
 
-# Photo Studio: Comprehensive Options Overhaul
+# My Listings: Date Added + Comprehensive Filtering System
 
-## What's Changing and Why
+## What's Being Added
 
-The current Photo Studio has two critical gaps:
+Two clear improvements to `src/pages/Listings.tsx`:
 
-1. **The "info" disclaimer on AI Model Concept** — the ℹ️ banner is distracting and undermines confidence. It gets removed entirely.
+1. **Date Added display** — show the exact date (and local time) each item was listed, replacing the current `{daysListed}d` duration-only display with both the human-readable date and the relative days count.
 
-2. **The options are generic and confusing** — "Autumn", "Summer", "Bedroom", "Café" as Lifestyle backgrounds tell the user almost nothing. They don't know what they'll get. And crucially, the **entire photorealistic dimension is missing**: sellers taking selfies in their bedroom, mirror shots in their bathroom, styled shots in their kitchen, hand-held lifestyle — these are the photos that perform best on Vinted because they feel *real*. The current system doesn't address this at all.
-
-The overhaul restructures Photo Studio around **four clearly differentiated modes**, dramatically expands the options within each with logical, descriptive names, and introduces a brand new **Photorealistic / Real-Life Selfie** mode.
+2. **Filtering system** — a proper, expandable filter panel with multiple filter dimensions beyond the existing status chips: category, condition, price range, sort order, and health score range.
 
 ---
 
-## The Four Modes (Replacing the Current Four)
+## Current State Analysis
 
-The current four operations (`clean_bg`, `lifestyle_bg`, `virtual_model`, `enhance`) stay as IDs and edge function operations — no backend breaking changes. The UI labels, descriptions, sub-options, and prompts are all upgraded.
+### What already exists
+- **Status chips** — "all", "active", "needs_optimising", "sold", "reserved", "inactive"
+- **Search bar** — searches `title` and `brand` fields
+- **`filteredListings`** — a single filter function that combines `searchQuery` + `statusFilter`
+- **`getDaysListed()`** — calculates days from `created_at` using `Date.now()`, shows as `{daysListed}d` in a `Calendar` icon row
+- **`Listing` type** — already includes `created_at: string`, `category`, `condition`, `current_price`, `health_score`
 
-### 1. Clean Background (unchanged in function, polished in label)
-No changes needed to core function. Remove the generic description "White or solid background" and replace with something that sells the benefit: **"Pure white — Vinted's favourite"**.
-
-### 2. Lifestyle Scenes (complete overhaul of options)
-
-**Current problem:** 12 options with vague names like "Summer", "Autumn", "Winter", "Bedroom", "Café". Users don't know what these will look like. The preview gradients are meaningless colour blocks.
-
-**Upgraded approach — organised into 3 logical groups with 16 total options:**
-
-**Studio & Clean** (for sellers who want professional but not clinical):
-- `studio_white` — "White Studio" (clean seamless backdrop, softbox lit)
-- `studio_grey` — "Grey Gradient" (mid-grey with subtle vignette)
-- `marble_luxury` — "White Marble" (Carrara marble surface, luxury feel)
-- `linen_flat` — "Natural Linen" (Belgian linen texture, warm side-light)
-
-**Indoor Lifestyle** (specific, recognisable rooms):
-- `living_room_sofa` — "Living Room" (styled sofa, plant, afternoon light)
-- `bedroom_mirror` — "Bedroom Mirror" (wall mirror, morning light, aspirational)
-- `kitchen_counter` — "Kitchen / Brunch Vibes" (marble counter, coffee, Sunday morning)
-- `dressing_room` — "Dressing Room" (clothing rail, full-length mirror, warm bulb lighting)
-- `reading_nook` — "Reading Nook" (armchair, bookshelves, lamp glow)
-- `bathroom_shelf` — "Bathroom Shelf" (clean white tiles, soft vanity lighting)
-
-**Outdoor & Location**:
-- `golden_hour_park` — "Golden Hour Park" (bokeh green foliage, warm rim light)
-- `city_street` — "City Street" (blurred urban architecture, natural daylight)
-- `beach_summer` — "Beach / Summer" (sand, turquoise bokeh ocean)
-- `brick_wall` — "Brick Wall" (red-brown brick, editorial)
-- `autumn_leaves` — "Autumn Leaves" (golden leaves on ground, warm ambient)
-- `christmas_market` — "Winter Market" (fairy lights bokeh, cold air atmosphere)
-
-Each option gets a **descriptive subtitle** (e.g. "Perfect for streetwear and vintage") instead of a vague label. Options are grouped with section headers inside the picker.
-
-### 3. Photorealistic / Real-Life (BRAND NEW — this is the missing piece)
-
-**Replaces the current "AI Model Concept"** approach for users who want images that look like *real photos*, not AI-generated. The current Virtual Model mode is labelled "AI concept" with a disclaimer — it's underpowered for what sellers actually need.
-
-This new mode is split into **three distinct sub-modes** via tabs within the operation:
-
-**Sub-mode A: Selfie Style**
-The user's garment is shown as if photographed in a real everyday environment by a real person. No AI-generated model face — instead, a photorealistic environment is created around the garment as worn:
-- `mirror_selfie_bedroom` — "Bedroom Mirror Selfie" (natural morning light, messy-but-aspirational room in background, phone visible at angle like a real selfie)
-- `mirror_selfie_bathroom` — "Bathroom Mirror" (clean white tiles, vanity light, honest and relatable)
-- `fitting_room` — "Fitting Room" (retail fitting room curtain, honest and authentic)
-- `hand_held_outside` — "Outdoor Hand-held" (outside in daylight, held at arm's length, natural candid look)
-
-**Sub-mode B: AI Model Concept** (kept from existing, with upgraded options and removed disclaimer)
-Full-figure model shot. Same gender/look/pose options but with massively upgraded backgrounds to match the new Lifestyle list.
-
-Updated backgrounds for model shots:
-- `white_studio`, `grey_studio` — Clean studio options
-- `living_room`, `city_street`, `golden_park`, `brick_wall`, `dressing_room` — matching Lifestyle backgrounds
-
-**Sub-mode C: Flat-Lay Pro**
-(Currently a hidden edge function operation `flatlay_style` — bring this to the surface in the UI)
-- `minimal_white` — "Clean White" (professional flat-lay, white, no props)
-- `styled_accessories` — "Styled with Accessories" (curated props: sunglasses, watch, wallet)
-- `seasonal_props` — "Seasonal Styled" (leaves, flowers, seasonal elements)
-- `denim_denim` — "Denim on Denim" (textured fabric background)
-- `wood_grain` — "Wood Surface" (warm oak surface, overhead)
-
-### 4. Enhance (polished label and description)
-
-Current function is solid. Just upgrade the label and detail copy. Replace the generic description with: **"Pro retouch — fix lighting, sharpen details, boost colours"**. This sets clear expectations. No changes to the underlying prompt or edge function.
+### What's missing
+- No display of the actual `created_at` date/time — only the duration in days
+- No filter by category, condition, price range, sort order, health band
+- No sort control (currently always sorted by `created_at DESC` from the DB query)
 
 ---
 
-## Info Banner Removal
+## Changes to `Listings.tsx`
 
-The specific line to remove from `ModelPicker.tsx`:
+### 1. Date Added Display
+
+**Where:** The metrics row on each listing card (line ~781 in the current file), next to the `Calendar` icon.
+
+**Current output:**
 ```
-<p className="text-[10px] text-muted-foreground bg-muted/50 rounded-lg px-2.5 py-1.5 leading-relaxed">
-  ℹ️ The AI creates a concept based on your garment style. Exact details like logos and prints may differ slightly from the original.
-</p>
+📅 14d
 ```
 
-This is deleted entirely. The "AI concept" badge already exists on the operation card in the main grid — that's sufficient context.
-
----
-
-## UI Architecture Changes
-
-### BackgroundPicker.tsx — Complete Rebuild
-Current: 12 options in a flat grid.
-New: Grouped sections with section headers:
+**New output:**
 ```
-[Studio & Clean]    [Indoor Lifestyle]    [Outdoor & Location]
+📅 14d · 4 Feb, 09:41
 ```
-Each option shows:
-- A colour swatch (more accurate gradient representing the actual scene)
-- A bold label
-- A 1-line description beneath ("Cosy sofa, afternoon light" not just "Bedroom")
 
-### ModelPicker.tsx — Remove Disclaimer, Expand Backgrounds
-- Delete the ℹ️ paragraph entirely
-- Expand `bgOptions` to match the new Lifestyle backgrounds (12 options instead of 5)
-- Add a `selfieStyle` sub-mode tab at the top of the Model Configuration card
+**Implementation:**
 
-### Vintography.tsx — New Sub-mode Architecture
-When `virtual_model` is selected, instead of just showing the ModelPicker, show a **tab strip** at the top:
-```
-[ Selfie Style | AI Model | Flat-Lay Pro ]
-```
-Each tab shows its specific picker UI:
-- **Selfie Style**: A grid of 4 selfie-scene cards (bedroom mirror, bathroom mirror, fitting room, outdoor)
-- **AI Model**: Existing ModelPicker (without disclaimer)
-- **Flat-Lay Pro**: Brings the hidden `flatlay_style` edge function into the UI with 5 options
+Add a `formatAddedDate` helper function alongside the existing `getDaysListed`:
 
-The `OP_MAP` in the frontend needs updating so Flat-Lay and Selfie routes to the correct edge function operations.
-
-### Operation Cards — Updated Labels
-| Old | New |
-|-----|-----|
-| "Lifestyle" / "AI scene placement" | "Lifestyle Scenes" / "Place in a styled environment" |
-| "AI Model Concept" / "AI-generated model shot" | "Photorealistic" / "Model, selfie & flat-lay styles" |
-| "Enhance" / "Fix lighting & clarity" | "Enhance" / "Pro retouch, lighting & sharpness" |
-
----
-
-## Edge Function Changes (`supabase/functions/vintography/index.ts`)
-
-### New Operation: `selfie_shot`
-A new prompt and model map entry for the selfie-style operation. This operation is deliberately designed to produce images that look like real phone photography:
-
-```typescript
-selfie_shot: (p) => {
-  const scene = p?.selfie_scene || "mirror_selfie_bedroom";
-  const scenes: Record<string, string> = {
-    mirror_selfie_bedroom: `A casual bedroom mirror selfie taken on a smartphone. The background is a real, lived-in bedroom — a made bed with neutral linen bedding, a houseplant, some items on a side table. Natural morning window light from camera-left. The phone is visible at the top of the frame at a natural arm's length angle, as if the person is actually taking the selfie. Slightly imperfect framing — not perfectly centred. The overall vibe is authentic, aspirational, and real. Shot at f/2.2 equivalent with natural phone bokeh on a modern iPhone/Samsung camera.`,
-    mirror_selfie_bathroom: `A bathroom mirror selfie. Clean white subway tiles, a vanity light strip above the mirror creating flattering even illumination. The phone visible in the reflection at mid-chest height. Clean, honest, relatable. Background slightly blurred as per phone camera behaviour. A few toiletries on the shelf add authenticity. Daylight bulbs (5000K), bright and clear.`,
-    fitting_room: `A retail fitting room photo. A curtained fitting room cubicle, warm overhead LED lighting. Shot from slightly below shoulder height, as if self-photographed. Curtain slightly open behind. The kind of photo you'd see on a real Vinted listing — honest, direct, well-lit. The garment is the clear focus.`,
-    hand_held_outside: `An outdoor candid photo taken hand-held on a smartphone at arm's length. Natural daylight, slightly overcast (diffused light, no harsh shadows). A softly blurred street, park, or building in the background. The photo has the energy of a real person photographing their outfit — direct camera angle, slight natural shake suggested by authentic framing. Shot equivalent to f/1.8 on a modern smartphone, background softly defocused.`,
-  };
-  return `You are simulating a photorealistic smartphone photograph. Create an image that is completely indistinguishable from a real photo taken by a real person — NOT a rendered or AI-generated image. The key is authentic imperfection: real lighting variation, natural depth of field from a phone camera, genuine environment with lived-in details.
-  
-Scene: ${scenes[scene] || scenes.mirror_selfie_bedroom}
-  
-PHOTOREALISM MANDATE: This image must pass as a real photograph. No AI rendering artefacts. No perfect symmetry. No studio-clean lighting. Real environments, real lighting physics, real phone camera characteristics (slight lens distortion at edges, natural bokeh shape, authentic skin rendering).
-  
-${GARMENT_PRESERVE}
-${QUALITY_MANDATE}`;
+```tsx
+function formatAddedDate(createdAt: string): string {
+  const d = new Date(createdAt);
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) +
+    ", " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 ```
 
-### Updated `flatlay_style` → exposed in UI as "Flat-Lay Pro"
-Already exists in the edge function — just needs surface-level UI connection.
+This uses the browser's `Intl` locale automatically — so a UK user sees "4 Feb, 09:41", a French user sees "4 févr., 09:41". No library required.
 
-### `MODEL_MAP` additions:
-```typescript
-selfie_shot: "google/gemini-3-pro-image-preview",
+The `title` attribute on the calendar span gets the full ISO timestamp so hovering (on desktop) shows the precise moment.
+
+**In the card render, replace:**
+```tsx
+<span className={`text-[10px] sm:text-xs flex items-center gap-0.5 ...`}>
+  <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+  {daysListed}d
+</span>
 ```
 
-### `TIER_OPERATIONS` updates:
-```typescript
-free: ["remove_bg", "enhance"],
-pro: ["remove_bg", "enhance", "smart_bg", "selfie_shot", "flatlay_style", "model_shot"],
-business: [...all...],
-scale: [...all...]
+**With:**
+```tsx
+<span
+  className={`text-[10px] sm:text-xs flex items-center gap-0.5 ...`}
+  title={new Date(listing.created_at).toLocaleString()}
+>
+  <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+  {daysListed}d
+  <span className="hidden sm:inline text-muted-foreground/70">
+    · {formatAddedDate(listing.created_at)}
+  </span>
+</span>
+```
+
+On mobile: still shows `14d` (compact, preserves current mobile density).
+On desktop (`sm:` breakpoint): shows `14d · 4 Feb, 09:41`.
+
+---
+
+### 2. Filter Panel
+
+**Design approach:** A collapsible filter panel revealed by a "Filter" button next to the search bar. When any filter is active, the button shows a coloured dot/badge indicator so users know filters are applied. Filters work client-side (no DB round-trips — all data is already fetched).
+
+#### New state variables
+
+```tsx
+const [showFilters, setShowFilters] = useState(false);
+const [filterCategory, setFilterCategory] = useState<string>("all");
+const [filterCondition, setFilterCondition] = useState<string>("all");
+const [filterMinPrice, setFilterMinPrice] = useState<string>("");
+const [filterMaxPrice, setFilterMaxPrice] = useState<string>("");
+const [filterHealthBand, setFilterHealthBand] = useState<string>("all");  // all | good | fair | poor
+const [sortBy, setSortBy] = useState<string>("newest");  // newest | oldest | price_high | price_low | health | days
+```
+
+#### Derived filter options (built from actual data)
+Extract unique categories and conditions dynamically from the listings array so the dropdowns only show options that actually exist:
+
+```tsx
+const availableCategories = useMemo(() => 
+  [...new Set(listings.map(l => l.category).filter(Boolean))].sort(),
+  [listings]
+);
+const availableConditions = useMemo(() => 
+  [...new Set(listings.map(l => l.condition).filter(Boolean))].sort(),
+  [listings]
+);
+```
+
+#### Updated `filteredListings` logic
+
+The existing filter function (lines 249–259) is expanded to incorporate all new filters and the sort:
+
+```tsx
+const activeFilterCount = [
+  filterCategory !== "all",
+  filterCondition !== "all",
+  filterMinPrice !== "",
+  filterMaxPrice !== "",
+  filterHealthBand !== "all",
+  sortBy !== "newest",
+].filter(Boolean).length;
+
+const filteredListings = useMemo(() => {
+  let result = listings.filter((l) => {
+    // existing
+    const matchesSearch = !searchQuery ||
+      l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.brand?.toLowerCase().includes(searchQuery.toLowerCase());
+    const isNeedsOptimising = statusFilter === "needs_optimising";
+    if (isNeedsOptimising) return matchesSearch && l.status === "active" && !l.description && l.health_score == null;
+    const matchesStatus = statusFilter === "all" || l.status === statusFilter;
+    
+    // new filters
+    const matchesCategory = filterCategory === "all" || l.category === filterCategory;
+    const matchesCondition = filterCondition === "all" || l.condition === filterCondition;
+    const price = l.current_price ?? l.recommended_price;
+    const matchesMinPrice = filterMinPrice === "" || (price != null && price >= parseFloat(filterMinPrice));
+    const matchesMaxPrice = filterMaxPrice === "" || (price != null && price <= parseFloat(filterMaxPrice));
+    const matchesHealth = filterHealthBand === "all" ||
+      (filterHealthBand === "good" && (l.health_score ?? 0) >= 80) ||
+      (filterHealthBand === "fair" && (l.health_score ?? 0) >= 60 && (l.health_score ?? 0) < 80) ||
+      (filterHealthBand === "poor" && (l.health_score ?? 0) < 60 && l.health_score != null);
+    
+    return matchesSearch && matchesStatus && matchesCategory && matchesCondition && matchesMinPrice && matchesMaxPrice && matchesHealth;
+  });
+
+  // sort
+  result = [...result].sort((a, b) => {
+    switch (sortBy) {
+      case "oldest":    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "price_high": return (b.current_price ?? b.recommended_price ?? 0) - (a.current_price ?? a.recommended_price ?? 0);
+      case "price_low":  return (a.current_price ?? a.recommended_price ?? 0) - (b.current_price ?? b.recommended_price ?? 0);
+      case "health":     return (b.health_score ?? -1) - (a.health_score ?? -1);
+      case "days":       return getDaysListed(b.created_at) - getDaysListed(a.created_at);
+      default:           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime(); // newest
+    }
+  });
+  return result;
+}, [listings, searchQuery, statusFilter, filterCategory, filterCondition, filterMinPrice, filterMaxPrice, filterHealthBand, sortBy]);
+```
+
+#### Filter UI — the search/filter row
+
+Replace the current search row (lines 478–491):
+
+```tsx
+{/* Search + Filter Bar */}
+<div className="flex gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+  <div className="relative flex-1">
+    <Search ... />
+    <Input ... />
+  </div>
+  {/* Filter toggle button — shows dot badge if any filter active */}
+  <Button
+    variant={showFilters || activeFilterCount > 0 ? "default" : "outline"}
+    size="icon"
+    className="h-10 w-10 shrink-0 rounded-xl relative"
+    onClick={() => setShowFilters(v => !v)}
+    title="Filter listings"
+  >
+    <SlidersHorizontal className="w-3.5 h-3.5" />
+    {activeFilterCount > 0 && (
+      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[9px] text-white flex items-center justify-center font-bold">
+        {activeFilterCount}
+      </span>
+    )}
+  </Button>
+  <Button variant="outline" size="icon" onClick={fetchListings} className="h-10 w-10 shrink-0 rounded-xl">
+    <RefreshCw className="w-3.5 h-3.5" />
+  </Button>
+</div>
+```
+
+#### Filter panel (shown below search bar when `showFilters`)
+
+```tsx
+{showFilters && (
+  <motion.div
+    initial={{ opacity: 0, height: 0 }}
+    animate={{ opacity: 1, height: "auto" }}
+    exit={{ opacity: 0, height: 0 }}
+    className="mb-3 sm:mb-4"
+  >
+    <Card className="p-3 sm:p-4 border-border/60 bg-muted/20">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+        
+        {/* Sort By */}
+        <div className="col-span-2 sm:col-span-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Sort</label>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="price_high">Price: High → Low</SelectItem>
+              <SelectItem value="price_low">Price: Low → High</SelectItem>
+              <SelectItem value="health">Best health score</SelectItem>
+              <SelectItem value="days">Listed longest</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Category */}
+        <div>
+          <label className="text-[10px] font-semibold ...">Category</label>
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger ...><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+              {availableCategories.map(c => <SelectItem key={c} value={c!}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Condition */}
+        <div>
+          <label ...>Condition</label>
+          <Select value={filterCondition} onValueChange={setFilterCondition}>
+            <SelectTrigger ...><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All conditions</SelectItem>
+              {availableConditions.map(c => <SelectItem key={c} value={c!}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Price Min */}
+        <div>
+          <label ...>Min price (£)</label>
+          <Input
+            type="number"
+            placeholder="0"
+            value={filterMinPrice}
+            onChange={e => setFilterMinPrice(e.target.value)}
+            className="h-9 text-xs"
+          />
+        </div>
+
+        {/* Price Max */}
+        <div>
+          <label ...>Max price (£)</label>
+          <Input
+            type="number"
+            placeholder="Any"
+            value={filterMaxPrice}
+            onChange={e => setFilterMaxPrice(e.target.value)}
+            className="h-9 text-xs"
+          />
+        </div>
+
+        {/* Health Score Band */}
+        <div>
+          <label ...>Health</label>
+          <Select value={filterHealthBand} onValueChange={setFilterHealthBand}>
+            <SelectTrigger ...><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any</SelectItem>
+              <SelectItem value="good">Excellent (80+)</SelectItem>
+              <SelectItem value="fair">Good (60–79)</SelectItem>
+              <SelectItem value="poor">Needs work (&lt;60)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Clear filters row */}
+      {activeFilterCount > 0 && (
+        <div className="flex justify-end mt-2 pt-2 border-t border-border/40">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-muted-foreground gap-1.5"
+            onClick={() => {
+              setFilterCategory("all");
+              setFilterCondition("all");
+              setFilterMinPrice("");
+              setFilterMaxPrice("");
+              setFilterHealthBand("all");
+              setSortBy("newest");
+            }}
+          >
+            <X className="w-3 h-3" /> Clear {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""}
+          </Button>
+        </div>
+      )}
+    </Card>
+  </motion.div>
+)}
+```
+
+#### Result count line (between filter panel and status chips)
+
+When filters are active, show a small "Showing X of Y listings" pill so users know how many results their filters returned:
+
+```tsx
+{activeFilterCount > 0 && !loading && (
+  <p className="text-xs text-muted-foreground mb-2">
+    Showing {filteredListings.length} of {listings.length} listings
+  </p>
+)}
 ```
 
 ---
 
-## Files to Change
+## New Imports Needed
 
-| File | Changes |
-|------|---------|
-| `src/components/vintography/ModelPicker.tsx` | Remove ℹ️ info paragraph, expand bg options, add selfie sub-mode tab |
-| `src/components/vintography/BackgroundPicker.tsx` | Complete rebuild with grouped sections, better labels, richer descriptions |
-| `src/pages/Vintography.tsx` | New sub-mode tab strip under virtual_model, update OPERATIONS labels/details, update OP_MAP for selfie/flatlay |
-| `supabase/functions/vintography/index.ts` | Add `selfie_shot` operation prompt + MODEL_MAP entry, update TIER_OPERATIONS |
+- `SlidersHorizontal` from `lucide-react` (filter icon)
+- `useMemo` from `react` (for derived filter logic)
 
 ---
 
-## What This Achieves
+## What This Does NOT Change
 
-| Before | After |
-|--------|-------|
-| 12 confusing Lifestyle options ("Autumn", "Summer") | 16 grouped, clearly described scene options |
-| No selfie/real-life photography mode | 4 photorealistic selfie scenes (bedroom mirror, bathroom, fitting room, outdoor) |
-| Flat-Lay hidden in edge function | Flat-Lay Pro surfaced as a proper UI option with 5 styles |
-| Disclaimer on model shot ("logos may differ") | Removed — replaced by "AI concept" badge only |
-| Model backgrounds: 5 basic options | 12 rich options matching the full Lifestyle catalogue |
-| Generic "AI scene placement" label | "Lifestyle Scenes" with scene-specific descriptions |
-| Virtual Model = one mode | Photorealistic = 3 sub-modes: Selfie, AI Model, Flat-Lay |
+- DB query is unchanged — still fetches all user listings on mount. All filtering is client-side, which is fast and avoids extra round-trips.
+- Status chips row is unchanged — still works the same as before.
+- Mobile layout is unchanged — the date addition is `sm:inline` only; the filter panel collapses to a 2-column grid on mobile.
+- The `selectedIds` and bulk delete logic is unaffected.
+- The card click navigation and inline editing are unaffected.
+
+---
+
+## File Changed
+
+| File | Lines affected |
+|------|---------------|
+| `src/pages/Listings.tsx` | ~10 imports, ~6 new state vars, filter logic (~40 lines), filter UI (~80 lines), date display (~3 lines) |
+
+Total: one file, no schema changes, no edge functions, no new dependencies.
