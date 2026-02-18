@@ -14,10 +14,12 @@ import { motion } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
 import { ItemPickerDialog } from "@/components/ItemPickerDialog";
 
+import { Slider } from "@/components/ui/slider";
 import {
   Search, Loader2, Zap, BarChart3, CheckCircle2, TrendingUp,
   ArrowRight, RotateCcw, Sparkles, ExternalLink, ShoppingBag,
   Camera, Clock, Flame, Calculator, PoundSterling, Tag, ChevronDown,
+  Users, AlertTriangle,
 } from "lucide-react";
 import { PriceReportSkeleton } from "@/components/LoadingSkeletons";
 import {
@@ -247,6 +249,9 @@ export default function PriceCheck() {
     return <Clock className="w-3 h-3" />;
   };
 
+  const [calcMode, setCalcMode] = useState<"profit" | "margin">("profit");
+  const [targetMargin, setTargetMargin] = useState(30);
+
   const calcProfit = () => {
     if (!report) return null;
     const cost = parseFloat(yourCost);
@@ -255,6 +260,31 @@ export default function PriceCheck() {
     const fees = report.estimated_fees || resale * 0.05;
     const shipping = report.estimated_shipping || 3.5;
     return resale - fees - shipping - cost;
+  };
+
+  const calcTargetPrice = () => {
+    const cost = parseFloat(yourCost);
+    if (isNaN(cost) || cost <= 0 || targetMargin >= 100) return null;
+    const fees = report?.estimated_fees || 1.5;
+    const shipping = report?.estimated_shipping || 3.5;
+    // sell price = (cost + fees + shipping) / (1 - margin%)
+    return (cost + fees + shipping) / (1 - targetMargin / 100);
+  };
+
+  const calcTargetProfit = () => {
+    const sellPrice = calcTargetPrice();
+    const cost = parseFloat(yourCost);
+    if (sellPrice === null || isNaN(cost)) return null;
+    const fees = report?.estimated_fees || 1.5;
+    const shipping = report?.estimated_shipping || 3.5;
+    return sellPrice - fees - shipping - cost;
+  };
+
+  const getSaturation = (comparables: PriceReport["comparable_items"]) => {
+    const activeCount = comparables.filter((c) => !c.sold).length;
+    if (activeCount <= 10) return { label: "Uncrowded Market", desc: "Low competition. Price with confidence.", color: "success" as const };
+    if (activeCount <= 50) return { label: "Competitive", desc: "Moderate competition. Good photos matter.", color: "warning" as const };
+    return { label: "Saturated", desc: "High competition. Differentiate or price aggressively.", color: "destructive" as const };
   };
 
   return (
@@ -497,38 +527,139 @@ export default function PriceCheck() {
             )}
           </div>
 
-          {/* Your Cost Calculator */}
+          {/* Profit / Target-Margin Calculator */}
           <Card className="p-3 sm:p-5">
-            <h3 className="font-display font-bold text-[11px] sm:text-lg mb-2 sm:mb-3 flex items-center gap-1.5">
-              <Calculator className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
-              Profit Calculator
-            </h3>
-            <div className="flex items-end gap-3">
-              <div className="space-y-1.5 flex-1">
-                <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your Cost (£)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={yourCost}
-                  onChange={(e) => setYourCost(e.target.value)}
-                  placeholder="What you paid"
-                  className="h-12 sm:h-11 text-base sm:text-sm"
-                />
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-bold text-[11px] sm:text-lg flex items-center gap-1.5">
+                <Calculator className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
+                Profit Calculator
+              </h3>
+              {/* Mode toggle */}
+              <div className="flex gap-0.5 bg-muted/60 p-0.5 rounded-lg">
+                {(["profit", "margin"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setCalcMode(m)}
+                    className={`px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-semibold transition-all active:scale-95 ${
+                      calcMode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                    }`}
+                  >
+                    {m === "profit" ? "My Profit" : "Target Margin"}
+                  </button>
+                ))}
               </div>
-              {calcProfit() !== null && (
-                <div className={`px-4 py-3 rounded-lg border font-display font-bold text-base sm:text-lg ${
-                  calcProfit()! >= 0 ? "bg-success/10 border-success/20 text-success" : "bg-destructive/10 border-destructive/20 text-destructive"
-                }`}>
-                  {calcProfit()! >= 0 ? "+" : ""}£{calcProfit()!.toFixed(2)}
-                </div>
-              )}
             </div>
-            {calcProfit() !== null && (
-              <p className="text-[10px] text-muted-foreground mt-2">
-                After ~{((report!.estimated_fees || report!.recommended_price * 0.05)).toFixed(2)} fees + ~£{(report!.estimated_shipping || 3.5).toFixed(2)} shipping
-              </p>
+
+            {calcMode === "profit" ? (
+              <>
+                <div className="flex items-end gap-3">
+                  <div className="space-y-1.5 flex-1">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your Cost (£)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={yourCost}
+                      onChange={(e) => setYourCost(e.target.value)}
+                      placeholder="What you paid"
+                      className="h-12 sm:h-11 text-base sm:text-sm"
+                    />
+                  </div>
+                  {calcProfit() !== null && (
+                    <div className={`px-4 py-3 rounded-lg border font-display font-bold text-base sm:text-lg shrink-0 ${
+                      calcProfit()! >= 0 ? "bg-success/10 border-success/20 text-success" : "bg-destructive/10 border-destructive/20 text-destructive"
+                    }`}>
+                      {calcProfit()! >= 0 ? "+" : ""}£{calcProfit()!.toFixed(2)}
+                    </div>
+                  )}
+                </div>
+                {calcProfit() !== null && (
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    Profit at recommended £{report!.recommended_price.toFixed(0)} · after ~£{(report!.estimated_fees || report!.recommended_price * 0.05).toFixed(2)} fees + ~£{(report!.estimated_shipping || 3.5).toFixed(2)} shipping
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your Cost (£)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={yourCost}
+                      onChange={(e) => setYourCost(e.target.value)}
+                      placeholder="What you paid"
+                      className="h-12 sm:h-11 text-base sm:text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Target Margin: <span className="text-primary font-bold">{targetMargin}%</span>
+                    </Label>
+                    <div className="flex items-center gap-3 h-12 sm:h-11">
+                      <Slider
+                        min={5}
+                        max={80}
+                        step={5}
+                        value={[targetMargin]}
+                        onValueChange={([v]) => setTargetMargin(v)}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {calcTargetPrice() !== null && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-3 rounded-lg bg-primary/8 border border-primary/20 text-center">
+                      <p className="text-[9px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">List At</p>
+                      <p className="font-display text-xl sm:text-2xl font-extrabold text-primary">£{calcTargetPrice()!.toFixed(2)}</p>
+                      <p className="text-[9px] text-muted-foreground mt-0.5">to hit {targetMargin}% margin</p>
+                    </div>
+                    <div className={`p-3 rounded-lg border text-center ${calcTargetProfit()! >= 0 ? "bg-success/10 border-success/20" : "bg-destructive/10 border-destructive/20"}`}>
+                      <p className="text-[9px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">Net Profit</p>
+                      <p className={`font-display text-xl sm:text-2xl font-extrabold ${calcTargetProfit()! >= 0 ? "text-success" : "text-destructive"}`}>
+                        {calcTargetProfit()! >= 0 ? "+" : ""}£{calcTargetProfit()!.toFixed(2)}
+                      </p>
+                      <p className="text-[9px] text-muted-foreground mt-0.5">after fees & shipping</p>
+                    </div>
+                  </div>
+                )}
+                {!yourCost && (
+                  <p className="text-[10px] text-muted-foreground text-center py-2">Enter your cost above to calculate your sell price</p>
+                )}
+              </>
             )}
           </Card>
+
+          {/* Market Saturation Indicator */}
+          {report.comparable_items && report.comparable_items.length > 0 && (() => {
+            const sat = getSaturation(report.comparable_items);
+            const activeCount = report.comparable_items.filter((c) => !c.sold).length;
+            const colorMap = {
+              success: { bg: "bg-success/8 border-success/20", icon: "text-success", badge: "bg-success/15 text-success border-success/30" },
+              warning: { bg: "bg-warning/8 border-warning/20", icon: "text-warning", badge: "bg-warning/15 text-warning border-warning/30" },
+              destructive: { bg: "bg-destructive/8 border-destructive/20", icon: "text-destructive", badge: "bg-destructive/15 text-destructive border-destructive/30" },
+            }[sat.color];
+            return (
+              <Card className={`p-3 sm:p-5 border ${colorMap.bg}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${colorMap.badge}`}>
+                    <Users className={`w-4 h-4 ${colorMap.icon}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className={`font-display font-bold text-sm sm:text-base ${colorMap.icon}`}>{sat.label}</h3>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${colorMap.badge}`}>
+                        {activeCount} active listings
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{sat.desc}</p>
+                  </div>
+                  {sat.color === "destructive" && <AlertTriangle className={`w-4 h-4 shrink-0 ${colorMap.icon}`} />}
+                </div>
+              </Card>
+            );
+          })()}
 
           {/* Price Distribution */}
           {report.price_distribution && report.price_distribution.length > 0 && (

@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Package, Search, Sparkles, ImageIcon,
-  LogOut, Menu, Zap, Settings,
+  LogOut, Menu, Zap, Settings, TrendingUp,
 } from "lucide-react";
 
 type NavItem = {
@@ -28,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Package, label: "Items", path: "/listings" },
   { icon: Search, label: "Price Check", path: "/price-check" },
   { icon: Sparkles, label: "Optimise", path: "/optimize" },
+  { icon: TrendingUp, label: "Trends", path: "/trends" },
   { icon: ImageIcon, label: "Photo Studio", path: "/vintography" },
 ];
 
@@ -35,8 +36,8 @@ const BOTTOM_TABS: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
   { icon: Package, label: "Items", path: "/listings" },
   { icon: Search, label: "Price", path: "/price-check" },
+  { icon: TrendingUp, label: "Trends", path: "/trends" },
   { icon: Sparkles, label: "Optimise", path: "/optimize" },
-  { icon: ImageIcon, label: "Photos", path: "/vintography" },
 ];
 
 interface AppShellV2Props {
