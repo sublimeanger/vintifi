@@ -364,7 +364,21 @@ export default function ItemDetail() {
           <TabsTrigger value="overview" className="min-w-fit text-xs h-9 sm:h-8">Overview</TabsTrigger>
           <TabsTrigger value="price" className="min-w-fit text-xs h-9 sm:h-8">Price</TabsTrigger>
           <TabsTrigger value="listing" className="min-w-fit text-xs h-9 sm:h-8">Listing</TabsTrigger>
-          <TabsTrigger value="photos" className="min-w-fit text-xs h-9 sm:h-8">Photos</TabsTrigger>
+          <TabsTrigger value="photos" className="min-w-fit text-xs h-9 sm:h-8">
+            Photos
+            {(() => {
+              const rawImgs = Array.isArray(item.images) ? (item.images as string[]) : [];
+              const count = [
+                ...(item.image_url ? [item.image_url] : []),
+                ...rawImgs.filter((u) => u && u !== item.image_url),
+              ].length;
+              return count > 0 ? (
+                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-primary/15 text-primary text-[9px] font-bold w-4 h-4 leading-none">
+                  {count}
+                </span>
+              ) : null;
+            })()}
+          </TabsTrigger>
         </TabsList>
 
         {/* ═══ OVERVIEW TAB ═══ */}
