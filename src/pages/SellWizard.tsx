@@ -581,8 +581,9 @@ export default function SellWizard() {
       const { data, error } = await supabase.functions.invoke("optimize-listing", {
         body: {
           itemId: createdItem.id,
-          title: createdItem.title,
-          description: createdItem.description,
+          // Edge function destructures 'currentTitle' and 'currentDescription'
+          currentTitle: createdItem.title,
+          currentDescription: createdItem.description,
           brand: createdItem.brand,
           category: createdItem.category,
           size: createdItem.size,
