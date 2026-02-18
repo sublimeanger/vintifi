@@ -562,6 +562,7 @@ export default function Vintography() {
     } else {
       setProcessedUrl(null);
     }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDownload = async () => {
