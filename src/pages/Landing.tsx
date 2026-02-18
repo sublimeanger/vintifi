@@ -100,18 +100,18 @@ const heroFeatures = [
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg bg-muted/50 border border-border p-2 text-center">
             <div className="w-full h-20 rounded bg-muted flex items-center justify-center mb-1.5">
-              <span className="text-[10px] text-muted-foreground">Your photo</span>
+              <span className="text-[10px] text-muted-foreground">Phone snap</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">Original</p>
+            <p className="text-[10px] text-muted-foreground">Before</p>
           </div>
           <div className="rounded-lg bg-success/5 border border-success/30 p-2 text-center">
             <div className="w-full h-20 rounded bg-gradient-to-br from-success/10 to-primary/10 flex items-center justify-center mb-1.5">
-              <span className="text-[10px] text-success font-medium">✓ AI Enhanced</span>
+              <span className="text-[10px] text-success font-medium">✓ Studio Quality</span>
             </div>
-            <p className="text-[10px] text-success font-medium">Studio quality</p>
+            <p className="text-[10px] text-success font-medium">After</p>
           </div>
         </div>
-        <div className="text-[10px] text-muted-foreground text-center">AI Model · Natural Photo style · Custom background</div>
+        <div className="text-[10px] text-muted-foreground text-center">AI Model · Natural Photo style · 16 background scenes</div>
       </div>
     ),
   },
@@ -121,37 +121,55 @@ const pillars = [
   {
     icon: Zap,
     title: "Price Intelligence",
-    desc: "AI-powered pricing backed by real market data. Know exactly what your item is worth — in seconds.",
+    desc: "Know your item's exact worth in seconds. No more underpricing. No more overpriced listings sitting for weeks while buyers scroll past.",
+    outcome: "Price checked in < 30 seconds",
     badge: "Core",
     badgeColor: "bg-primary/10 text-primary border-primary/20",
   },
   {
     icon: Sparkles,
     title: "AI Listing Optimiser",
-    desc: "Generate SEO-optimised titles, descriptions, and hashtags. Get a Health Score out of 100 for every listing.",
+    desc: "AI-written titles and descriptions that rank in Vinted's search algorithm. A Health Score of 100 means maximum visibility — buyers find your item, full stop.",
+    outcome: "Health Score up to 100/100",
     badge: "AI",
     badgeColor: "bg-accent/10 text-accent border-accent/20",
   },
   {
     icon: Camera,
     title: "Vintography Photo Studio",
-    desc: "AI Model shots, Mannequin Ghost shots, and Flat-Lay Pro. Professional product photography without a studio.",
+    desc: "Phone snap in, studio shot out. AI Model, Mannequin Ghost, Flat-Lay Pro — buyers see professional photography, not a bedroom floor.",
+    outcome: "3 shooting modes · 16 backgrounds",
     badge: "New",
     badgeColor: "bg-success/10 text-success border-success/20",
   },
   {
     icon: TrendingUp,
     title: "Trend Radar",
-    desc: "Spot rising brands before they peak. Seasonal calendar, Niche Finder, and sourcing briefings included.",
+    desc: "Spot rising brands before everyone else. The Vinted market prices in demand faster than you'll notice on social media — Trend Radar gives you the head start.",
+    outcome: "2–4 weeks ahead of the market",
     badge: "Intel",
     badgeColor: "bg-primary/10 text-primary border-primary/20",
   },
 ];
 
 const howSteps = [
-  { num: "01", label: "Add your item", desc: "Paste a Vinted URL to import, or add photos manually." },
-  { num: "02", label: "AI prices it", desc: "Market data from real comparables, confidence-scored." },
-  { num: "03", label: "Optimise & shoot", desc: "AI listing + studio-quality photos ready to post." },
+  { num: "01", label: "Add your item", desc: "Paste a Vinted URL — brand, size, condition, photos, all imported in seconds. No form-filling." },
+  { num: "02", label: "AI prices it", desc: "Hundreds of comparables analysed. Confidence-scored recommendation with a plain-English explanation." },
+  { num: "03", label: "Optimise & shoot", desc: "AI-written listing. Studio-quality photos. Ready to post in minutes, not hours." },
+];
+
+const impactStats = [
+  { value: "40×", label: "Faster pricing than manual research" },
+  { value: "£0", label: "Extra fees on top of Vinted" },
+  { value: "18", label: "Vinted markets supported" },
+  { value: "100", label: "Max listing Health Score" },
+];
+
+const resultsItems = [
+  { icon: "⚡", claim: "Price any item in under 30 seconds", sub: "Our AI analyses hundreds of comparables — not just the first page you happen to browse." },
+  { icon: "📸", claim: "Professional photos stop the scroll", sub: "Buyers decide in under two seconds. Studio-quality images are the single highest-impact upgrade a seller can make." },
+  { icon: "📈", claim: "Catch trends 2–4 weeks early", sub: "Trend Radar spots demand spikes before they peak. Source the right stock, at the right time." },
+  { icon: "🎯", claim: "Stop leaving money on the table", sub: "AI pricing means you're never 20% under market. Never overpriced collecting dust either." },
 ];
 
 export default function Landing() {
@@ -160,8 +178,8 @@ export default function Landing() {
   const [autoPlay, setAutoPlay] = useState(true);
 
   usePageMeta(
-    "Vintifi — AI-Powered Vinted Selling Intelligence",
-    "The smartest way to sell on Vinted. AI pricing, stunning photos, and market intelligence — all in one place. Start free in 30 seconds."
+    "Vintifi — Stop Leaving Money on Vinted. Start Selling Like a Pro.",
+    "AI pricing in seconds. Studio photos without a studio. Market intelligence that makes competitors invisible. Start free — no card needed."
   );
 
   useEffect(() => {
@@ -174,6 +192,8 @@ export default function Landing() {
     setActiveFeature(i);
     setAutoPlay(false);
   };
+
+  const tiers = Object.entries(STRIPE_TIERS);
 
   return (
     <MarketingLayout>
@@ -202,14 +222,17 @@ export default function Landing() {
               custom={1}
               className="font-display text-3xl sm:text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.05] mb-4 sm:mb-6"
             >
-              The smartest way
+              Stop leaving money
               <br />
-              <span className="text-gradient">to sell on Vinted.</span>
+              <span className="text-gradient">on Vinted.</span>
             </motion.h1>
-            <motion.p variants={fadeUp} custom={2} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8 px-2">
-              AI pricing, stunning photos, and market intelligence — all in one place. Start free in 30 seconds.
+            <motion.p variants={fadeUp} custom={2} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-2 sm:mb-3 px-2">
+              AI pricing that takes seconds, not hours. Studio photos without a studio.
             </motion.p>
-            <motion.div variants={fadeUp} custom={3} className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 justify-center px-2 sm:px-0 mb-6 sm:mb-8">
+            <motion.p variants={fadeUp} custom={2} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8 px-2">
+              Market intelligence that makes every competitor invisible. <strong className="text-foreground">All free to start.</strong>
+            </motion.p>
+            <motion.div variants={fadeUp} custom={3} className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 justify-center px-2 sm:px-0 mb-8 sm:mb-10">
               <Button
                 size="lg"
                 onClick={() => navigate("/auth?mode=signup")}
@@ -222,8 +245,23 @@ export default function Landing() {
                 See How It Works
               </Button>
             </motion.div>
-            {/* Social proof */}
-            <motion.div variants={fadeUp} custom={4} className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+
+            {/* Impact stats strip */}
+            <motion.div
+              variants={fadeUp}
+              custom={4}
+              className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 max-w-2xl mx-auto mb-4"
+            >
+              {impactStats.map((s) => (
+                <div key={s.value} className="rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm p-3 text-center shadow-sm">
+                  <p className="font-display text-2xl sm:text-3xl font-extrabold text-primary leading-none mb-1">{s.value}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{s.label}</p>
+                </div>
+              ))}
+            </motion.div>
+
+            {/* Market strip */}
+            <motion.div variants={fadeUp} custom={5} className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <span>🇬🇧</span><span>🇫🇷</span><span>🇩🇪</span><span>🇳🇱</span><span>🇪🇸</span><span>🇮🇹</span>
               <span className="ml-1">Across 18 Vinted markets</span>
             </motion.div>
@@ -293,15 +331,49 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Results Strip ── */}
+      <section className="py-10 sm:py-16 bg-secondary">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center text-xs sm:text-sm font-semibold text-secondary-foreground/60 uppercase tracking-widest mb-6 sm:mb-8"
+            >
+              What Vintifi sellers say happens
+            </motion.p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {resultsItems.map((r, i) => (
+                <motion.div
+                  key={r.claim}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  className="flex gap-3 sm:gap-4 p-3.5 sm:p-5 rounded-xl bg-secondary-foreground/5 border border-secondary-foreground/10"
+                >
+                  <span className="text-2xl shrink-0">{r.icon}</span>
+                  <div>
+                    <p className="font-semibold text-secondary-foreground text-sm sm:text-base mb-0.5">{r.claim}</p>
+                    <p className="text-secondary-foreground/60 text-xs sm:text-sm leading-relaxed">{r.sub}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── 4 Pillars ── */}
       <section className="py-12 sm:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8 sm:mb-14">
             <h2 className="font-display text-xl sm:text-3xl md:text-5xl font-bold mb-3 sm:mb-4 leading-tight">
-              Four AI pillars. One platform.
+              Four tools. Zero guesswork.
             </h2>
             <p className="text-muted-foreground text-sm sm:text-lg max-w-2xl mx-auto">
-              Everything a serious Vinted seller needs — from pricing intelligence to studio-quality photos.
+              Everything a serious Vinted seller needs — from pricing intelligence to studio-quality photos — in one place.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 max-w-4xl mx-auto">
@@ -324,7 +396,11 @@ export default function Landing() {
                         <h3 className="font-display font-bold text-sm sm:text-lg">{p.title}</h3>
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.badgeColor}`}>{p.badge}</span>
                       </div>
-                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{p.desc}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-3">{p.desc}</p>
+                      <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold text-primary">
+                        <Check className="w-3 h-3 shrink-0" />
+                        <span>{p.outcome}</span>
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -343,8 +419,8 @@ export default function Landing() {
       <section className="py-12 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8 sm:mb-12">
-            <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">How it works</h2>
-            <p className="text-muted-foreground text-sm sm:text-base">From item to optimised listing in minutes.</p>
+            <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">Three steps to a perfect listing</h2>
+            <p className="text-muted-foreground text-sm sm:text-base">Add it. Price it. Shoot it. Done — in minutes, not hours.</p>
           </div>
           <div className="relative max-w-3xl mx-auto">
             <div className="hidden sm:block absolute top-8 left-[16.5%] right-[16.5%] h-px bg-border" />
@@ -382,15 +458,15 @@ export default function Landing() {
             <div className="flex flex-col lg:flex-row gap-8 sm:gap-12 lg:gap-16 items-center">
               <div className="flex-1 text-center lg:text-left">
                 <Badge variant="outline" className="mb-3 sm:mb-4 border-success/30 text-success bg-success/5 text-xs">
-                  <Camera className="w-3 h-3 mr-1.5" /> New: AI Photo Studio
+                  <Camera className="w-3 h-3 mr-1.5" /> Vintography Photo Studio
                 </Badge>
                 <h2 className="font-display text-xl sm:text-3xl md:text-5xl font-extrabold tracking-tight leading-tight mb-3 sm:mb-5">
-                  Professional photos.
+                  Buyers scroll fast.
                   <br />
-                  <span className="text-gradient">Zero studio.</span>
+                  <span className="text-gradient">Studio photos stop them.</span>
                 </h2>
                 <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-4 sm:mb-6 max-w-lg">
-                  Vintography transforms your phone snaps into stunning product photography. AI Model shots with photorealistic models, Mannequin Ghost effects, Flat-Lay Pro styling — pick your look and go.
+                  A professional product image is the single highest-impact change a Vinted seller can make. Vintography transforms your phone snap into a studio shot — in one tap.
                 </p>
                 <div className="space-y-2 mb-6 sm:mb-8 text-left max-w-xs mx-auto lg:mx-0">
                   {["AI Model — male & female, 3 shot styles", "Mannequin — headless, ghost, dress form", "Flat-Lay Pro — 5 styling presets", "Custom backgrounds — 16 lifestyle scenes"].map((item) => (
@@ -415,18 +491,18 @@ export default function Landing() {
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       <div className="rounded-xl bg-muted/50 border border-border p-3 text-center">
                         <div className="w-full aspect-[3/4] rounded-lg bg-muted flex items-center justify-center mb-2">
-                          <span className="text-xs text-muted-foreground">Original</span>
+                          <span className="text-xs text-muted-foreground">Phone snap</span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">Phone snap</p>
+                        <p className="text-[10px] text-muted-foreground">Before</p>
                       </div>
                       <div className="rounded-xl bg-success/5 border border-success/30 p-3 text-center">
                         <div className="w-full aspect-[3/4] rounded-lg bg-gradient-to-br from-success/10 to-primary/10 flex items-center justify-center mb-2">
                           <div className="text-center">
                             <span className="text-lg">✨</span>
-                            <p className="text-[10px] text-success font-medium mt-0.5">Enhanced</p>
+                            <p className="text-[10px] text-success font-medium mt-0.5">Studio shot</p>
                           </div>
                         </div>
-                        <p className="text-[10px] text-success font-medium">Studio quality</p>
+                        <p className="text-[10px] text-success font-medium">After</p>
                       </div>
                     </div>
                     <div className="rounded-lg bg-muted/40 p-2.5 flex items-center justify-between text-xs">
@@ -441,64 +517,72 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Simplified Pricing ── */}
+      {/* ── All 4 plans pricing ── */}
       <section className="py-12 sm:py-24">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8 sm:mb-12">
-            <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">Start free. Scale when ready.</h2>
-            <p className="text-muted-foreground text-sm sm:text-base">5 free credits every month. No card required.</p>
+            <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">Start free. Scale when you're ready.</h2>
+            <p className="text-muted-foreground text-sm sm:text-base">5 free credits every month — no card, no catch. The plan pays for itself on day one.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mb-6 sm:mb-8">
-            {/* Free */}
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-              <Card className="p-5 sm:p-6 h-full flex flex-col border-border/50 hover:shadow-lg transition-all duration-300">
-                <div className="mb-4">
-                  <h3 className="font-display font-bold text-base sm:text-lg">Free</h3>
-                  <div className="mt-2">
-                    <span className="font-display text-3xl sm:text-4xl font-extrabold">Free</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">5 credits/month · no card needed</p>
-                </div>
-                <ul className="space-y-2 mb-5 flex-1">
-                  {["AI Price Check", "Photo Studio (bg removal)", "Trend Radar (top 5)", "Up to 20 items tracked", "P&L tracking"].map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-xs sm:text-sm">
-                      <Check className="w-3.5 h-3.5 text-success shrink-0" /><span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button variant="outline" className="w-full font-semibold h-10 active:scale-95 transition-transform" onClick={() => navigate("/auth?mode=signup")}>
-                  Get Started
-                </Button>
-              </Card>
-            </motion.div>
-            {/* Pro */}
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
-              <Card className="p-5 sm:p-6 h-full relative flex flex-col border-primary shadow-lg shadow-primary/10 ring-1 ring-primary animate-glow-pulse">
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs">Most Popular</Badge>
-                <div className="mb-4">
-                  <h3 className="font-display font-bold text-base sm:text-lg">Pro</h3>
-                  <div className="mt-2">
-                    <span className="font-display text-3xl sm:text-4xl font-extrabold">£9.99</span>
-                    <span className="text-muted-foreground text-xs sm:text-sm">/month</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">50 credits/month · 7-day free trial</p>
-                </div>
-                <ul className="space-y-2 mb-5 flex-1">
-                  {["Everything in Free", "Full AI Listing Optimiser + Hashtags", "AI Model & Mannequin shots", "Full Trend Radar + Niche Finder", "Competitor tracking (3 sellers)", "Unlimited items tracked"].map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-xs sm:text-sm">
-                      <Check className="w-3.5 h-3.5 text-success shrink-0" /><span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button className="w-full font-semibold h-10 shadow-lg shadow-primary/25 active:scale-95 transition-transform" onClick={() => navigate("/auth?mode=signup")}>
-                  Start Free Trial
-                </Button>
-              </Card>
-            </motion.div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto mb-6 sm:mb-8">
+            {tiers.map(([key, tier], i) => {
+              const isPopular = key === "pro";
+              return (
+                <motion.div
+                  key={key}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                >
+                  <Card className={`p-4 h-full relative flex flex-col transition-all duration-300 hover:-translate-y-1 ${
+                    isPopular
+                      ? "border-primary shadow-xl shadow-primary/15 ring-1 ring-primary"
+                      : "border-border/50 hover:shadow-lg"
+                  }`}>
+                    {isPopular && (
+                      <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground whitespace-nowrap text-[10px]">
+                        Most Popular
+                      </Badge>
+                    )}
+                    <div className="mb-3">
+                      <h3 className="font-display font-bold text-sm">{tier.name}</h3>
+                      <div className="mt-1.5">
+                        <span className="font-display text-2xl font-extrabold">
+                          {tier.price === 0 ? "Free" : `£${tier.price}`}
+                        </span>
+                        {tier.price > 0 && <span className="text-muted-foreground text-xs">/mo</span>}
+                      </div>
+                      {'credits' in tier && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {tier.credits === -1 ? "Unlimited credits" : `${tier.credits} credits/month`}
+                        </p>
+                      )}
+                    </div>
+                    <ul className="space-y-1.5 mb-4 flex-1">
+                      {tier.features.slice(0, 4).map((f) => (
+                        <li key={f} className="flex items-start gap-1.5 text-xs">
+                          <Check className="w-3 h-3 text-success mt-0.5 shrink-0" />
+                          <span className="text-muted-foreground">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      variant={isPopular ? "default" : "outline"}
+                      size="sm"
+                      className="w-full font-semibold active:scale-95 transition-transform text-xs h-9"
+                      onClick={() => navigate("/auth?mode=signup")}
+                    >
+                      {tier.price === 0 ? "Get Started Free" : "Start Free Trial"}
+                    </Button>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
           <div className="text-center">
             <Button variant="ghost" size="sm" onClick={() => navigate("/pricing")} className="text-muted-foreground hover:text-foreground">
-              See all plans including Business & Scale <ArrowRight className="ml-1 w-3.5 h-3.5" />
+              Full plan comparison <ArrowRight className="ml-1 w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
@@ -511,11 +595,14 @@ export default function Landing() {
           <div className="absolute bottom-0 right-1/4 w-[300px] h-[300px] rounded-full bg-accent/10 blur-[80px]" />
         </div>
         <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-4 text-secondary-foreground">
-            Ready to sell smarter?
+          <h2 className="font-display text-xl sm:text-3xl md:text-5xl font-bold mb-3 sm:mb-4 text-secondary-foreground">
+            Your first 5 credits are free.
           </h2>
-          <p className="text-secondary-foreground/70 text-sm sm:text-lg mb-4 sm:mb-6 max-w-xl mx-auto">
-            5 free credits. No card. See results in 90 seconds.
+          <p className="text-secondary-foreground/80 text-sm sm:text-lg mb-2 max-w-lg mx-auto">
+            That's 5 price checks. 5 optimised listings. 5 studio-quality photos.
+          </p>
+          <p className="text-secondary-foreground/60 text-xs sm:text-base mb-6 sm:mb-8 max-w-sm mx-auto">
+            No card. No catch. Results in 90 seconds.
           </p>
           <Button
             size="lg"
