@@ -1,104 +1,128 @@
 
-# End-to-End Audit & Fix Plan
+# End-to-End Audit Results — Bugs Found & Fix Plan
 
 ## What Was Tested
 
-Full browser walkthrough performed:
-- Listings page loads clean
-- New Item Wizard: all 3 methods visible, manual entry form fills correctly, Photo Nudge dialog triggers correctly, item saves and redirects to Item Detail
-- Item Detail: all 4 tabs render, badge row, workflow progress, quick action CTAs all correct
-- Trend Radar: loads with real data, Hot Right Now strip scrolling, category/direction filters, "I have this" and "Optimise" CTAs, Category Heat Map at the bottom — all working
-- Price Check: input modes, "pick from your items" link, page structure all correct
-- Navigation: Trends correctly in both desktop sidebar and mobile bottom nav
+Full live browser audit across desktop (1280px) and mobile (390px iPhone viewport):
+
+- Listings page — clean, both items visible correctly
+- Per Una Denim Shirt item detail — opens correctly, no Vinted-Ready Pack (correct, not optimised yet)
+- Anne Klein dress item detail — Vinted-Ready Pack shows, but **2 bugs found**
+- Trend Radar — desktop and mobile, both working. Filters, Hot Right Now strip, Category Heat Map all render correctly. "Balanced" now correctly uses `text-primary`
+- Price Check — desktop, layout and "or pick from your items" link spacing correct
+
+---
 
 ## Bugs Found
 
-### Bug 1 — VintedReadyPack: Broken Tailwind condition badge class
-**File:** `src/components/VintedReadyPack.tsx` line 232
+### Bug 1 — VintedReadyPack: Condition block shows generic note for most real items
 
-The condition block generates a background class like this:
+**File:** `src/components/VintedReadyPack.tsx` lines 223–230
+
+**Root cause:** The `conditionMap` keys are all snake_case (`very_good`, `new_with_tags`, etc.), but the database contains a mix of formats from different entry points:
+
+From live DB query:
 ```
-${cond.badge.split(" ").slice(0, 1).join(" ")}/20
+"Very Good"   ← title case (older items / Vinted import)
+"Very good"   ← sentence case (older items)
+"good"        ← lowercase (some older items)
+"Good"        ← title case
+"very_good"   ← snake_case (new wizard)
+"new_with_tags" ← snake_case (new wizard)
 ```
-`cond.badge` = `"bg-success/10 border-success/30 text-success"` so `.split(" ").slice(0, 1)` = `["bg-success/10"]`, then appending `/20` produces `bg-success/10/20` — a completely invalid Tailwind class. The condition block background renders as transparent/broken on every item.
 
-**Fix:** Replace the broken inline style + classname combo with a clean, direct approach using a `conditionBg` key in each `conditionMap` entry.
+The `conditionMap` lookup `conditionMap[item.condition]` fails for anything not snake_case, so it falls to the fallback `"Condition as described."` note, stripping all colour coding and descriptive context.
 
-### Bug 2 — ItemDetail: Target price card shows green dash when null
-**File:** `src/pages/ItemDetail.tsx` around line 339
+**Fix:** Add a normalisation step before the lookup — convert the condition string to lowercase with underscores replacing spaces:
+```ts
+const normKey = (item.condition || "")
+  .toLowerCase()
+  .replace(/\s+/g, "_");
+const cond = conditionMap[normKey] || { fallback... };
+```
 
-The Target card always applies `text-success` styling even when `recommended_price` is null, making the `—` dash render green — implying positive data when there is none.
+This handles all variants in the DB: `"Very Good"` → `"very_good"`, `"Good"` → `"good"`, `"very good"` → `"very_good"`, etc.
 
-**Fix:** Only apply `text-success` when the value is not null.
+---
 
-### Bug 3 — TrendRadar: "Balanced" saturation uses `text-accent` 
-**File:** `src/pages/TrendRadar.tsx` line 44
+### Bug 2 — VintedReadyPack: Condition block background renders as transparent
 
-`text-accent` renders as a muted teal that has poor contrast on white card backgrounds in the current design system. "Balanced" should use `text-primary` to stay consistent with the colour system.
+**File:** `src/components/VintedReadyPack.tsx` line 224–229
 
-### Bug 4 — PriceCheck: "or pick from your items" spacing
-**File:** `src/pages/PriceCheck.tsx` around line 370
+**Root cause:** The `bg` values use non-standard Tailwind opacity fractions:
+```ts
+bg: "bg-success/8"   // ← /8 is NOT in Tailwind's default opacity scale
+bg: "bg-primary/8"   // ← same issue
+bg: "bg-accent/8"    // ← same issue
+bg: "bg-warning/8"   // ← same issue
+```
 
-The `mt-1 sm:-mt-1 mb-1` negative margin on the "or pick from your items" container creates an awkward floating gap between the input and the link on mobile. Should be a simple `text-center pt-1` without negative margins.
+Tailwind's default opacity scale includes: 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 95. `/8` is not included, so in a project without JIT arbitrary-value mode enabled (or with PurgeCSS removing unrecognised classes), these render as transparent backgrounds. Looking at the screenshot — the condition block background appears white/borderless, confirming the background colour is not rendering.
 
-### Bug 5 — TrendRadar: Filter chips overflow on mobile
-The direction filter row (`DIRECTIONS`) and category filter row sit in a `flex flex-wrap` container but aren't separated visually — on small screens they all run together. Should be separated with a divider line or rendered in a `space-y-2` stack.
+**Fix:** Change all `/8` values to `/10` (the next standard step up, which is already used elsewhere in the app for the same decorative tint purpose):
+```ts
+bg: "bg-success/10"
+bg: "bg-primary/10"
+bg: "bg-accent/10"
+bg: "bg-warning/10"
+```
+
+---
+
+### Bug 3 — ItemDetail: Per Una shirt condition `"good"` stored in DB (from the import)
+
+The Per Una shirt has `condition: "good"` (lowercase) in the database. This would also fail the `conditionMap` lookup. The fix in Bug 1 (normalisation) handles this automatically.
+
+---
+
+## What's Working Well (No Changes Needed)
+
+- Trend Radar: Hot Right Now strip scrolls, filter chips wrap to two rows on mobile, "Balanced" uses `text-primary` (correct), Category Heat Map at bottom renders, "I have this" and "Optimise" CTAs navigate correctly
+- Price Check: "or pick from your items" spacing correct with `pt-2`, no negative margins
+- Navigation: Trends in sidebar + mobile bottom tabs, active state pill animation works
+- Item Detail: Target price card correctly shows grey `—` when `recommended_price` is null (Anne Klein correctly shows `£20` in green)
+- Mobile responsiveness: Single-column cards, bottom nav, trend filter rows all correct on 390px
+
+---
 
 ## Files to Change
 
-| File | Changes |
-|------|---------|
-| `src/components/VintedReadyPack.tsx` | Fix condition badge classname generation (add explicit `conditionBg` field to conditionMap) |
-| `src/pages/ItemDetail.tsx` | Fix Target card colour when null |
-| `src/pages/TrendRadar.tsx` | Fix "Balanced" colour; separate category/direction filter rows with spacing |
-| `src/pages/PriceCheck.tsx` | Fix "or pick from your items" spacing |
+| File | Change |
+|------|--------|
+| `src/components/VintedReadyPack.tsx` | Bug 1: Add condition normalisation step before map lookup. Bug 2: Change all `bg-*/8` to `bg-*/10` |
+
+Just one file, two targeted fixes.
+
+---
 
 ## Technical Detail
 
-**VintedReadyPack fix** — Replace dynamic classname slicing with an explicit `bg` key:
+**Normalisation fix (Bug 1):**
 ```ts
-const conditionMap = {
-  new_with_tags: { ..., bg: "bg-success/8" },
-  very_good:     { ..., bg: "bg-primary/8" },
-  good:          { ..., bg: "bg-accent/8"  },
-  satisfactory:  { ..., bg: "bg-warning/8" },
-}
-// Then use: className={`rounded-lg border p-3.5 ${cond.bg} ${cond.border}`}
+// Before the conditionMap lookup, normalise to snake_case
+const normKey = (item.condition || "")
+  .toLowerCase()
+  .trim()
+  .replace(/\s+/g, "_");
+
+const cond = conditionMap[normKey] || {
+  label: item.condition || "Unknown",
+  note: "Condition as described.",
+  color: "text-muted-foreground",
+  badge: "bg-muted/40 border-border text-muted-foreground",
+  bg: "bg-muted/20",
+  border: "border-border",
+};
 ```
 
-**ItemDetail fix:**
-```tsx
-<p className={`text-sm sm:text-xl font-display font-bold text-success truncate`}>
-  {item.recommended_price != null ? `£${item.recommended_price.toFixed(0)}` : "—"}
-</p>
-```
-Change to apply `text-success` only when not null:
-```tsx
-<p className={`text-sm sm:text-xl font-display font-bold truncate ${item.recommended_price != null ? "text-success" : "text-muted-foreground"}`}>
-```
+**Background opacity fix (Bug 2):**
+Replace all 4 `bg: "bg-*/8"` entries in the conditionMap with `bg: "bg-*/10"` — matching the opacity already used by `badge` values like `"bg-success/10"` in the same map.
 
-**TrendRadar filter layout fix** — Wrap category and direction filters in a `space-y-2` container instead of a single `flex flex-wrap gap-2`:
-```tsx
-<div className="space-y-2 mb-4">
-  <div className="flex gap-1 flex-wrap">{CATEGORIES filters}</div>
-  <div className="flex gap-1 flex-wrap">{DIRECTIONS filters}</div>
-</div>
-```
-
-**PriceCheck spacing fix** — Remove the negative margin:
-```tsx
-<div className="text-center pt-1">
-  <ItemPickerDialog ...>
-    <button className="text-xs text-primary hover:underline font-medium">
-      or pick from your items
-    </button>
-  </ItemPickerDialog>
-</div>
-```
+---
 
 ## Scope
 
-- 4 files modified
+- 1 file modified (`src/components/VintedReadyPack.tsx`)
 - No database changes
 - No edge function changes
-- Pure frontend bug fixes — all visual/UX
+- Approximately 8 lines changed total
