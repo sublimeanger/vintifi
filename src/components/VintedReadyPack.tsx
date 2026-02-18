@@ -259,7 +259,7 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
               </div>
               <CopyButton text={cleanDescription} label="Description" />
             </div>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-28 overflow-y-auto scrollbar-hide">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto scrollbar-hide">
               {cleanDescription}
             </p>
           </motion.div>
