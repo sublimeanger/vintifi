@@ -1650,7 +1650,7 @@ export default function SellWizard() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/dashboard")}
               className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <Home className="w-4 h-4" />
