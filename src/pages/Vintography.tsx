@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
   Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock,
-  RefreshCw, Coins, Package, Info, X, Plus,
+  RefreshCw, Coins, Package, Info, X, Plus, Check,
 } from "lucide-react";
 
 import { CreditBar } from "@/components/vintography/CreditBar";
@@ -95,6 +95,10 @@ export default function Vintography() {
 
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
   const [activeBatchIndex, setActiveBatchIndex] = useState(0);
+
+  // Explicit save-to-item state
+  const [savedToItem, setSavedToItem] = useState(false);
+  const [savingToItem, setSavingToItem] = useState(false);
 
   const vintographyUsed = (credits as any)?.vintography_used ?? 0;
   const creditsLimit = credits?.credits_limit ?? 5;
@@ -302,13 +306,21 @@ export default function Vintography() {
       const result = await processImage(originalUrl, OP_MAP[selectedOp], getParams());
       if (result) {
         setProcessedUrl(result);
+        setSavedToItem(false); // reset save state for new result
         fetchGallery();
-        await updateLinkedItem(result);
         // Auto-scroll to result
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
       }
     } catch (err: any) { toast.error(err.message || "Processing failed. Try again."); }
     finally { setProcessing(false); setProcessingStep(null); }
+  };
+
+  const handleSaveToItem = async () => {
+    if (!processedUrl || !itemId) return;
+    setSavingToItem(true);
+    await updateLinkedItem(processedUrl);
+    setSavedToItem(true);
+    setSavingToItem(false);
   };
 
   const handleDownload = async () => {
@@ -613,6 +625,26 @@ export default function Vintography() {
                 )}
                 {processedUrl && (
                   <>
+                    {itemId && (
+                      <Button
+                        onClick={handleSaveToItem}
+                        disabled={savedToItem || savingToItem}
+                        className={`flex-1 sm:flex-none h-12 sm:h-11 font-semibold active:scale-95 transition-all ${
+                          savedToItem
+                            ? "bg-success/90 text-success-foreground hover:bg-success/80"
+                            : "bg-success text-success-foreground hover:bg-success/90"
+                        }`}
+                      >
+                        {savingToItem ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : savedToItem ? (
+                          <Check className="w-4 h-4 mr-2" />
+                        ) : (
+                          <ImageIcon className="w-4 h-4 mr-2" />
+                        )}
+                        {savedToItem ? "Saved to item ✓" : `Save to ${linkedItemTitle || "item"}`}
+                      </Button>
+                    )}
                     <Button variant="outline" onClick={handleProcess} disabled={processing} className="h-12 sm:h-11 active:scale-95 transition-transform">
                       <RefreshCw className="w-4 h-4 mr-2" /> Try Again
                     </Button>
