@@ -1,169 +1,230 @@
 
-# Fix Mannequin Generation + Dramatically Speed Up All Generations
+# Fix: Price Intelligence Engine — Accurate Vinted-Specific Pricing
 
-## Root Cause Analysis
+## Root Cause Diagnosis
 
-### Problem 1: Mannequin generation silently fails on certain backgrounds
+The pricing engine is consistently returning prices 2-3x too high for used Vinted items. A Nike crewneck jumper in very good condition that sells for £6-15 on Vinted is being recommended at £20-26. The problem has four compounding causes:
 
-In `Vintography.tsx`, the `MANNEQUIN_BACKGROUNDS` array includes `{ value: "flat_marble", ... }` as a user-selectable option. However, in the `mannequin_shot` prompt function inside `supabase/functions/vintography/index.ts`, the `bgs` lookup object does NOT have a `flat_marble` key:
+**Cause 1: Perplexity cannot crawl live Vinted listings**
+Vinted is a JavaScript-rendered SPA with no public sitemap of listings. Perplexity's web crawler indexes static pages — it cannot see Vinted's live search results. The `search_domain_filter: ["vinted.co.uk", ...]` constraint causes Perplexity to scrape Vinted's *static* pages (category hubs, blog posts, about pages) rather than actual item listings. This means the "market data" returned is largely from eBay and Depop, which both have higher average prices than Vinted.
 
-```typescript
-const bgs: Record<string, string> = {
-  studio: "...",
-  grey_gradient: "...",
-  living_room: "...",
-  dressing_room: "...",
-  brick: "...",
-  flat_marble: "...",  // ← this IS there actually
-  park: "...",
-};
+**Cause 2: eBay and Depop prices are structurally higher than Vinted**
+Vinted has no seller fees — which means items naturally price lower. A Nike crewneck that goes for £18-25 on eBay (with seller fees) or £15-22 on Depop lists for £6-14 on Vinted because sellers can price lower and still profit. By anchoring to eBay/Depop data, the engine systematically overestimates Vinted prices.
+
+**Cause 3: The Perplexity search query is too broad**
+`buildSearchTerm("Nike", "Jumpers")` produces `"Nike Jumpers"` — which hits Nike Tech Fleece, Nike Windrunner, and premium capsule items priced £40-80 on eBay, inflating the dataset average far above the £6-15 basic crewneck reality.
+
+**Cause 4: The AI analysis prompt has no Vinted price floor awareness**
+The prompt instructs the AI to use "40-70% of new listing prices" as a used discount — but it doesn't know that Vinted's baseline is already 60-80% below eBay. Without explicit grounding in Vinted-specific price levels, the AI calibrates to eBay standards.
+
+---
+
+## The Fix: A Completely Rethought Data Strategy
+
+### Strategy: Replace Perplexity domain filtering → Use Firecrawl to actually scrape Vinted search results
+
+Instead of asking Perplexity to "search vinted.co.uk" (which it can't do for dynamic listings), we use **Firecrawl's scrape endpoint** to directly fetch Vinted's search results page HTML/markdown, which contains the actual listing prices in the page's structured data.
+
+The flow becomes:
+
+```text
+Step 1: Build a Vinted search URL for the item
+        → https://www.vinted.co.uk/catalog?search_text=Nike+jumper+crew+neck&order=relevance
+
+Step 2: Use Firecrawl to scrape that URL (with waitFor=3000 to let JS render)
+        → Returns markdown/HTML containing listing titles and prices
+
+Step 3: Use Perplexity WITHOUT domain filter for broad market context
+        → "What do Nike crew neck jumpers sell for secondhand in the UK?"
+        → This gives eBay/Depop context for cross-platform comparison
+
+Step 4: AI analysis receives BOTH:
+        - Real Vinted prices from Firecrawl (the ground truth)
+        - eBay/Depop context from Perplexity (the cross-platform reference)
+        → AI anchors recommendation to Vinted prices, uses eBay as ceiling
 ```
 
-Wait — `flat_marble` IS in the edge function. So the background mismatch isn't the issue. Let me re-examine what IS broken.
+This is a fundamental upgrade: real Vinted listing data instead of inferred/hallucinated prices.
 
-The real mannequin bug: the edge function prompt for `mannequin_shot` says `Display this clothing/fashion garment on ${types[mannequinType]}` — but it's an **image editing prompt**, not an image generation prompt. The model is being asked to **edit** the input photo to show the garment on a mannequin. This is an extremely hard instruction for an image model because:
-
-1. The model receives the original garment photo (on a person, on a hanger, flat-lay, etc.)
-2. It's asked to "display this garment on a headless mannequin" — which requires removing the original context AND placing the garment on an entirely new subject
-3. This is essentially a composite/inpainting task, not a simple style transfer
-
-The **ghost mannequin** mode is especially broken because floating 3D ghost garments require the model to understand the 3D structure of the garment and simulate its interior — extremely difficult from a single flat photo.
-
-**The fix:** Restructure the mannequin prompt to be explicit about the two-stage process:
-1. First extract/isolate the garment
-2. Then render it on the specified mannequin type
-
-More importantly: add a **composition mandate** to each mannequin type that explicitly describes what the final image should look like, and adds explicit instruction about where the mannequin should sit in the frame (centered, full mannequin visible, garment fully shown).
-
-The ghost mannequin prompt also needs a complete rewrite — it currently says "The garment should appear to float in perfect 3D shape as if worn by an invisible person" but gives no instruction about HOW to achieve this technically. The fix: use explicit fill instructions.
-
-### Problem 2: Generation is slow because every complex operation uses the slowest model
-
-Current `MODEL_MAP`:
-```typescript
-remove_bg: "google/gemini-2.5-flash-image",      // ← fast, correct
-smart_bg: "google/gemini-3-pro-image-preview",    // ← slowest model
-model_shot: "google/gemini-3-pro-image-preview",  // ← slowest model
-mannequin_shot: "google/gemini-3-pro-image-preview", // ← slowest model
-ghost_mannequin: "google/gemini-2.5-flash-image", 
-flatlay_style: "google/gemini-3-pro-image-preview", // ← slowest model
-selfie_shot: "google/gemini-3-pro-image-preview",
-enhance: "google/gemini-2.5-flash-image",         // ← fast, correct
-```
-
-`google/gemini-3-pro-image-preview` is the highest-quality but **slowest** model — it's appropriate for `model_shot` where photorealism matters most. But using it for `flatlay_style` and `smart_bg` is unnecessary — these are compositional tasks where `gemini-2.5-flash-image` produces near-identical results at 3-4x the speed.
-
-Additionally, the progress step timers in `handleProcess` are hardcoded:
-```typescript
-setTimeout(() => setProcessingStep("analysing"), 800);
-setTimeout(() => setProcessingStep("generating"), 3000);
-setTimeout(() => setProcessingStep("finalising"), 7000);
-```
-
-These don't adapt to the actual model being used. For flash operations (remove_bg, enhance — typically 8-15s), the "finalising" step fires at 7s when the operation might complete at 10s, making the UI feel stalled. For pro model operations (30-60s), the timers all fire in the first 7 seconds leaving a dead period with no UI feedback.
-
-## The Fixes
-
-### Fix 1: Speed — Model Assignments
-
-Switch `flatlay_style` and `smart_bg` to `gemini-2.5-flash-image`. These operations:
-- **Flat-lay**: Compositional rearrangement + overhead perspective. Flash model handles this well and 3x faster.
-- **Smart BG / Lifestyle scenes**: Background replacement. Flash model quality is indistinguishable from Pro for background compositing.
-- Keep `model_shot` and `mannequin_shot` on Pro model — photorealistic human/mannequin rendering genuinely benefits from the better model.
-
-New `MODEL_MAP`:
-```typescript
-remove_bg: "google/gemini-2.5-flash-image",
-smart_bg: "google/gemini-2.5-flash-image",         // ← downgrade: same quality, 3x faster
-model_shot: "google/gemini-3-pro-image-preview",   // ← keep: photorealism needs Pro
-mannequin_shot: "google/gemini-3-pro-image-preview", // ← keep: mannequin quality needs Pro
-ghost_mannequin: "google/gemini-2.5-flash-image",
-flatlay_style: "google/gemini-2.5-flash-image",    // ← downgrade: compositional, same quality
-selfie_shot: "google/gemini-3-pro-image-preview",
-enhance: "google/gemini-2.5-flash-image",
-```
-
-This alone will cut `smart_bg` and `flatlay_style` generation time by approximately 60-70%.
-
-### Fix 2: Speed — Adaptive UI progress timers
-
-Replace the hardcoded `setTimeout` timers with operation-aware timing that matches expected model latency:
+### Firecrawl Vinted Search URL Construction
 
 ```typescript
-// Fast ops (flash model): remove_bg, enhance, smart_bg, flatlay
-const isFlashOp = ["clean_bg", "lifestyle_bg", "enhance"].includes(selectedOp) || 
-                  (selectedOp === "virtual_model" && photoTab === "flatlay");
-
-if (isFlashOp) {
-  setTimeout(() => setProcessingStep("analysing"), 500);
-  setTimeout(() => setProcessingStep("generating"), 2000);
-  setTimeout(() => setProcessingStep("finalising"), 8000);
-} else {
-  // Slow ops (pro model): model_shot, mannequin_shot
-  setTimeout(() => setProcessingStep("analysing"), 800);
-  setTimeout(() => setProcessingStep("generating"), 4000);
-  setTimeout(() => setProcessingStep("finalising"), 20000); // ← was 7000, now 20s
+function buildVintedSearchUrl(brand: string, category: string, title: string, condition: string): string {
+  // Build search text — brand + item type, not full verbose title
+  const searchText = brand && category 
+    ? `${brand} ${category}` 
+    : title || `${brand} ${category}`;
+  
+  // Map our condition to Vinted's catalog_filters format
+  const conditionMap: Record<string, string> = {
+    new_with_tags: "6",    // Vinted condition ID 6 = New with tags
+    new_without_tags: "1", // Vinted condition ID 1 = New without tags  
+    very_good: "2",        // Vinted condition ID 2 = Very good
+    good: "3",             // Vinted condition ID 3 = Good
+    satisfactory: "4",     // Vinted condition ID 4 = Satisfactory
+  };
+  
+  const conditionId = conditionMap[condition.toLowerCase().replace(/[\s-]/g, "_")];
+  const params = new URLSearchParams({ search_text: searchText, order: "relevance" });
+  if (conditionId) params.set("catalog[]", conditionId);
+  
+  return `https://www.vinted.co.uk/catalog?${params.toString()}`;
 }
 ```
 
-This prevents the "finalising" badge appearing 7 seconds in for a 40-second pro model generation — which currently makes users think something is wrong.
+### Firecrawl Scraping Function
 
-Also show the operation name in the processing overlay so users know what's happening: "Generating AI model shot..." vs "Removing background..."
-
-### Fix 3: Mannequin prompt — Ghost mannequin rewrite
-
-The ghost mannequin prompt is the hardest and currently weakest. Full rewrite with explicit technical instructions:
-
-```
-ghost: "an INVISIBLE/GHOST MANNEQUIN effect. Step 1: Mentally extract the garment from its current context. Step 2: Render the garment floating in perfect 3D shape as if worn by a person who has been made entirely invisible.
-
-GHOST MANNEQUIN TECHNICAL REQUIREMENTS:
-- The garment must hold its full 3D shape and volume exactly as it would when worn
-- Neckline: Fill the neck opening with a realistic view of the garment's interior — inner collar, label if visible, and clean fabric continuation showing the inside of the neckline
-- Sleeve openings: Fill with realistic fabric continuation showing the sleeve lining or interior
-- Waist/hem: If the garment has an interior, show a subtle glimpse of the inside hem
-- NO visible support structures, NO hanger, NO mannequin form — nothing supporting the garment should be visible
-- The garment must appear self-supporting and three-dimensional
-- Cast a soft shadow directly beneath the garment on the background surface"
-```
-
-### Fix 4: Mannequin prompt — Headless mannequin explicit composition
-
-The headless mannequin currently fails because the model sometimes:
-1. Generates a mannequin WITH a head (ignoring "headless")
-2. Crops the garment
-3. Shows the mannequin at an angle instead of straight-on
-
-Add explicit composition rules:
-
-```
-HEADLESS MANNEQUIN COMPOSITION:
-- The mannequin must be completely headless — the torso begins at the shoulder line with a clean, flat cut. No head, no neck, no partial head.
-- Frame the shot so the full mannequin from shoulder line to base is visible
-- The mannequin must face the camera squarely (not angled)
-- Centre the mannequin in the frame with equal breathing room on left and right
+```typescript
+async function scrapeVintedPrices(
+  brand: string, 
+  category: string, 
+  title: string, 
+  condition: string,
+  firecrawlKey: string
+): Promise<{ prices: number[]; listings: string; rawMarkdown: string }> {
+  const vintedUrl = buildVintedSearchUrl(brand, category, title, condition);
+  
+  const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: vintedUrl,
+      formats: ["markdown"],
+      onlyMainContent: true,
+      waitFor: 3000, // Let Vinted's JS render
+    }),
+  });
+  
+  const data = await res.json();
+  const markdown = data.data?.markdown || data.markdown || "";
+  
+  // Extract prices from markdown — Vinted renders prices as "£X" or "£X.XX"
+  const priceMatches = markdown.match(/£(\d+(?:\.\d{2})?)/g) || [];
+  const prices = priceMatches
+    .map(p => parseFloat(p.replace("£", "")))
+    .filter(p => p > 0.5 && p < 500); // Filter noise
+    
+  return { prices, listings: markdown.substring(0, 3000), rawMarkdown: markdown };
+}
 ```
 
-### Fix 5: Mannequin — add the operation name in the UI generation steps
+### Updated `fetchViaPerplexity` — Remove Domain Filter
 
-Currently the ComparisonView processing overlay shows generic steps. Update `handleProcess` to pass an operation description into the steps so the user sees "Placing garment on ghost mannequin..." instead of just "Generating...".
+Remove `search_domain_filter` entirely from the Perplexity call. Instead, use Perplexity for what it's actually good at: broad secondhand market context without being constrained to domains it can't index properly.
 
-## Files Changed
+New Perplexity prompt focus:
+- "What price range do [item] typically sell for secondhand in the UK?"
+- No domain filter — let it search blog posts, forums, comparison sites, Reddit r/Vinted discussions, etc.
+- This gives useful *context* (seasonal demand, brand reputation, typical sell times) rather than claiming to have Vinted-specific prices it doesn't actually have
 
-| File | What changes |
-|------|-------------|
-| `supabase/functions/vintography/index.ts` | Switch `smart_bg` and `flatlay_style` to flash model in `MODEL_MAP`; rewrite ghost mannequin prompt with explicit technical steps; add headless mannequin composition mandate; add half-body composition mandate |
-| `src/pages/Vintography.tsx` | Adaptive progress timers based on operation type; pass operation label into processing steps for better user feedback |
+### Updated AI Analysis Prompt — Vinted as Ground Truth
 
-## Expected Impact
+The AI prompt is restructured to clearly separate the two data sources and instruct the AI on how to weight them:
 
-| Operation | Before | After |
-|-----------|--------|-------|
-| Clean Background | 10-15s | 10-15s (unchanged, already flash) |
-| Lifestyle Scene | 35-60s | **12-20s** (flash model, ~3x faster) |
-| Flat-Lay | 35-60s | **12-20s** (flash model, ~3x faster) |
-| Enhance | 10-15s | 10-15s (unchanged, already flash) |
-| AI Model | 40-70s | 40-70s (kept on Pro — needs quality) |
-| Mannequin | 40-70s | 40-70s (kept on Pro — needs quality) + **much better results** |
+```
+PRICING DATA — TWO SOURCES:
 
-Mannequin quality improvement: Ghost mode should now correctly produce floating 3D garment effect. Headless mode should reliably produce a truly headless torso (not just a mannequin with a blurred head). Half-body mode will explicitly frame waist-up.
+SOURCE 1 — VINTED UK LIVE PRICES (ground truth — highest weight):
+[Firecrawl Vinted prices]
+Actual prices: £X, £X, £X, £X (median: £X, range: £X–£X)
+Based on N listings from vinted.co.uk search results.
+
+SOURCE 2 — BROADER MARKET CONTEXT (eBay/Depop reference):
+[Perplexity data]
+
+PRICING RULES:
+- The Vinted prices in SOURCE 1 are the ground truth. Base recommended_price on these.
+- Vinted prices are typically 50-70% LOWER than eBay prices because Vinted has zero seller fees.
+- If SOURCE 1 shows real prices, use them directly. Do NOT adjust upward toward eBay prices.
+- Only use SOURCE 2 to understand cross-platform context and seller edge insights.
+- If SOURCE 1 has <3 data points, use SOURCE 2 but explicitly discount 50-60% from eBay prices.
+```
+
+### Fallback if Firecrawl Returns No Prices
+
+If Firecrawl scrapes Vinted but gets <3 price signals (possible if the search returns nothing or the JS doesn't render in time), fall back gracefully:
+
+```typescript
+if (vintedPrices.length < 3) {
+  // Use Perplexity but with explicit Vinted discount instructions in the AI prompt
+  // Add a warning flag: lowConfidence = true → confidence_score capped at 60
+}
+```
+
+### Search Term Improvement
+
+Improve `buildSearchTerm` to produce more specific terms. For a Nike crewneck jumper, the current function produces "Nike Jumpers" — which is too broad and pulls in premium Nike products.
+
+New logic: include a sanitised version of the title/description as the search term, stripping only size/condition noise, not the item type descriptor:
+
+```typescript
+function buildVintedSearchTerm(brand: string, category: string, title: string): string {
+  // Prefer title over brand+category combo (more specific)
+  if (title) {
+    return title
+      .replace(/\b(XS|S|M|L|XL|XXL|XXXL|UK\s?\d+|\d+\s?cm|\d+\s?inch)\b/gi, "")
+      .replace(/\b(great|good|very good|excellent|condition|new|used|worn|pristine)\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+      .substring(0, 60); // Keep it concise enough for a URL search
+  }
+  // If no title, brand + specific category
+  if (brand && category) return `${brand} ${category}`;
+  return brand || category || "clothing";
+}
+```
+
+For "Nike crewneck jumper mens black M" → search term becomes "Nike crewneck jumper" → Vinted URL: `vinted.co.uk/catalog?search_text=Nike+crewneck+jumper&catalog[]=2` (condition: very good). This returns the right market.
+
+---
+
+## What Changes in Each File
+
+### `supabase/functions/price-check/index.ts`
+
+**Add `scrapeVintedPrices` function:**
+- Constructs proper Vinted search URL with condition filter
+- Uses Firecrawl `/v1/scrape` with `waitFor: 3000` 
+- Extracts all `£X` price strings from the rendered markdown
+- Returns array of prices + first 3000 chars of the listings markdown for AI context
+
+**Update `buildSearchTerm` → `buildVintedSearchTerm`:**
+- Prioritises item title over broad brand+category
+- Strips only noise words, keeps item-type descriptors ("crewneck", "windrunner", "track jacket")
+- This ensures Vinted search finds the right specific product
+
+**Update `fetchViaPerplexity`:**
+- Remove `search_domain_filter` entirely
+- Reframe the prompt: "What do [item] typically sell for secondhand in the UK? Include eBay, Depop, charity shop context"
+- Reduces Perplexity to a supporting data source, not the primary source
+
+**Update main handler — add Firecrawl scrape step:**
+- After resolving item details, call `scrapeVintedPrices` (runs in parallel with Perplexity call using `Promise.all`)
+- Pass both data sources to AI analysis
+
+**Update the AI prompt:**
+- Clearly label "SOURCE 1 — VINTED LIVE PRICES" and "SOURCE 2 — BROADER MARKET CONTEXT"
+- Add explicit instruction: "Base recommended_price on SOURCE 1 (Vinted). Vinted is typically 50-70% cheaper than eBay."
+- Add Vinted price statistics: compute median and range from the scraped prices and inject them directly into the prompt as "Computed Vinted market stats: median £X, range £X–£X, N listings"
+- Add explicit price floor/ceiling guard: "If the Vinted median is £X, recommended_price must be within ±30% of that median unless you have strong evidence of exceptional scarcity."
+
+**Update confidence score logic:**
+- If Firecrawl returns ≥5 Vinted prices → confidence can be up to 95
+- If Firecrawl returns 3-4 prices → cap confidence at 80
+- If Firecrawl returns <3 prices (fallback to Perplexity only) → cap confidence at 60 and flag in response
+
+---
+
+## Why This Is The Right Fix
+
+The current system is fundamentally asking the wrong question: "What does Perplexity think this item costs on Vinted?" — when Perplexity doesn't have access to live Vinted listings. The fix is to ask the right question: "What is Vinted actually showing for this item right now?" — which Firecrawl can answer directly by rendering the search results page.
+
+The Perplexity layer becomes contextual enrichment (platform comparisons, demand signals, trend context) rather than the primary price source. The AI analysis becomes grounded in real Vinted prices rather than eBay-biased estimates.
+
+**Expected accuracy improvement:**
+- Nike crewneck jumper, very good: current output £20-26 → expected output £8-14 (matching the £6-15 reality)
+- High-demand items (e.g., Carhartt WIP jacket) will still reflect premium pricing because Vinted itself prices those higher
+- Low-demand items will correctly show lower prices rather than being inflated by eBay comparables
+
+**Risk of Firecrawl not rendering Vinted properly:**
+Vinted uses JavaScript rendering, and Firecrawl's `waitFor: 3000` may not always be sufficient. The fallback (Perplexity-only + explicit 50-60% discount instruction in the AI prompt) ensures the system degrades gracefully rather than returning wrong prices. The confidence score will reflect data quality — users will see "Low confidence" when we're working from limited data.
