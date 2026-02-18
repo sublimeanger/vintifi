@@ -1017,11 +1017,11 @@ export default function SellWizard() {
         <p className="text-xs text-muted-foreground">
           {optimiseLoading ? "Generating SEO-optimised copy…" : optimiseResult ? "Optimisation complete" : "Starting optimisation…"}
         </p>
-        {!optimiseLoading && optimiseResult && !optimiseSaved && (
+        {/* Re-generate always shown when result exists and not currently loading */}
+        {!optimiseLoading && optimiseResult && (
           <button
             className="text-[10px] text-primary hover:underline"
             onClick={() => {
-              // FIX Gap 2: reset optimiseSaved so footer Continue re-disables while new result loads
               setOptimiseSaved(false);
               setOptimiseResult(null);
               runOptimise();
@@ -1041,14 +1041,42 @@ export default function SellWizard() {
 
       {optimiseResult && !optimiseLoading && (
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/20">
-            <HealthScoreMini score={optimiseResult.health_score} />
-            <div>
-              <p className="text-xs font-semibold">Health Score: {optimiseResult.health_score}/100</p>
-              <p className="text-[10px] text-muted-foreground">
-                {optimiseResult.health_score >= 80 ? "Excellent — ready to post!" : optimiseResult.health_score >= 60 ? "Good — above average" : "Needs improvement"}
-              </p>
+          {/* Health score card with breakdown info */}
+          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+            <div className="flex items-center gap-3">
+              <HealthScoreMini score={optimiseResult.health_score} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold">
+                  Health Score: {optimiseResult.health_score}/100
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {optimiseResult.health_score >= 80
+                    ? "Excellent — ready to post!"
+                    : optimiseResult.health_score >= 60
+                    ? "Good — above average"
+                    : "Needs improvement — see tips below"}
+                </p>
+              </div>
             </div>
+            {/* Score breakdown explanation */}
+            <div className="grid grid-cols-4 gap-1 pt-1 border-t border-border/50">
+              {[
+                { label: "Title", pts: 25 },
+                { label: "Description", pts: 25 },
+                { label: "Photos", pts: 25 },
+                { label: "Details", pts: 25 },
+              ].map(({ label, pts }) => (
+                <div key={label} className="text-center">
+                  <p className="text-[9px] text-muted-foreground font-medium">{label}</p>
+                  <p className="text-[9px] font-bold text-foreground/70">{pts}pts</p>
+                </div>
+              ))}
+            </div>
+            {optimiseResult.health_score < 60 && (
+              <p className="text-[10px] text-warning bg-warning/10 border border-warning/20 rounded px-2 py-1.5 leading-relaxed">
+                💡 Score is low because photos haven't been enhanced yet. Complete Photo Studio in the next step to unlock full points.
+              </p>
+            )}
           </div>
 
           <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
@@ -1073,7 +1101,12 @@ export default function SellWizard() {
             </Button>
           ) : (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
-              <Check className="w-4 h-4 shrink-0" /> Optimised listing saved — looking great!
+              <Check className="w-4 h-4 shrink-0" />
+              {optimiseResult.health_score >= 80
+                ? "Saved — your listing looks excellent!"
+                : optimiseResult.health_score >= 60
+                ? "Saved — good listing, photos will boost it further."
+                : "Saved — enhance photos next to improve the score."}
             </div>
           )}
         </div>
