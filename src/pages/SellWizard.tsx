@@ -456,6 +456,7 @@ export default function SellWizard() {
       optimised_title: optimiseResult.optimised_title,
       optimised_description: optimiseResult.optimised_description,
       health_score: optimiseResult.health_score,
+      last_optimised_at: now,
     } : prev);
     setOptimiseSaved(true);
     toast.success("Optimised listing saved!");
@@ -992,7 +993,11 @@ export default function SellWizard() {
         <Button
           variant="outline"
           className="flex-1 h-11 font-semibold"
-          onClick={() => createdItem && navigate(`/items/${createdItem.id}`)}
+          onClick={() => {
+            if (!createdItem) return;
+            toast.success("🎉 Listing complete — here's your item!");
+            navigate(`/items/${createdItem.id}`);
+          }}
         >
           View Item
         </Button>
