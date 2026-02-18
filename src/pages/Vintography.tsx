@@ -406,13 +406,29 @@ export default function Vintography() {
     setOriginalUrl(null); setProcessedUrl(null); setBatchItems([]); setActiveBatchIndex(0); setProcessingStep(null);
   };
 
+  const returnTo = searchParams.get("returnTo");
+  const fromWizard = returnTo === "/sell";
+
   return (
     <PageShell
-      title={itemId && linkedItemTitle ? `Photo Studio` : "Photo Studio"}
+      title="Photo Studio"
       subtitle={itemId && linkedItemTitle ? `Editing photos for: ${linkedItemTitle}` : "AI-powered photo editing for your listings"}
       maxWidth="max-w-4xl"
     >
-      {itemId && linkedItemTitle && (
+      {/* Back navigation — Wizard takes priority over item back-link */}
+      {fromWizard ? (
+        <div className="mb-3 -mt-1">
+          <button
+            onClick={() => navigate("/sell")}
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/15 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Sell Wizard
+          </button>
+        </div>
+      ) : itemId && linkedItemTitle ? (
         <div className="mb-3 -mt-1">
           <button
             onClick={() => navigate(`/items/${itemId}?tab=photos`)}
@@ -424,7 +440,7 @@ export default function Vintography() {
             Back to {linkedItemTitle}
           </button>
         </div>
-      )}
+      ) : null}
       <FeatureGate feature="vintography">
         <div className="space-y-3 sm:space-y-5">
           <CreditBar used={vintographyUsed} limit={creditsLimit} unlimited={isUnlimited} />
