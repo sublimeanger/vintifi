@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { HealthScoreMini } from "@/components/HealthScoreGauge";
 import {
   Copy, Check, Download, ExternalLink, Package,
-  Sparkles, ImageIcon, Hash, Type, FileText,
+  Sparkles, ImageIcon, Hash, Type, FileText, ShieldCheck,
 } from "lucide-react";
 
 type Listing = {
@@ -217,6 +217,33 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
           </div>
           <p className="text-sm font-semibold leading-snug">{displayTitle}</p>
         </motion.div>
+
+        {/* ── Condition Transparency Block ── */}
+        {item.condition && (() => {
+          const conditionMap: Record<string, { label: string; note: string; color: string; badge: string }> = {
+            new_with_tags: { label: "New with tags", note: "Unworn, original tags still attached. As good as it gets.", color: "text-success", badge: "bg-success/10 border-success/30 text-success" },
+            new_without_tags: { label: "New without tags", note: "Unworn, no tags but in perfect condition.", color: "text-success", badge: "bg-success/10 border-success/30 text-success" },
+            very_good: { label: "Very Good", note: "Worn a few times, no visible flaws. Like new to the eye.", color: "text-primary", badge: "bg-primary/10 border-primary/30 text-primary" },
+            good: { label: "Good", note: "Has been worn and shows minor signs of use. Still great.", color: "text-accent", badge: "bg-accent/10 border-accent/30 text-accent" },
+            satisfactory: { label: "Satisfactory", note: "Shows visible signs of wear. Priced accordingly.", color: "text-warning", badge: "bg-warning/10 border-warning/30 text-warning" },
+          };
+          const cond = conditionMap[item.condition] || { label: item.condition, note: "Condition as described.", color: "text-muted-foreground", badge: "bg-muted/40 border-border text-muted-foreground" };
+          return (
+            <motion.div variants={fadeUp} className={`rounded-lg border p-3.5 ${cond.badge.split(" ").slice(0, 1).join(" ")}/20 border-opacity-40`} style={{ background: "hsl(var(--background) / 0.6)" }}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className={`flex items-center gap-1.5 ${cond.color}`}>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span className="text-[10px] uppercase tracking-wider font-semibold">Condition</span>
+                </div>
+                <CopyButton text={`${cond.label} — ${cond.note}`} label="Condition" />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${cond.badge}`}>{cond.label}</span>
+                <span className="text-xs text-muted-foreground">{cond.note}</span>
+              </div>
+            </motion.div>
+          );
+        })()}
 
         {/* ── Description Section ── */}
         {cleanDescription && (

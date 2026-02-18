@@ -21,6 +21,7 @@ import SettingsPage from "./pages/SettingsPage";
 import OptimizeListing from "./pages/OptimizeListing";
 import Vintography from "./pages/Vintography";
 import ItemDetail from "./pages/ItemDetail";
+import TrendRadar from "./pages/TrendRadar";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,7 +66,7 @@ const App = () => (
             <Route path="/vintography" element={<ProtectedRoute><OnboardingGuard><Vintography /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsPage /></OnboardingGuard></ProtectedRoute>} />
             {/* Redirects for removed routes */}
-            <Route path="/trends" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/trends" element={<ProtectedRoute><OnboardingGuard><TrendRadar /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/arbitrage" element={<Navigate to="/dashboard" replace />} />
             <Route path="/competitors" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dead-stock" element={<Navigate to="/dashboard" replace />} />
