@@ -445,8 +445,8 @@ export default function Vintography() {
         <div className="space-y-3 sm:space-y-5">
           <CreditBar used={vintographyUsed} limit={creditsLimit} unlimited={isUnlimited} />
 
-          {/* Photo quality guidance banner */}
-          {!sessionStorage.getItem("vintography_guidance_dismissed") && (
+          {/* Photo quality guidance banner — FIX 11: use localStorage so dismiss persists across sessions */}
+          {!localStorage.getItem("vintography_guidance_dismissed") && (
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
@@ -460,7 +460,7 @@ export default function Vintography() {
               </div>
               <button
                 onClick={() => {
-                  sessionStorage.setItem("vintography_guidance_dismissed", "1");
+                  localStorage.setItem("vintography_guidance_dismissed", "1");
                   // Force re-render
                   setProcessedUrl(prev => prev);
                 }}

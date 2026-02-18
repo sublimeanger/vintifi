@@ -212,10 +212,45 @@ export default function SellWizard() {
   const [vintedUrlInput, setVintedUrlInput] = useState("");
   const [markingListed, setMarkingListed] = useState(false);
 
+  // ─── Session restore: on mount, check if we were mid-wizard going to Photo Studio ───
+  // FIX 7: persist item id + step to sessionStorage before navigating away
+  useEffect(() => {
+    const savedItemId = sessionStorage.getItem("sell_wizard_item_id");
+    const savedStep = sessionStorage.getItem("sell_wizard_step");
+    if (!savedItemId || !savedStep || !user) return;
+
+    // Clear the session keys immediately so a hard refresh doesn't loop
+    sessionStorage.removeItem("sell_wizard_item_id");
+    sessionStorage.removeItem("sell_wizard_step");
+
+    // Re-fetch the item and restore wizard to step 4
+    supabase
+      .from("listings")
+      .select("*")
+      .eq("id", savedItemId)
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data) return;
+        const item = data as unknown as Listing;
+        setCreatedItem(item);
+        lastPhotoEditRef.current = item.last_photo_edit_at;
+        setStepStatus((s) => ({ ...s, 1: "done", 2: "done", 3: "done" }));
+        setPriceAccepted(true);
+        setOptimiseSaved(!!item.last_optimised_at);
+        setDirection(1);
+        setCurrentStep(parseInt(savedStep, 10) || 4);
+        toast.info("Welcome back! Resuming where you left off.");
+      });
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   // ─── Reset wizard for "Sell another item" ───
   const resetWizard = () => {
     setCurrentStep(1);
-    setDirection(-1);
+    // FIX 10: direction should be 1 (forward) when resetting to step 1
+    setDirection(1);
     setStepStatus({ 1: "pending", 2: "pending", 3: "pending", 4: "pending", 5: "pending" });
     setEntryMethod(null);
     setVintedUrl("");
@@ -240,16 +275,21 @@ export default function SellWizard() {
     lastPhotoEditRef.current = null;
     setVintedUrlInput("");
     setMarkingListed(false);
+    // FIX 7 + Gap 10: clear session storage when resetting
+    sessionStorage.removeItem("sell_wizard_item_id");
+    sessionStorage.removeItem("sell_wizard_step");
   };
 
   // ─── Navigation ───
-  const canAdvance = (): boolean => {
-    if (currentStep === 1) return !!entryMethod;
+  // FIX 1: wrap canAdvance in useCallback to prevent stale closures in goNext and startPhotoPolling
+  const canAdvance = useCallback((): boolean => {
+    // FIX 10: step 1 always manages its own button; never allow footer to advance from step 1
+    if (currentStep === 1) return false;
     if (currentStep === 2) return priceAccepted;
     if (currentStep === 3) return optimiseSaved;
     if (currentStep === 4) return photoDone || stepStatus[4] === "skipped";
     return true;
-  };
+  }, [currentStep, priceAccepted, optimiseSaved, photoDone, stepStatus]);
 
   const advanceBlockedReason = (): string => {
     if (currentStep === 1 && !entryMethod) return "Choose how to add your item";
@@ -259,17 +299,27 @@ export default function SellWizard() {
     return "";
   };
 
+  // Helper to scroll the wizard content to top
+  const scrollToTop = () => {
+    // FIX 8: scroll to top on step advance
+    setTimeout(() => {
+      const el = document.getElementById("sell-wizard-scroll");
+      if (el) el.scrollTop = 0;
+    }, 50);
+  };
+
   const goNext = useCallback(() => {
     if (!canAdvance()) return;
     setStepStatus((s) => ({ ...s, [currentStep]: "done" }));
     setDirection(1);
     setCurrentStep((s) => Math.min(5, s + 1));
+    scrollToTop();
   }, [currentStep, canAdvance]);
 
   const goBack = () => {
     setDirection(-1);
-    // On step 2 (price), back goes to step 1
     setCurrentStep((s) => Math.max(1, s - 1));
+    scrollToTop();
   };
 
   // ─── Auto-fire price check on entering step 2 ───
@@ -289,8 +339,11 @@ export default function SellWizard() {
   // ─── Set milestone flags when Pack step is reached ───
   useEffect(() => {
     if (currentStep === 5 && createdItem && user) {
-      // Always set first-listing flag (Dashboard de-dupes via localStorage remove)
-      localStorage.setItem("vintifi_first_listing_complete", "1");
+      // FIX 8 (Bug 8): Only set first-listing flag once using a sentinel key
+      if (!localStorage.getItem("vintifi_first_listing_seen")) {
+        localStorage.setItem("vintifi_first_listing_complete", "1");
+        localStorage.setItem("vintifi_first_listing_seen", "1");
+      }
 
       // Check if this is the 5th listing
       supabase
@@ -314,10 +367,6 @@ export default function SellWizard() {
   }, []);
 
   // ─── Re-entry detection: when user returns to /sell at step 4 ───
-  // If they went to Photo Studio and came back, polling was killed — so on
-  // mount (or whenever step becomes 4 with a createdItem), immediately
-  // query the DB. If a photo edit happened since we stored lastPhotoEditRef,
-  // auto-advance. Otherwise restart polling so it works going forward.
   useEffect(() => {
     if (currentStep !== 4 || !createdItem || photoDone) return;
 
@@ -427,6 +476,14 @@ export default function SellWizard() {
   // ─── Create item in DB (end of step 1) ───
   const createItem = async () => {
     if (!user) return;
+    // FIX Gap 1: guard against duplicate item creation (e.g. Back from step 2 then re-click)
+    if (createdItem) {
+      setStepStatus((s) => ({ ...s, 1: "done" }));
+      setDirection(1);
+      setCurrentStep(2);
+      scrollToTop();
+      return;
+    }
     setCreating(true);
     try {
       let uploadedUrls: string[] = [];
@@ -463,6 +520,7 @@ export default function SellWizard() {
       setStepStatus((s) => ({ ...s, 1: "done" }));
       setDirection(1);
       setCurrentStep(2);
+      scrollToTop();
     } catch (err: any) {
       toast.error(err.message || "Failed to create item");
     } finally {
@@ -567,8 +625,11 @@ export default function SellWizard() {
   };
 
   // ─── Step 4: Photo polling ───
+  // FIX 5: always clear any existing interval before starting a new one
   const startPhotoPolling = useCallback(() => {
     if (!createdItem) return;
+    // Kill any previous interval first (prevents ghost polls and double-starts)
+    if (photoIntervalRef.current) clearInterval(photoIntervalRef.current);
     setPhotoPolling(true);
     photoIntervalRef.current = setInterval(async () => {
       const { data } = await supabase
@@ -591,6 +652,7 @@ export default function SellWizard() {
     setStepStatus((s) => ({ ...s, 4: "skipped" }));
     setDirection(1);
     setCurrentStep(5);
+    scrollToTop();
   };
 
   // ─── Step 5: Mark as listed ───
@@ -777,15 +839,30 @@ export default function SellWizard() {
           <Input type="number" value={form.purchasePrice} onChange={(e) => setForm((f) => ({ ...f, purchasePrice: e.target.value }))} placeholder="0.00" inputMode="decimal" />
         </div>
       </div>
-      <Button
-        className="w-full h-11 font-semibold mt-2"
-        disabled={!form.title || !form.condition || creating || uploading}
-        onClick={createItem}
-      >
-        {creating || uploading
-          ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating item…</>
-          : <>Create Item & Set Price <ArrowRight className="w-4 h-4 ml-1.5" /></>}
-      </Button>
+      {/* FIX Gap 1: if item already created (e.g. backed from step 2), show "Continue" not "Create" */}
+      {createdItem ? (
+        <Button
+          className="w-full h-11 font-semibold mt-2"
+          onClick={() => {
+            setStepStatus((s) => ({ ...s, 1: "done" }));
+            setDirection(1);
+            setCurrentStep(2);
+            scrollToTop();
+          }}
+        >
+          Continue to Price <ArrowRight className="w-4 h-4 ml-1.5" />
+        </Button>
+      ) : (
+        <Button
+          className="w-full h-11 font-semibold mt-2"
+          disabled={!form.title || !form.condition || creating || uploading}
+          onClick={createItem}
+        >
+          {creating || uploading
+            ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating item…</>
+            : <>Create Item & Set Price <ArrowRight className="w-4 h-4 ml-1.5" /></>}
+        </Button>
+      )}
     </div>
   );
 
@@ -837,7 +914,8 @@ export default function SellWizard() {
                   const low = priceResult.price_range_low!;
                   const high = priceResult.price_range_high!;
                   const rec = priceResult.recommended_price ?? (low + high) / 2;
-                  const pct = ((rec - low) / (high - low)) * 100;
+                  // FIX Gap 3: guard divide-by-zero when low === high (single comparable)
+                  const pct = high === low ? 50 : ((rec - low) / (high - low)) * 100;
                   return (
                     <>
                       <div className="h-full rounded-full bg-gradient-to-r from-warning/60 via-success to-success/60" style={{ width: "100%" }} />
@@ -939,7 +1017,15 @@ export default function SellWizard() {
           {optimiseLoading ? "Generating SEO-optimised copy…" : optimiseResult ? "Optimisation complete" : "Starting optimisation…"}
         </p>
         {!optimiseLoading && optimiseResult && !optimiseSaved && (
-          <button className="text-[10px] text-primary hover:underline" onClick={() => { setOptimiseResult(null); runOptimise(); }}>
+          <button
+            className="text-[10px] text-primary hover:underline"
+            onClick={() => {
+              // FIX Gap 2: reset optimiseSaved so footer Continue re-disables while new result loads
+              setOptimiseSaved(false);
+              setOptimiseResult(null);
+              runOptimise();
+            }}
+          >
             Re-generate
           </button>
         )}
@@ -1019,9 +1105,14 @@ export default function SellWizard() {
             className="w-full h-11 font-semibold"
             onClick={() => {
               if (createdItem) {
-                // Navigate in-app to keep mobile context; polling detects the save
+                // FIX 7: persist state to sessionStorage before navigating away
+                // so if the page is refreshed in Photo Studio, we can restore on return
+                sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
+                sessionStorage.setItem("sell_wizard_step", "4");
+                // FIX 6: do NOT call startPhotoPolling here — navigating away
+                // immediately unmounts and kills the interval. The re-entry
+                // useEffect handles polling when the user returns to /sell.
                 navigate(`/vintography?itemId=${createdItem.id}&image_url=${encodeURIComponent(createdItem.image_url || "")}&returnTo=/sell`);
-                startPhotoPolling();
               }
             }}
           >
@@ -1151,9 +1242,11 @@ export default function SellWizard() {
         </div>
 
         <div className="flex gap-2">
+          {/* FIX Gap 7: disable View Item button while markingListed to prevent double navigation */}
           <Button
             variant="outline"
             className="flex-1 h-11 font-semibold"
+            disabled={markingListed}
             onClick={() => {
               if (!createdItem) return;
               toast.success("🎉 Listing complete — here's your item!");
@@ -1244,8 +1337,8 @@ export default function SellWizard() {
       {/* ── Progress bar ── */}
       <ProgressBar currentStep={currentStep} stepStatus={stepStatus} />
 
-      {/* ── Step content ── */}
-      <div className="flex-1 overflow-y-auto">
+      {/* ── Step content ── FIX 8: id for scroll-to-top targeting */}
+      <div id="sell-wizard-scroll" className="flex-1 overflow-y-auto">
         <div className="max-w-lg mx-auto px-4 py-6 pb-32">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
@@ -1277,7 +1370,6 @@ export default function SellWizard() {
       {showFooterNav && (
         <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border px-4 pt-3 pb-4 space-y-1.5">
           <div className="flex gap-3">
-            {/* Hide back button when it would lead nowhere useful (step 2 goes to step 1 which is fine) */}
             {currentStep > 1 && (
               <Button variant="outline" className="h-12 px-5 font-semibold" onClick={goBack}>
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
