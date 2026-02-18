@@ -92,7 +92,7 @@ const SNAP_THRESHOLD_PAN = 0.5;
 const DOUBLE_TAP_ZOOM = 2.5;
 
 export function ComparisonView({
-  originalUrl, processedUrl, processing, processingStep, operationId, variations, currentVariation, onVariationChange,
+  originalUrl, processedUrl, processing, processingStep, operationId, resultLabel, variations, currentVariation, onVariationChange,
 }: Props) {
   const [sliderValue, setSliderValue] = useState([50]);
   const [viewMode, setViewMode] = useState<ViewMode>("overlay");
@@ -390,8 +390,8 @@ export function ComparisonView({
               <Badge variant="secondary" className="absolute top-2 left-2 text-[10px] bg-background/80 backdrop-blur-sm">Original</Badge>
             </div>
             <div className="flex-1 relative">
-              <img src={processedUrl} alt="Enhanced" className="w-full h-full object-contain bg-background" draggable={false} />
-              <Badge className="absolute top-2 right-2 text-[10px] bg-primary/90 backdrop-blur-sm">Enhanced</Badge>
+              <img src={processedUrl} alt={resultLabel || "Enhanced"} className="w-full h-full object-contain bg-background" draggable={false} />
+              <Badge className="absolute top-2 right-2 text-[10px] bg-primary/90 backdrop-blur-sm">{resultLabel || "Enhanced"}</Badge>
             </div>
           </div>
         ) : (
@@ -415,7 +415,7 @@ export function ComparisonView({
             </div>
             {processedUrl && (
               <div className="absolute top-3 right-3 z-10">
-                <Badge className="text-[10px] bg-primary/90 backdrop-blur-sm">Enhanced</Badge>
+                <Badge className="text-[10px] bg-primary/90 backdrop-blur-sm">{resultLabel || "Enhanced"}</Badge>
               </div>
             )}
           </div>
