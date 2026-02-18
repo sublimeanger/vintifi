@@ -52,18 +52,18 @@ type Props = {
 export const BackgroundPicker = forwardRef<HTMLDivElement, Props>(
   function BackgroundPicker({ value, onChange }, ref) {
     return (
-      <Card ref={ref} className="p-4 space-y-4">
+      <Card ref={ref} className="p-4 lg:p-5 space-y-4 lg:space-y-5">
         <div className="flex items-center gap-2">
-          <Paintbrush className="w-4 h-4 text-primary" />
-          <p className="text-sm font-semibold">Lifestyle Scene</p>
+          <Paintbrush className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
+          <p className="text-sm lg:text-base font-semibold">Lifestyle Scene</p>
         </div>
 
         {groups.map((group) => (
           <div key={group.heading}>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               {group.heading}
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {group.options.map((opt) => {
                 const selected = value === opt.value;
                 return (
@@ -71,18 +71,18 @@ export const BackgroundPicker = forwardRef<HTMLDivElement, Props>(
                     key={opt.value}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => onChange(opt.value)}
-                    className={`flex flex-col items-start gap-1.5 rounded-xl p-2.5 border text-left transition-all ${
+                    className={`flex flex-col items-start gap-1.5 rounded-xl p-2.5 lg:p-3 border text-left transition-all ${
                       selected
                         ? "border-primary ring-1 ring-primary/30 bg-primary/[0.04]"
                         : "border-border hover:border-primary/20"
                     }`}
                   >
-                    <div className={`w-full h-8 rounded-lg bg-gradient-to-br ${opt.color} border border-border/50`} />
+                    <div className={`w-full h-8 lg:h-10 rounded-lg bg-gradient-to-br ${opt.color} border border-border/50`} />
                     <div>
-                      <span className={`block text-[11px] font-semibold leading-tight ${selected ? "text-primary" : "text-foreground"}`}>
+                      <span className={`block text-[11px] lg:text-xs font-semibold leading-tight ${selected ? "text-primary" : "text-foreground"}`}>
                         {opt.label}
                       </span>
-                      <span className="block text-[9px] text-muted-foreground leading-tight mt-0.5">
+                      <span className="block text-[9px] lg:text-[10px] text-muted-foreground leading-tight mt-0.5">
                         {opt.desc}
                       </span>
                     </div>

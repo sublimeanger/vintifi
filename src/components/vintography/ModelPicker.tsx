@@ -57,19 +57,19 @@ function OptionGrid({ title, options, value, onChange, cols = 3 }: {
         {options.map((opt) => {
           const selected = value === opt.value;
           return (
-            <motion.button
+          <motion.button
               key={opt.value}
               whileTap={{ scale: 0.95 }}
               onClick={() => onChange(opt.value)}
-              className={`relative flex flex-col items-center gap-1 rounded-xl p-2.5 border text-center transition-all ${
+              className={`relative flex flex-col items-center gap-1 lg:gap-1.5 rounded-xl p-2.5 lg:p-3 border text-center transition-all ${
                 selected
                   ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30"
                   : "border-border hover:border-primary/20 bg-background"
               }`}
             >
-              <opt.icon className={`w-4 h-4 ${selected ? "text-primary" : "text-muted-foreground"}`} />
-              <span className={`text-[11px] font-medium leading-tight ${selected ? "text-primary" : "text-foreground"}`}>{opt.label}</span>
-              {opt.desc && <span className="text-[9px] text-muted-foreground leading-tight">{opt.desc}</span>}
+              <opt.icon className={`w-4 h-4 lg:w-5 lg:h-5 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+              <span className={`text-[11px] lg:text-xs font-medium leading-tight ${selected ? "text-primary" : "text-foreground"}`}>{opt.label}</span>
+              {opt.desc && <span className="text-[9px] lg:text-[10px] text-muted-foreground leading-tight">{opt.desc}</span>}
             </motion.button>
           );
         })}
@@ -93,10 +93,10 @@ type Props = {
 export const ModelPicker = forwardRef<HTMLDivElement, Props>(
   function ModelPicker({ gender, look, pose, bg, onGenderChange, onLookChange, onPoseChange, onBgChange, showLook = true }, ref) {
     return (
-      <Card ref={ref} className="p-4 space-y-4">
+      <Card ref={ref} className="p-4 lg:p-5 space-y-4 lg:space-y-5">
         <div className="flex items-center gap-2 mb-1">
-          <User className="w-4 h-4 text-primary" />
-          <p className="text-sm font-semibold">Model Configuration</p>
+          <User className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
+          <p className="text-sm lg:text-base font-semibold">Model Configuration</p>
         </div>
         <OptionGrid title="Gender" options={genderOptions} value={gender} onChange={onGenderChange} cols={2} />
         {showLook && (

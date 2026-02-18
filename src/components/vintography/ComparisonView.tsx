@@ -330,11 +330,11 @@ export function ComparisonView({
       {processedUrl && (
         <div className="flex items-center justify-between px-3 py-2 border-b border-border gap-2">
           <div className="flex items-center gap-1">
-            <Button size="sm" variant={viewMode === "overlay" ? "default" : "ghost"} className="h-7 px-2 text-xs"
+            <Button size="sm" variant={viewMode === "overlay" ? "default" : "ghost"} className="h-7 lg:h-9 px-2 lg:px-3 text-xs lg:text-sm"
               onClick={() => setViewMode("overlay")}>
               <Layers className="w-3.5 h-3.5 mr-1" /> Overlay
             </Button>
-            <Button size="sm" variant={viewMode === "side-by-side" ? "default" : "ghost"} className="h-7 px-2 text-xs"
+            <Button size="sm" variant={viewMode === "side-by-side" ? "default" : "ghost"} className="h-7 lg:h-9 px-2 lg:px-3 text-xs lg:text-sm"
               onClick={() => setViewMode("side-by-side")}>
               <Columns2 className="w-3.5 h-3.5 mr-1" /> Side by Side
             </Button>
@@ -344,19 +344,19 @@ export function ComparisonView({
               <div className="flex items-center gap-0.5 mr-2">
                 {variations.map((_, i) => (
                   <button key={i} onClick={() => onVariationChange(i)}
-                    className={`w-2 h-2 rounded-full transition-colors ${i === currentVariation ? "bg-primary" : "bg-muted-foreground/30"}`} />
+                    className={`w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full transition-colors ${i === currentVariation ? "bg-primary" : "bg-muted-foreground/30"}`} />
                 ))}
               </div>
             )}
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setTargetZoom(targetZoom.current + ZOOM_STEP_BUTTON)}>
-              <ZoomIn className="w-3.5 h-3.5" />
+            <Button size="icon" variant="ghost" className="h-7 w-7 lg:h-9 lg:w-9" onClick={() => setTargetZoom(targetZoom.current + ZOOM_STEP_BUTTON)}>
+              <ZoomIn className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
             </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setTargetZoom(targetZoom.current - ZOOM_STEP_BUTTON)}>
-              <ZoomOut className="w-3.5 h-3.5" />
+            <Button size="icon" variant="ghost" className="h-7 w-7 lg:h-9 lg:w-9" onClick={() => setTargetZoom(targetZoom.current - ZOOM_STEP_BUTTON)}>
+              <ZoomOut className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
             </Button>
             {isZoomed && (
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={resetZoom}>
-                <RotateCcw className="w-3.5 h-3.5" />
+              <Button size="icon" variant="ghost" className="h-7 w-7 lg:h-9 lg:w-9" onClick={resetZoom}>
+                <RotateCcw className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
               </Button>
             )}
           </div>
@@ -365,8 +365,8 @@ export function ComparisonView({
 
       <div
         ref={containerRef}
-        className={`relative w-full overflow-hidden select-none ${isZoomed ? "cursor-grab active:cursor-grabbing" : ""}`}
-        style={{ aspectRatio: viewMode === "side-by-side" && processedUrl ? "8/5" : "4/5", maxHeight: 500, touchAction: "none" }}
+        className={`relative w-full overflow-hidden select-none max-h-[500px] lg:max-h-[720px] ${isZoomed ? "cursor-grab active:cursor-grabbing" : ""}`}
+        style={{ aspectRatio: viewMode === "side-by-side" && processedUrl ? "8/5" : "4/5", touchAction: "none" }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -427,18 +427,18 @@ export function ComparisonView({
             </div>
 
             {/* Content */}
-            <div className="relative z-10 flex flex-col items-center gap-4 px-6 max-w-xs text-center">
+          <div className="relative z-10 flex flex-col items-center gap-4 lg:gap-5 px-6 max-w-xs lg:max-w-sm text-center">
               {/* Animated icon */}
               <motion.div
                 animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="w-14 h-14 rounded-2xl bg-primary/15 flex items-center justify-center"
+                className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-primary/15 flex items-center justify-center"
               >
-                <Sparkles className="w-7 h-7 text-primary" />
+                <Sparkles className="w-7 h-7 lg:w-8 lg:h-8 text-primary" />
               </motion.div>
 
               {/* Multi-step progress */}
-              <div className="w-full space-y-2">
+              <div className="w-full space-y-2 lg:space-y-3">
                 {PROCESSING_STEPS.map((step, i) => {
                   const isActive = i === currentStepIndex;
                   const isDone = i < currentStepIndex;
@@ -448,12 +448,12 @@ export function ComparisonView({
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: isDone || isActive ? 1 : 0.35, x: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      className={`flex items-center gap-2 text-xs transition-colors ${isActive ? "text-primary font-semibold" : isDone ? "text-muted-foreground" : "text-muted-foreground/50"}`}
+                      className={`flex items-center gap-2 lg:gap-3 text-xs lg:text-sm transition-colors ${isActive ? "text-primary font-semibold" : isDone ? "text-muted-foreground" : "text-muted-foreground/50"}`}
                     >
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 transition-colors ${
+                      <div className={`w-5 h-5 lg:w-6 lg:h-6 rounded-full flex items-center justify-center text-[10px] lg:text-xs shrink-0 transition-colors ${
                         isDone ? "bg-primary/20 text-primary" : isActive ? "bg-primary text-primary-foreground" : "bg-muted"
                       }`}>
-                        {isDone ? "✓" : isActive ? <Loader2 className="w-3 h-3 animate-spin" /> : step.icon}
+                        {isDone ? "✓" : isActive ? <Loader2 className="w-3 h-3 lg:w-3.5 lg:h-3.5 animate-spin" /> : step.icon}
                       </div>
                       <span>{step.label}</span>
                     </motion.div>
@@ -462,7 +462,7 @@ export function ComparisonView({
               </div>
 
               {/* Progress bar */}
-              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className="w-full h-1.5 lg:h-2 bg-muted rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-primary rounded-full"
                   initial={{ width: "5%" }}
@@ -479,7 +479,7 @@ export function ComparisonView({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.3 }}
-                  className="text-[11px] text-muted-foreground italic"
+                  className="text-xs lg:text-sm text-muted-foreground italic"
                 >
                   💡 {tips[tipIndex]}
                 </motion.p>
