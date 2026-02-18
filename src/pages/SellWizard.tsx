@@ -293,6 +293,53 @@ export default function SellWizard() {
     };
   }, []);
 
+  // ─── Re-entry detection: when user returns to /sell at step 4 ───
+  // If they went to Photo Studio and came back, polling was killed — so on
+  // mount (or whenever step becomes 4 with a createdItem), immediately
+  // query the DB. If a photo edit happened since we stored lastPhotoEditRef,
+  // auto-advance. Otherwise restart polling so it works going forward.
+  useEffect(() => {
+    if (currentStep !== 4 || !createdItem || photoDone) return;
+
+    let cancelled = false;
+
+    const checkOnEntry = async () => {
+      const { data } = await supabase
+        .from("listings")
+        .select("last_photo_edit_at, image_url")
+        .eq("id", createdItem.id)
+        .single();
+
+      if (cancelled) return;
+
+      if (data?.last_photo_edit_at && data.last_photo_edit_at !== lastPhotoEditRef.current) {
+        // Photo was edited while away — auto-advance
+        clearInterval(photoIntervalRef.current!);
+        setPhotoPolling(false);
+        setPhotoDone(true);
+        setStepStatus((s) => ({ ...s, 4: "done" }));
+        setCreatedItem((prev) =>
+          prev
+            ? { ...prev, last_photo_edit_at: data.last_photo_edit_at, image_url: data.image_url ?? prev.image_url }
+            : prev
+        );
+        toast.success("Photo enhancement detected — advancing!");
+        setTimeout(() => {
+          setDirection(1);
+          setCurrentStep(5);
+        }, 600);
+      } else if (!photoPolling) {
+        // No edit yet — (re)start polling so it keeps working
+        startPhotoPolling();
+      }
+    };
+
+    checkOnEntry();
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, createdItem?.id]);
+
   // ─── Step 1: Photo upload ───
   const uploadPhotos = async (files: File[]): Promise<string[]> => {
     if (!user) return [];
