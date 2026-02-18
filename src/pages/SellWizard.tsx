@@ -207,6 +207,8 @@ export default function SellWizard() {
   const [photoDone, setPhotoDone] = useState(false);
   const photoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPhotoEditRef = useRef<string | null>(null);
+  // Tracks whether user has clicked "Open Photo Studio" — polling only starts after that
+  const hasNavigatedToPhotoStudioRef = useRef(false);
 
   // Step 5 — Pack (was step 6)
   const [vintedUrlInput, setVintedUrlInput] = useState("");
@@ -235,6 +237,8 @@ export default function SellWizard() {
         const item = data as unknown as Listing;
         setCreatedItem(item);
         lastPhotoEditRef.current = item.last_photo_edit_at;
+        // User navigated away to Photo Studio, so polling should start on re-entry
+        hasNavigatedToPhotoStudioRef.current = true;
         setStepStatus((s) => ({ ...s, 1: "done", 2: "done", 3: "done" }));
         setPriceAccepted(true);
         setOptimiseSaved(!!item.last_optimised_at);
@@ -273,6 +277,7 @@ export default function SellWizard() {
     setPhotoPolling(false);
     setPhotoDone(false);
     lastPhotoEditRef.current = null;
+    hasNavigatedToPhotoStudioRef.current = false;
     setVintedUrlInput("");
     setMarkingListed(false);
     // FIX 7 + Gap 10: clear session storage when resetting
@@ -397,10 +402,12 @@ export default function SellWizard() {
           setDirection(1);
           setCurrentStep(5);
         }, 600);
-      } else if (!photoPolling) {
-        // No edit yet — (re)start polling so it keeps working
+      } else if (!photoPolling && hasNavigatedToPhotoStudioRef.current) {
+        // No edit yet, but user has been to Photo Studio — (re)start polling
         startPhotoPolling();
       }
+      // If hasNavigatedToPhotoStudioRef.current is false, user just arrived at step 4
+      // for the first time — show the "Open Photo Studio" button, don't auto-poll.
     };
 
     checkOnEntry();
@@ -910,19 +917,20 @@ export default function SellWizard() {
                 <span className="text-muted-foreground">—</span>
                 <span>£{priceResult.price_range_high.toFixed(0)}</span>
               </div>
-              <div className="relative h-1.5 rounded-full bg-border overflow-hidden">
+              <div className="relative h-2 rounded-full bg-border">
                 {(() => {
                   const low = priceResult.price_range_low!;
                   const high = priceResult.price_range_high!;
                   const rec = priceResult.recommended_price ?? (low + high) / 2;
-                  // FIX Gap 3: guard divide-by-zero when low === high (single comparable)
-                  const pct = high === low ? 50 : ((rec - low) / (high - low)) * 100;
+                  // Guard divide-by-zero when low === high (single comparable)
+                  const rawPct = high === low ? 50 : ((rec - low) / (high - low)) * 100;
+                  const pct = Math.max(5, Math.min(95, rawPct));
                   return (
                     <>
-                      <div className="h-full rounded-full bg-gradient-to-r from-warning/60 via-success to-success/60" style={{ width: "100%" }} />
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-warning/60 via-success to-success/60" />
                       <div
-                        className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-success shadow-sm"
-                        style={{ left: `calc(${Math.max(5, Math.min(95, pct))}% - 5px)` }}
+                        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-success shadow-md z-10"
+                        style={{ left: `${pct}%`, transform: `translateX(-50%) translateY(-50%)` }}
                       />
                     </>
                   );
@@ -962,7 +970,7 @@ export default function SellWizard() {
                     type="number"
                     value={customPriceInput}
                     onChange={(e) => setCustomPriceInput(e.target.value)}
-                    placeholder="12.00"
+                    placeholder={form.currentPrice || "0.00"}
                     className="pl-8 h-11 text-base"
                     inputMode="decimal"
                     onKeyDown={(e) => {
@@ -1139,13 +1147,11 @@ export default function SellWizard() {
             className="w-full h-11 font-semibold"
             onClick={() => {
               if (createdItem) {
-                // FIX 7: persist state to sessionStorage before navigating away
-                // so if the page is refreshed in Photo Studio, we can restore on return
+                // Mark that user has intentionally gone to Photo Studio
+                // so the re-entry useEffect knows to start polling on return
+                hasNavigatedToPhotoStudioRef.current = true;
                 sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
                 sessionStorage.setItem("sell_wizard_step", "4");
-                // FIX 6: do NOT call startPhotoPolling here — navigating away
-                // immediately unmounts and kills the interval. The re-entry
-                // useEffect handles polling when the user returns to /sell.
                 navigate(`/vintography?itemId=${createdItem.id}&image_url=${encodeURIComponent(createdItem.image_url || "")}&returnTo=/sell`);
               }
             }}
