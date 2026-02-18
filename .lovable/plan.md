@@ -1,166 +1,104 @@
 
-# Seller Feedback Audit — What We Have vs. What We Need
+# End-to-End Audit & Fix Plan
 
-## The 5 Pieces of Feedback, Mapped
+## What Was Tested
 
-Here is an honest assessment of each point from the seller, rated against the current platform:
+Full browser walkthrough performed:
+- Listings page loads clean
+- New Item Wizard: all 3 methods visible, manual entry form fills correctly, Photo Nudge dialog triggers correctly, item saves and redirects to Item Detail
+- Item Detail: all 4 tabs render, badge row, workflow progress, quick action CTAs all correct
+- Trend Radar: loads with real data, Hot Right Now strip scrolling, category/direction filters, "I have this" and "Optimise" CTAs, Category Heat Map at the bottom — all working
+- Price Check: input modes, "pick from your items" link, page structure all correct
+- Navigation: Trends correctly in both desktop sidebar and mobile bottom nav
 
----
+## Bugs Found
 
-### 1. "Show the true condition of the product — backgrounds look good, just need to make sure it shows a true likeness"
+### Bug 1 — VintedReadyPack: Broken Tailwind condition badge class
+**File:** `src/components/VintedReadyPack.tsx` line 232
 
-**What we already do:**
-- Vintography (Photo Studio) supports "Clean Background," "Lifestyle," "AI Model Concept," and "Enhance" operations
-- The AI optimiser includes condition detection and writes honest, specific condition notes in descriptions (the prompt explicitly says "Be honest and specific. Buyers trust honesty")
-- The listing description formula includes a dedicated "Condition" paragraph
+The condition block generates a background class like this:
+```
+${cond.badge.split(" ").slice(0, 1).join(" ")}/20
+```
+`cond.badge` = `"bg-success/10 border-success/30 text-success"` so `.split(" ").slice(0, 1)` = `["bg-success/10"]`, then appending `/20` produces `bg-success/10/20` — a completely invalid Tailwind class. The condition block background renders as transparent/broken on every item.
 
-**The gap:**
-- Vintography's AI Model Concept and Lifestyle modes *could* distort garment details (the system already warns users about this)
-- There is no explicit "condition callout" in the Vinted-Ready Pack — the condition is buried inside the description, not surfaced as a standalone visual element that buyers immediately see
-- The health score doesn't specifically penalise vague condition statements
+**Fix:** Replace the broken inline style + classname combo with a clean, direct approach using a `conditionBg` key in each `conditionMap` entry.
 
-**Upgrade opportunity:**
-- Add a **Condition Transparency Badge** to the Vinted-Ready Pack — a prominent, standalone block showing the detected condition with a plain-English explanation (e.g. "Very Good — worn a few times, no visible flaws") that can be copied separately
-- Reinforce this in the listing optimiser prompt to always lead with a clear, honest, first-sentence condition statement
+### Bug 2 — ItemDetail: Target price card shows green dash when null
+**File:** `src/pages/ItemDetail.tsx` around line 339
 
----
+The Target card always applies `text-success` styling even when `recommended_price` is null, making the `—` dash render green — implying positive data when there is none.
 
-### 2. "Pricing function — put in purchase price and % uplift they want, work out the price"
+**Fix:** Only apply `text-success` when the value is not null.
 
-**What we already do:**
-- The Profit Calculator exists on the Price Check page — user enters "Your Cost" and it shows net profit after fees and shipping based on the AI-recommended price
-- The Price Check already returns `buy_price_good`, `buy_price_max`, and `net_profit_estimate`
-- `purchase_price` is stored per listing and pre-fills the calculator
+### Bug 3 — TrendRadar: "Balanced" saturation uses `text-accent` 
+**File:** `src/pages/TrendRadar.tsx` line 44
 
-**The gap:**
-- The current calculator is *passive* — it takes a price we've already told them and shows profit
-- The seller wants the *inverse*: "I paid £X, I want 40% profit — what should I charge?"
-- There is no % margin / target uplift input mode anywhere in the app
+`text-accent` renders as a muted teal that has poor contrast on white card backgrounds in the current design system. "Balanced" should use `text-primary` to stay consistent with the colour system.
 
-**Upgrade opportunity — Priority 1 (quick win):**
-Add a **Target Margin Calculator** mode to the existing Profit Calculator card. Toggle between two modes:
-- **Mode A (current):** "What's my profit at recommended price?" → enters cost, shows profit
-- **Mode B (new):** "What price do I need for my target margin?" → enters cost + target % uplift → calculates: `sell price = cost / (1 - target_margin%) + estimated fees + shipping`
+### Bug 4 — PriceCheck: "or pick from your items" spacing
+**File:** `src/pages/PriceCheck.tsx` around line 370
 
-This is a pure frontend change — no backend needed. Lives directly on the Price Check page and also on the Item Detail page's pricing tab.
+The `mt-1 sm:-mt-1 mb-1` negative margin on the "or pick from your items" container creates an awkward floating gap between the input and the link on mobile. Should be a simple `text-center pt-1` without negative margins.
 
----
-
-### 3. "Trending products — Y2K and vintage are popular"
-
-**What we already do:**
-- The `trends` table is live with real data across 8 categories, with opportunity scores, 7/30-day search volume changes, supply/demand ratios, AI summaries
-- The Trend Radar page was already planned for a full rebuild (discussed in the previous conversation)
-
-**The gap:**
-- The Trend Radar page currently redirects to Dashboard — it doesn't exist
-- There is no connection between "what's trending" and a seller's existing inventory (e.g. "You have 3 Nike items — Nike is trending right now")
-- No personalised "Your items + current trends" crossover alert
-
-**Upgrade opportunity:**
-- Build the Trend Radar page as planned (this was already approved in prior conversation)
-- Add a "Trending Match" indicator on the Item Detail page — if a listing's brand/category matches an active trend with opportunity score 70+, show a small trending badge
-- On the Dashboard, add a "Trending in your wardrobe" widget showing which of the user's items match current trends
-
----
-
-### 4. "Market saturation — North Face is popular but there's so many, you need rarer/unique products"
-
-**What we already do:**
-- The Price Check returns `demand_level` (high/medium/low) and an AI insights paragraph
-- The `trends` table has `supply_demand_ratio` which is exactly this concept — low ratio means low supply vs demand (good), high ratio means oversaturated
-
-**The gap:**
-- The supply/demand ratio exists in the `trends` table but is never surfaced to users in a meaningful way
-- The Price Check's `comparable_items` count (active competitors) exists but isn't framed as a saturation warning
-- There's no "Saturation Score" or "Scarcity Score" shown to users
-- The Trend Radar (when built) should prominently surface this — "High Demand / Low Supply = Opportunity"
-
-**Upgrade opportunity:**
-- On the Price Check results, add a **Market Saturation indicator** — uses the `active_competitors` count to rate the market as Saturated / Competitive / Uncrowded with plain-English guidance ("428 similar listings — price competitively or differentiate with better photos/description")
-- On the Trend Radar, prominently label trends with low supply_demand_ratio as "Scarce" or "Opportunity" vs high ratio as "Crowded"
-
----
-
-### 5. "Suggest hashtags to put in the listing"
-
-**What we already do:**
-- The AI Listing Optimiser already generates 3–5 compound hashtags (e.g. `#nikecrew #menssweatshirt`) as part of every optimised listing
-- Hashtags are displayed as individual clickable badges in the results — each one copies to clipboard on tap
-- The Vinted-Ready Pack displays hashtags with a "Copy All" button
-- The AI prompt explicitly instructs 3–5 compound hashtags that "mirror how real buyers search on Vinted"
-
-**The gap:**
-- This is already fully built — but the seller may not know it exists or may not have used the optimiser yet
-- Hashtags are only generated as part of a full listing optimisation — there's no standalone "Generate Hashtags" quick action
-- On the item detail page, if an item has been optimised, hashtags are shown in the Vinted-Ready Pack — but if it hasn't been optimised, there's no hashtag suggestion at all
-
-**Upgrade opportunity:**
-- Add a **"Quick Hashtags"** button on the Item Detail page that generates just hashtags for the item (brand + category + key terms) without a full optimisation — uses a lightweight AI call
-- Make hashtags more discoverable — on the Listings page, add a small "# Hashtags ready" badge to items that have been optimised
-
----
-
-## Implementation Priority Order
-
-Based on effort vs. impact:
-
-| # | Feature | Effort | Impact | Type |
-|---|---------|--------|--------|------|
-| 1 | Target Margin Calculator (% uplift mode) | Low | Very High | Frontend only |
-| 2 | Market Saturation indicator on Price Check | Low | High | Frontend only |
-| 3 | Condition Transparency Badge in Vinted-Ready Pack | Low | High | Frontend only |
-| 4 | Trend Radar full rebuild | Medium | Very High | Frontend + existing DB |
-| 5 | Trending Match badge on Item Detail | Low | Medium | Frontend + DB query |
-| 6 | Quick Hashtags button on Item Detail | Medium | Medium | Frontend + Edge Function |
-
----
-
-## Proposed Build Plan
-
-### Phase A — Quick Wins (3 frontend files, no backend)
-
-**1. Target Margin Calculator** (`src/pages/PriceCheck.tsx`)
-
-Add a toggle on the existing Profit Calculator card. When in "Target Margin" mode:
-- Input 1: "Your cost (£)" — pre-filled from `purchase_price` if available
-- Input 2: "Target margin (%)" — slider from 10% to 100%, default 30%
-- Output: Calculated sell price = `cost ÷ (1 - margin%) + est. fees + est. shipping`
-- Show resulting profit in £ alongside the sell price
-
-**2. Market Saturation Card** (`src/pages/PriceCheck.tsx`)
-
-Below the Confidence/Demand/Days row, add a new card that reads the `comparable_items` count and frames it as:
-- 0–10 listings: "Uncrowded Market" (green) — "Low competition. Price with confidence."
-- 11–50 listings: "Competitive" (amber) — "Moderate competition. Good photos matter."
-- 51+ listings: "Saturated" (red) — "High competition. Differentiate or price aggressively."
-
-**3. Condition Transparency Block** (`src/components/VintedReadyPack.tsx`)
-
-Add a dedicated condition section to the Vinted-Ready Pack, between the title and description sections:
-- Shows the condition label (e.g. "Very Good") with a colour-coded badge
-- Shows a one-line plain-English condition note extracted from the optimised description
-- "Copy Condition" button for standalone copying
-
-### Phase B — Trend Radar Rebuild
-
-Build `src/pages/TrendRadar.tsx` as previously planned, but now enhanced with the seller's saturation insight:
-- Prominently label each trend card with its **Supply/Demand ratio** framed as "Crowded," "Competitive," or "Scarce Opportunity"
-- Free tier sees top 5 trends; Pro+ sees all
-- "I have this" CTA links to price check pre-filled
-
-Update `src/App.tsx` and `src/components/AppShellV2.tsx` to add Trends to navigation.
-
----
+### Bug 5 — TrendRadar: Filter chips overflow on mobile
+The direction filter row (`DIRECTIONS`) and category filter row sit in a `flex flex-wrap` container but aren't separated visually — on small screens they all run together. Should be separated with a divider line or rendered in a `space-y-2` stack.
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `src/pages/PriceCheck.tsx` | Add Target Margin Calculator toggle + Market Saturation card |
-| `src/components/VintedReadyPack.tsx` | Add Condition Transparency Block |
-| `src/pages/TrendRadar.tsx` | Create new (Trend Radar rebuild) |
-| `src/App.tsx` | Add `/trends` route |
-| `src/components/AppShellV2.tsx` | Add Trends to navigation |
+| File | Changes |
+|------|---------|
+| `src/components/VintedReadyPack.tsx` | Fix condition badge classname generation (add explicit `conditionBg` field to conditionMap) |
+| `src/pages/ItemDetail.tsx` | Fix Target card colour when null |
+| `src/pages/TrendRadar.tsx` | Fix "Balanced" colour; separate category/direction filter rows with spacing |
+| `src/pages/PriceCheck.tsx` | Fix "or pick from your items" spacing |
 
-No database migrations or new edge functions needed for Phase A. Phase B uses the existing `trends` table.
+## Technical Detail
+
+**VintedReadyPack fix** — Replace dynamic classname slicing with an explicit `bg` key:
+```ts
+const conditionMap = {
+  new_with_tags: { ..., bg: "bg-success/8" },
+  very_good:     { ..., bg: "bg-primary/8" },
+  good:          { ..., bg: "bg-accent/8"  },
+  satisfactory:  { ..., bg: "bg-warning/8" },
+}
+// Then use: className={`rounded-lg border p-3.5 ${cond.bg} ${cond.border}`}
+```
+
+**ItemDetail fix:**
+```tsx
+<p className={`text-sm sm:text-xl font-display font-bold text-success truncate`}>
+  {item.recommended_price != null ? `£${item.recommended_price.toFixed(0)}` : "—"}
+</p>
+```
+Change to apply `text-success` only when not null:
+```tsx
+<p className={`text-sm sm:text-xl font-display font-bold truncate ${item.recommended_price != null ? "text-success" : "text-muted-foreground"}`}>
+```
+
+**TrendRadar filter layout fix** — Wrap category and direction filters in a `space-y-2` container instead of a single `flex flex-wrap gap-2`:
+```tsx
+<div className="space-y-2 mb-4">
+  <div className="flex gap-1 flex-wrap">{CATEGORIES filters}</div>
+  <div className="flex gap-1 flex-wrap">{DIRECTIONS filters}</div>
+</div>
+```
+
+**PriceCheck spacing fix** — Remove the negative margin:
+```tsx
+<div className="text-center pt-1">
+  <ItemPickerDialog ...>
+    <button className="text-xs text-primary hover:underline font-medium">
+      or pick from your items
+    </button>
+  </ItemPickerDialog>
+</div>
+```
+
+## Scope
+
+- 4 files modified
+- No database changes
+- No edge function changes
+- Pure frontend bug fixes — all visual/UX
