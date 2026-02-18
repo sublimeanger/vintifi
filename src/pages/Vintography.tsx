@@ -886,10 +886,10 @@ export default function Vintography() {
 
                             {/* Credit note */}
                             <div className="flex items-center gap-1.5 rounded-lg bg-primary/[0.05] border border-primary/15 px-2.5 py-1.5">
-                              <Sparkles className="w-3 h-3 text-primary shrink-0" />
-                              <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
-                                Uses our most advanced AI model — <span className="text-foreground font-medium">always profitable at 4 credits</span>, never a loss regardless of your plan tier.
-                              </p>
+                               <Sparkles className="w-3 h-3 text-primary shrink-0" />
+                               <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
+                                 Powered by our most advanced AI model.
+                               </p>
                             </div>
                           </div>
                         </Card>
