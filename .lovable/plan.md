@@ -1,230 +1,292 @@
 
-# Fix: Price Intelligence Engine — Accurate Vinted-Specific Pricing
+# Crease Remover — "Steam & Press" Tool for Photo Studio
 
-## Root Cause Diagnosis
+## What We're Building
 
-The pricing engine is consistently returning prices 2-3x too high for used Vinted items. A Nike crewneck jumper in very good condition that sells for £6-15 on Vinted is being recommended at £20-26. The problem has four compounding causes:
-
-**Cause 1: Perplexity cannot crawl live Vinted listings**
-Vinted is a JavaScript-rendered SPA with no public sitemap of listings. Perplexity's web crawler indexes static pages — it cannot see Vinted's live search results. The `search_domain_filter: ["vinted.co.uk", ...]` constraint causes Perplexity to scrape Vinted's *static* pages (category hubs, blog posts, about pages) rather than actual item listings. This means the "market data" returned is largely from eBay and Depop, which both have higher average prices than Vinted.
-
-**Cause 2: eBay and Depop prices are structurally higher than Vinted**
-Vinted has no seller fees — which means items naturally price lower. A Nike crewneck that goes for £18-25 on eBay (with seller fees) or £15-22 on Depop lists for £6-14 on Vinted because sellers can price lower and still profit. By anchoring to eBay/Depop data, the engine systematically overestimates Vinted prices.
-
-**Cause 3: The Perplexity search query is too broad**
-`buildSearchTerm("Nike", "Jumpers")` produces `"Nike Jumpers"` — which hits Nike Tech Fleece, Nike Windrunner, and premium capsule items priced £40-80 on eBay, inflating the dataset average far above the £6-15 basic crewneck reality.
-
-**Cause 4: The AI analysis prompt has no Vinted price floor awareness**
-The prompt instructs the AI to use "40-70% of new listing prices" as a used discount — but it doesn't know that Vinted's baseline is already 60-80% below eBay. Without explicit grounding in Vinted-specific price levels, the AI calibrates to eBay standards.
+A new AI-powered tool inside Photo Studio (Vintography) that removes all creases, wrinkles, and fold marks from garment photos — making clothes look freshly steamed and pressed without the seller needing to iron or steam-clean anything in real life. This is a standalone fifth operation card alongside the existing four (Clean Background, Lifestyle Scenes, Photorealistic, Enhance).
 
 ---
 
-## The Fix: A Completely Rethought Data Strategy
+## Why This Deserves Its Own Operation (Not a Prompt Tweak)
 
-### Strategy: Replace Perplexity domain filtering → Use Firecrawl to actually scrape Vinted search results
+The `enhance` operation already applies general improvement but its mandate is: "correct lighting, sharpen fabric, fix colour." It explicitly does NOT remove structural wrinkles because those are treated as honest fabric information. A deliberate "de-crease" operation needs its own AI prompt with a completely different intent: **restructure fabric surface geometry** rather than enhance what's already there.
 
-Instead of asking Perplexity to "search vinted.co.uk" (which it can't do for dynamic listings), we use **Firecrawl's scrape endpoint** to directly fetch Vinted's search results page HTML/markdown, which contains the actual listing prices in the page's structured data.
+Also practically: sellers photograph their items, then realise they're creased, then face the choice of (a) re-photographing after ironing, or (b) the item looking bad on Vinted. This tool eliminates that choice — they process the photo and the AI renders the fabric smooth. This is one of the highest-value time-saving features possible for a Vinted seller.
 
-The flow becomes:
+---
+
+## Architecture Overview
+
+The change touches exactly two files — same pattern as every other Vintography tool:
 
 ```text
-Step 1: Build a Vinted search URL for the item
-        → https://www.vinted.co.uk/catalog?search_text=Nike+jumper+crew+neck&order=relevance
-
-Step 2: Use Firecrawl to scrape that URL (with waitFor=3000 to let JS render)
-        → Returns markdown/HTML containing listing titles and prices
-
-Step 3: Use Perplexity WITHOUT domain filter for broad market context
-        → "What do Nike crew neck jumpers sell for secondhand in the UK?"
-        → This gives eBay/Depop context for cross-platform comparison
-
-Step 4: AI analysis receives BOTH:
-        - Real Vinted prices from Firecrawl (the ground truth)
-        - eBay/Depop context from Perplexity (the cross-platform reference)
-        → AI anchors recommendation to Vinted prices, uses eBay as ceiling
+supabase/functions/vintography/index.ts   ← new operation: "decrease"
+src/pages/Vintography.tsx                  ← new operation card + UI card + flash model timing
 ```
 
-This is a fundamental upgrade: real Vinted listing data instead of inferred/hallucinated prices.
+No new DB tables, no new edge functions, no schema changes needed. `vintography_jobs` table already stores operation name as free text. The `TIER_OPERATIONS` map already controls which tiers get which ops.
 
-### Firecrawl Vinted Search URL Construction
+---
+
+## Edge Function Changes: `supabase/functions/vintography/index.ts`
+
+### 1. New Operation Prompt: `decrease`
+
+Add to `OPERATION_PROMPTS`:
 
 ```typescript
-function buildVintedSearchUrl(brand: string, category: string, title: string, condition: string): string {
-  // Build search text — brand + item type, not full verbose title
-  const searchText = brand && category 
-    ? `${brand} ${category}` 
-    : title || `${brand} ${category}`;
-  
-  // Map our condition to Vinted's catalog_filters format
-  const conditionMap: Record<string, string> = {
-    new_with_tags: "6",    // Vinted condition ID 6 = New with tags
-    new_without_tags: "1", // Vinted condition ID 1 = New without tags  
-    very_good: "2",        // Vinted condition ID 2 = Very good
-    good: "3",             // Vinted condition ID 3 = Good
-    satisfactory: "4",     // Vinted condition ID 4 = Satisfactory
+decrease: (p) => {
+  const intensity = p?.intensity || "standard";
+
+  const intensities: Record<string, string> = {
+    light: "Remove only the most prominent creases — deep fold lines, sharp compression creases from storage, and crumpling wrinkles. Preserve gentle natural drape folds that occur when fabric hangs — these show fabric character. The result should look like the garment was gently hand-pressed but not dry-cleaned.",
+    standard: "Remove all storage creases, fold lines, compression wrinkles, and crumpling. Preserve only the structural fabric drape that occurs naturally from gravity — the way fabric hangs from shoulders or drapes over a body form. The result should look like the garment was professionally steamed for 60 seconds.",
+    deep: "Remove every wrinkle, crease, fold line, and texture distortion caused by storage, folding, handling, or poor presentation. The fabric surface should appear immaculate — as if the garment is brand new, freshly pressed, and on a high-street shop display rail for the first time. Preserve fabric texture (weave, knit pattern, cord ridges) but eliminate all deformation of that texture.",
   };
-  
-  const conditionId = conditionMap[condition.toLowerCase().replace(/[\s-]/g, "_")];
-  const params = new URLSearchParams({ search_text: searchText, order: "relevance" });
-  if (conditionId) params.set("catalog[]", conditionId);
-  
-  return `https://www.vinted.co.uk/catalog?${params.toString()}`;
-}
+
+  return `You are a professional fashion retoucher specialising in fabric smoothing for e-commerce photography. Your task is to remove creases, wrinkles, and fold lines from this garment photo.
+
+INTENSITY: ${intensities[intensity] || intensities.standard}
+
+WHAT TO REMOVE — CREASES (eliminate these):
+- Sharp fold lines from being stored folded in a drawer or shipped in packaging
+- Compression wrinkles from being packed tightly
+- Crumpling wrinkles across the body of the fabric
+- Horizontal banding wrinkles across chest/sleeves from hanging or folding
+- Packing creases — the very defined lines from cardboard fold points
+- Any fabric deformation caused by poor storage, handling, or transit
+
+WHAT TO KEEP — NATURAL FABRIC BEHAVIOUR (preserve these):
+- The garment's overall silhouette and shape — do NOT change how the garment looks
+- Natural gravitational drape — the gentle curves of fabric as it hangs or is laid flat
+- Fabric texture: weave patterns, knit structure, corduroy ridges, denim twill lines — these are texture, not creases
+- Intentional design elements: pleats, gathers, ruched seams, smocking, or fabric tucks that are part of the garment's design
+- The accurate colour and shading of the fabric — do NOT bleach or overexpose
+- Any deliberate faded or distressed areas (important for denim/vintage)
+
+RETOUCHING TECHNIQUE:
+- Work methodically across the fabric surface — chest first, then sleeves, then body
+- Smooth fabric by "filling in" the crease valleys to match the surrounding fabric height and texture
+- Maintain consistent fabric texture across previously creased areas — the smoothed area should be indistinguishable from uncreased areas
+- Preserve natural lighting falloff across the garment — do NOT flatten the lighting or create an artificial airbrushed look
+- The final garment should look like it was pressed in a professional steamer for 2–3 minutes
+
+BACKGROUND: Leave the background completely unchanged — only edit the garment itself
+GARMENT IDENTITY: The garment type, colour, brand marks, logos, prints, fit, and silhouette must remain 100% identical to the original. Only the fabric surface texture (crease removal) changes.
+
+${GARMENT_PRESERVE}
+${QUALITY_MANDATE}`;
+},
 ```
 
-### Firecrawl Scraping Function
+### 2. Model Assignment in `MODEL_MAP`
 
 ```typescript
-async function scrapeVintedPrices(
-  brand: string, 
-  category: string, 
-  title: string, 
-  condition: string,
-  firecrawlKey: string
-): Promise<{ prices: number[]; listings: string; rawMarkdown: string }> {
-  const vintedUrl = buildVintedSearchUrl(brand, category, title, condition);
-  
-  const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      url: vintedUrl,
-      formats: ["markdown"],
-      onlyMainContent: true,
-      waitFor: 3000, // Let Vinted's JS render
-    }),
-  });
-  
-  const data = await res.json();
-  const markdown = data.data?.markdown || data.markdown || "";
-  
-  // Extract prices from markdown — Vinted renders prices as "£X" or "£X.XX"
-  const priceMatches = markdown.match(/£(\d+(?:\.\d{2})?)/g) || [];
-  const prices = priceMatches
-    .map(p => parseFloat(p.replace("£", "")))
-    .filter(p => p > 0.5 && p < 500); // Filter noise
-    
-  return { prices, listings: markdown.substring(0, 3000), rawMarkdown: markdown };
-}
+decrease: "google/gemini-2.5-flash-image",
 ```
 
-### Updated `fetchViaPerplexity` — Remove Domain Filter
+Rationale: This is a fabric surface retouching task — no photorealistic human rendering, no complex compositional scene-building. The Flash model handles texture smoothing very well and will complete in ~10–18 seconds (same category as `enhance` and `remove_bg`). Using the Pro model here would add 40-60s of unnecessary latency for no quality benefit.
 
-Remove `search_domain_filter` entirely from the Perplexity call. Instead, use Perplexity for what it's actually good at: broad secondhand market context without being constrained to domains it can't index properly.
-
-New Perplexity prompt focus:
-- "What price range do [item] typically sell for secondhand in the UK?"
-- No domain filter — let it search blog posts, forums, comparison sites, Reddit r/Vinted discussions, etc.
-- This gives useful *context* (seasonal demand, brand reputation, typical sell times) rather than claiming to have Vinted-specific prices it doesn't actually have
-
-### Updated AI Analysis Prompt — Vinted as Ground Truth
-
-The AI prompt is restructured to clearly separate the two data sources and instruct the AI on how to weight them:
-
-```
-PRICING DATA — TWO SOURCES:
-
-SOURCE 1 — VINTED UK LIVE PRICES (ground truth — highest weight):
-[Firecrawl Vinted prices]
-Actual prices: £X, £X, £X, £X (median: £X, range: £X–£X)
-Based on N listings from vinted.co.uk search results.
-
-SOURCE 2 — BROADER MARKET CONTEXT (eBay/Depop reference):
-[Perplexity data]
-
-PRICING RULES:
-- The Vinted prices in SOURCE 1 are the ground truth. Base recommended_price on these.
-- Vinted prices are typically 50-70% LOWER than eBay prices because Vinted has zero seller fees.
-- If SOURCE 1 shows real prices, use them directly. Do NOT adjust upward toward eBay prices.
-- Only use SOURCE 2 to understand cross-platform context and seller edge insights.
-- If SOURCE 1 has <3 data points, use SOURCE 2 but explicitly discount 50-60% from eBay prices.
-```
-
-### Fallback if Firecrawl Returns No Prices
-
-If Firecrawl scrapes Vinted but gets <3 price signals (possible if the search returns nothing or the JS doesn't render in time), fall back gracefully:
+### 3. Tier Access in `TIER_OPERATIONS`
 
 ```typescript
-if (vintedPrices.length < 3) {
-  // Use Perplexity but with explicit Vinted discount instructions in the AI prompt
-  // Add a warning flag: lowConfidence = true → confidence_score capped at 60
-}
+free:     [..., "decrease"],   // Add — this is a direct listing-quality tool, good free-tier hook
+pro:      [..., "decrease"],
+business: [..., "decrease"],
+scale:    [..., "decrease"],
 ```
 
-### Search Term Improvement
+Making it available on **all tiers including Free** is the correct call. Here's why:
 
-Improve `buildSearchTerm` to produce more specific terms. For a Nike crewneck jumper, the current function produces "Nike Jumpers" — which is too broad and pulls in premium Nike products.
+- It's a pure listing-quality tool — creases make photos look bad and discourage buyers. A better photo = higher conversion = happier seller = they upgrade
+- It's the kind of feature that makes a free user say "oh wow, this actually works" — highest activation potential of any feature
+- It uses 1 credit (same as Clean Background, which is also free-tier accessible)
+- It becomes a conversion vector: "To also add a Lifestyle Background to this freshly pressed photo, upgrade to Pro"
 
-New logic: include a sanitised version of the title/description as the search term, stripping only size/condition noise, not the item type descriptor:
+### 4. Prompt Augmentation with `_decrease_with_context`
+
+Since the edge function already has a pattern of injecting `garment_context` for operations that need it, add decrease to the operations that benefit from garment context. When `garment_context` is provided (i.e., when coming from a linked item), the context helps the AI distinguish intended design elements from storage creases:
 
 ```typescript
-function buildVintedSearchTerm(brand: string, category: string, title: string): string {
-  // Prefer title over brand+category combo (more specific)
-  if (title) {
-    return title
-      .replace(/\b(XS|S|M|L|XL|XXL|XXXL|UK\s?\d+|\d+\s?cm|\d+\s?inch)\b/gi, "")
-      .replace(/\b(great|good|very good|excellent|condition|new|used|worn|pristine)\b/gi, "")
-      .replace(/\s{2,}/g, " ")
-      .trim()
-      .substring(0, 60); // Keep it concise enough for a URL search
-  }
-  // If no title, brand + specific category
-  if (brand && category) return `${brand} ${category}`;
-  return brand || category || "clothing";
+// In the garment_context injection logic:
+if (garment_context && !["model_shot"].includes(operation)) {
+  prompt += buildGarmentContext(garment_context);
 }
 ```
 
-For "Nike crewneck jumper mens black M" → search term becomes "Nike crewneck jumper" → Vinted URL: `vinted.co.uk/catalog?search_text=Nike+crewneck+jumper&catalog[]=2` (condition: very good). This returns the right market.
+The existing logic already handles this — `decrease` will automatically get garment context appended when available, without any additional code.
 
 ---
 
-## What Changes in Each File
+## Frontend Changes: `src/pages/Vintography.tsx`
 
-### `supabase/functions/price-check/index.ts`
+### 1. New Operation in `OPERATIONS` Array
 
-**Add `scrapeVintedPrices` function:**
-- Constructs proper Vinted search URL with condition filter
-- Uses Firecrawl `/v1/scrape` with `waitFor: 3000` 
-- Extracts all `£X` price strings from the rendered markdown
-- Returns array of prices + first 3000 chars of the listings markdown for AI context
+The existing 4 operations are displayed as a `grid grid-cols-2` — adding a 5th would break the layout to an asymmetric 5-card grid. The solution: **keep the 2x2 grid and make the 5th card (Crease Remover) a full-width card below** — visually distinct, clearly a utility/finishing tool rather than a transformation. This is also better UX: it groups "transformation" tools (4-card grid) vs "finishing" tools (wide card below).
 
-**Update `buildSearchTerm` → `buildVintedSearchTerm`:**
-- Prioritises item title over broad brand+category
-- Strips only noise words, keeps item-type descriptors ("crewneck", "windrunner", "track jacket")
-- This ensures Vinted search finds the right specific product
+The wide card design mirrors the visual weight of the tool — it's a workhorse utility, not a creative mode.
 
-**Update `fetchViaPerplexity`:**
-- Remove `search_domain_filter` entirely
-- Reframe the prompt: "What do [item] typically sell for secondhand in the UK? Include eBay, Depop, charity shop context"
-- Reduces Perplexity to a supporting data source, not the primary source
+Add to the `OPERATIONS` array:
 
-**Update main handler — add Firecrawl scrape step:**
-- After resolving item details, call `scrapeVintedPrices` (runs in parallel with Perplexity call using `Promise.all`)
-- Pass both data sources to AI analysis
+```typescript
+{
+  id: "decrease",
+  icon: Shirt,  // or Wind — we'll use Wind (already imported, suggests smoothness/air)
+  label: "Steam & Press",
+  desc: "Remove all creases, instantly",
+  detail: "AI-powered crease removal — makes every garment look freshly steamed. No iron needed. Preserves fabric texture, logo, and colour perfectly.",
+  beforeGradient: "from-stone-300/60 via-stone-400/40 to-stone-300/60",  // wrinkly grey
+  afterGradient: "from-sky-50 via-white to-sky-50",  // smooth, clean
+}
+```
 
-**Update the AI prompt:**
-- Clearly label "SOURCE 1 — VINTED LIVE PRICES" and "SOURCE 2 — BROADER MARKET CONTEXT"
-- Add explicit instruction: "Base recommended_price on SOURCE 1 (Vinted). Vinted is typically 50-70% cheaper than eBay."
-- Add Vinted price statistics: compute median and range from the scraped prices and inject them directly into the prompt as "Computed Vinted market stats: median £X, range £X–£X, N listings"
-- Add explicit price floor/ceiling guard: "If the Vinted median is £X, recommended_price must be within ±30% of that median unless you have strong evidence of exceptional scarcity."
+Add `"decrease"` to the `Operation` type union:
 
-**Update confidence score logic:**
-- If Firecrawl returns ≥5 Vinted prices → confidence can be up to 95
-- If Firecrawl returns 3-4 prices → cap confidence at 80
-- If Firecrawl returns <3 prices (fallback to Perplexity only) → cap confidence at 60 and flag in response
+```typescript
+type Operation = "clean_bg" | "lifestyle_bg" | "virtual_model" | "enhance" | "decrease";
+```
+
+Update `OP_MAP`:
+
+```typescript
+const OP_MAP: Record<Operation, string> = {
+  clean_bg: "remove_bg",
+  lifestyle_bg: "smart_bg",
+  virtual_model: "model_shot",
+  enhance: "enhance",
+  decrease: "decrease",
+};
+```
+
+### 2. Intensity Selector State + UI
+
+Add state:
+
+```typescript
+const [decreaseIntensity, setDecreaseIntensity] = useState<"light" | "standard" | "deep">("standard");
+```
+
+Add intensity to `getParams()`:
+
+```typescript
+if (selectedOp === "decrease") {
+  params.intensity = decreaseIntensity;
+}
+```
+
+**UI for when `decrease` is selected** — shown inside `AnimatePresence` below the operation cards, same pattern as `lifestyle_bg` shows `BackgroundPicker`:
+
+A simple 3-option intensity selector with descriptive labels:
+
+```
+[ Light Press ]    [ Steam — Standard ]    [ Deep Press ]
+  Gentle only        All storage creases     Showroom perfect
+  (removes sharp     removed. Looks pro      Brand new look.
+  packing lines)     steamed.                Immaculate.
+```
+
+Selected card highlights with the primary ring pattern used throughout.
+
+The intensity control card is **minimal** — this operation has very few parameters by design. No garment description needed (unlike model shots), no background picker, no lighting. Just the intensity. Clean, fast, purposeful.
+
+### 3. Full-Width Operation Card Rendering
+
+Update the operation cards render section. Instead of rendering all 5 in the same grid, split:
+
+- First 4 in `grid grid-cols-2` (existing layout, unchanged)
+- 5th (decrease) as a **separate full-width card** below the grid, with a slightly different visual treatment:
+  - Wide layout with icon+label on the left, detail text on the right
+  - "New ✦" badge since it's new
+  - The before/after gradient strip runs full-width (wider canvas to suggest the smoothing sweep)
+
+This separation creates a natural visual hierarchy:
+- **Transformation tools** (2×2 grid): Change what the photo looks like
+- **Finishing tools** (full-width): Polish the photo as-is
+
+### 4. Progress Timer Classification
+
+Add `decrease` to `isFlashOp()` since it uses the Flash model:
+
+```typescript
+const isFlashOp = (): boolean => {
+  if (selectedOp === "clean_bg" || selectedOp === "enhance" || selectedOp === "decrease") return true;
+  if (selectedOp === "lifestyle_bg") return true;
+  if (selectedOp === "virtual_model" && photoTab === "flatlay") return true;
+  return false;
+};
+```
+
+### 5. Processing Label
+
+Add to `getOperationLabel()`:
+
+```typescript
+if (selectedOp === "decrease") return "Steaming & pressing garment...";
+```
+
+### 6. ComparisonView Tips
+
+In `ComparisonView.tsx`, add tips for the `decrease` operation ID:
+
+```typescript
+decrease: [
+  "Works best with full garment photos — front view, hanger or flat-lay shots",
+  "Deep Press mode is perfect for items that came direct from storage or shipping",
+  "Fabric texture, logos, and prints are preserved — only creases are removed",
+  "Chain with Clean Background for a perfect Vinted listing in 2 credits",
+],
+```
 
 ---
 
-## Why This Is The Right Fix
+## UX Detail: The "Steam & Press" card visual design
 
-The current system is fundamentally asking the wrong question: "What does Perplexity think this item costs on Vinted?" — when Perplexity doesn't have access to live Vinted listings. The fix is to ask the right question: "What is Vinted actually showing for this item right now?" — which Firecrawl can answer directly by rendering the search results page.
+The before/after gradient strip for this operation needs to communicate "wrinkled → smooth" visually. Use:
 
-The Perplexity layer becomes contextual enrichment (platform comparisons, demand signals, trend context) rather than the primary price source. The AI analysis becomes grounded in real Vinted prices rather than eBay-biased estimates.
+- **Before**: A `from-stone-300 via-stone-400/60 to-stone-300` with an extra CSS pattern overlay (multiple thin diagonal gradient strips to simulate crease lines) using a `repeating-linear-gradient` inline style on the before div
+- **After**: A clean `from-sky-50 via-white to-sky-50` — smooth, pure, fresh
 
-**Expected accuracy improvement:**
-- Nike crewneck jumper, very good: current output £20-26 → expected output £8-14 (matching the £6-15 reality)
-- High-demand items (e.g., Carhartt WIP jacket) will still reflect premium pricing because Vinted itself prices those higher
-- Low-demand items will correctly show lower prices rather than being inflated by eBay comparables
+This visual immediately communicates what the tool does without words.
 
-**Risk of Firecrawl not rendering Vinted properly:**
-Vinted uses JavaScript rendering, and Firecrawl's `waitFor: 3000` may not always be sufficient. The fallback (Perplexity-only + explicit 50-60% discount instruction in the AI prompt) ensures the system degrades gracefully rather than returning wrong prices. The confidence score will reflect data quality — users will see "Low confidence" when we're working from limited data.
+---
+
+## Summary Table: All Changes
+
+| Location | Change | Detail |
+|---|---|---|
+| `supabase/functions/vintography/index.ts` | Add `decrease` prompt | 3 intensity levels with detailed crease removal instructions |
+| `supabase/functions/vintography/index.ts` | `MODEL_MAP` | `decrease: "google/gemini-2.5-flash-image"` (fast flash model) |
+| `supabase/functions/vintography/index.ts` | `TIER_OPERATIONS` | Add `decrease` to all 4 tiers including Free |
+| `src/pages/Vintography.tsx` | `Operation` type | Add `"decrease"` |
+| `src/pages/Vintography.tsx` | `OPERATIONS` array | New operation card definition for Steam & Press |
+| `src/pages/Vintography.tsx` | `OP_MAP` | `decrease: "decrease"` |
+| `src/pages/Vintography.tsx` | State | `decreaseIntensity` state (light/standard/deep) |
+| `src/pages/Vintography.tsx` | `getParams()` | Pass `intensity` param for decrease |
+| `src/pages/Vintography.tsx` | `getOperation()` | Include decrease in operation resolution |
+| `src/pages/Vintography.tsx` | `isFlashOp()` | Classify decrease as flash op (10-18s timers) |
+| `src/pages/Vintography.tsx` | `getOperationLabel()` | "Steaming & pressing garment..." |
+| `src/pages/Vintography.tsx` | Operation card render | Full-width card below 2×2 grid |
+| `src/pages/Vintography.tsx` | Intensity selector UI | 3-option card strip inside `AnimatePresence` |
+| `src/components/vintography/ComparisonView.tsx` | Tips | Add `decrease` tip array |
+
+---
+
+## What It Looks and Feels Like
+
+1. User lands on Photo Studio with a creased garment photo
+2. They scroll down past the 4 operation cards and see the **full-width "Steam & Press" card** — visually distinct, with a wrinkle-to-smooth gradient and a "New ✦" badge
+3. They click it — it selects and expands to reveal a simple 3-card intensity picker (Light / Standard / Deep) with a one-line description of each
+4. They hit Generate — the flash model completes in ~12-18 seconds
+5. The comparison view loads — they drag the overlay slider and see the garment transform from creased to smooth
+6. They download or save to item
+
+Total user time from "noticing the tool" to "processed photo": under 45 seconds including upload.
+
+---
+
+## Edge Cases and Guards
+
+- **Completely smooth garment photo**: The model will correctly detect no significant creases and return an image near-identical to the input. No harm done, 1 credit used.
+- **Photo with intentional distressing (vintage denim)**: The "light" intensity option handles this — it's described as preserving "deliberate faded or distressed areas (important for denim/vintage)". The standard prompt also includes this.
+- **Non-garment photo**: The `GARMENT_PRESERVE` mandate ensures the model won't do anything destructive. It may just enhance without major change.
+- **Logos and prints**: `GARMENT_PRESERVE` is explicitly included in the prompt — this prevents the model from smoothing away logos or prints thinking they're "wrinkles".
