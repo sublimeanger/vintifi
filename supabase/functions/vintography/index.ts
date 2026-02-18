@@ -193,7 +193,42 @@ ${QUALITY_MANDATE}`;
       park: "a beautiful park setting with soft green foliage bokeh in the background. Natural daylight with warm ambient fill. Fresh, outdoor lifestyle feel",
     };
 
-    return `Display this clothing/fashion garment on ${types[mannequinType]}.
+    const compositionMandates: Record<string, string> = {
+      headless: `HEADLESS MANNEQUIN COMPOSITION (NON-NEGOTIABLE):
+- The mannequin MUST be completely headless — the torso begins at the shoulder line with a clean, flat horizontal cut. Absolutely NO head, NO neck stub, NO partial skull. The top of the mannequin is the shoulder line, period.
+- Frame the shot so the FULL mannequin from the shoulder cut-line down to the base/feet is fully visible — nothing cropped at top or bottom.
+- The mannequin must face the camera squarely — front-on, zero rotation. NOT angled. NOT 3/4 view.
+- Centre the mannequin in the frame with equal breathing room on left and right sides.`,
+      ghost: `GHOST MANNEQUIN — TWO-STAGE PROCESS:
+STAGE 1: Mentally extract and isolate the garment from the original photo, removing any background, person, hanger, or support.
+STAGE 2: Render the isolated garment floating in perfect 3D shape as if worn by a person who has been made COMPLETELY INVISIBLE.
+
+GHOST MANNEQUIN TECHNICAL REQUIREMENTS (each point is mandatory):
+- The garment MUST hold its full 3D shape and volume exactly as it would when worn on a real body — no flat, collapsed, or deflated areas.
+- NECKLINE: Fill the neck opening with a realistic view of the garment's interior — inner collar, any visible label, and clean fabric continuation showing the inside of the neckline. Do NOT show a white hole or empty space at the neckline.
+- SLEEVE OPENINGS: Fill each sleeve opening with a short realistic view of the sleeve interior fabric — the lining or inside of the sleeve cuff. Not a white void.
+- WAIST/HEM: If the garment has a visible hem, show a subtle glimpse of the garment's interior fabric or lining at the hem opening.
+- ABSOLUTELY NO visible support structures, NO hanger wire, NO mannequin form, NO stand, NO clips — nothing that supports the garment should appear in the final image.
+- The garment must appear completely self-supporting and three-dimensional.
+- Cast a soft, diffused shadow directly beneath the garment on the background surface to ground it.`,
+      dress_form: `DRESS FORM COMPOSITION:
+- The full dress form from shoulder to base stand must be visible — nothing cropped.
+- The form faces the camera squarely, centred in frame.
+- The stand and base must be visible below the form.`,
+      half_body: `HALF-BODY MANNEQUIN COMPOSITION:
+- Frame waist-up: show the mannequin from just below the hips to the shoulder cut-line (headless).
+- The full garment from neckline to hem must be visible — nothing cropped.
+- The mannequin faces camera squarely, centred in frame.
+- Headless — the torso ends cleanly at the shoulder line with no head or neck.`,
+    };
+
+    return `You are a professional e-commerce product photographer. Display this clothing/fashion garment on ${types[mannequinType]}.
+
+STEP 1 — GARMENT EXTRACTION: First, mentally isolate the garment from the original photo context (person, hanger, background). Identify every detail: colour, texture, brand marks, buttons, zippers, seams, silhouette.
+
+STEP 2 — MANNEQUIN PLACEMENT: Place the extracted garment onto the mannequin form. The garment must fit the mannequin naturally with realistic fabric physics.
+
+${compositionMandates[mannequinType] || ""}
 
 GARMENT DISPLAY (NON-NEGOTIABLE):
 - The garment must be positioned perfectly centred on the mannequin with completely natural fabric drape and realistic weight
@@ -287,11 +322,11 @@ ${QUALITY_MANDATE}`,
 // Models per operation
 const MODEL_MAP: Record<string, string> = {
   remove_bg: "google/gemini-2.5-flash-image",
-  smart_bg: "google/gemini-3-pro-image-preview",
-  model_shot: "google/gemini-3-pro-image-preview",
-  mannequin_shot: "google/gemini-3-pro-image-preview",
+  smart_bg: "google/gemini-2.5-flash-image",         // flash: background compositing, same quality 3x faster
+  model_shot: "google/gemini-3-pro-image-preview",   // pro: photorealistic human rendering needs quality
+  mannequin_shot: "google/gemini-3-pro-image-preview", // pro: mannequin quality needs top model
   ghost_mannequin: "google/gemini-2.5-flash-image",
-  flatlay_style: "google/gemini-3-pro-image-preview",
+  flatlay_style: "google/gemini-2.5-flash-image",    // flash: compositional task, same quality 3x faster
   selfie_shot: "google/gemini-3-pro-image-preview",
   enhance: "google/gemini-2.5-flash-image",
 };

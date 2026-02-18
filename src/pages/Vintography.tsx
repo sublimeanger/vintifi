@@ -357,14 +357,45 @@ export default function Vintography() {
     return OP_MAP[selectedOp];
   };
 
+  // Returns a human-readable description of the current operation for the processing overlay
+  const getOperationLabel = (): string => {
+    if (selectedOp === "clean_bg") return "Removing background...";
+    if (selectedOp === "enhance") return "Enhancing photo...";
+    if (selectedOp === "lifestyle_bg") return "Creating lifestyle scene...";
+    if (selectedOp === "virtual_model") {
+      if (photoTab === "flatlay") return "Creating flat-lay shot...";
+      if (photoTab === "mannequin") {
+        const typeLabel = MANNEQUIN_TYPES.find(t => t.value === mannequinType)?.label || "mannequin";
+        return `Placing garment on ${typeLabel} mannequin...`;
+      }
+      return "Generating AI model shot...";
+    }
+    return "Processing...";
+  };
+
+  // Fast ops use flash model (~10-20s); slow ops use pro model (~40-70s)
+  const isFlashOp = (): boolean => {
+    if (selectedOp === "clean_bg" || selectedOp === "enhance") return true;
+    if (selectedOp === "lifestyle_bg") return true;
+    if (selectedOp === "virtual_model" && photoTab === "flatlay") return true;
+    return false;
+  };
+
   const handleProcess = async () => {
     if (!originalUrl) return;
     setProcessing(true);
     setProcessingStep("uploading");
     try {
-      setTimeout(() => setProcessingStep("analysing"), 800);
-      setTimeout(() => setProcessingStep("generating"), 3000);
-      setTimeout(() => setProcessingStep("finalising"), 7000);
+      if (isFlashOp()) {
+        setTimeout(() => setProcessingStep("analysing"), 500);
+        setTimeout(() => setProcessingStep("generating"), 2000);
+        setTimeout(() => setProcessingStep("finalising"), 8000);
+      } else {
+        // Pro model ops (AI model, mannequin) take 40-70s — spread timers accordingly
+        setTimeout(() => setProcessingStep("analysing"), 800);
+        setTimeout(() => setProcessingStep("generating"), 4000);
+        setTimeout(() => setProcessingStep("finalising"), 20000);
+      }
 
       const result = await processImage(originalUrl, getOperation(), getParams());
       if (result) {
