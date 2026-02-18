@@ -10,7 +10,8 @@ const corsHeaders = {
 const TIER_LIMITS: Record<string, number> = {
   pro: 200,
   business: 1000,
-  scale: 999999,
+  scale: 5000,
+  enterprise: 999999,
 };
 
 serve(async (req) => {
