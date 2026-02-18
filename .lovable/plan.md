@@ -1,234 +1,242 @@
 
-# Photo Studio Upgrade: Remove Selfie Mode + Massively Expanded Mannequin + Photorealistic AI Model
+# Photo Studio: World-Class Desktop & Mobile Responsiveness
 
-## Full System Analysis
+## What's Wrong Today
 
-### Current State
+The Photo Studio is built with a single-column layout and phone-scale typography that never adapts to desktop. On a typical laptop (1280px+), with the 256px sidebar, the content area is roughly 950px wide — yet the UI reads at `text-[9px]` labels and `text-xs` headings. Everything is too small, too cramped, and the workflow requires constant scrolling even on a large screen.
 
-The "Photorealistic" operation has 3 sub-modes in a tab strip:
-1. **Selfie Style** — 4 scenes: Bedroom Mirror, Bathroom Mirror, Fitting Room, Outdoor. Maps to `selfie_shot` in the edge function.
-2. **AI Model** — Uses `ModelPicker` with gender, look, pose, and background. Maps to `model_shot`.
-3. **Flat-Lay Pro** — 5 styles. Maps to `flatlay_style`.
+**The five root problems:**
 
-The `mannequin_shot` operation **already exists in the edge function** (with a basic prompt) but is **completely absent from the UI**. It's dead code — only accessible if you know the operation name and call the function directly.
+1. **No desktop split layout** — on lg+ screens, the config panel (operation cards + params) and the preview should sit side-by-side, not stacked. Right now you configure, then scroll to see the result, then scroll back to change settings. That's three scrolls per iteration.
 
-### The Problems You've Identified
+2. **Typography never scales up** — `text-[9px]`, `text-[10px]`, `text-[11px]` everywhere. These look fine on a 390px phone. On a 1440px monitor they're microscopic.
 
-1. **Selfie mode cuts off the garment** — The phone being "visible at the top of the frame" and mirror selfie framing inherently clips the garment. A mirror selfie is portrait-cropped and the phone arm obscures the top of the item.
+3. **Operation cards are too small on desktop** — the `grid-cols-4` at sm breakpoint means each card is about 200px wide with 9px text on a large screen. They should be taller and more readable at lg+.
 
-2. **Selfie ≠ a distinct category anymore** — If we make the AI Model tab produce photorealistic, natural-looking shots in real-world settings (a park, a dressing room, brick wall), the selfie mode offers nothing unique that can't be done better without the phone-in-frame constraint. It should be dissolved into better AI Model backgrounds.
+4. **Preview image is hard-capped at 500px height** — wastes the desktop canvas. On a desktop the preview should grow to fill the right column properly.
 
-3. **Mannequin is completely missing from UI** — Yet it's a hugely valuable shot type: neutral, shows garment shape perfectly, no body proportion concerns, works for any gender of clothing, beloved by professional resellers.
+5. **ModelPicker/BackgroundPicker/Mannequin UI** are not scaled for desktop — tiny buttons, tiny icons, text nobody can read without leaning in.
 
 ---
 
-## What Changes
+## The Fix: Two-Column Desktop Layout + Typography Scaling
 
-### 1. Remove the Selfie Tab entirely
+### Layout Architecture
 
-Delete the `selfie` tab from the 3-tab strip in `Vintography.tsx`. This removes:
-- The `SELFIE_SCENES` array
-- The `PhotorealisticTab = "selfie" | "ai_model" | "flatlay"` type (becomes `"ai_model" | "flatlay" | "mannequin"`)
-- The `selfieScene` state and the `selfie` branch in `getParams()` / `getOperation()`
-- The `selfie_shot` operation path
-
-The edge function `selfie_shot` prompt can remain in the function for legacy gallery jobs to still display correctly — we just stop dispatching new ones from the UI.
-
-### 2. Add a "Mannequin" tab — fully expanded
-
-The 3-tab strip becomes:
+```text
+Mobile (< lg)                Desktop (lg+)
+─────────────────────        ──────────────────────────────────────────
+[Credit Bar          ]        [Credit Bar                              ]
+[Guidance banner     ]        [Guidance banner                         ]
+[Upload Zone / Batch ]        ┌──────────────────────┬─────────────────┐
+[Op Cards (2 cols)   ]        │ LEFT CONFIG PANEL    │ RIGHT PREVIEW   │
+[Garment input       ]        │                      │                 │
+[Params panel        ]        │ Op Cards (2×2 grid)  │ ComparisonView  │
+[Preview             ]        │ Garment input        │ (fills height)  │
+[Action Buttons      ]        │ Params panel         │                 │
+[Next Steps          ]        │ Generate button      │ Action buttons  │
+[Gallery             ]        │                      │ Next Steps      │
+                              └──────────────────────┴─────────────────┘
+                              [Gallery (4-5 cols)                       ]
 ```
-[ AI Model ]  [ Flat-Lay Pro ]  [ Mannequin ]
+
+On `lg+`, the editor area becomes a `grid lg:grid-cols-[420px_1fr]` two-column layout. The left column (420px fixed) holds all configuration. The right column (flexible, fills remaining space) holds the comparison preview, action buttons, and next steps card.
+
+### Typography Scale
+
+Every size class gets a desktop upgrade:
+
+| Current | Mobile | Desktop (lg+) |
+|---------|--------|---------------|
+| `text-[9px]` | keeps | → `lg:text-[11px]` |
+| `text-[10px]` | keeps | → `lg:text-xs` |
+| `text-[11px]` | keeps | → `lg:text-xs` or `lg:text-sm` |
+| `text-xs` | keeps | → `lg:text-sm` |
+| `text-sm` | keeps | → `lg:text-base` |
+| Heading `font-display` | keeps | → `lg:text-2xl` |
+| Section headings `text-xs uppercase tracking-wider` | keeps | → `lg:text-xs` (already fine) |
+
+### Specific Component Changes
+
+#### `src/pages/Vintography.tsx`
+
+**1. PageShell subtitle visibility**
+Currently `subtitle` truncates at `text-[10px]`. On desktop, show it at `text-sm` and don't truncate — there's space.
+
+**2. Upload Zone (no image state)**
+```
+Mobile: compact card, p-6, icons w-14
+Desktop: generously padded card, p-16, icons w-20, text-xl heading, text-sm subtext
+Button: h-12 lg:h-10 (slightly smaller on desktop since hover states exist)
 ```
 
-The Mannequin tab is **comprehensively designed** — not the sparse 2-option version in the current edge function. Here's what it exposes:
+**3. Operation Cards grid**
+```
+Mobile: grid-cols-2
+Desktop: grid-cols-2 (2×2 grid within the 420px left panel — intentional)
+Before/after preview strips: h-8 lg:h-12 (taller on desktop)
+Label: text-xs lg:text-sm
+Desc: text-[10px] lg:text-xs
+Detail expansion: text-[10px] lg:text-xs
+```
 
-**Mannequin Type** (new dimension)
-- `headless` — Classic retail headless mannequin (matte white, no face). Industry standard. Clean, no distraction.
-- `ghost` — Ghost/invisible mannequin effect. Garment floats in 3D as if worn by an invisible person. Premium e-commerce look (think Net-a-Porter, ASOS).
-- `dress_form` — Traditional fabric-covered dress form / tailor's dummy. More artisanal, craft-studio feel.
-- `half_body` — Waist-up mannequin only. Ideal for tops, jackets, shirts.
-
-**Setting/Environment** (7 options, reusing `model_bg` state)
-- Studio White, Grey Studio (already in ModelPicker)
-- Living Room, Dressing Room, Brick Wall (lifestyle options)
-- Flat surface (marble/wood — for ghost mannequin especially)
-- Outdoor / Park
-
-**Lighting Style** (new dimension — 3 options)
-- `soft_studio` — Wraparound even lighting, no shadows. Clean e-commerce.
-- `dramatic` — Single key light from one side, visible shadows for editorial feel.
-- `natural` — Simulated window light, warm and organic.
-
-**New state variables:**
+**4. Two-column split wrapper**
+The entire `<motion.div className="space-y-3 sm:space-y-4">` editor section becomes:
 ```tsx
-const [mannequinType, setMannequinType] = useState<string>("headless");
-const [mannequinLighting, setMannequinLighting] = useState<string>("soft_studio");
-// Reuses modelBg for the environment/background
+<div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-[420px_1fr] lg:gap-6 lg:items-start">
+  {/* LEFT: config */}
+  <div className="space-y-3">
+    <BatchStrip />
+    {/* Op cards */}
+    {/* Garment input */}
+    {/* Params panel */}
+    {/* Generate button — sticky bottom on desktop */}
+  </div>
+  {/* RIGHT: preview + actions */}
+  <div className="lg:sticky lg:top-6 space-y-3">
+    <ComparisonView />  {/* remove maxHeight cap on desktop */}
+    {/* Download / Save / Try Again buttons */}
+    {/* Next Steps card */}
+  </div>
+</div>
 ```
 
-### 3. Upgrade the AI Model tab — add "Natural / Photorealistic" looks
-
-The current AI Model tab exposes: Gender, Model Look (6 options), Pose (6 options), Background (8 options).
-
-The issue is the AI generates photo-studio style shots by default. We're adding a **"Shot Style"** dimension that directly addresses your request for photorealistic natural shots:
-
-**New "Shot Style" selector (3 options):**
-- `editorial` — Clean studio/editorial. Professional background lighting. Think campaign imagery. *(Current default behaviour)*
-- `natural_photo` — Photorealistic documentary feel. Natural light, real-world setting. Looks like an actual photo taken in that location, not a studio composite.
-- `street_style` — Authentic street photography energy. Candid framing, natural pose, urban environment. Think real influencer photo.
-
-This replaces what selfie mode was trying to do — but WITHOUT the phone in frame, without the garment being cut off, and with far better results because the full body is always in frame.
-
-**Also add to AI Model tab: Full-body mandate switch**
-
-A simple toggle: **"Always show full garment"** (on by default). When on, injects into the prompt:
+**5. Preview image height**
+In `ComparisonView.tsx`:
 ```
-CRITICAL COMPOSITION RULE: The model's full body must be visible from head to toe with the complete garment visible. Never crop the garment. The bottom hem must be visible. Leave deliberate negative space below the hem.
+style={{ aspectRatio: "4/5", maxHeight: 500 }}
+→ 
+style={{ aspectRatio: "4/5" }}
+className="max-h-[500px] lg:max-h-[700px]"
+```
+This gives desktop users a proper large preview canvas.
+
+**6. Garment description input**
+```
+Mobile: h-11 (iOS-safe 16px font)
+Desktop: h-10 text-sm (standard desktop input)
+Stays at text-base on mobile (prevents iOS zoom)
 ```
 
-This is the direct fix for the garment visibility problem across all model shots.
-
-### 4. Upgrade the edge function prompts
-
-#### `model_shot` — Three major upgrades:
-
-**A. Add `shot_style` parameter to the prompt:**
+**7. Params panels — Virtual Model / Mannequin / Lifestyle**
+The sub-tab strip and option buttons scale up:
 ```
-shot_style: "natural_photo" →
-PHOTOREALISM MANDATE: This image must be completely indistinguishable from a real photograph taken by a professional photographer on location. Natural light physics, real environment texture, authentic depth of field. NO studio compositing artefacts. The model should look like they genuinely exist in this environment.
+Tab triggers: text-xs lg:text-sm with larger icons w-3 lg:w-4
+Shot style cards: p-2.5 lg:p-4, text 11px → lg:text-sm
+Mannequin type buttons: p-3 lg:p-4, icon w-4 lg:w-5, labels text-[11px] → lg:text-sm
+Lighting buttons: p-2.5 lg:p-4
+Background buttons: text-[11px] → lg:text-xs
 ```
 
-**B. Add the full-body/garment visibility mandate:**
+**8. ModelPicker** (`ModelPicker.tsx`)
 ```
-COMPOSITION (NON-NEGOTIABLE): The model must be framed head-to-toe. The complete garment from neckline to hem must be fully visible. Never crop the garment. If the background is tight, zoom out. The garment is the product — it must be entirely in frame.
-```
-
-**C. Tighten the "5 fingers" / face realism instruction** — these are the main failure modes.
-
-#### `mannequin_shot` — Complete rewrite:
-
-The current mannequin prompt is ~5 lines. Replace with a fully specified prompt that maps to all the new parameters:
-
-```typescript
-mannequin_shot: (p) => {
-  const mannequinType = p?.mannequin_type || "headless";
-  const bg = p?.model_bg || "studio";
-  const lighting = p?.lighting_style || "soft_studio";
-
-  const types = {
-    headless: "a professional retail display mannequin — sleek, matte white/light grey, headless (no head or neck), with realistic torso, arms, and legs proportioned for an adult. The mannequin should look like a high-end boutique display fixture.",
-    ghost: "an invisible/ghost mannequin effect. The garment should appear to float in perfect 3D shape as if worn by an invisible person. Fill the interior of the garment at necklines, sleeve openings, and waistbands with realistic fabric continuation showing the garment's natural inner structure. The result should match Net-a-Porter or ASOS premium product imagery.",
-    dress_form: "a traditional tailor's dress form / seamstress dummy — fabric-covered in natural linen or canvas colour. Mounted on a simple black iron stand. The form should look authentic and artisanal, used in a real atelier or dressing room.",
-    half_body: "a professional waist-up half-body retail display mannequin — headless, matte white, realistic torso and arm proportions. Perfect for displaying tops, jackets, and shirts."
-  };
-
-  const lightings = {
-    soft_studio: "perfectly even wraparound studio lighting with two softboxes camera-left and camera-right. No harsh shadows. Clean, bright, professional e-commerce product lighting.",
-    dramatic: "a single strong key light from 45° camera-left creating defined, dramatic shadows that give the garment dimension and depth. Fill light only at 1/4 the key light power. Editorial and impactful.",
-    natural: "warm, soft window-simulated natural light from camera-left. The light has the quality of afternoon sun through a sheer curtain — directional but diffused. Slightly warm (4000K) colour temperature."
-  };
-
-  // ... background map same as model_shot ...
-
-  return `Display this clothing/fashion garment on ${types[mannequinType]}.
-
-GARMENT DISPLAY:
-- The garment must be positioned perfectly centred on the mannequin with natural fabric drape and realistic weight
-- Show the complete garment from neckline to hem — never crop the garment
-- Fabric should show natural gravity, proper drape based on weight, and realistic wrinkle physics
-- All buttons, zippers, and closures should be in their natural wearing position
-
-LIGHTING: ${lightings[lighting]}
-
-BACKGROUND: ${bgs[bg]}
-
-SHADOW: Cast a realistic, soft shadow beneath the mannequin that grounds it in the scene convincingly.
-
-${GARMENT_PRESERVE}
-${QUALITY_MANDATE}`;
-};
+Option button padding: p-2.5 → lg:p-3
+Icon: w-4 h-4 → lg:w-5 lg:h-5
+Label: text-[11px] → lg:text-xs
+Desc: text-[9px] → lg:text-[10px]
+Card title "Model Configuration": text-sm → lg:text-base
 ```
 
-### 5. UI Changes in `Vintography.tsx`
-
-**Tab strip update:**
-```tsx
-// REMOVE: value="selfie" tab
-// KEEP: value="ai_model" tab
-// KEEP: value="flatlay" tab  
-// ADD: value="mannequin" tab with Package icon
+**9. Action buttons**
+```
+Mobile: full-width stacked (flex-col), h-12
+Desktop: flex-row, h-11
+Primary "Apply" button: text-sm lg:text-base, icon w-4 lg:w-5
 ```
 
-**New type:**
-```tsx
-type PhotorealisticTab = "ai_model" | "flatlay" | "mannequin";
+**10. Generate button positioning on desktop**
+The generate/apply button moves into the left column at the bottom (below params), so the user never has to scroll right to hit it. On mobile it stays below everything as before.
+
+**11. Gallery grid**
+```
+Mobile: grid-cols-2 sm:grid-cols-3 (was 3 cols on mobile — now 2 for more breathing room)
+Desktop: lg:grid-cols-5 xl:grid-cols-6
+Gallery heading: text-xs sm:text-base → lg:text-lg
 ```
 
-**Default tab:** Change from `"selfie"` to `"ai_model"`.
-
-**AI Model tab — add Shot Style picker above the ModelPicker:**
-- 3 cards: Editorial, Natural Photo, Street Style
-- Toggle: "Full garment always visible" (default: on)
-- New state: `modelShotStyle`, `modelFullBody`
-
-**Mannequin tab — new UI section:**
-- Mannequin Type selector (4 options with icons and descriptions)
-- Lighting Style selector (3 options)
-- Background selector (reuse `modelBg` state — shares with AI Model)
-
-**`getOperation()` update:**
-```tsx
-// Remove selfie branch
-if (photoTab === "mannequin") return "mannequin_shot";
+**12. Previous Edits gallery cards** (`GalleryCard.tsx`)
+The card label below the image:
+```
+p-2 → lg:p-3
+text-xs font-medium → lg:text-sm
+time text-[10px] → lg:text-xs
 ```
 
-**`getParams()` update:**
-```tsx
-if (photoTab === "mannequin") {
-  params.mannequin_type = mannequinType;
-  params.lighting_style = mannequinLighting;
-  params.model_bg = modelBg; // reused
-}
-if (photoTab === "ai_model") {
-  params.gender = modelGender;
-  params.pose = modelPose;
-  params.model_look = modelLook;
-  params.model_bg = modelBg;
-  params.shot_style = modelShotStyle;       // NEW
-  params.full_body = modelFullBody ? "true" : "false"; // NEW
-}
+**13. Credit Bar** (`CreditBar.tsx`)
+```
+px-1 → px-2
+text-xs → lg:text-sm
+icon w-4 → lg:w-5
 ```
 
-### 6. Tier access update
-
-Add `mannequin_shot` to the pro tier (currently it's only on business/scale):
-
-```typescript
-pro: ["remove_bg", "enhance", "smart_bg", "flatlay_style", "model_shot", "mannequin_shot"],
+**14. BackgroundPicker** (`BackgroundPicker.tsx`)
+The lifestyle scene groups:
+```
+Grid: grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 (3-col within 420px panel — fits perfectly)
+Option card padding: p-2.5 → lg:p-3
+Color swatch h-8 → lg:h-10
+Label text-[11px] → lg:text-xs
+Desc text-[9px] → lg:text-[10px]
+Card header with Paintbrush icon: text-sm → lg:text-base
 ```
 
-Rationale: Selfie mode was on pro. Mannequin replaces it. Pro users shouldn't lose a feature tier.
+**15. Guidance banner**
+```
+p-2.5 sm:p-3 → lg:p-4
+text-xs → lg:text-sm
+Icon w-4 → lg:w-5
+```
+
+**16. Processing overlay in ComparisonView**
+Currently uses text sizes like `text-sm` for the step labels — these are fine but the spinner and step indicator can be slightly larger on desktop:
+```
+Spinner w-8 h-8 → lg:w-10 lg:h-10
+Step dot w-2 h-2 → lg:w-2.5 lg:h-2.5
+Step label text-xs → lg:text-sm
+Tip text text-xs → lg:text-sm
+```
 
 ---
 
-## Summary of Files Changed
+## Files Changed
 
 | File | What changes |
 |------|-------------|
-| `src/pages/Vintography.tsx` | Remove selfie tab/state/logic; add mannequin tab with type + lighting pickers; add Shot Style + full-body toggle to AI Model tab; update type, default state, getOperation, getParams |
-| `src/components/vintography/ModelPicker.tsx` | No change needed — the mannequin UI is built inline in Vintography.tsx since it has distinct dimensions |
-| `supabase/functions/vintography/index.ts` | Rewrite `mannequin_shot` prompt with full type/lighting/bg support; upgrade `model_shot` prompt with `shot_style`, `full_body` mandate; add `mannequin_shot` to pro tier; keep `selfie_shot` prompt for legacy gallery |
+| `src/pages/Vintography.tsx` | Two-column grid layout at lg+; typography scale-up across all elements; upload zone desktop sizing; gallery grid update; generate button in left panel on desktop; preview sticky on desktop |
+| `src/components/vintography/ComparisonView.tsx` | Remove hard 500px height cap on desktop; larger processing overlay elements at lg+ |
+| `src/components/vintography/ModelPicker.tsx` | Scale up option buttons, icons, labels at lg+ |
+| `src/components/vintography/CreditBar.tsx` | Scale up text and icon at lg+ |
+| `src/components/vintography/GalleryCard.tsx` | Scale up card info text at lg+ |
+| `src/components/vintography/BackgroundPicker.tsx` | Scale up option cards, swatches, text at lg+ |
 
 ---
 
-## What the Experience Looks Like After
+## Mobile Audit Fixes (while we're at it)
 
-**Before:** 3 tabs — Selfie (problematic, cuts garment), AI Model, Flat-Lay
+While implementing desktop, these mobile-specific fixes are included:
 
-**After:** 3 tabs — AI Model (with natural/street style options + full-body guarantee), Flat-Lay, Mannequin
+- **Gallery grid mobile**: change `grid-cols-3` → `grid-cols-2` on mobile — 3 columns at 390px means each card is ~118px, barely showing any image. 2 columns gives 175px cards, proper "Tap to compare" UX.
+- **Garment input on iOS**: already has `h-11` and `text-base` — keep this, it prevents the iOS auto-zoom.
+- **Action buttons on mobile**: ensure the primary generate button is always `w-full h-12` on mobile, standalone and prominent.
+- **BackgroundPicker on mobile**: currently `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4` — stays, that's fine.
+- **ComparisonView Overlay/Side-by-side toggle**: the `h-7 px-2 text-xs` buttons are fine on mobile. On desktop, scale to `lg:h-9 lg:px-3 lg:text-sm`.
+- **Flatlay styles**: mobile `grid-cols-1 sm:grid-cols-2` — add `lg:grid-cols-1` since it's in the narrow 420px left panel.
 
-- A seller with a dress can choose: **AI Model → Female, Natural Photo, Walking, Golden Park** — gets a full-length photorealistic shot of someone wearing the dress in a park, full garment visible, no studio feel.
-- A seller wanting clean product shots can choose: **Mannequin → Headless, Studio White, Soft Lighting** — gets a retail-standard mannequin shot indistinguishable from ASOS.
-- A designer piece seller can choose: **Mannequin → Ghost, Living Room, Natural Lighting** — gets an invisible mannequin floating in a lifestyle setting, premium e-commerce look.
-- All shots: **garment is always fully in frame**. No cropping. No phone in view. No missing hems.
+---
+
+## What the Experience Feels Like After
+
+**Desktop (1280px+):**
+- Open Photo Studio → two-column layout immediately visible
+- Left: configuration panel with readable 14px text, properly-sized option cards with 5px+ icons
+- Right: large comparison preview (up to 700px tall) that stays sticky as you scroll config
+- Generate button at the bottom of the left config column — never requires scrolling to find
+- Gallery shows 5 columns of edit thumbnails, plenty of space
+- Overall feel: professional SaaS tool, not a stretched mobile app
+
+**Mobile (390px):**
+- Single-column vertical flow (unchanged structure, refined sizing)
+- 2-column gallery instead of cramped 3-column
+- Upload zone properly centred, full-width generate button
+- All touch targets remain ≥44px
+- No change to the workflow order — just tighter, cleaner rendering
