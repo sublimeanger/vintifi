@@ -149,6 +149,7 @@ export default function Vintography() {
   // Explicit save-to-item state
   const [savedToItem, setSavedToItem] = useState(false);
   const [savingToItem, setSavingToItem] = useState(false);
+  const [resultReady, setResultReady] = useState(false);
 
   const vintographyUsed = (credits as any)?.vintography_used ?? 0;
   const creditsLimit = credits?.credits_limit ?? 5;
@@ -379,10 +380,15 @@ export default function Vintography() {
       const result = await processImage(originalUrl, getOperation(), getParams());
       if (result) {
         setProcessedUrl(result);
-        setSavedToItem(false); // reset save state for new result
+        setSavedToItem(false);
+        setResultReady(true);
         fetchGallery();
-        // Auto-scroll to result
-        setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+        // Scroll to result preview so user sees it
+        setTimeout(() => {
+          resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 200);
+        // Clear highlight after 3s
+        setTimeout(() => setResultReady(false), 3000);
       }
     } catch (err: any) { toast.error(err.message || "Processing failed. Try again."); }
     finally { setProcessing(false); setProcessingStep(null); }
@@ -838,7 +844,10 @@ export default function Vintography() {
               </AnimatePresence>
 
               {/* Preview */}
-              <div ref={resultRef}>
+              <div
+                ref={resultRef}
+                className={`rounded-xl transition-all duration-700 ${resultReady ? "ring-2 ring-success ring-offset-2 shadow-lg shadow-success/20" : ""}`}
+              >
                 <ComparisonView
                   originalUrl={originalUrl} processedUrl={processedUrl}
                   processing={processing} processingStep={processingStep}
