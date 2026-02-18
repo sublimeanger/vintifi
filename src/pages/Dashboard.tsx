@@ -96,7 +96,7 @@ export default function Dashboard() {
           <Button
             variant="outline"
             className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
-            onClick={() => navigate("/listings?action=add")}
+            onClick={() => navigate("/sell")}
           >
             <Package className="w-4 h-4 mr-1" />
             Add Item
