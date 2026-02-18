@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowUp, LayoutDashboard, Menu, X } from "lucide-react";
+import { ArrowRight, ArrowUp, LayoutDashboard, Menu, X, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navLinks = [
@@ -17,16 +17,12 @@ const footerProduct = [
   { to: "/features", label: "Features" },
   { to: "/pricing", label: "Pricing" },
   { to: "/how-it-works", label: "How It Works" },
+  { to: "/features#photo-studio", label: "Photo Studio" },
 ];
 
 const footerCompany = [
   { to: "/about", label: "About" },
-];
-
-const stats = [
-  { value: "10,000+", label: "Active Sellers" },
-  { value: "500K+", label: "Price Checks" },
-  { value: "18", label: "Countries" },
+  { to: "/privacy", label: "Privacy Policy" },
 ];
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +32,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [announcementDismissed, setAnnouncementDismissed] = useState(() => {
+    try { return localStorage.getItem("ann_vintography_v2") === "1"; } catch { return false; }
+  });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -50,8 +49,43 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
     setMenuOpen(false);
   }, [pathname]);
 
+  const dismissAnnouncement = () => {
+    setAnnouncementDismissed(true);
+    try { localStorage.setItem("ann_vintography_v2", "1"); } catch {}
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Announcement bar */}
+      <AnimatePresence>
+        {!announcementDismissed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-primary text-primary-foreground px-4 py-2 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium relative">
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                New: AI Model & Mannequin shots now live in Photo Studio →{" "}
+                <Link to="/features" className="underline underline-offset-2 hover:opacity-80 transition-opacity">
+                  See what's new
+                </Link>
+              </span>
+              <button
+                onClick={dismissAnnouncement}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:opacity-70 transition-opacity"
+                aria-label="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? "glass shadow-sm" : "bg-transparent border-transparent"}`}>
         <nav className="container mx-auto flex items-center justify-between py-4 px-4">
@@ -81,7 +115,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex items-center gap-3">
             {user ? (
-              <Button size="sm" onClick={() => navigate("/dashboard")} className="font-semibold">
+              <Button size="sm" onClick={() => navigate("/dashboard")} className="font-semibold shadow-lg shadow-primary/20">
                 <LayoutDashboard className="w-4 h-4 mr-1.5" /> Dashboard
               </Button>
             ) : (
@@ -89,7 +123,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                 <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="hidden sm:inline-flex">
                   Sign in
                 </Button>
-                <Button size="sm" onClick={() => navigate("/auth?mode=signup")} className="font-semibold">
+                <Button size="sm" onClick={() => navigate("/auth?mode=signup")} className="font-semibold shadow-lg shadow-primary/20">
                   Get Started Free
                 </Button>
               </>
@@ -147,37 +181,33 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       {/* Content */}
       <main className="flex-1">{children}</main>
 
-      {/* Social proof bar */}
-      <section className="border-t border-border bg-muted/30 py-10">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-16">
-            {stats.map((s) => (
-              <div key={s.label} className="text-center">
-                <p className="font-display text-3xl font-extrabold text-foreground">{s.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
+      {/* Tagline bar */}
+      <section className="border-t border-border bg-muted/30 py-8 sm:py-10">
+        <div className="container mx-auto px-4 text-center">
+          <p className="font-display text-sm sm:text-base font-semibold text-muted-foreground max-w-2xl mx-auto">
+            "Giving every Vinted seller the intelligence of a professional reselling operation."
+          </p>
+          <p className="text-xs text-muted-foreground/60 mt-2">4 AI pillars · 15+ tools · 18 Vinted markets</p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-16 bg-secondary text-secondary-foreground">
+      <footer className="border-t border-border py-12 sm:py-16 bg-secondary text-secondary-foreground">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 mb-10 sm:mb-12">
             {/* Brand */}
             <div className="col-span-2 md:col-span-1">
               <p className="font-display text-2xl font-extrabold mb-3">
                 <span className="text-gradient">Vintifi</span>
               </p>
               <p className="text-secondary-foreground/70 text-sm leading-relaxed">
-                AI-powered intelligence for Vinted sellers. Price smarter. Sell faster.
+                AI-powered intelligence for Vinted sellers. Price smarter. Sell faster. Look professional.
               </p>
             </div>
 
             {/* Product */}
             <div>
-              <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-secondary-foreground/50">Product</h4>
+              <h4 className="font-semibold text-xs uppercase tracking-wider mb-4 text-secondary-foreground/50">Product</h4>
               <ul className="space-y-2.5">
                 {footerProduct.map((l) => (
                   <li key={l.to}>
@@ -191,7 +221,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
             {/* Company */}
             <div>
-              <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-secondary-foreground/50">Company</h4>
+              <h4 className="font-semibold text-xs uppercase tracking-wider mb-4 text-secondary-foreground/50">Company</h4>
               <ul className="space-y-2.5">
                 {footerCompany.map((l) => (
                   <li key={l.to}>
@@ -205,8 +235,8 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
             {/* CTA */}
             <div>
-              <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-secondary-foreground/50">Get Started</h4>
-              <p className="text-sm text-secondary-foreground/70 mb-4">Join thousands of sellers already using Vintifi.</p>
+              <h4 className="font-semibold text-xs uppercase tracking-wider mb-4 text-secondary-foreground/50">Get Started</h4>
+              <p className="text-sm text-secondary-foreground/70 mb-4">5 free credits. No card needed.</p>
               {user ? (
                 <Button size="sm" onClick={() => navigate("/dashboard")} className="font-semibold">
                   Go to Dashboard <ArrowRight className="ml-1.5 w-3.5 h-3.5" />
@@ -222,7 +252,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <div className="border-t border-secondary-foreground/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-xs text-secondary-foreground/40">© {new Date().getFullYear()} Vintifi. All rights reserved.</p>
             <div className="flex items-center gap-6">
-              <span className="text-xs text-secondary-foreground/40 hover:text-secondary-foreground/60 transition-colors cursor-pointer">Privacy Policy</span>
+              <Link to="/privacy" className="text-xs text-secondary-foreground/40 hover:text-secondary-foreground/60 transition-colors">Privacy Policy</Link>
               <span className="text-xs text-secondary-foreground/40 hover:text-secondary-foreground/60 transition-colors cursor-pointer">Terms of Service</span>
             </div>
           </div>

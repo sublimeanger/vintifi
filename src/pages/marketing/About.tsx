@@ -58,9 +58,9 @@ const values = [
 
 const stats = [
   { end: 18, suffix: "", label: "Vinted Markets Supported" },
-  { end: 7, suffix: "", label: "AI-Powered Features" },
+  { end: 4, suffix: "", label: "Core AI Pillars" },
   { end: 8, suffix: "s", label: "Average Analysis Time" },
-  { end: 19, suffix: "", label: "Live Platform Features" },
+  { end: 15, suffix: "+", label: "Tools & Features" },
 ];
 
 export default function About() {
@@ -271,7 +271,7 @@ export default function About() {
               Vinted sellers are using Vintifi to transform their reselling business. Start free today.
             </motion.p>
             <motion.div variants={fadeUp}>
-              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-lg shadow-primary/25 w-full sm:w-auto active:scale-95 transition-transform">
+              <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-xl shadow-primary/20 w-full sm:w-auto active:scale-95 transition-transform">
                 Get Started Free <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </motion.div>
