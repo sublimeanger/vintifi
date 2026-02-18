@@ -27,8 +27,7 @@ import { PhotoFilmstrip, type PhotoEditState } from "@/components/vintography/Ph
 import { ModelPicker } from "@/components/vintography/ModelPicker";
 import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
 
-type Operation = "clean_bg" | "lifestyle_bg" | "virtual_model" | "enhance" | "decrease";
-type PhotorealisticTab = "ai_model" | "flatlay" | "mannequin";
+type Operation = "clean_bg" | "lifestyle_bg" | "flatlay" | "mannequin" | "ai_model" | "enhance" | "decrease";
 
 const MANNEQUIN_TYPES = [
   { value: "headless", label: "Headless", desc: "Classic retail, no head", icon: PersonStanding },
@@ -89,10 +88,16 @@ const OPERATIONS: {
     afterGradient: "from-amber-100/80 via-orange-50 to-yellow-50",
   },
   {
-    id: "virtual_model", icon: UserIcon, label: "Photorealistic", desc: "Model, mannequin & flat-lay styles",
-    detail: "Choose from AI model shots, professional mannequin display, or flat-lay photography",
+    id: "flatlay", icon: Layers, label: "Flat-Lay Pro", desc: "Overhead editorial product shot",
+    detail: "Professional overhead flat-lay photography — great for showing garment shape and detail. White, styled, or textured surface.",
     beforeGradient: "from-gray-200 to-gray-100",
-    afterGradient: "from-rose-100/60 via-pink-50 to-purple-50/40",
+    afterGradient: "from-slate-100/80 via-stone-50 to-white",
+  },
+  {
+    id: "mannequin", icon: Package, label: "Mannequin", desc: "Headless, ghost & dress form",
+    detail: "Professional retail display shots. No model needed — great for any garment type. Choose headless, ghost, dress form, or half-body.",
+    beforeGradient: "from-gray-300/80 to-gray-200/60",
+    afterGradient: "from-sky-50/60 via-slate-50/30 to-white",
   },
   {
     id: "enhance", icon: Sparkles, label: "Enhance", desc: "Pro retouch, lighting & sharpness",
@@ -111,7 +116,9 @@ const OPERATIONS: {
 const OP_MAP: Record<Operation, string> = {
   clean_bg: "remove_bg",
   lifestyle_bg: "smart_bg",
-  virtual_model: "model_shot",
+  flatlay: "flatlay_style",
+  mannequin: "mannequin_shot",
+  ai_model: "model_shot",
   enhance: "enhance",
   decrease: "decrease",
 };
@@ -120,7 +127,9 @@ const OP_MAP: Record<Operation, string> = {
 const OP_RESULT_LABEL: Record<Operation, string> = {
   clean_bg: "Background Removed",
   lifestyle_bg: "Lifestyle Scene",
-  virtual_model: "AI Model",
+  flatlay: "Flat-Lay Pro",
+  mannequin: "Mannequin Shot",
+  ai_model: "AI Model",
   enhance: "Enhanced",
   decrease: "Steamed",
 };
@@ -149,13 +158,11 @@ export default function Vintography() {
 
   // Lifestyle BG params
   const [bgStyle, setBgStyle] = useState("studio_white");
-  // Virtual model params
+  // AI Model params
   const [modelGender, setModelGender] = useState("female");
   const [modelPose, setModelPose] = useState("standing_front");
   const [modelLook, setModelLook] = useState("classic");
   const [modelBg, setModelBg] = useState("studio");
-  // Photorealistic sub-mode
-  const [photoTab, setPhotoTab] = useState<PhotorealisticTab>("ai_model");
   const [flatlayStyle, setFlatlayStyle] = useState("minimal_white");
   // AI Model shot style & full-body toggle
   const [modelShotStyle, setModelShotStyle] = useState("editorial");
@@ -433,7 +440,8 @@ export default function Vintography() {
     });
     if (error) throw error;
     if (data?.error) { toast.error(data.error); return null; }
-    toast.success(isUnlimited ? "Edit complete!" : "Done! −1 credit used");
+    const deducted = data?.credits_deducted ?? 1;
+    toast.success(isUnlimited ? "Edit complete!" : `Done! −${deducted} credit${deducted !== 1 ? "s" : ""} used`);
     refreshCredits();
     return data.processed_url;
   };
@@ -442,31 +450,24 @@ export default function Vintography() {
     const params: Record<string, string> = {};
     if (selectedOp === "lifestyle_bg") params.bg_style = bgStyle;
     if (selectedOp === "decrease") params.intensity = decreaseIntensity;
-    if (selectedOp === "virtual_model") {
-      if (photoTab === "flatlay") {
-        params.flatlay_style = flatlayStyle;
-      } else if (photoTab === "mannequin") {
-        params.mannequin_type = mannequinType;
-        params.lighting_style = mannequinLighting;
-        params.model_bg = modelBg;
-      } else {
-        params.gender = modelGender;
-        params.pose = modelPose;
-        params.model_look = modelLook;
-        params.model_bg = modelBg;
-        params.shot_style = modelShotStyle;
-        params.full_body = modelFullBody ? "true" : "false";
-      }
+    if (selectedOp === "flatlay") {
+      params.flatlay_style = flatlayStyle;
+    } else if (selectedOp === "mannequin") {
+      params.mannequin_type = mannequinType;
+      params.lighting_style = mannequinLighting;
+      params.model_bg = modelBg;
+    } else if (selectedOp === "ai_model") {
+      params.gender = modelGender;
+      params.pose = modelPose;
+      params.model_look = modelLook;
+      params.model_bg = modelBg;
+      params.shot_style = modelShotStyle;
+      params.full_body = modelFullBody ? "true" : "false";
     }
     return params;
   };
 
   const getOperation = (): string => {
-    if (selectedOp === "virtual_model") {
-      if (photoTab === "flatlay") return "flatlay_style";
-      if (photoTab === "mannequin") return "mannequin_shot";
-      return "model_shot";
-    }
     return OP_MAP[selectedOp];
   };
 
@@ -475,22 +476,19 @@ export default function Vintography() {
     if (selectedOp === "enhance") return "Enhancing photo...";
     if (selectedOp === "decrease") return "Steaming & pressing garment...";
     if (selectedOp === "lifestyle_bg") return "Creating lifestyle scene...";
-    if (selectedOp === "virtual_model") {
-      if (photoTab === "flatlay") return "Creating flat-lay shot...";
-      if (photoTab === "mannequin") {
-        const typeLabel = MANNEQUIN_TYPES.find(t => t.value === mannequinType)?.label || "mannequin";
-        return `Placing garment on ${typeLabel} mannequin...`;
-      }
-      return "Generating AI model shot...";
+    if (selectedOp === "flatlay") return "Creating flat-lay shot...";
+    if (selectedOp === "mannequin") {
+      const typeLabel = MANNEQUIN_TYPES.find(t => t.value === mannequinType)?.label || "mannequin";
+      return `Placing garment on ${typeLabel} mannequin...`;
     }
+    if (selectedOp === "ai_model") return "Generating AI model shot...";
     return "Processing...";
   };
 
   const isFlashOp = (): boolean => {
     if (selectedOp === "clean_bg" || selectedOp === "enhance" || selectedOp === "decrease") return true;
-    if (selectedOp === "lifestyle_bg") return true;
-    if (selectedOp === "virtual_model" && photoTab === "flatlay") return true;
-    return false;
+    if (selectedOp === "lifestyle_bg" || selectedOp === "flatlay" || selectedOp === "mannequin") return true;
+    return false; // ai_model uses Pro model
   };
 
   const handleProcess = async () => {
@@ -584,16 +582,23 @@ export default function Vintography() {
   const activePhotoSaved = activePhotoUrl ? photoEditStates[activePhotoUrl]?.savedToItem === true : false;
 
   // ─── Generate button shared component ───
-  const GenerateButton = () => (
-    <Button
-      onClick={handleProcess}
-      disabled={processing || !activePhotoUrl}
-      className="w-full h-12 lg:h-11 font-semibold text-sm lg:text-base active:scale-95 transition-transform"
-    >
-      {processing ? <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />}
-      {processing ? getOperationLabel() : `Apply ${OPERATIONS.find(o => o.id === selectedOp)?.label}`}
-    </Button>
-  );
+  const GenerateButton = () => {
+    const isAiModel = selectedOp === "ai_model";
+    return (
+      <Button
+        onClick={handleProcess}
+        disabled={processing || !activePhotoUrl}
+        className="w-full h-12 lg:h-11 font-semibold text-sm lg:text-base active:scale-95 transition-transform"
+      >
+        {processing ? <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />}
+        {processing
+          ? getOperationLabel()
+          : isAiModel
+            ? "Generate · 4 credits"
+            : `Apply ${OPERATIONS.find(o => o.id === selectedOp)?.label || ""}`}
+      </Button>
+    );
+  };
 
   return (
     <PageShell
@@ -713,9 +718,9 @@ export default function Vintography() {
                 {/* ── LEFT PANEL: Operation config ── */}
                 <div className="space-y-3 lg:space-y-4">
 
-                  {/* 4 Operation Cards (2x2 grid) */}
+                  {/* Standard Operation Cards (2x2 grid) — 1 credit each */}
                   <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                    {OPERATIONS.filter(op => op.id !== "decrease").map((op) => {
+                    {OPERATIONS.filter(op => op.id !== "decrease" && op.id !== "ai_model").map((op) => {
                       const isSelected = selectedOp === op.id;
                       return (
                         <Card
@@ -741,16 +746,9 @@ export default function Vintography() {
                               <p className="font-semibold text-xs lg:text-sm leading-tight">{op.label}</p>
                               <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{op.desc}</p>
                             </div>
-                            <div className="flex flex-col items-end gap-0.5 shrink-0 mt-0.5">
-                              <Badge variant="secondary" className="text-[8px] lg:text-[10px] px-1 py-0">
-                                <Coins className="w-2 h-2 lg:w-2.5 lg:h-2.5 mr-0.5" />1
-                              </Badge>
-                              {op.id === "virtual_model" && (
-                                <Badge variant="outline" className="text-[7px] lg:text-[9px] px-1 py-0 text-primary border-primary/40">
-                                  New ✦
-                                </Badge>
-                              )}
-                            </div>
+                            <Badge variant="secondary" className="text-[8px] lg:text-[10px] px-1 py-0 shrink-0 mt-0.5">
+                              <Coins className="w-2 h-2 lg:w-2.5 lg:h-2.5 mr-0.5" />1
+                            </Badge>
                           </div>
 
                           <AnimatePresence>
@@ -801,9 +799,6 @@ export default function Vintography() {
                             <div className="flex items-center gap-2 mb-0.5">
                               <Wind className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary shrink-0" />
                               <p className="font-semibold text-xs lg:text-sm leading-tight">{op.label}</p>
-                              <Badge variant="outline" className="text-[7px] lg:text-[9px] px-1 py-0 text-primary border-primary/40 shrink-0">
-                                New ✦
-                              </Badge>
                             </div>
                             <p className="text-[10px] lg:text-xs text-muted-foreground">{op.desc}</p>
                             <AnimatePresence>
@@ -828,13 +823,87 @@ export default function Vintography() {
                     );
                   })()}
 
-                  {/* Garment description input */}
-                  {(selectedOp === "virtual_model" || selectedOp === "lifestyle_bg") && (
+                  {/* ─── PREMIUM AI FEATURE SECTION ─── */}
+                  <div className="space-y-2">
+                    {/* Divider with label */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <div className="h-px flex-1 bg-border" />
+                      <span className="text-[10px] lg:text-xs font-bold uppercase tracking-widest text-muted-foreground px-1">Premium AI Feature</span>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+
+                    {/* AI Model Shot card — premium styling */}
+                    {(() => {
+                      const isSelected = selectedOp === "ai_model";
+                      return (
+                        <Card
+                          onClick={() => setSelectedOp("ai_model")}
+                          className={`cursor-pointer transition-all active:scale-[0.97] overflow-hidden ${
+                            isSelected
+                              ? "ring-2 ring-primary border-primary/40"
+                              : "hover:border-primary/30 border-primary/20"
+                          }`}
+                          style={{
+                            background: isSelected
+                              ? "linear-gradient(135deg, hsl(var(--primary) / 0.07) 0%, hsl(280 70% 60% / 0.04) 100%)"
+                              : "linear-gradient(135deg, hsl(var(--primary) / 0.03) 0%, hsl(280 70% 60% / 0.02) 100%)",
+                          }}
+                        >
+                          <div className="p-3 lg:p-4">
+                            {/* Header row */}
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                  <UserIcon className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-bold text-xs lg:text-sm leading-tight">AI Model Shot</p>
+                                  <p className="text-[10px] lg:text-xs text-muted-foreground">Photorealistic human wearing your garment</p>
+                                </div>
+                              </div>
+                              <Badge className="text-[8px] lg:text-[10px] px-1.5 py-0.5 shrink-0 bg-primary text-primary-foreground">
+                                <Coins className="w-2 h-2 lg:w-2.5 lg:h-2.5 mr-0.5" />4 credits
+                              </Badge>
+                            </div>
+
+                            {/* Use cases */}
+                            <div className="space-y-1 mb-2">
+                              <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider">Best for:</p>
+                              <ul className="space-y-0.5">
+                                {[
+                                  "Designer & premium items (£30+) — justify the asking price",
+                                  "Items where fit & drape are the selling point",
+                                  "Hero photo in your listing's first position",
+                                  "Brands buyers want to see worn — Nike, Levi's, Ralph Lauren",
+                                ].map((point, i) => (
+                                  <li key={i} className="flex items-start gap-1.5">
+                                    <span className="text-primary shrink-0 mt-0.5 text-[10px]">✦</span>
+                                    <span className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">{point}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {/* Credit note */}
+                            <div className="flex items-center gap-1.5 rounded-lg bg-primary/[0.05] border border-primary/15 px-2.5 py-1.5">
+                              <Sparkles className="w-3 h-3 text-primary shrink-0" />
+                              <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
+                                Uses our most advanced AI model — <span className="text-foreground font-medium">always profitable at 4 credits</span>, never a loss regardless of your plan tier.
+                              </p>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Garment description input — shown for ops that need it */}
+                  {(selectedOp === "ai_model" || selectedOp === "mannequin" || selectedOp === "lifestyle_bg") && (
                     <Card className="p-3 lg:p-4 space-y-2 lg:space-y-3">
                       <div className="flex items-start gap-2 rounded-lg bg-warning/[0.06] border border-warning/15 p-2 lg:p-2.5">
                         <Info className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-warning shrink-0 mt-0.5" />
                         <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
-                          Make sure your photo shows the <span className="font-semibold text-foreground">full garment</span> (front view, neckline to hem). Folded or cropped photos won't work well for {selectedOp === "virtual_model" ? "model shots" : "lifestyle scenes"}.
+                          Make sure your photo shows the <span className="font-semibold text-foreground">full garment</span> (front view, neckline to hem). Folded or cropped photos won't work well for {selectedOp === "lifestyle_bg" ? "lifestyle scenes" : "photorealistic shots"}.
                         </p>
                       </div>
                       <label className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -895,162 +964,156 @@ export default function Vintography() {
                         <BackgroundPicker value={bgStyle} onChange={setBgStyle} />
                       </motion.div>
                     )}
-                    {selectedOp === "virtual_model" && (
-                      <motion.div key="model_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                        <Card className="p-3 lg:p-5 space-y-3 lg:space-y-4">
-                          {/* Sub-mode tab strip */}
-                          <Tabs value={photoTab} onValueChange={(v) => setPhotoTab(v as PhotorealisticTab)}>
-                            <TabsList className="w-full grid grid-cols-3">
-                              <TabsTrigger value="ai_model" className="text-xs lg:text-sm gap-1 lg:gap-1.5">
-                                <UserIcon className="w-3 h-3 lg:w-3.5 lg:h-3.5" /> AI Model
-                              </TabsTrigger>
-                              <TabsTrigger value="flatlay" className="text-xs lg:text-sm gap-1 lg:gap-1.5">
-                                <Layers className="w-3 h-3 lg:w-3.5 lg:h-3.5" /> Flat-Lay Pro
-                              </TabsTrigger>
-                              <TabsTrigger value="mannequin" className="text-xs lg:text-sm gap-1 lg:gap-1.5">
-                                <Package className="w-3 h-3 lg:w-3.5 lg:h-3.5" /> Mannequin
-                              </TabsTrigger>
-                            </TabsList>
-
-                            {/* AI Model */}
-                            <TabsContent value="ai_model" className="mt-3 lg:mt-4 space-y-3 lg:space-y-4">
-                              <div>
-                                <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Shot Style</p>
-                                <div className="grid grid-cols-3 gap-1.5 lg:gap-2">
-                                  {MODEL_SHOT_STYLES.map((s) => {
-                                    const sel = modelShotStyle === s.value;
-                                    return (
-                                      <motion.button
-                                        key={s.value}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() => setModelShotStyle(s.value)}
-                                        className={`flex flex-col items-center gap-1 lg:gap-1.5 rounded-xl p-2.5 lg:p-3.5 border text-center transition-all ${
-                                          sel ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30" : "border-border hover:border-primary/20 bg-background"
-                                        }`}
-                                      >
-                                        <span className={`text-[11px] lg:text-xs font-semibold leading-tight ${sel ? "text-primary" : "text-foreground"}`}>{s.label}</span>
-                                        <span className="text-[9px] lg:text-[10px] text-muted-foreground leading-tight">{s.desc}</span>
-                                      </motion.button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                              {/* Full garment toggle */}
-                              <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 lg:px-4 py-2.5 lg:py-3">
-                                <div>
-                                  <p className="text-xs lg:text-sm font-semibold">Always show full garment</p>
-                                  <p className="text-[10px] lg:text-xs text-muted-foreground">Guarantees neckline-to-hem visibility</p>
-                                </div>
-                                <Switch checked={modelFullBody} onCheckedChange={setModelFullBody} />
-                              </div>
-                              <ModelPicker
-                                gender={modelGender} look={modelLook} pose={modelPose} bg={modelBg}
-                                onGenderChange={setModelGender} onLookChange={setModelLook}
-                                onPoseChange={setModelPose} onBgChange={setModelBg}
-                              />
-                            </TabsContent>
-
-                            {/* Flat-Lay Pro */}
-                            <TabsContent value="flatlay" className="mt-3 lg:mt-4">
-                              <p className="text-[10px] lg:text-xs text-muted-foreground mb-3 leading-relaxed">
-                                Professional overhead flat-lay photography. Great for showing garment shape and detail.
-                              </p>
-                              <div className="grid grid-cols-1 gap-2">
-                                {FLATLAY_STYLES.map((style) => {
-                                  const selected = flatlayStyle === style.value;
-                                  return (
-                                    <motion.button
-                                      key={style.value}
-                                      whileTap={{ scale: 0.95 }}
-                                      onClick={() => setFlatlayStyle(style.value)}
-                                      className={`flex flex-col items-start gap-0.5 rounded-xl p-3 lg:p-3.5 border text-left transition-all ${
-                                        selected ? "border-primary ring-1 ring-primary/30 bg-primary/[0.04]" : "border-border hover:border-primary/20"
-                                      }`}
-                                    >
-                                      <span className={`text-xs lg:text-sm font-semibold ${selected ? "text-primary" : "text-foreground"}`}>{style.label}</span>
-                                      <span className="text-[10px] lg:text-xs text-muted-foreground">{style.desc}</span>
-                                    </motion.button>
-                                  );
-                                })}
-                              </div>
-                            </TabsContent>
-
-                            {/* Mannequin */}
-                            <TabsContent value="mannequin" className="mt-3 lg:mt-4 space-y-4 lg:space-y-5">
-                              <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
-                                Professional retail display shots. No model needed — great for any garment type.
-                              </p>
-                              {/* Mannequin Type */}
-                              <div>
-                                <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Mannequin Type</p>
-                                <div className="grid grid-cols-2 gap-1.5 lg:gap-2">
-                                  {MANNEQUIN_TYPES.map((mt) => {
-                                    const sel = mannequinType === mt.value;
-                                    return (
-                                      <motion.button
-                                        key={mt.value}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() => setMannequinType(mt.value)}
-                                        className={`flex flex-col items-start gap-1 lg:gap-1.5 rounded-xl p-3 lg:p-4 border text-left transition-all ${
-                                          sel ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30" : "border-border hover:border-primary/20 bg-background"
-                                        }`}
-                                      >
-                                        <mt.icon className={`w-4 h-4 lg:w-5 lg:h-5 ${sel ? "text-primary" : "text-muted-foreground"}`} />
-                                        <span className={`text-xs lg:text-sm font-semibold ${sel ? "text-primary" : "text-foreground"}`}>{mt.label}</span>
-                                        <span className="text-[10px] lg:text-xs text-muted-foreground leading-tight">{mt.desc}</span>
-                                      </motion.button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                              {/* Lighting */}
-                              <div>
-                                <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Lighting Style</p>
-                                <div className="grid grid-cols-3 gap-1.5 lg:gap-2">
-                                  {MANNEQUIN_LIGHTINGS.map((ml) => {
-                                    const sel = mannequinLighting === ml.value;
-                                    return (
-                                      <motion.button
-                                        key={ml.value}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() => setMannequinLighting(ml.value)}
-                                        className={`flex flex-col items-center gap-1 lg:gap-1.5 rounded-xl p-2.5 lg:p-3.5 border text-center transition-all ${
-                                          sel ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30" : "border-border hover:border-primary/20 bg-background"
-                                        }`}
-                                      >
-                                        <ml.icon className={`w-4 h-4 lg:w-5 lg:h-5 ${sel ? "text-primary" : "text-muted-foreground"}`} />
-                                        <span className={`text-[11px] lg:text-xs font-semibold leading-tight ${sel ? "text-primary" : "text-foreground"}`}>{ml.label}</span>
-                                        <span className="text-[9px] lg:text-[10px] text-muted-foreground leading-tight">{ml.desc}</span>
-                                      </motion.button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                              {/* Background */}
-                              <div>
-                                <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Background / Setting</p>
-                                <div className="grid grid-cols-3 gap-1.5 lg:gap-2">
-                                  {MANNEQUIN_BACKGROUNDS.map((mbg) => {
-                                    const sel = modelBg === mbg.value;
-                                    return (
-                                      <motion.button
-                                        key={mbg.value}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() => setModelBg(mbg.value)}
-                                        className={`flex flex-col items-center gap-1 rounded-xl p-2.5 lg:p-3 border text-center transition-all ${
-                                          sel ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30" : "border-border hover:border-primary/20 bg-background"
-                                        }`}
-                                      >
-                                        <span className={`text-[11px] lg:text-xs font-semibold leading-tight ${sel ? "text-primary" : "text-foreground"}`}>{mbg.label}</span>
-                                        <span className="text-[9px] lg:text-[10px] text-muted-foreground leading-tight">{mbg.desc}</span>
-                                      </motion.button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </TabsContent>
-                          </Tabs>
+                    {selectedOp === "flatlay" && (
+                      <motion.div key="flatlay_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                        <Card className="p-3 lg:p-5 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Layers className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
+                            <p className="text-sm lg:text-base font-semibold">Flat-Lay Style</p>
+                          </div>
+                          <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
+                            Professional overhead flat-lay photography. Great for showing garment shape and detail.
+                          </p>
+                          <div className="grid grid-cols-1 gap-2">
+                            {FLATLAY_STYLES.map((style) => {
+                              const sel = flatlayStyle === style.value;
+                              return (
+                                <motion.button
+                                  key={style.value}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => setFlatlayStyle(style.value)}
+                                  className={`flex flex-col items-start gap-0.5 rounded-xl p-3 lg:p-3.5 border text-left transition-all ${
+                                    sel ? "border-primary ring-1 ring-primary/30 bg-primary/[0.04]" : "border-border hover:border-primary/20"
+                                  }`}
+                                >
+                                  <span className={`text-xs lg:text-sm font-semibold ${sel ? "text-primary" : "text-foreground"}`}>{style.label}</span>
+                                  <span className="text-[10px] lg:text-xs text-muted-foreground">{style.desc}</span>
+                                </motion.button>
+                              );
+                            })}
+                          </div>
                         </Card>
+                      </motion.div>
+                    )}
+                    {selectedOp === "mannequin" && (
+                      <motion.div key="mannequin_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                        <Card className="p-3 lg:p-5 space-y-4 lg:space-y-5">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
+                            <p className="text-sm lg:text-base font-semibold">Mannequin Options</p>
+                          </div>
+                          {/* Mannequin Type */}
+                          <div>
+                            <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Mannequin Type</p>
+                            <div className="grid grid-cols-2 gap-1.5 lg:gap-2">
+                              {MANNEQUIN_TYPES.map((mt) => {
+                                const sel = mannequinType === mt.value;
+                                return (
+                                  <motion.button
+                                    key={mt.value}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setMannequinType(mt.value)}
+                                    className={`flex flex-col items-start gap-1 lg:gap-1.5 rounded-xl p-3 lg:p-4 border text-left transition-all ${
+                                      sel ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30" : "border-border hover:border-primary/20 bg-background"
+                                    }`}
+                                  >
+                                    <mt.icon className={`w-4 h-4 lg:w-5 lg:h-5 ${sel ? "text-primary" : "text-muted-foreground"}`} />
+                                    <span className={`text-xs lg:text-sm font-semibold ${sel ? "text-primary" : "text-foreground"}`}>{mt.label}</span>
+                                    <span className="text-[10px] lg:text-xs text-muted-foreground leading-tight">{mt.desc}</span>
+                                  </motion.button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {/* Lighting */}
+                          <div>
+                            <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Lighting Style</p>
+                            <div className="grid grid-cols-3 gap-1.5 lg:gap-2">
+                              {MANNEQUIN_LIGHTINGS.map((ml) => {
+                                const sel = mannequinLighting === ml.value;
+                                return (
+                                  <motion.button
+                                    key={ml.value}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setMannequinLighting(ml.value)}
+                                    className={`flex flex-col items-center gap-1 lg:gap-1.5 rounded-xl p-2.5 lg:p-3.5 border text-center transition-all ${
+                                      sel ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30" : "border-border hover:border-primary/20 bg-background"
+                                    }`}
+                                  >
+                                    <ml.icon className={`w-4 h-4 lg:w-5 lg:h-5 ${sel ? "text-primary" : "text-muted-foreground"}`} />
+                                    <span className={`text-[11px] lg:text-xs font-semibold leading-tight ${sel ? "text-primary" : "text-foreground"}`}>{ml.label}</span>
+                                    <span className="text-[9px] lg:text-[10px] text-muted-foreground leading-tight">{ml.desc}</span>
+                                  </motion.button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {/* Background */}
+                          <div>
+                            <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Background / Setting</p>
+                            <div className="grid grid-cols-3 gap-1.5 lg:gap-2">
+                              {MANNEQUIN_BACKGROUNDS.map((mbg) => {
+                                const sel = modelBg === mbg.value;
+                                return (
+                                  <motion.button
+                                    key={mbg.value}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setModelBg(mbg.value)}
+                                    className={`flex flex-col items-center gap-1 rounded-xl p-2.5 lg:p-3 border text-center transition-all ${
+                                      sel ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30" : "border-border hover:border-primary/20 bg-background"
+                                    }`}
+                                  >
+                                    <span className={`text-[11px] lg:text-xs font-semibold leading-tight ${sel ? "text-primary" : "text-foreground"}`}>{mbg.label}</span>
+                                    <span className="text-[9px] lg:text-[10px] text-muted-foreground leading-tight">{mbg.desc}</span>
+                                  </motion.button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    )}
+                    {selectedOp === "ai_model" && (
+                      <motion.div key="ai_model_params" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                        <div className="space-y-3">
+                          {/* Shot Style */}
+                          <Card className="p-3 lg:p-4 space-y-2.5">
+                            <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider">Shot Style</p>
+                            <div className="grid grid-cols-3 gap-1.5 lg:gap-2">
+                              {MODEL_SHOT_STYLES.map((s) => {
+                                const sel = modelShotStyle === s.value;
+                                return (
+                                  <motion.button
+                                    key={s.value}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setModelShotStyle(s.value)}
+                                    className={`flex flex-col items-center gap-1 lg:gap-1.5 rounded-xl p-2.5 lg:p-3.5 border text-center transition-all ${
+                                      sel ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30" : "border-border hover:border-primary/20 bg-background"
+                                    }`}
+                                  >
+                                    <span className={`text-[11px] lg:text-xs font-semibold leading-tight ${sel ? "text-primary" : "text-foreground"}`}>{s.label}</span>
+                                    <span className="text-[9px] lg:text-[10px] text-muted-foreground leading-tight">{s.desc}</span>
+                                  </motion.button>
+                                );
+                              })}
+                            </div>
+                          </Card>
+                          {/* Full garment toggle */}
+                          <Card className="px-3 lg:px-4 py-2.5 lg:py-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs lg:text-sm font-semibold">Always show full garment</p>
+                                <p className="text-[10px] lg:text-xs text-muted-foreground">Guarantees neckline-to-hem visibility</p>
+                              </div>
+                              <Switch checked={modelFullBody} onCheckedChange={setModelFullBody} />
+                            </div>
+                          </Card>
+                          <ModelPicker
+                            gender={modelGender} look={modelLook} pose={modelPose} bg={modelBg}
+                            onGenderChange={setModelGender} onLookChange={setModelLook}
+                            onPoseChange={setModelPose} onBgChange={setModelBg}
+                          />
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
