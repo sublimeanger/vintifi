@@ -1,292 +1,292 @@
 
-# Crease Remover — "Steam & Press" Tool for Photo Studio
 
-## What We're Building
+# Photo Studio — Complete Flow Redesign
 
-A new AI-powered tool inside Photo Studio (Vintography) that removes all creases, wrinkles, and fold marks from garment photos — making clothes look freshly steamed and pressed without the seller needing to iron or steam-clean anything in real life. This is a standalone fifth operation card alongside the existing four (Clean Background, Lifestyle Scenes, Photorealistic, Enhance).
+## The Core Problem
+
+The current Photo Studio was designed around a single-photo workflow and then "batch" was bolted on. The result is incoherent for anyone with multiple listing photos. Let me map every flaw precisely:
+
+**Flaw 1: Wrong mental model for linked items**
+When arriving from an item (`/vintography?itemId=xxx`), the code fetches ALL the item's photos and dumps them into the `BatchStrip`. The only available action then becomes "Process All X Photos" — forcing the same operation on every photo. A seller who has 4 photos — front, back, label, detail — might only want to:
+- Steam & Press the front (it's creased)
+- Clean background on the back (it's cluttered)
+- Leave the label photo untouched
+- Enhance the detail shot
+
+None of this is possible today.
+
+**Flaw 2: Batch Processing = wrong framing**
+The `BatchStrip` at the top of the left panel is designed for uploaded files queued for mass processing. It reads "Batch Queue — 0/3 done." This language and pattern implies all photos will get the same treatment. That is the wrong mental model for a seller managing their listing photos.
+
+**Flaw 3: Save to Item adds instead of replaces**
+When you enhance a photo and click "Save to Item", the code does:
+```typescript
+const updatedImages = [...existingImages, newProcessedUrl];
+```
+It **appends** the processed photo. So now the listing has the original creased front AND the steamed front. The seller has to go back to the Photos tab and manually delete the old one. This is terrible UX.
+
+**Flaw 4: No per-photo edit state**
+There's one `originalUrl` and one `processedUrl`. If you process photo 1, then click photo 2 in the batch strip to process it, you lose the result for photo 1 (unless it's been saved). There's no persistent per-photo edit state.
+
+**Flaw 5: The wand icon (deep-link to studio from PhotosTab) ignores multi-photo context**
+When a user taps the wand on a specific thumbnail in the Photos tab, it navigates to `/vintography?itemId=xxx&image_url=yyy`. The `image_url` param loads just that one photo — but then the `itemId` effect ALSO runs and loads ALL photos into the batch strip. There's a race condition between these two `useEffect` hooks.
+
+**Flaw 6: After processing, "the operation applies to whatever is currently in originalUrl"**
+The batch strip "selecting" a photo just sets `originalUrl` without clearing context. The Generate button applies to whichever photo was most recently selected in the strip — not necessarily the one the user is looking at in the preview.
 
 ---
 
-## Why This Deserves Its Own Operation (Not a Prompt Tweak)
+## The Right Mental Model
 
-The `enhance` operation already applies general improvement but its mandate is: "correct lighting, sharpen fabric, fix colour." It explicitly does NOT remove structural wrinkles because those are treated as honest fabric information. A deliberate "de-crease" operation needs its own AI prompt with a completely different intent: **restructure fabric surface geometry** rather than enhance what's already there.
+The new model is an **image-by-image editing workspace** that's aware of the full listing photo set. The user sees their photos as a filmstrip, picks which one they want to work on, chooses an operation, processes it, then decides what to do with the result (replace the original, add as extra, download).
 
-Also practically: sellers photograph their items, then realise they're creased, then face the choice of (a) re-photographing after ironing, or (b) the item looking bad on Vinted. This tool eliminates that choice — they process the photo and the AI renders the fabric smooth. This is one of the highest-value time-saving features possible for a Vinted seller.
-
----
-
-## Architecture Overview
-
-The change touches exactly two files — same pattern as every other Vintography tool:
-
-```text
-supabase/functions/vintography/index.ts   ← new operation: "decrease"
-src/pages/Vintography.tsx                  ← new operation card + UI card + flash model timing
-```
-
-No new DB tables, no new edge functions, no schema changes needed. `vintography_jobs` table already stores operation name as free text. The `TIER_OPERATIONS` map already controls which tiers get which ops.
+This means:
+- Photos are shown as an **editable filmstrip**, not a batch queue
+- Each photo can have its own edit state (original / edited / untouched)
+- Selecting a photo loads it into the editing workspace
+- Processing produces a result for THAT specific photo
+- "Save to Item" replaces that specific photo (with an option to keep original)
+- Some photos can stay untouched; others can have multiple edits tried
 
 ---
 
-## Edge Function Changes: `supabase/functions/vintography/index.ts`
+## Redesigned Components
 
-### 1. New Operation Prompt: `decrease`
+### 1. New `PhotoFilmstrip` component (replaces `BatchStrip`)
 
-Add to `OPERATION_PROMPTS`:
+Location: `src/components/vintography/PhotoFilmstrip.tsx`
 
-```typescript
-decrease: (p) => {
-  const intensity = p?.intensity || "standard";
+This component replaces the `BatchStrip` entirely and has a completely different mental model:
 
-  const intensities: Record<string, string> = {
-    light: "Remove only the most prominent creases — deep fold lines, sharp compression creases from storage, and crumpling wrinkles. Preserve gentle natural drape folds that occur when fabric hangs — these show fabric character. The result should look like the garment was gently hand-pressed but not dry-cleaned.",
-    standard: "Remove all storage creases, fold lines, compression wrinkles, and crumpling. Preserve only the structural fabric drape that occurs naturally from gravity — the way fabric hangs from shoulders or drapes over a body form. The result should look like the garment was professionally steamed for 60 seconds.",
-    deep: "Remove every wrinkle, crease, fold line, and texture distortion caused by storage, folding, handling, or poor presentation. The fabric surface should appear immaculate — as if the garment is brand new, freshly pressed, and on a high-street shop display rail for the first time. Preserve fabric texture (weave, knit pattern, cord ridges) but eliminate all deformation of that texture.",
-  };
-
-  return `You are a professional fashion retoucher specialising in fabric smoothing for e-commerce photography. Your task is to remove creases, wrinkles, and fold lines from this garment photo.
-
-INTENSITY: ${intensities[intensity] || intensities.standard}
-
-WHAT TO REMOVE — CREASES (eliminate these):
-- Sharp fold lines from being stored folded in a drawer or shipped in packaging
-- Compression wrinkles from being packed tightly
-- Crumpling wrinkles across the body of the fabric
-- Horizontal banding wrinkles across chest/sleeves from hanging or folding
-- Packing creases — the very defined lines from cardboard fold points
-- Any fabric deformation caused by poor storage, handling, or transit
-
-WHAT TO KEEP — NATURAL FABRIC BEHAVIOUR (preserve these):
-- The garment's overall silhouette and shape — do NOT change how the garment looks
-- Natural gravitational drape — the gentle curves of fabric as it hangs or is laid flat
-- Fabric texture: weave patterns, knit structure, corduroy ridges, denim twill lines — these are texture, not creases
-- Intentional design elements: pleats, gathers, ruched seams, smocking, or fabric tucks that are part of the garment's design
-- The accurate colour and shading of the fabric — do NOT bleach or overexpose
-- Any deliberate faded or distressed areas (important for denim/vintage)
-
-RETOUCHING TECHNIQUE:
-- Work methodically across the fabric surface — chest first, then sleeves, then body
-- Smooth fabric by "filling in" the crease valleys to match the surrounding fabric height and texture
-- Maintain consistent fabric texture across previously creased areas — the smoothed area should be indistinguishable from uncreased areas
-- Preserve natural lighting falloff across the garment — do NOT flatten the lighting or create an artificial airbrushed look
-- The final garment should look like it was pressed in a professional steamer for 2–3 minutes
-
-BACKGROUND: Leave the background completely unchanged — only edit the garment itself
-GARMENT IDENTITY: The garment type, colour, brand marks, logos, prints, fit, and silhouette must remain 100% identical to the original. Only the fabric surface texture (crease removal) changes.
-
-${GARMENT_PRESERVE}
-${QUALITY_MANDATE}`;
-},
+```
+[ Photo 1 ]  [ Photo 2 ]  [ Photo 3 ]  [ Photo 4 ]  [ + Add ]
+  Primary      ✓ Edited      Active →    Untouched
 ```
 
-### 2. Model Assignment in `MODEL_MAP`
+Each thumbnail shows:
+- The current best version of that photo (processed if done, original if not)
+- A status indicator: `✓ Edited` (green dot), `Active` (primary ring + subtle pulse), `Untouched` (default)
+- A "Primary" badge on photo index 0
+- Photo index number in the corner
 
+Key differences from `BatchStrip`:
+- No "Batch Queue" language anywhere
+- No "0/3 done" counter — this is not a queue, it's a photo gallery
+- Clicking a photo selects it for editing (makes it Active)
+- An `onAddPhoto` callback allows adding more photos to the listing directly from the strip (triggers file picker, uploads to listing)
+- When viewing from an item, shows an edit history pill below each photo: "2 edits" or "Steam + BG" as tiny badges
+
+### 2. Per-photo edit state tracking
+
+A `photoEditState` map in `Vintography.tsx` that tracks per-URL state:
 ```typescript
-decrease: "google/gemini-2.5-flash-image",
+type PhotoState = {
+  editedUrl: string | null;     // most recent processed result for this photo
+  savedToItem: boolean;          // whether it's been saved back
+  operationApplied: string | null; // which operation was last applied
+};
+
+const [photoEditStates, setPhotoEditStates] = useState<Record<string, PhotoState>>({});
 ```
 
-Rationale: This is a fabric surface retouching task — no photorealistic human rendering, no complex compositional scene-building. The Flash model handles texture smoothing very well and will complete in ~10–18 seconds (same category as `enhance` and `remove_bg`). Using the Pro model here would add 40-60s of unnecessary latency for no quality benefit.
+When `processImage` returns a result for the active photo, store it in `photoEditStates[activePhotoUrl]`. This means switching between photos doesn't lose your work — the edited version stays associated with its original.
 
-### 3. Tier Access in `TIER_OPERATIONS`
+### 3. Smart "Save to Item" — Replace vs. Add
+
+Currently saves always append. The new behaviour:
+
+When the user clicks "Save to Item", show a brief confirmation with two clear choices:
+- **Replace original** — swaps `image_url` (if primary) or replaces the specific URL in the `images` array with the edited version. The old creased/original photo is removed.
+- **Add alongside** — keeps original AND adds edited version (current behaviour, useful if they want both)
+
+Implementation: `updateLinkedItem` gets a `mode: "replace" | "add"` parameter. In `replace` mode, it finds the original URL in the listings table and substitutes it with the processed URL, rather than appending.
+
+The default should be **Replace** — that's what 95% of sellers want. They don't want the creased version AND the pressed version. They want the pressed version instead.
+
+### 4. Filmstrip appears at the top of the RIGHT panel (above preview), not the left panel
+
+The current batch strip is in the LEFT panel (config side). This is wrong placement — the strip is about WHICH PHOTO you're working on, not WHAT OPERATION you're applying. Moving it to the top of the RIGHT panel (preview side) makes the mental model clear:
+- Left panel = "what do you want to do?" (operation + params)
+- Right panel = "which photo? here's the before/after"
+
+On mobile, the filmstrip is horizontal-scrollable above the ComparisonView card.
+
+### 5. Active photo shows both original and edited state at a glance
+
+In the filmstrip, the active photo thumbnail shows a split diagonal preview (original on top-left triangle, edited on bottom-right triangle) if an edited version exists — exactly like the ComparisonView slider but as a tiny thumbnail signal.
+
+### 6. Upload Zone improvements when coming from an item
+
+Currently: if arriving with `itemId`, the upload zone is completely hidden (replaced by the editor with the batch strip). But what if the item has no photos yet? The user sees a confused state.
+
+New behaviour:
+- If `itemId` present AND item has photos → show filmstrip + editor (no upload zone)
+- If `itemId` present AND item has NO photos → show the upload zone with a note: "No photos yet — upload your first photo for [Item Title]"
+- The upload zone is also accessible FROM the filmstrip via the `+` button
+
+---
+
+## Data Flow Changes
+
+### New `useEffect` for item photos (fixes the race condition)
+
+The existing code has two competing `useEffect` hooks:
+1. One watches `searchParams` for `image_url` param
+2. One watches `itemId` to load all photos
+
+They both call `setOriginalUrl()` and can race each other. Fix: combine into a single effect that checks `image_url` param first (deep link to specific photo wins), then falls back to loading the full item photo set.
 
 ```typescript
-free:     [..., "decrease"],   // Add — this is a direct listing-quality tool, good free-tier hook
-pro:      [..., "decrease"],
-business: [..., "decrease"],
-scale:    [..., "decrease"],
+useEffect(() => {
+  const imageUrl = searchParams.get("image_url");
+  const itemId = searchParams.get("itemId");
+  
+  if (!user) return;
+  
+  if (imageUrl) {
+    // Deep-linked to specific photo — load just this one
+    // But still fetch item's other photos for the filmstrip
+    setActivePhotoUrl(imageUrl);
+    if (itemId) fetchItemPhotos(itemId, imageUrl); // loads filmstrip but keeps imageUrl as active
+  } else if (itemId) {
+    // Load item photos, set first as active
+    fetchItemPhotos(itemId, null);
+  }
+}, [searchParams, user]);
 ```
 
-Making it available on **all tiers including Free** is the correct call. Here's why:
+### `handleProcess` changes
 
-- It's a pure listing-quality tool — creases make photos look bad and discourage buyers. A better photo = higher conversion = happier seller = they upgrade
-- It's the kind of feature that makes a free user say "oh wow, this actually works" — highest activation potential of any feature
-- It uses 1 credit (same as Clean Background, which is also free-tier accessible)
-- It becomes a conversion vector: "To also add a Lifestyle Background to this freshly pressed photo, upgrade to Pro"
-
-### 4. Prompt Augmentation with `_decrease_with_context`
-
-Since the edge function already has a pattern of injecting `garment_context` for operations that need it, add decrease to the operations that benefit from garment context. When `garment_context` is provided (i.e., when coming from a linked item), the context helps the AI distinguish intended design elements from storage creases:
+Instead of calling `processImage(originalUrl, ...)`, it now calls `processImage(activePhotoUrl, ...)` and on result:
 
 ```typescript
-// In the garment_context injection logic:
-if (garment_context && !["model_shot"].includes(operation)) {
-  prompt += buildGarmentContext(garment_context);
+const result = await processImage(activePhotoUrl, getOperation(), getParams());
+if (result) {
+  // Store in per-photo state
+  setPhotoEditStates(prev => ({
+    ...prev,
+    [activePhotoUrl]: {
+      editedUrl: result,
+      savedToItem: false,
+      operationApplied: selectedOp,
+    }
+  }));
+  setProcessedUrl(result); // Still drives the ComparisonView
 }
 ```
 
-The existing logic already handles this — `decrease` will automatically get garment context appended when available, without any additional code.
-
----
-
-## Frontend Changes: `src/pages/Vintography.tsx`
-
-### 1. New Operation in `OPERATIONS` Array
-
-The existing 4 operations are displayed as a `grid grid-cols-2` — adding a 5th would break the layout to an asymmetric 5-card grid. The solution: **keep the 2x2 grid and make the 5th card (Crease Remover) a full-width card below** — visually distinct, clearly a utility/finishing tool rather than a transformation. This is also better UX: it groups "transformation" tools (4-card grid) vs "finishing" tools (wide card below).
-
-The wide card design mirrors the visual weight of the tool — it's a workhorse utility, not a creative mode.
-
-Add to the `OPERATIONS` array:
+### `handleSaveToItem` — replace mode
 
 ```typescript
-{
-  id: "decrease",
-  icon: Shirt,  // or Wind — we'll use Wind (already imported, suggests smoothness/air)
-  label: "Steam & Press",
-  desc: "Remove all creases, instantly",
-  detail: "AI-powered crease removal — makes every garment look freshly steamed. No iron needed. Preserves fabric texture, logo, and colour perfectly.",
-  beforeGradient: "from-stone-300/60 via-stone-400/40 to-stone-300/60",  // wrinkly grey
-  afterGradient: "from-sky-50 via-white to-sky-50",  // smooth, clean
-}
-```
-
-Add `"decrease"` to the `Operation` type union:
-
-```typescript
-type Operation = "clean_bg" | "lifestyle_bg" | "virtual_model" | "enhance" | "decrease";
-```
-
-Update `OP_MAP`:
-
-```typescript
-const OP_MAP: Record<Operation, string> = {
-  clean_bg: "remove_bg",
-  lifestyle_bg: "smart_bg",
-  virtual_model: "model_shot",
-  enhance: "enhance",
-  decrease: "decrease",
+const handleSaveToItem = async (mode: "replace" | "add") => {
+  if (!processedUrl || !itemId || !activePhotoUrl) return;
+  
+  if (mode === "replace") {
+    // Find and replace the specific URL in the listing record
+    await replaceListingPhoto(itemId, activePhotoUrl, processedUrl);
+    // Update the filmstrip — show the edited version in the thumbnail
+    setItemPhotos(prev => prev.map(u => u === activePhotoUrl ? processedUrl : u));
+    setActivePhotoUrl(processedUrl); // Now working on the edited version
+  } else {
+    await updateLinkedItem(processedUrl); // existing append behaviour
+  }
+  
+  setPhotoEditStates(prev => ({
+    ...prev,
+    [activePhotoUrl]: { ...prev[activePhotoUrl], savedToItem: true }
+  }));
 };
 ```
 
-### 2. Intensity Selector State + UI
-
-Add state:
-
+`replaceListingPhoto` function:
 ```typescript
-const [decreaseIntensity, setDecreaseIntensity] = useState<"light" | "standard" | "deep">("standard");
-```
-
-Add intensity to `getParams()`:
-
-```typescript
-if (selectedOp === "decrease") {
-  params.intensity = decreaseIntensity;
-}
-```
-
-**UI for when `decrease` is selected** — shown inside `AnimatePresence` below the operation cards, same pattern as `lifestyle_bg` shows `BackgroundPicker`:
-
-A simple 3-option intensity selector with descriptive labels:
-
-```
-[ Light Press ]    [ Steam — Standard ]    [ Deep Press ]
-  Gentle only        All storage creases     Showroom perfect
-  (removes sharp     removed. Looks pro      Brand new look.
-  packing lines)     steamed.                Immaculate.
-```
-
-Selected card highlights with the primary ring pattern used throughout.
-
-The intensity control card is **minimal** — this operation has very few parameters by design. No garment description needed (unlike model shots), no background picker, no lighting. Just the intensity. Clean, fast, purposeful.
-
-### 3. Full-Width Operation Card Rendering
-
-Update the operation cards render section. Instead of rendering all 5 in the same grid, split:
-
-- First 4 in `grid grid-cols-2` (existing layout, unchanged)
-- 5th (decrease) as a **separate full-width card** below the grid, with a slightly different visual treatment:
-  - Wide layout with icon+label on the left, detail text on the right
-  - "New ✦" badge since it's new
-  - The before/after gradient strip runs full-width (wider canvas to suggest the smoothing sweep)
-
-This separation creates a natural visual hierarchy:
-- **Transformation tools** (2×2 grid): Change what the photo looks like
-- **Finishing tools** (full-width): Polish the photo as-is
-
-### 4. Progress Timer Classification
-
-Add `decrease` to `isFlashOp()` since it uses the Flash model:
-
-```typescript
-const isFlashOp = (): boolean => {
-  if (selectedOp === "clean_bg" || selectedOp === "enhance" || selectedOp === "decrease") return true;
-  if (selectedOp === "lifestyle_bg") return true;
-  if (selectedOp === "virtual_model" && photoTab === "flatlay") return true;
-  return false;
+const replaceListingPhoto = async (itemId: string, oldUrl: string, newUrl: string) => {
+  const { data } = await supabase.from("listings")
+    .select("image_url, images").eq("id", itemId).eq("user_id", user.id).maybeSingle();
+  
+  const isImageUrl = data?.image_url === oldUrl;
+  const rawImages = Array.isArray(data?.images) ? data.images as string[] : [];
+  const newImages = rawImages.map(u => u === oldUrl ? newUrl : u);
+  
+  await supabase.from("listings").update({
+    image_url: isImageUrl ? newUrl : data?.image_url,
+    images: newImages,
+    last_photo_edit_at: new Date().toISOString(),
+  }).eq("id", itemId).eq("user_id", user.id);
 };
 ```
 
-### 5. Processing Label
+---
 
-Add to `getOperationLabel()`:
+## UI Layout Summary
 
-```typescript
-if (selectedOp === "decrease") return "Steaming & pressing garment...";
-```
+### Desktop (lg:grid-cols-[440px_1fr])
 
-### 6. ComparisonView Tips
+**LEFT PANEL** (unchanged purpose — configuration):
+- Operation cards (2x2 grid + Steam & Press full-width)
+- Operation-specific params (background picker, mannequin options, etc.)
+- Generate button (pinned at bottom)
 
-In `ComparisonView.tsx`, add tips for the `decrease` operation ID:
+**RIGHT PANEL** (preview + photo management):
+- **[NEW] PhotoFilmstrip** — horizontal scroll, all listing photos, active indicator, edit status badges, `+` button to add photos
+- **ComparisonView** — before/after of the active photo
+- **Action row** — Replace Original (primary, green), Add Alongside (secondary outline), Download, Try Again
+- **Next Steps card** (existing — unchanged)
 
-```typescript
-decrease: [
-  "Works best with full garment photos — front view, hanger or flat-lay shots",
-  "Deep Press mode is perfect for items that came direct from storage or shipping",
-  "Fabric texture, logos, and prints are preserved — only creases are removed",
-  "Chain with Clean Background for a perfect Vinted listing in 2 credits",
-],
-```
+### Mobile
+
+- PhotoFilmstrip — horizontal scroll, full width
+- ComparisonView — full width
+- Operation cards (scrollable left panel collapses under a drawer or accordion on mobile)
+- Action buttons below preview
 
 ---
 
-## UX Detail: The "Steam & Press" card visual design
+## Files Changed
 
-The before/after gradient strip for this operation needs to communicate "wrinkled → smooth" visually. Use:
-
-- **Before**: A `from-stone-300 via-stone-400/60 to-stone-300` with an extra CSS pattern overlay (multiple thin diagonal gradient strips to simulate crease lines) using a `repeating-linear-gradient` inline style on the before div
-- **After**: A clean `from-sky-50 via-white to-sky-50` — smooth, pure, fresh
-
-This visual immediately communicates what the tool does without words.
-
----
-
-## Summary Table: All Changes
-
-| Location | Change | Detail |
-|---|---|---|
-| `supabase/functions/vintography/index.ts` | Add `decrease` prompt | 3 intensity levels with detailed crease removal instructions |
-| `supabase/functions/vintography/index.ts` | `MODEL_MAP` | `decrease: "google/gemini-2.5-flash-image"` (fast flash model) |
-| `supabase/functions/vintography/index.ts` | `TIER_OPERATIONS` | Add `decrease` to all 4 tiers including Free |
-| `src/pages/Vintography.tsx` | `Operation` type | Add `"decrease"` |
-| `src/pages/Vintography.tsx` | `OPERATIONS` array | New operation card definition for Steam & Press |
-| `src/pages/Vintography.tsx` | `OP_MAP` | `decrease: "decrease"` |
-| `src/pages/Vintography.tsx` | State | `decreaseIntensity` state (light/standard/deep) |
-| `src/pages/Vintography.tsx` | `getParams()` | Pass `intensity` param for decrease |
-| `src/pages/Vintography.tsx` | `getOperation()` | Include decrease in operation resolution |
-| `src/pages/Vintography.tsx` | `isFlashOp()` | Classify decrease as flash op (10-18s timers) |
-| `src/pages/Vintography.tsx` | `getOperationLabel()` | "Steaming & pressing garment..." |
-| `src/pages/Vintography.tsx` | Operation card render | Full-width card below 2×2 grid |
-| `src/pages/Vintography.tsx` | Intensity selector UI | 3-option card strip inside `AnimatePresence` |
-| `src/components/vintography/ComparisonView.tsx` | Tips | Add `decrease` tip array |
+| File | Change |
+|---|---|
+| `src/pages/Vintography.tsx` | Major refactor: unified effect, `photoEditStates` map, `activePhotoUrl` as primary state, `handleSaveToItem` with mode param, filmstrip placement in right panel, `replaceListingPhoto` function |
+| `src/components/vintography/PhotoFilmstrip.tsx` | **New file** — replaces `BatchStrip` with per-photo awareness, edit status badges, `+` add button, Primary label, active ring |
+| `src/components/vintography/BatchStrip.tsx` | Removed (or kept only for non-item batch upload scenarios as a fallback) |
+| `src/components/vintography/ComparisonView.tsx` | Minor: remove hardcoded "Enhanced" badge label — should reflect the actual operation name (e.g., "Steamed", "Background Removed") |
 
 ---
 
-## What It Looks and Feels Like
+## What The New Flow Looks Like Step By Step
 
-1. User lands on Photo Studio with a creased garment photo
-2. They scroll down past the 4 operation cards and see the **full-width "Steam & Press" card** — visually distinct, with a wrinkle-to-smooth gradient and a "New ✦" badge
-3. They click it — it selects and expands to reveal a simple 3-card intensity picker (Light / Standard / Deep) with a one-line description of each
-4. They hit Generate — the flash model completes in ~12-18 seconds
-5. The comparison view loads — they drag the overlay slider and see the garment transform from creased to smooth
-6. They download or save to item
+**Scenario: Seller has 4 photos on a Nike jumper listing and wants to:**
+1. Steam & Press the front photo
+2. Clean background on the back photo
+3. Leave label and detail shots as-is
 
-Total user time from "noticing the tool" to "processed photo": under 45 seconds including upload.
+**Old flow:**
+→ Goes to Photo Studio from item
+→ Sees batch strip with 4 photos, "Process All 4 Photos" button
+→ Has to use the same operation for all
+→ Can't selectively process
+→ Processed photos get appended, not replaced
+
+**New flow:**
+→ Goes to Photo Studio from item (or from wand icon on specific photo)
+→ Filmstrip shows all 4 photos at top of preview panel. Photo 1 is highlighted (Active).
+→ Selects "Steam & Press" operation, hits Generate
+→ ComparisonView shows before/after for photo 1
+→ Clicks "Replace Original" — photo 1 in the filmstrip updates to show the steamed version
+→ Clicks photo 2 in the filmstrip — it becomes Active in the ComparisonView
+→ Selects "Clean Background" operation, hits Generate
+→ Clicks "Replace Original" — photo 2 updates
+→ Photos 3 and 4 remain untouched (no action needed)
+→ "Next Steps" card shows "Your item has 4 photos — 2 enhanced" with "View Item" button
+
+Total time to selectively process 2 of 4 photos: under 2 minutes. Previously: impossible without multiple trips back and forth.
 
 ---
 
-## Edge Cases and Guards
+## Edge Cases
 
-- **Completely smooth garment photo**: The model will correctly detect no significant creases and return an image near-identical to the input. No harm done, 1 credit used.
-- **Photo with intentional distressing (vintage denim)**: The "light" intensity option handles this — it's described as preserving "deliberate faded or distressed areas (important for denim/vintage)". The standard prompt also includes this.
-- **Non-garment photo**: The `GARMENT_PRESERVE` mandate ensures the model won't do anything destructive. It may just enhance without major change.
-- **Logos and prints**: `GARMENT_PRESERVE` is explicitly included in the prompt — this prevents the model from smoothing away logos or prints thinking they're "wrinkles".
+- **Standalone upload (no itemId)**: PhotoFilmstrip is hidden. Only ComparisonView + single photo workflow. No change from today.
+- **Single photo on item**: Filmstrip shows 1 photo + the `+` add button. Still useful as a clear "you're editing THIS photo" indicator.
+- **Photo uploaded fresh from Studio (not from item)**: Goes into the existing standalone flow. The `+` button in filmstrip only appears when `itemId` is present.
+- **Saving with "Replace" when photo has been chained** (e.g., background removed, then steamed): the `activePhotoUrl` tracks the URL being worked on. If the seller saves the background-removed version first, `activePhotoUrl` becomes the new URL. Applying Steam & Press then works on the clean-background version, and Replace updates the listing correctly.
+
