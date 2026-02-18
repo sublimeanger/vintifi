@@ -10,7 +10,7 @@ serve(async (req) => {
 
   try {
   const body = await req.json();
-    const { photoUrls, brand, category, size, condition, colour, material, currentTitle, currentDescription, vintedUrl, fetchOnly, detectColourOnly } = body;
+    const { photoUrls, brand, category, size, condition, colour, material, currentTitle, currentDescription, vintedUrl, fetchOnly, detectColourOnly, seller_notes } = body;
 
     // Auth
     const authHeader = req.headers.get("Authorization");
@@ -264,28 +264,91 @@ NEVER INVENT:
 - If colour is "NOT PROVIDED", leave it out of title and description entirely
 
 ═══════════════════════════════════════════
-TITLE FORMULA (max 100 chars)
+TITLE FORMULA (max 80 chars — Vinted's actual character limit)
 ═══════════════════════════════════════════
 Vinted's search algorithm weights the first 5 words most heavily. Follow this exact pattern:
 ${colour && colour.trim()
-  ? "[Brand] [Item Type] [Colour] [Size] [Condition Word]"
-  : "[Brand] [Item Type] [Size] [Condition Word]  ← IMPORTANT: NO COLOUR since it was not provided"
+  ? "[Brand] [Gender if applicable] [Item Type] [Colour] [Size] [Condition Signal]"
+  : "[Brand] [Gender if applicable] [Item Type] [Size] [Condition Signal]  ← NO COLOUR since it was not provided"
 }
 
-CRITICAL COLOUR RULE: If the Colour field above says "NOT PROVIDED", you MUST omit colour from the title entirely. Never substitute a guessed colour.
+CONDITION SIGNAL mapping (use these exact terms — they perform well in Vinted search):
+- new_with_tags → "BNWT" (Brand New With Tags — widely searched on Vinted)
+- new_without_tags → "Brand New"
+- very_good → "Excellent Condition"
+- good → "Good Condition"
+- satisfactory → "Good Used"
 
-Examples of perfect titles (with colour provided):
-- "Nike Air Max 90 White UK 9 Excellent"
-- "Levi's 501 Straight Jeans W32 L32 Like New"
-- "Zara Oversized Wool Coat Black M Brand New"
-- "Adidas Originals Hoodie Grey XL Great Condition"
+GENDER SIGNAL: Add "Mens" or "Womens" (no apostrophe — cleaner in titles) when:
+- Category is clearly gendered (e.g. Womenswear, Menswear, Men's shoes)
+- Brand is gender-neutral (Nike, Adidas, Carhartt, Stone Island) — always add gender
+- Skip for obviously gendered brands (ASOS Women's, Zara Women) to avoid redundancy
 
 Rules:
+- NEVER exceed 80 characters
 - Never use ALL CAPS
 - No special characters or emojis
+- No filler words: banned from titles: "stunning", "perfect", "beautiful", "amazing", "gorgeous"
 - Include brand name first ALWAYS
 - Include size in format buyers search for (UK 9, M, W32, etc.)
-- End with a condition keyword (Brand New / Excellent / Great Condition / Good / Well Worn)
+
+═══════════════════════════════════════════
+CONDITION & DEFECT DISCLOSURE
+═══════════════════════════════════════════
+${(() => {
+  const hasDefects = seller_notes && seller_notes.trim().length > 0;
+  const c = (condition || "").toLowerCase().replace(/[\s-]/g, "_");
+
+  const conditionGuidance = (() => {
+    if (c === "new_with_tags") return `CONDITION GRADE: New with tags
+Write: "Brand new, never worn, tags still attached." One sentence. No elaboration needed.
+${hasDefects ? "IMPORTANT: Seller has noted defects — mention these even for new items (manufacturing flaw, return item, etc.)" : ""}`;
+    if (c === "new_without_tags") return `CONDITION GRADE: New without tags
+Write: "Brand new condition, never worn — just doesn't have the tags."
+${hasDefects ? "IMPORTANT: Seller has noted defects — include them honestly." : ""}`;
+    if (c === "very_good") return `CONDITION GRADE: Very Good
+Write: Worn a small number of times (think: 1-5 wears). No notable flaws. Fabric in excellent shape.
+Typical language: "Really good condition — only worn a few times and always washed carefully."
+${hasDefects ? "IMPORTANT: Seller has noted defects below — these MUST be disclosed honestly. Do not contradict them by writing 'no flaws'." : "Do NOT say 'no marks, no bobbling' as a generic filler — only say this if it's genuinely applicable."}`;
+    if (c === "good") return `CONDITION GRADE: Good
+Write: Clearly used but well looked after. May have minor signs of wear — slight fading, light pilling, small marks — but nothing structural.
+Typical language: "Good condition — definitely been worn but looks after itself well. [specific minor issue if noted]"
+${hasDefects ? "IMPORTANT: Defects MUST be disclosed. This is a 'Good' item — buyers expect minor issues and will appreciate honesty." : "If no specific defects noted, say something like 'shows gentle signs of wear consistent with age.'"}`;
+    if (c === "satisfactory") return `CONDITION GRADE: Satisfactory
+IMPORTANT: This is the lowest Vinted condition grade. Buyers choosing this grade KNOW the item has visible wear.
+Write condition with full transparency. The description must be upfront — this protects the seller.
+Typical language: "Satisfactory condition — shows clear signs of use. [specific issues]. Still has plenty of life in it, priced accordingly."
+${hasDefects ? "CRITICAL: All disclosed defects MUST appear explicitly. Do NOT try to minimise or soften them." : "Even without specific defects noted, acknowledge the item shows wear commensurate with its condition grade."}`;
+    return `CONDITION GRADE: ${condition || "Not specified"}
+Be honest about condition. If defects are noted below, include them.`;
+  })();
+
+  const defectSection = hasDefects
+    ? `
+SELLER DISCLOSURE (MANDATORY — MUST APPEAR IN DESCRIPTION):
+The seller has reported the following about this item:
+"${seller_notes.trim()}"
+
+DEFECT RULES:
+- Every item mentioned in the seller disclosure MUST appear in the description
+- Do NOT soften, hide, omit, or euphemise any disclosed defect
+- Write disclosures honestly and casually — like a genuine seller would
+- Disclosures go in the Condition paragraph — naturally integrated, not as a list
+- Example: "There's a small bobble on the back and the collar's faded slightly on one side — nothing you'd notice when wearing it, but want to be upfront."
+- NEVER write "No marks" or "No flaws" or "Pristine" when defects have been disclosed`
+    : `No defects reported by seller. Write the condition section positively but honestly.`;
+
+  return `${conditionGuidance}
+
+${defectSection}
+
+Condition paragraph writing rules:
+- Write 2-3 sentences for the condition section
+- If seller notes are provided, integrate them naturally (not as a list)
+- NEVER write "No marks, no flaws, pristine" when condition is Good or Satisfactory
+- If condition is New (either type), the condition sentence can be very short
+- If condition is Satisfactory, the description MUST acknowledge visible wear`;
+})()}
 
 ═══════════════════════════════════════════
 DESCRIPTION — CONVERSATIONAL STYLE (120-200 words)
@@ -301,9 +364,13 @@ ${colour && colour.trim()
 
 Feel & fit (1-2 sentences): Describe what it's actually like to wear. How does the fabric feel? How does it fit? Example: "The cotton blend makes it properly warm without being too heavy — perfect for layering or wearing on its own. Fits true to size with a relaxed but not baggy cut."
 
-Condition (1-2 sentences): Be honest and specific. Buyers trust honesty. Example: "In very good condition — worn a handful of times and well looked after. No marks, no bobbling, just a solid everyday piece."
+Condition (2-3 sentences): Be honest and specific. Buyers trust honesty. If a size is provided and the category is Jeans, Trousers, or Shoes, include the size naturally in this section.
 
-Closing (1 sentence): Friendly sign-off. Example: "Happy to answer any questions about fit or bundle with other items for a discount."
+${seller_notes && seller_notes.trim()
+  ? `DEFECT INTEGRATION: The disclosed defects ("${seller_notes.trim()}") MUST appear in the condition section, written naturally. Never put them in a list.`
+  : ``}
+
+Closing (1 sentence): Friendly sign-off. If the listed price is £15 or under, add: "Great for bundling — message me and I'll sort you a deal." If over £15, just say you're happy to answer questions.
 
 Shipping (1 line): "Shipped within 1-2 days."
 
@@ -332,7 +399,7 @@ OUTPUT FORMAT
 ═══════════════════════════════════════════
 Return a JSON object (no markdown, just raw JSON) with this exact structure:
 {
-  "optimised_title": "<title following the formula above>",
+  "optimised_title": "<title following the formula above — max 80 chars>",
   "optimised_description": "<PLAIN TEXT description in the conversational style above with \\n\\n for paragraph breaks. 3-5 hashtags at the end.>",
   "hashtags": ["#compound1", "#compound2", "#compound3"],
   "suggested_tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
@@ -341,7 +408,8 @@ Return a JSON object (no markdown, just raw JSON) with this exact structure:
   "detected_condition": "<assessed condition>",
   "detected_colour": "<detected primary colour>",
   "detected_material": "<detected primary material>",
-    "health_score": {
+  "seller_notes_disclosed": ${seller_notes && seller_notes.trim() ? "true or false — set true if seller notes were integrated into the description, false if not" : "null"},
+  "health_score": {
     "overall": <0-100>,
     "title_score": <0-25>,
     "description_score": <0-25>,

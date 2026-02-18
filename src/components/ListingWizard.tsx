@@ -139,6 +139,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
     condition: item.condition || "",
     current_price: item.current_price != null ? String(item.current_price) : "",
   });
+  const [sellerNotes, setSellerNotes] = useState(() => (item as any)?.source_meta?.seller_notes || "");
 
   // Step 2 price state
   const [priceResult, setPriceResult] = useState<{
@@ -199,6 +200,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
       setPhotoDone(false);
       setVintedUrlInput("");
       lastPhotoEditRef.current = item.last_photo_edit_at;
+      setSellerNotes((item as any)?.source_meta?.seller_notes || "");
     }
   }, [isOpen]);
 
@@ -323,6 +325,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
     setOptimiseLoading(true);
     setStepStatus((s) => ({ ...s, 3: "loading" }));
     try {
+      const storedNotes = sellerNotes || (localItem as any)?.source_meta?.seller_notes || "";
       const { data, error } = await supabase.functions.invoke("optimize-listing", {
         body: {
           itemId: localItem.id,
@@ -334,6 +337,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
           condition: localItem.condition || fieldValues.condition,
           colour: localItem.colour,
           material: localItem.material,
+          seller_notes: storedNotes,
         },
       });
       if (error) throw error;
@@ -507,51 +511,23 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
               }
             </div>
           </div>
-        </div>
 
-        {/* Editable field checklist */}
-        <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
-          {[
-            { key: "title", label: "Title", multiline: false },
-            { key: "brand", label: "Brand", multiline: false },
-            { key: "category", label: "Category", multiline: false },
-            { key: "condition", label: "Condition", multiline: false },
-            { key: "current_price", label: "Price (£)", multiline: false },
-          ].map(({ key, label, multiline }) => (
-            <FieldRow
-              key={key}
-              label={label}
-              value={fieldValues[key as keyof typeof fieldValues]}
-              editing={editingField === key}
-              onEdit={() => {
-                setLocalValues(fieldValues);
-                setEditingField(key);
-              }}
-              inputNode={
-                <div className="flex items-center gap-2 mt-1">
-                  <Input
-                    autoFocus
-                    value={localValues[key as keyof typeof localValues]}
-                    onChange={(e) => setLocalValues((v) => ({ ...v, [key]: e.target.value }))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSave(key);
-                      if (e.key === "Escape") setEditingField(null);
-                    }}
-                    className="h-8 text-xs flex-1"
-                    placeholder={`Enter ${label.toLowerCase()}…`}
-                  />
-                  <Button
-                    size="sm"
-                    className="h-8 text-xs px-3"
-                    onClick={() => handleSave(key)}
-                    disabled={saving === key}
-                  >
-                    {saving === key ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
-                  </Button>
-                </div>
-              }
-            />
-          ))}
+        {/* Seller notes / defect disclosure */}
+        <div className="space-y-1.5 pt-1">
+          <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+            Anything the buyer should know?
+            <span className="text-[10px] font-normal text-muted-foreground ml-1">(optional)</span>
+          </label>
+          <Textarea
+            value={sellerNotes}
+            onChange={(e) => setSellerNotes(e.target.value)}
+            placeholder="e.g. Small bobble on the back, faded slightly on the left shoulder, tiny mark on the inside collar. Leave blank if none."
+            rows={2}
+            className="text-xs resize-none"
+          />
+          <p className="text-[10px] text-muted-foreground">
+            Honest disclosures build trust. The AI will weave these naturally into the description.
+          </p>
         </div>
       </div>
     );
