@@ -72,12 +72,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let creditsChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const subscribeToCredits = (userId: string) => {
+      // Clean up any previous subscription
+      if (creditsChannel) supabase.removeChannel(creditsChannel);
+
+      creditsChannel = supabase
+        .channel(`credits-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "usage_credits",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const newRow = payload.new as UsageCredits;
+            setCredits({
+              price_checks_used: newRow.price_checks_used,
+              optimizations_used: newRow.optimizations_used,
+              vintography_used: newRow.vintography_used,
+              credits_limit: newRow.credits_limit,
+            });
+          }
+        )
+        .subscribe();
+    };
+
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
         fetchProfile(s.user.id);
         fetchCredits(s.user.id);
+        subscribeToCredits(s.user.id);
       }
       setLoading(false);
     });
@@ -88,14 +118,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (s?.user) {
         fetchProfile(s.user.id);
         fetchCredits(s.user.id);
+        subscribeToCredits(s.user.id);
       } else {
         setProfile(null);
         setCredits(null);
+        if (creditsChannel) {
+          supabase.removeChannel(creditsChannel);
+          creditsChannel = null;
+        }
       }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (creditsChannel) supabase.removeChannel(creditsChannel);
+    };
   }, []);
 
   const signOut = async () => {

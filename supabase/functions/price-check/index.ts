@@ -505,20 +505,16 @@ Return raw JSON only (no markdown):
       }),
     });
 
-    // Increment usage
-    await fetch(
-      `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}`,
-      {
-        method: "PATCH",
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({ price_checks_used: (creditsData[0]?.price_checks_used || 0) + 1 }),
+    // Atomic increment — prevents race condition double-spend
+    await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({ p_user_id: userId, p_column: "price_checks_used", p_amount: 1 }),
+    });
 
     return new Response(JSON.stringify(report), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

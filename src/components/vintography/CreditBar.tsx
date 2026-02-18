@@ -29,7 +29,7 @@ export function CreditBar({ used, limit, unlimited }: Props) {
         className={`h-2 flex-1 ${isEmpty ? "[&>div]:bg-destructive" : isLow ? "[&>div]:bg-accent" : ""}`}
       />
       <span className={`text-xs lg:text-sm font-semibold tabular-nums shrink-0 ${isEmpty ? "text-destructive" : isLow ? "text-accent" : "text-muted-foreground"}`}>
-        {used}/{limit} edits
+        {used}/{limit} credits
       </span>
     </div>
   );

@@ -1035,6 +1035,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_usage_credit: {
+        Args: { p_amount?: number; p_column: string; p_user_id: string }
+        Returns: undefined
+      }
       reset_monthly_usage_credits: { Args: never; Returns: undefined }
     }
     Enums: {

@@ -185,7 +185,9 @@ export default function Vintography() {
   const [linkedItemTitle, setLinkedItemTitle] = useState<string>("");
   const [garmentContext, setGarmentContext] = useState("");
 
-  const vintographyUsed = (credits as any)?.vintography_used ?? 0;
+  const totalUsed = credits
+    ? (credits.price_checks_used + credits.optimizations_used + credits.vintography_used)
+    : 0;
   const creditsLimit = credits?.credits_limit ?? 5;
   const isUnlimited = (profile as any)?.subscription_tier === "scale" || creditsLimit >= 999;
 
@@ -635,7 +637,7 @@ export default function Vintography() {
 
       <FeatureGate feature="vintography">
         <div className="space-y-3 sm:space-y-4 lg:space-y-5">
-          <CreditBar used={vintographyUsed} limit={creditsLimit} unlimited={isUnlimited} />
+          <CreditBar used={totalUsed} limit={creditsLimit} unlimited={isUnlimited} />
 
           {/* Guidance banner */}
           {!localStorage.getItem("vintography_guidance_dismissed") && (
