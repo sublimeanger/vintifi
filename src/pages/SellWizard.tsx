@@ -15,7 +15,7 @@ import { VintedReadyPack } from "@/components/VintedReadyPack";
 import {
   Check, ChevronLeft, Loader2, Copy, Search, Sparkles, ImageIcon,
   Camera, Rocket, PoundSterling, Link2, Pencil, Upload, Plus, X,
-  ArrowRight, Package, AlertCircle, ExternalLink,
+  ArrowRight, Package, AlertCircle, ExternalLink, RotateCcw,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -52,13 +52,13 @@ type Listing = {
 type StepStatus = "pending" | "loading" | "done" | "skipped";
 type EntryMethod = "url" | "photo" | "manual";
 
+// ─── 5 clean steps (ghost "Details" step removed) ───
 const STEPS = [
   { id: 1, label: "Add Item",  shortLabel: "Add",      icon: Plus },
-  { id: 2, label: "Details",   shortLabel: "Details",   icon: Package },
-  { id: 3, label: "Price",     shortLabel: "Price",     icon: Search },
-  { id: 4, label: "Optimise",  shortLabel: "Optimise",  icon: Sparkles },
-  { id: 5, label: "Photos",    shortLabel: "Photos",    icon: Camera },
-  { id: 6, label: "Pack ✓",    shortLabel: "Pack",      icon: Rocket },
+  { id: 2, label: "Price",     shortLabel: "Price",     icon: Search },
+  { id: 3, label: "Optimise",  shortLabel: "Optimise",  icon: Sparkles },
+  { id: 4, label: "Photos",    shortLabel: "Photos",    icon: Camera },
+  { id: 5, label: "Pack ✓",    shortLabel: "Pack",      icon: Rocket },
 ] as const;
 
 const conditions = [
@@ -100,41 +100,49 @@ function CopyBtn({ text, label }: { text: string; label?: string }) {
   );
 }
 
-// ─── Progress bar ───
+// ─── Progress bar (5 steps) ───
 function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepStatus: Record<number, StepStatus> }) {
+  const currentStepData = STEPS.find((s) => s.id === currentStep);
   return (
-    <div className="flex items-center justify-between gap-0.5 sm:gap-1 px-1 py-3 border-b border-border bg-background/80 backdrop-blur-sm">
-      {STEPS.map((step, i) => {
-        const status = stepStatus[step.id];
-        const isCurrent = currentStep === step.id;
-        const isDone = status === "done" || step.id < currentStep;
-        const isSkipped = status === "skipped";
-        return (
-          <div key={step.id} className="flex items-center flex-1 gap-0.5">
-            <div className="flex flex-col items-center gap-0.5 min-w-0">
-              <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold transition-all shrink-0 ${
-                isDone
-                  ? "bg-success text-success-foreground"
-                  : isSkipped
-                  ? "bg-warning/20 text-warning border border-warning/40"
-                  : isCurrent
-                  ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
-                  : "bg-muted text-muted-foreground"
-              }`}>
-                {isDone ? <Check className="w-3 h-3" /> : step.id}
+    <div className="border-b border-border bg-background/80 backdrop-blur-sm">
+      <div className="flex items-center justify-between gap-0.5 sm:gap-1 px-3 pt-2.5 pb-1">
+        {STEPS.map((step, i) => {
+          const status = stepStatus[step.id];
+          const isCurrent = currentStep === step.id;
+          const isDone = status === "done" || step.id < currentStep;
+          const isSkipped = status === "skipped";
+          return (
+            <div key={step.id} className="flex items-center flex-1 gap-0.5">
+              <div className="flex flex-col items-center gap-0.5 min-w-0">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shrink-0 ${
+                  isDone
+                    ? "bg-success text-success-foreground"
+                    : isSkipped
+                    ? "bg-warning/20 text-warning border border-warning/40"
+                    : isCurrent
+                    ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {isDone ? <Check className="w-3.5 h-3.5" /> : step.id}
+                </div>
+                <span className={`text-[8px] sm:text-[9px] font-medium hidden sm:block truncate max-w-[44px] text-center ${
+                  isCurrent ? "text-primary" : isDone ? "text-success" : "text-muted-foreground"
+                }`}>
+                  {step.shortLabel}
+                </span>
               </div>
-              <span className={`text-[8px] sm:text-[9px] font-medium hidden sm:block truncate max-w-[44px] text-center ${
-                isCurrent ? "text-primary" : isDone ? "text-success" : "text-muted-foreground"
-              }`}>
-                {step.shortLabel}
-              </span>
+              {i < STEPS.length - 1 && (
+                <div className={`flex-1 h-px mb-3 sm:mb-4 transition-all mx-0.5 ${isDone ? "bg-success/60" : "bg-border"}`} />
+              )}
             </div>
-            {i < STEPS.length - 1 && (
-              <div className={`flex-1 h-px mb-3 sm:mb-4 transition-all mx-0.5 ${isDone ? "bg-success/60" : "bg-border"}`} />
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      {/* Always-visible step label for mobile */}
+      <p className="text-center text-[10px] text-muted-foreground pb-2 sm:hidden">
+        Step {currentStep} of {STEPS.length}
+        {currentStepData ? ` — ${currentStepData.label.replace(" ✓", "")}` : ""}
+      </p>
     </div>
   );
 }
@@ -149,8 +157,9 @@ export default function SellWizard() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [direction, setDirection] = useState(1);
+  // 5 steps now
   const [stepStatus, setStepStatus] = useState<Record<number, StepStatus>>({
-    1: "pending", 2: "pending", 3: "pending", 4: "pending", 5: "pending", 6: "pending",
+    1: "pending", 2: "pending", 3: "pending", 4: "pending", 5: "pending",
   });
 
   // Step 1 — Add Item
@@ -162,7 +171,7 @@ export default function SellWizard() {
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  // Item form data (step 1 + step 2 details)
+  // Item form data
   const [form, setForm] = useState({
     title: "", brand: "", category: "", size: "", condition: "",
     colour: "", material: "", description: "", currentPrice: "", purchasePrice: "",
@@ -171,7 +180,7 @@ export default function SellWizard() {
   // Created item — set after step 1 saves to DB
   const [createdItem, setCreatedItem] = useState<Listing | null>(null);
 
-  // Step 3 — Price
+  // Step 2 — Price (was step 3)
   const [priceResult, setPriceResult] = useState<{
     recommended_price: number | null;
     price_range_low: number | null;
@@ -184,7 +193,7 @@ export default function SellWizard() {
   const [customPriceInput, setCustomPriceInput] = useState("");
   const [acceptingCustom, setAcceptingCustom] = useState(false);
 
-  // Step 4 — Optimise
+  // Step 3 — Optimise (was step 4)
   const [optimiseResult, setOptimiseResult] = useState<{
     optimised_title: string;
     optimised_description: string;
@@ -193,33 +202,60 @@ export default function SellWizard() {
   const [optimiseLoading, setOptimiseLoading] = useState(false);
   const [optimiseSaved, setOptimiseSaved] = useState(false);
 
-  // Step 5 — Photos
+  // Step 4 — Photos (was step 5)
   const [photoPolling, setPhotoPolling] = useState(false);
   const [photoDone, setPhotoDone] = useState(false);
   const photoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPhotoEditRef = useRef<string | null>(null);
 
-  // Step 6 — Pack
+  // Step 5 — Pack (was step 6)
   const [vintedUrlInput, setVintedUrlInput] = useState("");
   const [markingListed, setMarkingListed] = useState(false);
+
+  // ─── Reset wizard for "Sell another item" ───
+  const resetWizard = () => {
+    setCurrentStep(1);
+    setDirection(-1);
+    setStepStatus({ 1: "pending", 2: "pending", 3: "pending", 4: "pending", 5: "pending" });
+    setEntryMethod(null);
+    setVintedUrl("");
+    setScraping(false);
+    setPhotoFiles([]);
+    setPhotoUrls([]);
+    setUploading(false);
+    setCreating(false);
+    setForm({ title: "", brand: "", category: "", size: "", condition: "", colour: "", material: "", description: "", currentPrice: "", purchasePrice: "" });
+    setCreatedItem(null);
+    setPriceResult(null);
+    setPriceLoading(false);
+    setPriceAccepted(false);
+    setCustomPriceInput("");
+    setAcceptingCustom(false);
+    setOptimiseResult(null);
+    setOptimiseLoading(false);
+    setOptimiseSaved(false);
+    if (photoIntervalRef.current) clearInterval(photoIntervalRef.current);
+    setPhotoPolling(false);
+    setPhotoDone(false);
+    lastPhotoEditRef.current = null;
+    setVintedUrlInput("");
+    setMarkingListed(false);
+  };
 
   // ─── Navigation ───
   const canAdvance = (): boolean => {
     if (currentStep === 1) return !!entryMethod;
-    if (currentStep === 2) return !!(form.title && form.condition);
-    if (currentStep === 3) return priceAccepted;
-    if (currentStep === 4) return optimiseSaved;
-    if (currentStep === 5) return photoDone || stepStatus[5] === "skipped";
+    if (currentStep === 2) return priceAccepted;
+    if (currentStep === 3) return optimiseSaved;
+    if (currentStep === 4) return photoDone || stepStatus[4] === "skipped";
     return true;
   };
 
   const advanceBlockedReason = (): string => {
     if (currentStep === 1 && !entryMethod) return "Choose how to add your item";
-    if (currentStep === 2 && !form.title) return "Add a title to continue";
-    if (currentStep === 2 && !form.condition) return "Set the condition to continue";
-    if (currentStep === 3 && !priceAccepted) return "Accept a price to continue";
-    if (currentStep === 4 && !optimiseSaved) return "Save optimised listing to continue";
-    if (currentStep === 5 && !photoDone && stepStatus[5] !== "skipped") return "Enhance or skip photos";
+    if (currentStep === 2 && !priceAccepted) return "Accept a price to continue";
+    if (currentStep === 3 && !optimiseSaved) return "Save optimised listing to continue";
+    if (currentStep === 4 && !photoDone && stepStatus[4] !== "skipped") return "Enhance or skip photos";
     return "";
   };
 
@@ -227,24 +263,25 @@ export default function SellWizard() {
     if (!canAdvance()) return;
     setStepStatus((s) => ({ ...s, [currentStep]: "done" }));
     setDirection(1);
-    setCurrentStep((s) => Math.min(6, s + 1));
+    setCurrentStep((s) => Math.min(5, s + 1));
   }, [currentStep, canAdvance]);
 
   const goBack = () => {
     setDirection(-1);
+    // On step 2 (price), back goes to step 1
     setCurrentStep((s) => Math.max(1, s - 1));
   };
 
-  // ─── Auto-fire price check on entering step 3 ───
+  // ─── Auto-fire price check on entering step 2 ───
   useEffect(() => {
-    if (currentStep === 3 && !priceResult && !priceLoading && createdItem) {
+    if (currentStep === 2 && !priceResult && !priceLoading && createdItem) {
       runPriceCheck();
     }
   }, [currentStep]);
 
-  // ─── Auto-fire optimise on entering step 4 ───
+  // ─── Auto-fire optimise on entering step 3 ───
   useEffect(() => {
-    if (currentStep === 4 && !optimiseResult && !optimiseLoading && createdItem) {
+    if (currentStep === 3 && !optimiseResult && !optimiseLoading && createdItem) {
       runOptimise();
     }
   }, [currentStep]);
@@ -320,7 +357,7 @@ export default function SellWizard() {
     }
   };
 
-  // ─── Create item in DB (end of step 1 / start of step 2) ───
+  // ─── Create item in DB (end of step 1) ───
   const createItem = async () => {
     if (!user) return;
     setCreating(true);
@@ -355,10 +392,10 @@ export default function SellWizard() {
       setCreatedItem(inserted as unknown as Listing);
       lastPhotoEditRef.current = (inserted as any).last_photo_edit_at;
       toast.success("Item created — let's set the price!");
-      // Advance to step 3 (price) directly
-      setStepStatus((s) => ({ ...s, 1: "done", 2: "done" }));
+      // Advance to step 2 (price) directly
+      setStepStatus((s) => ({ ...s, 1: "done" }));
       setDirection(1);
-      setCurrentStep(3);
+      setCurrentStep(2);
     } catch (err: any) {
       toast.error(err.message || "Failed to create item");
     } finally {
@@ -366,7 +403,7 @@ export default function SellWizard() {
     }
   };
 
-  // ─── Step 3: Price check ───
+  // ─── Step 2: Price check ───
   const runPriceCheck = async () => {
     if (!createdItem) return;
     setPriceLoading(true);
@@ -411,7 +448,7 @@ export default function SellWizard() {
     toast.success(`Price set to £${price.toFixed(2)}`);
   };
 
-  // ─── Step 4: Optimise ───
+  // ─── Step 3: Optimise ───
   const runOptimise = async () => {
     if (!createdItem) return;
     setOptimiseLoading(true);
@@ -462,7 +499,7 @@ export default function SellWizard() {
     toast.success("Optimised listing saved!");
   };
 
-  // ─── Step 5: Photo polling ───
+  // ─── Step 4: Photo polling ───
   const startPhotoPolling = useCallback(() => {
     if (!createdItem) return;
     setPhotoPolling(true);
@@ -473,7 +510,7 @@ export default function SellWizard() {
         clearInterval(photoIntervalRef.current!);
         setPhotoPolling(false);
         setPhotoDone(true);
-        setStepStatus((s) => ({ ...s, 5: "done" }));
+        setStepStatus((s) => ({ ...s, 4: "done" }));
         setCreatedItem((prev) => prev ? { ...prev, last_photo_edit_at: data.last_photo_edit_at } : prev);
         toast.success("Photo enhancement detected!");
         setTimeout(() => goNext(), 800);
@@ -484,12 +521,12 @@ export default function SellWizard() {
   const skipPhotos = () => {
     if (photoIntervalRef.current) clearInterval(photoIntervalRef.current);
     setPhotoPolling(false);
-    setStepStatus((s) => ({ ...s, 5: "skipped" }));
+    setStepStatus((s) => ({ ...s, 4: "skipped" }));
     setDirection(1);
-    setCurrentStep(6);
+    setCurrentStep(5);
   };
 
-  // ─── Step 6: Mark as listed ───
+  // ─── Step 5: Mark as listed ───
   const markAsListed = async () => {
     if (!vintedUrlInput.trim() || !createdItem) return;
     setMarkingListed(true);
@@ -506,13 +543,12 @@ export default function SellWizard() {
     exit: (dir: number) => ({ x: dir > 0 ? -60 : 60, opacity: 0 }),
   };
 
-  // ════════════════════════════════════
+  // ═══════════════════════════════════
   // STEP CONTENT
-  // ════════════════════════════════════
+  // ═══════════════════════════════════
 
   /* ═══ STEP 1: ADD ITEM ═══ */
   const renderStep1 = () => {
-    // Sub-step: method not chosen yet
     if (!entryMethod) {
       return (
         <div className="space-y-3">
@@ -544,7 +580,6 @@ export default function SellWizard() {
       );
     }
 
-    // Sub-step: URL entry
     if (entryMethod === "url") {
       return (
         <div className="space-y-4">
@@ -567,19 +602,15 @@ export default function SellWizard() {
             disabled={!vintedUrl.trim() || scraping}
             onClick={async () => {
               if (vintedUrl.includes("vinted")) await scrapeVintedUrl(vintedUrl.trim());
-              // After scrape, render the manual form for review
             }}
           >
             {scraping ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Importing…</> : "Import & Review Details"}
           </Button>
-
-          {/* If we have scraped title, show the details form */}
           {form.title && renderDetailsForm()}
         </div>
       );
     }
 
-    // Sub-step: Photo upload
     if (entryMethod === "photo") {
       return (
         <div className="space-y-4">
@@ -625,7 +656,7 @@ export default function SellWizard() {
       );
     }
 
-    // Manual entry — jump straight to details form
+    // Manual entry
     return (
       <div className="space-y-4">
         <button onClick={() => setEntryMethod(null)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
@@ -691,8 +722,8 @@ export default function SellWizard() {
     </div>
   );
 
-  /* ═══ STEP 3: PRICE CHECK ═══ */
-  const renderStep3 = () => (
+  /* ═══ STEP 2: PRICE CHECK ═══ */
+  const renderStep2 = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
@@ -763,7 +794,6 @@ export default function SellWizard() {
 
           {!priceAccepted ? (
             <div className="space-y-3">
-              {/* Option A: AI recommended */}
               <Button
                 className="w-full h-11 font-semibold bg-success hover:bg-success/90 text-success-foreground active:scale-[0.98]"
                 onClick={() => acceptPrice()}
@@ -773,14 +803,12 @@ export default function SellWizard() {
                 Use £{priceResult.recommended_price?.toFixed(2)} — AI suggested
               </Button>
 
-              {/* Divider */}
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-px bg-border" />
                 <span className="text-[10px] text-muted-foreground font-medium">or set your own price</span>
                 <div className="flex-1 h-px bg-border" />
               </div>
 
-              {/* Option B: Custom price */}
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -820,11 +848,24 @@ export default function SellWizard() {
           )}
         </div>
       )}
+
+      {/* Edit details escape hatch */}
+      {createdItem && (
+        <p className="text-center text-[10px] text-muted-foreground pt-1">
+          Need to fix a typo?{" "}
+          <button
+            className="underline hover:text-foreground transition-colors"
+            onClick={() => window.open(`/items/${createdItem.id}`, "_blank")}
+          >
+            Edit item details
+          </button>
+        </p>
+      )}
     </div>
   );
 
-  /* ═══ STEP 4: OPTIMISE ═══ */
-  const renderStep4 = () => (
+  /* ═══ STEP 3: OPTIMISE ═══ */
+  const renderStep3 = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
@@ -886,21 +927,21 @@ export default function SellWizard() {
     </div>
   );
 
-  /* ═══ STEP 5: PHOTOS ═══ */
-  const renderStep5 = () => (
+  /* ═══ STEP 4: PHOTOS ═══ */
+  const renderStep4 = () => (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">Enhance your photos with AI for better click-through rates.</p>
 
+      {/* Full-width portrait image preview — motivates photo enhancement */}
       {createdItem?.image_url ? (
-        <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/20">
-          <img src={createdItem.image_url} alt="" className="w-14 h-14 rounded-lg object-cover border border-border shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold truncate">{createdItem.title}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Open Photo Studio to remove backgrounds, add scenes & enhance lighting.</p>
+        <div className="relative w-full max-w-[220px] mx-auto aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border shadow-sm">
+          <img src={createdItem.image_url} alt="" className="w-full h-full object-cover" />
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+            <p className="text-white text-[10px] font-medium truncate">{createdItem.title}</p>
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+        <div className="rounded-xl border border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
           No photo uploaded — Photo Studio works best with an item photo.
         </div>
       )}
@@ -911,13 +952,13 @@ export default function SellWizard() {
             className="w-full h-11 font-semibold"
             onClick={() => {
               if (createdItem) {
-                window.open(`/vintography?itemId=${createdItem.id}&image_url=${encodeURIComponent(createdItem.image_url || "")}`, "_blank");
+                // Navigate in-app to keep mobile context; polling detects the save
+                navigate(`/vintography?itemId=${createdItem.id}&image_url=${encodeURIComponent(createdItem.image_url || "")}&returnTo=/sell`);
                 startPhotoPolling();
               }
             }}
           >
             <ImageIcon className="w-4 h-4 mr-2" /> Open Photo Studio
-            <ExternalLink className="w-3 h-3 ml-1.5 opacity-60" />
           </Button>
           <Button variant="ghost" size="sm" className="w-full text-muted-foreground text-xs" onClick={skipPhotos}>
             Skip for now
@@ -952,85 +993,162 @@ export default function SellWizard() {
     </div>
   );
 
-  /* ═══ STEP 6: PACK READY ═══ */
-  const renderStep6 = () => (
-    <div className="space-y-4">
-      <div className="text-center py-2">
-        <div className="text-3xl mb-2">🎉</div>
-        <h3 className="font-display font-bold text-lg">You're ready to list!</h3>
-        <p className="text-xs text-muted-foreground mt-1">Your Vinted-Ready Pack is complete. Copy the details below and list it now.</p>
-      </div>
+  /* ═══ STEP 5: PACK READY ═══ */
+  const renderStep5 = () => {
+    const healthScore = createdItem?.health_score;
+    const showFallback = !createdItem?.last_optimised_at || (healthScore != null && healthScore < 60);
 
-      {createdItem && (
-        <VintedReadyPack
-          item={createdItem as any}
-          onOptimise={() => setCurrentStep(4)}
-          onPhotoStudio={() => setCurrentStep(5)}
-        />
-      )}
+    return (
+      <div className="space-y-4">
+        {/* Animated celebration header */}
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
+          className="text-center py-2"
+        >
+          <div className="text-3xl mb-2">🎉</div>
+          <h3 className="font-display font-bold text-lg">You're ready to list!</h3>
+          <p className="text-xs text-muted-foreground mt-1">Your Vinted-Ready Pack is complete. Copy the details below and list it now.</p>
+        </motion.div>
 
-      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-        <p className="text-xs font-semibold">Listed on Vinted? Paste the URL to track it:</p>
-        <div className="flex gap-2">
-          <Input
-            value={vintedUrlInput}
-            onChange={(e) => setVintedUrlInput(e.target.value)}
-            placeholder="https://www.vinted.co.uk/items/..."
-            className="flex-1 text-sm"
-          />
-          <Button
-            size="sm"
-            className="shrink-0 font-semibold"
-            onClick={markAsListed}
-            disabled={!vintedUrlInput.trim() || markingListed}
+        {createdItem && !showFallback && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.3 }}
           >
-            {markingListed ? <Loader2 className="w-4 h-4 animate-spin" /> : "Mark Listed"}
+            <VintedReadyPack
+              item={createdItem as any}
+              onOptimise={() => setCurrentStep(3)}
+              onPhotoStudio={() => setCurrentStep(4)}
+            />
+          </motion.div>
+        )}
+
+        {/* Fallback when health score is too low or not optimised */}
+        {showFallback && createdItem && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.3 }}
+            className="space-y-3"
+          >
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-warning">Listing score below 60</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Go back to Optimise for a better score, or copy these details manually.</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Title</p>
+                <CopyBtn text={createdItem.optimised_title || createdItem.title} label="Title" />
+              </div>
+              <p className="text-sm font-semibold leading-snug">{createdItem.optimised_title || createdItem.title}</p>
+            </div>
+            {(createdItem.optimised_description || createdItem.description) && (
+              <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Description</p>
+                  <CopyBtn text={createdItem.optimised_description || createdItem.description || ""} label="Description" />
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-6">{createdItem.optimised_description || createdItem.description}</p>
+              </div>
+            )}
+            <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setCurrentStep(3)}>
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Re-run Optimise for a better score
+            </Button>
+          </motion.div>
+        )}
+
+        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+          <p className="text-xs font-semibold">Listed on Vinted? Paste the URL to track it:</p>
+          <div className="flex gap-2">
+            <Input
+              value={vintedUrlInput}
+              onChange={(e) => setVintedUrlInput(e.target.value)}
+              placeholder="https://www.vinted.co.uk/items/..."
+              className="flex-1 text-sm"
+            />
+            <Button
+              size="sm"
+              className="shrink-0 font-semibold"
+              onClick={markAsListed}
+              disabled={!vintedUrlInput.trim() || markingListed}
+            >
+              {markingListed ? <Loader2 className="w-4 h-4 animate-spin" /> : "Mark Listed"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1 h-11 font-semibold"
+            onClick={() => {
+              if (!createdItem) return;
+              toast.success("🎉 Listing complete — here's your item!");
+              navigate(`/items/${createdItem.id}`);
+            }}
+          >
+            View Item
+          </Button>
+          <Button
+            className="flex-1 h-11 font-semibold"
+            onClick={() => window.open("https://www.vinted.co.uk/items/new", "_blank")}
+          >
+            List on Vinted <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
           </Button>
         </div>
-      </div>
 
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          className="flex-1 h-11 font-semibold"
-          onClick={() => {
-            if (!createdItem) return;
-            toast.success("🎉 Listing complete — here's your item!");
-            navigate(`/items/${createdItem.id}`);
-          }}
-        >
-          View Item
-        </Button>
-        <Button
-          className="flex-1 h-11 font-semibold"
-          onClick={() => window.open("https://www.vinted.co.uk/items/new", "_blank")}
-        >
-          List on Vinted <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
-        </Button>
+        {/* "Sell another item" reset link */}
+        <div className="text-center pt-1">
+          <button
+            onClick={resetWizard}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <RotateCcw className="w-3 h-3" /> Start a new listing
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderStepContent = () => {
     switch (currentStep) {
       case 1: return renderStep1();
-      case 2: return null; // step 2 is skipped — details in step 1
+      case 2: return renderStep2();
       case 3: return renderStep3();
       case 4: return renderStep4();
       case 5: return renderStep5();
-      case 6: return renderStep6();
       default: return null;
     }
   };
 
-  // ─── Whether to show the sticky footer nav ───
-  const showFooterNav = currentStep !== 1 && currentStep !== 6;
-  const isStep1WithItem = currentStep === 1;
+  // Step title and subtitle for the header
+  const stepMeta: Record<number, { title: string; sub: string }> = {
+    1: { title: "Add your item", sub: "Choose how to add the item — we'll guide you through the rest." },
+    2: { title: "Price it right", sub: "AI analyses live market data to find your ideal price." },
+    3: { title: "Optimise your listing", sub: "AI writes an SEO-optimised title and description." },
+    4: { title: "Enhance your photos", sub: "AI-enhanced photos get up to 3× more views." },
+    5: { title: "Vinted-Ready Pack", sub: "Everything you need to list this item, right here." },
+  };
+
+  const showFooterNav = currentStep !== 1 && currentStep !== 5;
   const blocked = advanceBlockedReason();
 
-  // ════════════════════════════════════
+  // Truncated item title for header (shown from step 2 onwards)
+  const headerItemTitle = createdItem
+    ? createdItem.title.length > 22
+      ? createdItem.title.slice(0, 22) + "…"
+      : createdItem.title
+    : null;
+
+  // ═══════════════════════════════════
   // RENDER
-  // ════════════════════════════════════
+  // ═══════════════════════════════════
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Header ── */}
@@ -1044,11 +1162,15 @@ export default function SellWizard() {
         <div className="flex-1" />
         <div className="flex items-center gap-1.5">
           <Rocket className="w-4 h-4 text-primary" />
-          <span className="font-display font-bold text-sm">Sell Wizard</span>
+          {headerItemTitle && currentStep > 1 ? (
+            <span className="font-display font-bold text-sm truncate max-w-[160px]">{headerItemTitle}</span>
+          ) : (
+            <span className="font-display font-bold text-sm">Sell Wizard</span>
+          )}
         </div>
         <div className="flex-1" />
-        <span className="text-xs text-muted-foreground">
-          {currentStep > 1 ? `Step ${currentStep} of 6` : ""}
+        <span className="text-xs text-muted-foreground shrink-0">
+          {currentStep > 1 ? `Step ${currentStep} of ${STEPS.length}` : ""}
         </span>
       </div>
 
@@ -1071,18 +1193,10 @@ export default function SellWizard() {
               {/* Step header */}
               <div className="mb-5">
                 <h2 className="font-display font-bold text-xl">
-                  {currentStep === 1 && "Add your item"}
-                  {currentStep === 3 && "Price it right"}
-                  {currentStep === 4 && "Optimise your listing"}
-                  {currentStep === 5 && "Enhance your photos"}
-                  {currentStep === 6 && "Vinted-Ready Pack"}
+                  {stepMeta[currentStep]?.title}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {currentStep === 1 && "Choose how to add the item — we'll guide you through the rest."}
-                  {currentStep === 3 && "AI analyses live market data to find your ideal price."}
-                  {currentStep === 4 && "AI writes an SEO-optimised title and description."}
-                  {currentStep === 5 && "AI-enhanced photos get up to 3× more views."}
-                  {currentStep === 6 && "Everything you need to list this item, right here."}
+                  {stepMeta[currentStep]?.sub}
                 </p>
               </div>
 
@@ -1092,21 +1206,28 @@ export default function SellWizard() {
         </div>
       </div>
 
-      {/* ── Sticky footer nav (not on step 1 or 6) ── */}
+      {/* ── Sticky footer nav (not on step 1 or 5) ── */}
       {showFooterNav && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border p-4 flex gap-3">
-          <Button variant="outline" className="h-12 px-5 font-semibold" onClick={goBack}>
-            <ChevronLeft className="w-4 h-4 mr-1" /> Back
-          </Button>
-          <Button
-            className="flex-1 h-12 font-semibold"
-            disabled={!canAdvance()}
-            onClick={goNext}
-            title={blocked || undefined}
-          >
-            {blocked ? blocked : "Continue"}
-            {!blocked && <ArrowRight className="w-4 h-4 ml-1.5" />}
-          </Button>
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border px-4 pt-3 pb-4 space-y-1.5">
+          <div className="flex gap-3">
+            {/* Hide back button when it would lead nowhere useful (step 2 goes to step 1 which is fine) */}
+            {currentStep > 1 && (
+              <Button variant="outline" className="h-12 px-5 font-semibold" onClick={goBack}>
+                <ChevronLeft className="w-4 h-4 mr-1" /> Back
+              </Button>
+            )}
+            <Button
+              className="flex-1 h-12 font-semibold"
+              disabled={!canAdvance()}
+              onClick={goNext}
+            >
+              Continue <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
+          </div>
+          {/* Blocked reason shown as helper below button — never inside button */}
+          {blocked && (
+            <p className="text-center text-[11px] text-muted-foreground">{blocked}</p>
+          )}
         </div>
       )}
     </div>
