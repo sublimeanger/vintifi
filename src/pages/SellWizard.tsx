@@ -15,8 +15,11 @@ import { VintedReadyPack } from "@/components/VintedReadyPack";
 import {
   Check, ChevronLeft, Loader2, Copy, Search, Sparkles, ImageIcon,
   Camera, Rocket, PoundSterling, Link2, Pencil, Upload, Plus, X,
-  ArrowRight, Package, AlertCircle, ExternalLink, RotateCcw,
+  ArrowRight, Package, AlertCircle, ExternalLink, RotateCcw, Home,
 } from "lucide-react";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -132,7 +135,7 @@ function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepSta
                 </span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-px mb-3 sm:mb-4 transition-all mx-0.5 ${isDone ? "bg-success/60" : "bg-border"}`} />
+                <div className={`flex-1 h-px lg:h-0.5 mb-3 sm:mb-4 transition-all mx-0.5 ${isDone || isCurrent ? "bg-success/60" : "bg-border"}`} />
               )}
             </div>
           );
@@ -752,7 +755,7 @@ export default function SellWizard() {
     if (!entryMethod) {
       return (
         <div className="space-y-3 lg:space-y-4">
-          <p className="text-sm lg:text-base text-muted-foreground">How would you like to add your item?</p>
+          {/* Polish 4: removed redundant "How would you like to add your item?" — heading already says it */}
           {[
             { method: "url" as EntryMethod, icon: Link2, label: "Paste Vinted URL", sub: "Auto-fill details from any listing", badge: "Fastest", color: "bg-primary/10 text-primary" },
             { method: "photo" as EntryMethod, icon: Camera, label: "Upload Photos", sub: "Add photos and fill in details", badge: null, color: "bg-accent/10 text-accent" },
@@ -780,12 +783,19 @@ export default function SellWizard() {
       );
     }
 
+    // Bug 2 & 3: helper for back button + breadcrumb badge
+    const methodLabel = entryMethod === "url" ? "🔗 Paste URL" : entryMethod === "photo" ? "📷 Upload Photos" : "✏️ Manual Entry";
+
     if (entryMethod === "url") {
       return (
         <div className="space-y-4">
-          <button onClick={() => setEntryMethod(null)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <ChevronLeft className="w-3 h-3" /> Back
-          </button>
+          {/* Bug 2: proper ghost Button with icon; Bug 3: breadcrumb badge */}
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground -ml-2" onClick={() => setEntryMethod(null)}>
+              <ChevronLeft className="w-4 h-4" /> Back
+            </Button>
+            <Badge variant="secondary" className="text-[10px] font-medium">{methodLabel}</Badge>
+          </div>
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vinted Listing URL</Label>
             <Input
@@ -814,9 +824,13 @@ export default function SellWizard() {
     if (entryMethod === "photo") {
       return (
         <div className="space-y-4">
-          <button onClick={() => setEntryMethod(null)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <ChevronLeft className="w-3 h-3" /> Back
-          </button>
+          {/* Bug 2 & 3 */}
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground -ml-2" onClick={() => setEntryMethod(null)}>
+              <ChevronLeft className="w-4 h-4" /> Back
+            </Button>
+            <Badge variant="secondary" className="text-[10px] font-medium">{methodLabel}</Badge>
+          </div>
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item Photos</Label>
           {photoUrls.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
@@ -859,9 +873,13 @@ export default function SellWizard() {
     // Manual entry
     return (
       <div className="space-y-4">
-        <button onClick={() => setEntryMethod(null)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-          <ChevronLeft className="w-3 h-3" /> Back
-        </button>
+        {/* Bug 2 & 3 */}
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground -ml-2" onClick={() => setEntryMethod(null)}>
+            <ChevronLeft className="w-4 h-4" /> Back
+          </Button>
+          <Badge variant="secondary" className="text-[10px] font-medium">{methodLabel}</Badge>
+        </div>
         {renderDetailsForm()}
       </div>
     );
@@ -907,11 +925,12 @@ export default function SellWizard() {
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
-          <Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Nike, Zara…" />
+          {/* Polish 2: h-12 on lg to match Select height */}
+          <Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Nike, Zara…" className="h-10 lg:h-12" />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
-          <Input value={form.size} onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))} placeholder="M, 10, XL…" />
+          <Input value={form.size} onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))} placeholder="M, 10, XL…" className="h-10 lg:h-12" />
         </div>
       </div>
       {/* Colour field with chip selector */}
@@ -972,29 +991,35 @@ export default function SellWizard() {
           <Input type="number" value={form.purchasePrice} onChange={(e) => setForm((f) => ({ ...f, purchasePrice: e.target.value }))} placeholder="0.00" inputMode="decimal" />
         </div>
       </div>
-      {/* FIX Gap 1: if item already created (e.g. backed from step 2), show "Continue" not "Create" */}
+      {/* Bug 4: sticky mobile CTA — fixed on mobile, normal on desktop */}
+      {/* Add pb-20 sm:pb-0 to the form so content isn't hidden behind the sticky bar */}
+      <div className="pb-20 sm:pb-0" />
       {createdItem ? (
-        <Button
-          className="w-full h-11 lg:h-12 font-semibold mt-2 lg:text-base"
-          onClick={() => {
-            setStepStatus((s) => ({ ...s, 1: "done" }));
-            setDirection(1);
-            setCurrentStep(2);
-            scrollToTop();
-          }}
-        >
-          Continue to Price <ArrowRight className="w-4 h-4 ml-1.5" />
-        </Button>
+        <div className="sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2">
+          <Button
+            className="w-full h-11 lg:h-12 font-semibold lg:text-base"
+            onClick={() => {
+              setStepStatus((s) => ({ ...s, 1: "done" }));
+              setDirection(1);
+              setCurrentStep(2);
+              scrollToTop();
+            }}
+          >
+            Continue to Price <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        </div>
       ) : (
-        <Button
-          className="w-full h-11 lg:h-12 font-semibold mt-2 lg:text-base"
-          disabled={!form.title || !form.condition || creating || uploading}
-          onClick={createItem}
-        >
-          {creating || uploading
-            ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating item…</>
-            : <>Create Item & Set Price <ArrowRight className="w-4 h-4 ml-1.5" /></>}
-        </Button>
+        <div className="sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2">
+          <Button
+            className="w-full h-11 lg:h-12 font-semibold lg:text-base"
+            disabled={!form.title || !form.condition || creating || uploading}
+            onClick={createItem}
+          >
+            {creating || uploading
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating item…</>
+              : <>Create Item & Set Price <ArrowRight className="w-4 h-4 ml-1.5" /></>}
+          </Button>
+        </div>
       )}
     </div>
   );
@@ -1006,19 +1031,23 @@ export default function SellWizard() {
         <p className="text-xs text-muted-foreground">
           {priceLoading ? "Analysing market prices…" : priceResult ? "Market analysis complete" : "Ready to analyse"}
         </p>
+        {/* Bug 6: proper ghost button with icon */}
         {!priceLoading && priceResult && (
-          <button className="text-[10px] text-primary hover:underline" onClick={() => { setPriceResult(null); setPriceAccepted(false); runPriceCheck(); }}>
-            Re-run
-          </button>
+          <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs" onClick={() => { setPriceResult(null); setPriceAccepted(false); runPriceCheck(); }}>
+            <RotateCcw className="w-3.5 h-3.5" /> Re-run
+          </Button>
         )}
       </div>
 
+      {/* Bug 5: skeleton loading instead of bare spinner */}
       {priceLoading && (
-        <div className="py-12 lg:py-20 flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-8 h-8 lg:w-12 lg:h-12 animate-spin text-primary" />
-          <p className="text-xs lg:text-sm">Checking Vinted, eBay & Depop…</p>
+        <div className="space-y-3 animate-pulse">
+          <div className="rounded-xl border bg-muted/40 h-32 lg:h-44" />
+          <div className="rounded-lg border bg-muted/30 h-20 lg:h-24" />
+          <div className="rounded-lg border bg-muted/20 h-16 lg:h-20" />
         </div>
       )}
+
 
       {priceResult && !priceLoading && (
         <div className="space-y-3">
@@ -1160,25 +1189,29 @@ export default function SellWizard() {
         <p className="text-xs text-muted-foreground">
           {optimiseLoading ? "Generating SEO-optimised copy…" : optimiseResult ? "Optimisation complete" : "Starting optimisation…"}
         </p>
-        {/* Re-generate always shown when result exists and not currently loading */}
+        {/* Bug 6: proper ghost button with icon */}
         {!optimiseLoading && optimiseResult && (
-          <button
-            className="text-[10px] text-primary hover:underline"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 h-8 text-xs"
             onClick={() => {
               setOptimiseSaved(false);
               setOptimiseResult(null);
               runOptimise();
             }}
           >
-            Re-generate
-          </button>
+            <RotateCcw className="w-3.5 h-3.5" /> Re-generate
+          </Button>
         )}
       </div>
 
+      {/* Bug 5: skeleton loading instead of bare spinner */}
       {optimiseLoading && (
-        <div className="py-12 lg:py-20 flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-8 h-8 lg:w-12 lg:h-12 animate-spin text-primary" />
-          <p className="text-xs lg:text-sm">AI is crafting your listing…</p>
+        <div className="space-y-3 animate-pulse">
+          <div className="rounded-lg border bg-muted/40 h-24 lg:h-32" />
+          <div className="rounded-lg border bg-muted/30 h-16 lg:h-20" />
+          <div className="rounded-lg border bg-muted/20 h-32 lg:h-40" />
         </div>
       )}
 
@@ -1350,6 +1383,36 @@ export default function SellWizard() {
           <p className="text-xs lg:text-sm text-muted-foreground mt-1">Your Vinted-Ready Pack is complete. Copy the details below and list it now.</p>
         </motion.div>
 
+        {/* Bug 9: Profit Estimate card — only when both prices are known */}
+        {createdItem?.purchase_price && createdItem?.current_price && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.3 }}
+            className="rounded-xl border border-border bg-muted/30 p-4 lg:p-6"
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Profit Estimate</p>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Cost Price</span>
+                <span>£{createdItem.purchase_price.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Sell Price</span>
+                <span>£{createdItem.current_price.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>Vinted fee (~5%)</span>
+                <span>-£{(createdItem.current_price * 0.05).toFixed(2)}</span>
+              </div>
+              <div className="border-t border-border mt-2 pt-2 flex justify-between items-center font-bold text-success">
+                <span>Est. Net Profit</span>
+                <span>£{(createdItem.current_price * 0.95 - createdItem.purchase_price).toFixed(2)}</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {createdItem && !showFallback && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -1364,7 +1427,7 @@ export default function SellWizard() {
           </motion.div>
         )}
 
-        {/* Fallback when health score is too low or not optimised */}
+        {/* Bug 8: Softer "tip" tone instead of jarring warning banner */}
         {showFallback && createdItem && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -1372,11 +1435,11 @@ export default function SellWizard() {
             transition={{ delay: 0.25, duration: 0.3 }}
             className="space-y-3"
           >
-            <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+            <div className="rounded-lg border border-border bg-muted/50 p-3 flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-semibold text-warning">Listing score below 60</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Go back to Optimise for a better score, or copy these details manually.</p>
+                <p className="text-xs font-semibold text-foreground">Tip: boost your listing score</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Re-run the Optimiser or add enhanced photos to boost your listing score before going live.</p>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
@@ -1422,7 +1485,6 @@ export default function SellWizard() {
         </div>
 
         <div className="flex gap-2">
-          {/* FIX Gap 7: disable View Item button while markingListed to prevent double navigation */}
           <Button
             variant="outline"
             className="flex-1 h-11 lg:h-12 font-semibold"
@@ -1467,9 +1529,11 @@ export default function SellWizard() {
     }
   };
 
-  // Step title and subtitle for the header
+  // Step title and subtitle for the header — Bug 1: update when inside a sub-flow
   const stepMeta: Record<number, { title: string; sub: string }> = {
-    1: { title: "Add your item", sub: "Choose how to add the item — we'll guide you through the rest." },
+    1: entryMethod
+      ? { title: "Item details", sub: "Fill in the fields below — the AI uses these to price and optimise your listing." }
+      : { title: "Add your item", sub: "Choose how to add the item — we'll guide you through the rest." },
     2: { title: "Price it right", sub: "AI analyses live market data to find your ideal price." },
     3: { title: "Optimise your listing", sub: "AI writes an SEO-optimised title and description." },
     4: { title: "Enhance your photos", sub: "AI-enhanced photos get up to 3× more views." },
@@ -1477,6 +1541,8 @@ export default function SellWizard() {
   };
 
   const showFooterNav = currentStep !== 1 && currentStep !== 5;
+  // Bug 7: only use large bottom padding when footer nav is visible
+  const scrollPadding = showFooterNav ? "pb-32 lg:pb-36" : "pb-8 lg:pb-16";
   const blocked = advanceBlockedReason();
 
   // Truncated item title for header (shown from step 2 onwards)
@@ -1490,15 +1556,25 @@ export default function SellWizard() {
   // RENDER
   // ═══════════════════════════════════
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Header ── */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border flex items-center gap-3 px-4 lg:px-8 h-14 lg:h-16 shrink-0">
-        <button
-          onClick={() => navigate("/listings")}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Items
-        </button>
+        {/* Bug 10: Home icon → Dashboard with ESC tooltip on desktop */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => navigate("/")}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="hidden lg:block text-xs">
+            Press Esc to exit wizard
+          </TooltipContent>
+        </Tooltip>
         <div className="flex-1" />
         <div className="flex items-center gap-1.5">
           <Rocket className="w-4 h-4 text-primary" />
@@ -1519,7 +1595,7 @@ export default function SellWizard() {
 
       {/* ── Step content ── FIX 8: id for scroll-to-top targeting */}
       <div id="sell-wizard-scroll" className="flex-1 overflow-y-auto">
-        <div className="max-w-lg lg:max-w-2xl mx-auto px-4 lg:px-8 py-6 lg:py-10 pb-32 lg:pb-36">
+        <div className={`max-w-lg lg:max-w-2xl mx-auto px-4 lg:px-8 py-6 lg:py-10 ${scrollPadding}`}>
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={currentStep}
@@ -1570,5 +1646,6 @@ export default function SellWizard() {
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 }
