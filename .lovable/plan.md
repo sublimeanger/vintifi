@@ -1,137 +1,189 @@
 
-# Fix Photo Studio Economics — Mannequin to Flash + AI Model as Premium Separated Section
+# Full Credit System Audit & Real-Time Balance Fix
 
-## What's Happening & Why
+## What the Audit Found
 
-Right now, the `MODEL_MAP` in the edge function routes three operations to the expensive `google/gemini-3-pro-image-preview` model:
+### Backend Security — Current State
 
-- `model_shot` → Gemini 3 Pro (~£0.20–0.30 per generation)
-- `mannequin_shot` → Gemini 3 Pro (~£0.20–0.30 per generation)
-- `selfie_shot` → Gemini 3 Pro (~£0.20–0.30 per generation)
+**`vintography` edge function** (lines 454–476, 594–597):
+- Credit gate reads from DB using service role (secure — no client manipulation possible)
+- Weighted deduction is correctly implemented: `creditsToDeduct = operation === "model_shot" ? 4 : 1`
+- Credit check: `totalUsed + creditsToDeduct > limit` — **CORRECT**
+- Deduction: `vintography_used: used + creditsToDeduct` — **CORRECT**
+- The credit is written AFTER the AI succeeds — so a failed generation does NOT consume credits. Good.
+- **VULNERABILITY FOUND:** The `used` variable on line 460 reads only `vintography_used`, but the credit write on line 596 uses `used + creditsToDeduct` where `used = vintography_used`. This is correct for the vintography counter itself. However, the gate check uses `totalUsed` (all three counters combined) while the deduction updates only `vintography_used`. This is consistent and correct — no bug here.
 
-Everything else already uses `google/gemini-2.5-flash-image` (~£0.01–0.02 per generation).
+**`price-check` edge function** (lines 237–253, 509–520):
+- Credit gate reads all three counters and checks `totalUsed >= credits_limit` — **CORRECT**
+- Deduction: `price_checks_used: (creditsData[0]?.price_checks_used || 0) + 1` — **CORRECT**
+- **POTENTIAL STALE READ VULNERABILITY:** The credit data is read once at line 237, then the deduction at line 519 uses the stale `creditsData[0]?.price_checks_used` value. If two simultaneous requests arrive, both could read the same count, both pass the gate check, and both increment using the same stale base value — resulting in only +1 total instead of +2. This is a **race condition / double-spend** vulnerability.
 
-**The mannequin fix is a one-line change.** Mannequin shots render a garment onto a headless form or ghost shape — there is no photorealistic human face or skin involved. Flash handles this at the same quality level. This saves ~93% per mannequin generation.
+**`optimize-listing` edge function** (lines 213–229, 505–516):
+- Same pattern and **same race condition vulnerability** as price-check.
 
-**AI Model shots are different.** They generate a full photorealistic human wearing the garment. This genuinely needs the Pro model. The answer isn't to remove it — it's to make the economics work by charging 4 credits, positioning it correctly as a premium feature, and educating users on when it's worth using.
+**`generate-hashtags`**: Does NOT check or deduct credits at all — it's used inline within the optimise-listing flow. Fine as-is since the parent call gates it.
 
-## Credit Economics Check — Is 4 Credits Right?
+**`translate-listing`**: Tier-gated (Business+) but does NOT deduct credits. This is a feature-access bypass concern but a separate issue from the credit deduction system.
 
-Working from the Pro tier to sense-check:
-- Pro tier (£9.99): 50 credits → £0.20 per credit in revenue
-- 4 credits charged = £0.80 revenue per AI Model shot
-- API cost = £0.20–0.30 per generation
-- **Gross margin per AI Model shot: 62–73%** — always profitable, no downside scenario
+### The Race Condition Fix
 
-Compared to current situation:
-- 1 credit charged = £0.20 revenue
-- API cost = £0.20–0.30
-- **Current margin: -0% to -50%** — we lose money on every single AI Model shot
+The fix is to replace the `PATCH` style deduction (which uses a stale client-side value) with a database-level atomic increment using Postgres's `+` operator in a `UPDATE ... SET x = x + 1` pattern, via an RPC function. This way, even if two requests arrive simultaneously, Postgres serialises the update correctly.
 
-4 credits is the right number. It's the minimum that guarantees profitability across all tiers.
+We need a new database function `increment_usage_credit(user_id uuid, column_name text, amount int)` that runs an atomic `UPDATE usage_credits SET <col> = <col> + amount WHERE user_id = $1` — preventing any race condition.
 
-## Technical Changes
+### Frontend Credit Display — Current State
 
-### 1. Edge Function — `supabase/functions/vintography/index.ts`
+**`AuthContext.tsx`:** `credits` is fetched once on mount and on `onAuthStateChange`. `refreshCredits()` re-fetches from DB. No real-time subscription to `usage_credits` table — credits only update in the UI when `refreshCredits()` is explicitly called.
 
-**MODEL_MAP change:**
+**`AppShellV2.tsx` (sidebar/header):** Shows `checksRemaining` computed from `credits` context. Updates only when `refreshCredits()` is called after an action. The balance correctly shows in both desktop sidebar and mobile header.
+
+**`Vintography.tsx`:** Uses `vintographyUsed` (only the vintography counter) for the `CreditBar` — but the `CreditBar` shows `used/limit` which is the vintography-only used count, NOT the total pool. This is **misleading** — if a user has 5 credits and does 3 price checks + 1 vintography edit, the CreditBar shows `1/5 edits` but they actually only have 1 credit left.
+
+**`CreditBar` component:** Receives `used` and `limit` props. Currently only `vintographyUsed` is passed as `used` — not `totalUsed`.
+
+**`PriceCheck.tsx`:** Does a front-end credit check before calling the function (lines 150–157). After completion, calls `refreshCredits()`. The UI credit display in AppShell updates as a result. Good — but the front-end check uses potentially stale cached data from context.
+
+**`OptimizeListing.tsx`:** Same pattern as PriceCheck — calls `refreshCredits()` after success.
+
+### What "Real-Time" Means Here
+
+True real-time via Supabase Realtime subscriptions is the proper fix: subscribe to changes on `usage_credits` WHERE `user_id = current_user`. Then whenever ANY credit deduction happens (on any device/tab), the balance updates instantly in the UI without needing `refreshCredits()` to be manually called.
+
+## All Issues Summary
+
+| Issue | Severity | Location |
+|-------|----------|----------|
+| Race condition: stale read used as base for increment | HIGH | `price-check`, `optimize-listing` edge functions |
+| CreditBar shows vintography-only count, not total pool | MEDIUM | `Vintography.tsx` → `CreditBar` |
+| Credits only refresh on explicit call, not live | MEDIUM | `AuthContext` — no realtime subscription |
+| translate-listing does not deduct credits | LOW | `translate-listing` edge function |
+
+## Implementation Plan
+
+### 1. Database — Atomic Increment Function (Migration)
+
+Create a PostgreSQL function `increment_usage_credit` that performs a safe atomic `UPDATE`:
+
+```sql
+CREATE OR REPLACE FUNCTION public.increment_usage_credit(
+  p_user_id uuid,
+  p_column text,
+  p_amount int DEFAULT 1
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_column = 'price_checks_used' THEN
+    UPDATE usage_credits SET price_checks_used = price_checks_used + p_amount, updated_at = now() WHERE user_id = p_user_id;
+  ELSIF p_column = 'optimizations_used' THEN
+    UPDATE usage_credits SET optimizations_used = optimizations_used + p_amount, updated_at = now() WHERE user_id = p_user_id;
+  ELSIF p_column = 'vintography_used' THEN
+    UPDATE usage_credits SET vintography_used = vintography_used + p_amount, updated_at = now() WHERE user_id = p_user_id;
+  END IF;
+END;
+$$;
 ```
-mannequin_shot: "google/gemini-2.5-flash-image"  // was gemini-3-pro-image-preview
-selfie_shot: "google/gemini-2.5-flash-image"      // was gemini-3-pro-image-preview
-model_shot: "google/gemini-3-pro-image-preview"   // stays on Pro — justified at 4 credits
+
+Using an explicit column whitelist (not dynamic SQL) eliminates SQL injection risk.
+
+We also need to enable Realtime on the `usage_credits` table so the frontend subscription works:
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.usage_credits;
 ```
 
-**Credit deduction logic — add weighted deduction:**
-Currently line 590: `vintography_used: used + 1`
+### 2. Fix Race Condition in `price-check/index.ts`
 
-We need to change this to check the operation and deduct 4 credits for `model_shot`, 1 credit for everything else:
-```
-const creditsToDeduct = operation === "model_shot" ? 4 : 1;
-vintography_used: used + creditsToDeduct
-```
+Replace the stale-value PATCH at the bottom:
+```ts
+// OLD — stale base value
+body: JSON.stringify({ price_checks_used: (creditsData[0]?.price_checks_used || 0) + 1 })
 
-We also need to update the credit check gate (currently line 463–471) to check remaining credits are sufficient:
-- For `model_shot`: check `totalUsed + 4 <= limit` 
-- For everything else: check `totalUsed + 1 <= limit`
-
-**TIER_OPERATIONS — no change needed.** `model_shot` already requires `pro` tier minimum.
-
-### 2. UI — `src/pages/Vintography.tsx`
-
-**The key UI change:** Move AI Model out of the "Photorealistic" tab panel and into its own dedicated section, visually separated from the 1-credit operations.
-
-**Current layout:** 4 operation cards (2×2 grid) + Steam & Press full-width + tabs inside the Photorealistic card (AI Model | Flat-Lay | Mannequin)
-
-**New layout:**
-```
-[Clean BG] [Lifestyle Scenes]     ← 1 credit each
-[Flat-Lay Pro] [Mannequin]        ← 1 credit each
-[Steam & Press ————————————]     ← 1 credit, full-width
-
-───── PREMIUM AI FEATURE ─────
-[AI Model Shot — Powered by our most advanced AI]  ← 4 credits, own card with premium styling
+// NEW — atomic RPC call
+await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
+  method: "POST",
+  headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ p_user_id: userId, p_column: "price_checks_used", p_amount: 1 }),
+});
 ```
 
-The AI Model card needs:
-- Distinct visual treatment (subtle gradient border, premium feel — not the same grey card as the others)
-- "4 credits" badge clearly visible (instead of "1")
-- A "When to use this" section with 3–4 bullet points explaining its value proposition
-- The existing ModelPicker config shows when this card is selected
+### 3. Fix Race Condition in `optimize-listing/index.ts`
 
-**The `OP_MAP` and `getOperation()` logic needs updating** because currently `virtual_model` maps to different operations based on `photoTab`. After the refactor:
-- `clean_bg` → `remove_bg` (unchanged)
-- `lifestyle_bg` → `smart_bg` (unchanged)  
-- `flatlay` → `flatlay_style` (was inside virtual_model tab)
-- `mannequin` → `mannequin_shot` (was inside virtual_model tab)
-- `ai_model` → `model_shot` (was inside virtual_model tab, now its own top-level operation)
-- `enhance` → `enhance` (unchanged)
-- `decrease` → `decrease` (unchanged)
+Same atomic RPC replacement for `optimizations_used`.
 
-So `Operation` type changes from `"clean_bg" | "lifestyle_bg" | "virtual_model" | "enhance" | "decrease"` to `"clean_bg" | "lifestyle_bg" | "flatlay" | "mannequin" | "ai_model" | "enhance" | "decrease"`.
+### 4. Fix Race Condition in `vintography/index.ts`
 
-The `photoTab` state and `PhotorealisticTab` type are no longer needed — they get removed.
+Replace the `vintography_used: used + creditsToDeduct` PATCH with the atomic RPC, passing `p_amount: creditsToDeduct` so the 4-credit model shot is also atomic.
 
-**Credit indicator in Generate button:** When `selectedOp === "ai_model"`, the Generate button shows "Generate · 4 credits" and the processing label adapts.
+### 5. Real-Time Credit Subscription in `AuthContext.tsx`
 
-**Toast update:** When AI Model completes, the toast reads "Done! −4 credits used" instead of "−1 credit used".
+Add a Supabase Realtime channel subscription to `usage_credits` after the user is authenticated. When a `UPDATE` event fires on the user's row, update the `credits` state directly from the payload — no additional DB fetch needed:
 
-**`processImage()` call:** Pass the credits deducted back from the edge function response and update the toast dynamically.
+```ts
+// Subscribe once user is known
+const channel = supabase
+  .channel(`credits-${userId}`)
+  .on('postgres_changes', {
+    event: 'UPDATE',
+    schema: 'public',
+    table: 'usage_credits',
+    filter: `user_id=eq.${userId}`,
+  }, (payload) => {
+    const newRow = payload.new as UsageCredits;
+    setCredits({
+      price_checks_used: newRow.price_checks_used,
+      optimizations_used: newRow.optimizations_used,
+      vintography_used: newRow.vintography_used,
+      credits_limit: newRow.credits_limit,
+    });
+  })
+  .subscribe();
+```
 
-## Files to Change
+Clean up channel on user change/sign-out.
+
+### 6. Fix `CreditBar` in `Vintography.tsx` — Show Total Pool Not Just Vintography
+
+The `CreditBar` currently receives:
+- `used={vintographyUsed}` — only the vintography counter
+- `limit={creditsLimit}` — the total pool limit
+
+This is wrong. It should show the user's **total remaining credits** across all features, because the pool is unified. Change to:
+
+```ts
+const totalUsed = credits
+  ? (credits.price_checks_used + credits.optimizations_used + credits.vintography_used)
+  : 0;
+
+<CreditBar used={totalUsed} limit={creditsLimit} unlimited={isUnlimited} />
+```
+
+The label in `CreditBar` also changes from `X/Y edits` to `X/Y credits` to be consistent with the app-wide terminology.
+
+### 7. Add Realtime Credit Display to `AppShellV2`
+
+The sidebar credit indicator already reads from context. With the realtime subscription added in step 5, it will automatically update in real-time without any additional changes — no `refreshCredits()` calls needed.
+
+However, we should make the sidebar credit button more informative: show total used vs limit (not just remaining), and add a subtle pulsing animation when a deduction has just occurred (detect via `useEffect` watching the credits value change).
+
+## Files Changed
 
 | File | Change |
-|---|---|
-| `supabase/functions/vintography/index.ts` | Switch `mannequin_shot` and `selfie_shot` to Flash model; add weighted credit deduction (4 for `model_shot`, 1 for everything else); update credit sufficiency check before processing |
-| `src/pages/Vintography.tsx` | Remove `virtual_model` operation and `photoTab` state; add `flatlay`, `mannequin`, `ai_model` as top-level operations; restructure operation cards into standard section + premium AI Model section; update `OP_MAP`, `getOperation()`, credit badge display, Generate button label, and toast message |
+|------|--------|
+| `supabase/migrations/` | New migration: `increment_usage_credit` RPC + enable realtime on `usage_credits` |
+| `supabase/functions/price-check/index.ts` | Replace stale PATCH increment with atomic RPC call |
+| `supabase/functions/optimize-listing/index.ts` | Replace stale PATCH increment with atomic RPC call |
+| `supabase/functions/vintography/index.ts` | Replace stale PATCH increment with atomic RPC call (passes `creditsToDeduct` as amount) |
+| `src/contexts/AuthContext.tsx` | Add Realtime channel subscription for `usage_credits`; remove `refreshCredits()` dependency where possible since realtime handles it |
+| `src/pages/Vintography.tsx` | Fix `CreditBar` to use `totalUsed` across all credit types, not just `vintographyUsed` |
+| `src/components/vintography/CreditBar.tsx` | Change `X/Y edits` label to `X/Y credits` for consistency |
 
-## UI Detail — The AI Model Premium Card
+## What This Achieves
 
-The card will look distinct from the standard operations:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ✦ PREMIUM AI FEATURE                                        │
-│                                                              │
-│  AI Model Shot                              [4 credits]      │
-│  Generate a photorealistic model wearing your garment        │
-│                                                              │
-│  Best for:                                                   │
-│  • Designer & premium items (£30+) — justify the price       │
-│  • Items where fit & drape are the selling point             │
-│  • Hero photos on your listing's first position              │
-│  • Brands that buyers want to see "worn" (Nike, Levi's, etc) │
-│                                                              │
-│  [Shot Style picker + ModelPicker config when selected]      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-The card uses a subtle `from-primary/5 to-purple-50/10` gradient background and a `border-primary/30` ring to visually separate it from the standard white cards, making the premium nature immediately obvious without being loud.
-
-## What Doesn't Change
-
-- All existing AI model shot prompts — quality stays identical
-- Mannequin prompts — same quality, just routed to a cheaper model that handles it equally well
-- All other operations — untouched
-- The ModelPicker component — reused as-is
-- Tier gating — `model_shot` still requires Pro+ tier
-- Gallery and save-to-item functionality — unchanged
+- **No double-spend possible**: Atomic DB-level increment eliminates race condition — concurrent requests cannot both pass the gate and both write the same stale base value.
+- **Real-time balance**: Any credit deduction (price check, optimise, photo edit) instantly updates the balance in the sidebar, header, and CreditBar without waiting for a page action.
+- **Accurate CreditBar**: Photo Studio now shows the true pool balance, not a misleading per-feature count.
+- **Consistent terminology**: "credits" everywhere instead of "edits" in CreditBar.
+- **No circumvention possible**: All gates are server-side with service role keys — frontend credit state is display only. A user manipulating the frontend cannot bypass the backend gate check.
