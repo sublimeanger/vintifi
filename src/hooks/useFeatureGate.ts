@@ -18,7 +18,7 @@ export type FeatureKey =
   | "charity_briefing"
   | "vintography";
 
-type TierLevel = "free" | "pro" | "business" | "scale";
+type TierLevel = "free" | "pro" | "business" | "scale" | "enterprise";
 
 type FeatureConfig = {
   minTier: TierLevel;
@@ -32,6 +32,7 @@ const TIER_ORDER: Record<TierLevel, number> = {
   pro: 1,
   business: 2,
   scale: 3,
+  enterprise: 4,
 };
 
 const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
@@ -62,7 +63,8 @@ export function useFeatureGate(feature: FeatureKey) {
   const requiredTierLevel = TIER_ORDER[config.minTier] ?? 0;
 
   const tierAllowed = userTierLevel >= requiredTierLevel;
-  const isUnlimited = userTier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+  // Only manually-gifted accounts (credits_limit >= 999999) are truly unlimited
+  const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
 
   let creditsRemaining = Infinity;
   let creditsExhausted = false;

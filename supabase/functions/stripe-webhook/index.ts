@@ -6,19 +6,22 @@ const TIER_MAP: Record<string, { tier: string; credits: number }> = {
   // New monthly products (Feb 2026)
   "prod_TzRG6VOJz5FeDO": { tier: "pro", credits: 50 },
   "prod_TzRGZwyHsR06JS": { tier: "business", credits: 200 },
-  "prod_TzRGaCd7E9PYRx": { tier: "scale", credits: 999 },
+  "prod_TzRGaCd7E9PYRx": { tier: "scale", credits: 600 },
   // New annual products (Feb 2026)
   "prod_TzRGTwzGiLqIqH": { tier: "pro", credits: 50 },
   "prod_TzRG9zNhsXMQcm": { tier: "business", credits: 200 },
-  "prod_TzRG5YQEDZaPMd": { tier: "scale", credits: 999 },
+  "prod_TzRG5YQEDZaPMd": { tier: "scale", credits: 600 },
+  // Enterprise products (Feb 2026)
+  "prod_U0Jyt2cFDq4aiE": { tier: "enterprise", credits: 1500 },
+  "prod_U0Jy1HSNYeUgay": { tier: "enterprise", credits: 1500 },
   // Legacy monthly products (keep for existing subscribers)
   "prod_TyltIvYWdZReZo": { tier: "pro", credits: 50 },
   "prod_TyltCrUUsbuddE": { tier: "business", credits: 200 },
-  "prod_TyltldO5OcP5cE": { tier: "scale", credits: 999 },
+  "prod_TyltldO5OcP5cE": { tier: "scale", credits: 600 },
   // Legacy annual products
   "prod_Tyyp074Dme7iUa": { tier: "pro", credits: 50 },
   "prod_TyypfEhNSNWn69": { tier: "business", credits: 200 },
-  "prod_Tyypa9CdcBcrjb": { tier: "scale", credits: 999 },
+  "prod_Tyypa9CdcBcrjb": { tier: "scale", credits: 600 },
 };
 
 const CREDIT_PACK_MAP: Record<string, number> = {
