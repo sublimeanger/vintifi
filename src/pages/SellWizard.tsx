@@ -172,6 +172,8 @@ export default function SellWizard() {
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
+  // Colour auto-detection state
+  const [colourDetecting, setColourDetecting] = useState(false);
 
   // Item form data
   const [form, setForm] = useState({
@@ -447,10 +449,53 @@ export default function SellWizard() {
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 5 - photoUrls.length);
     if (files.length === 0) return;
+    const objectUrls = files.map((f) => URL.createObjectURL(f));
     setPhotoFiles((prev) => [...prev, ...files]);
-    setPhotoUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+    setPhotoUrls((prev) => [...prev, ...objectUrls]);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    // Trigger background colour detection from first uploaded photo if colour is blank
+    if (!form.colour && objectUrls.length > 0) {
+      detectColourFromPhoto(objectUrls[0]);
+    }
   };
+
+  // ─── Background colour auto-detection from photo ───
+  const detectColourFromPhoto = async (photoUrl: string) => {
+    if (form.colour) return; // Already has a colour — don't overwrite
+    setColourDetecting(true);
+    try {
+      // Upload the file first if it's a blob URL so the edge function can access it
+      const firstFileIdx = photoUrls.length; // index of new photo in photoFiles
+      const fileToUpload = photoFiles[firstFileIdx] || null;
+      let accessibleUrl = photoUrl;
+      if (photoUrl.startsWith("blob:") && user && fileToUpload) {
+        const ext = fileToUpload.name.split(".").pop() || "jpg";
+        const path = `${user.id}/colour-detect-${Date.now()}.${ext}`;
+        const { error } = await supabase.storage.from("listing-photos").upload(path, fileToUpload, { contentType: fileToUpload.type, upsert: true });
+        if (!error) {
+          const { data: pub } = supabase.storage.from("listing-photos").getPublicUrl(path);
+          accessibleUrl = pub.publicUrl;
+        }
+      }
+      const { data } = await supabase.functions.invoke("optimize-listing", {
+        body: { photoUrls: [accessibleUrl], detectColourOnly: true },
+      });
+      if (data?.detected_colour) {
+        setForm((f) => {
+          // Only auto-fill if still blank (user may have typed meanwhile)
+          if (f.colour) return f;
+          return { ...f, colour: data.detected_colour };
+        });
+        toast.success(`Colour detected: ${data.detected_colour}`, { duration: 2500 });
+      }
+    } catch {
+      // Silent fail — colour detection is best-effort
+    } finally {
+      setColourDetecting(false);
+    }
+  };
+
+
 
   const removePhoto = (idx: number) => {
     setPhotoFiles((prev) => prev.filter((_, i) => i !== idx));
@@ -869,6 +914,54 @@ export default function SellWizard() {
           <Input value={form.size} onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))} placeholder="M, 10, XL…" />
         </div>
       </div>
+      {/* Colour field with chip selector */}
+      {(() => {
+        const colourNeedsAttention = photoUrls.length > 0 && !form.colour && !colourDetecting;
+        const COLOUR_CHIPS = ["Black","White","Grey","Navy","Blue","Green","Red","Pink","Brown","Beige","Cream","Purple","Yellow","Orange","Multi"];
+        return (
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              Colour
+              <span className="text-[10px] font-normal text-muted-foreground">(helps AI accuracy)</span>
+              {colourDetecting && <span className="text-[10px] font-normal" style={{ color: "hsl(38 92% 50%)" }}>— detecting…</span>}
+            </Label>
+            {/* Colour chip row */}
+            <div className="flex gap-1.5 flex-wrap">
+              {COLOUR_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, colour: f.colour === chip ? "" : chip }))}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                    form.colour === chip
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-muted/60 text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                  }`}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+            {/* Text input for custom colour override */}
+            <Input
+              value={form.colour}
+              onChange={(e) => setForm((f) => ({ ...f, colour: e.target.value }))}
+              placeholder={colourDetecting ? "Detecting from photo…" : "Or type a colour (e.g. Burgundy)"}
+              disabled={colourDetecting}
+              style={colourNeedsAttention ? {
+                boxShadow: "0 0 0 2px hsl(38 92% 50% / 0.7)",
+                borderColor: "hsl(38 92% 50% / 0.5)",
+                animation: "condition-pulse 1.8s ease-in-out infinite",
+              } : undefined}
+            />
+            {colourNeedsAttention && (
+              <p className="text-[10px]" style={{ color: "hsl(38 92% 50%)" }}>
+                Colour helps the AI write an accurate title — select a chip or type it above
+              </p>
+            )}
+          </div>
+        );
+      })()}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sell Price (£)</Label>
@@ -974,10 +1067,10 @@ export default function SellWizard() {
           {/* AI insight */}
           {priceResult.ai_insights && (
             <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
-              <p className={`text-xs text-muted-foreground leading-relaxed ${insightsExpanded ? "" : "line-clamp-3"}`}>
+            <p className={`text-xs text-muted-foreground leading-relaxed ${insightsExpanded ? "" : "line-clamp-3"}`}>
                 {priceResult.ai_insights}
               </p>
-              {priceResult.ai_insights.length > 160 && (
+              {priceResult.ai_insights.length > 240 && (
                 <button
                   onClick={() => setInsightsExpanded((v) => !v)}
                   className="text-[10px] font-medium text-primary hover:underline"
