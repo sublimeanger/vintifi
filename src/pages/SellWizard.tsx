@@ -82,7 +82,7 @@ function CopyBtn({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
-      className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded border transition-all ${
+      className={`inline-flex items-center gap-1 text-[10px] lg:text-xs font-medium px-2 py-0.5 rounded border transition-all ${
         copied
           ? "border-success/40 bg-success/10 text-success"
           : "border-border bg-muted/50 text-muted-foreground hover:text-foreground"
@@ -105,7 +105,7 @@ function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepSta
   const currentStepData = STEPS.find((s) => s.id === currentStep);
   return (
     <div className="border-b border-border bg-background/80 backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-0.5 sm:gap-1 px-3 pt-2.5 pb-1">
+      <div className="flex items-center justify-between gap-0.5 sm:gap-1 px-3 lg:px-8 pt-2.5 lg:pt-3 pb-1 lg:pb-2">
         {STEPS.map((step, i) => {
           const status = stepStatus[step.id];
           const isCurrent = currentStep === step.id;
@@ -114,7 +114,7 @@ function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepSta
           return (
             <div key={step.id} className="flex items-center flex-1 gap-0.5">
               <div className="flex flex-col items-center gap-0.5 min-w-0">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shrink-0 ${
+                <div className={`w-7 h-7 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-sm font-bold transition-all shrink-0 ${
                   isDone
                     ? "bg-success text-success-foreground"
                     : isSkipped
@@ -123,9 +123,9 @@ function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepSta
                     ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
                     : "bg-muted text-muted-foreground"
                 }`}>
-                  {isDone ? <Check className="w-3.5 h-3.5" /> : step.id}
+                  {isDone ? <Check className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> : step.id}
                 </div>
-                <span className={`text-[8px] sm:text-[9px] font-medium hidden sm:block truncate max-w-[44px] text-center ${
+                <span className={`text-[8px] sm:text-[9px] lg:text-xs font-medium hidden sm:block truncate max-w-[44px] lg:max-w-[60px] text-center ${
                   isCurrent ? "text-primary" : isDone ? "text-success" : "text-muted-foreground"
                 }`}>
                   {step.shortLabel}
@@ -751,8 +751,8 @@ export default function SellWizard() {
   const renderStep1 = () => {
     if (!entryMethod) {
       return (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">How would you like to add your item?</p>
+        <div className="space-y-3 lg:space-y-4">
+          <p className="text-sm lg:text-base text-muted-foreground">How would you like to add your item?</p>
           {[
             { method: "url" as EntryMethod, icon: Link2, label: "Paste Vinted URL", sub: "Auto-fill details from any listing", badge: "Fastest", color: "bg-primary/10 text-primary" },
             { method: "photo" as EntryMethod, icon: Camera, label: "Upload Photos", sub: "Add photos and fill in details", badge: null, color: "bg-accent/10 text-accent" },
@@ -761,18 +761,18 @@ export default function SellWizard() {
             <Card
               key={method}
               onClick={() => setEntryMethod(method)}
-              className="p-4 cursor-pointer hover:border-primary/40 transition-all active:scale-[0.98]"
+              className="p-4 lg:p-6 cursor-pointer hover:border-primary/40 transition-all active:scale-[0.98]"
             >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
-                  <Icon className="w-5 h-5" />
+              <div className="flex items-center gap-3 lg:gap-4">
+                <div className={`w-10 h-10 lg:w-14 lg:h-14 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+                  <Icon className="w-5 h-5 lg:w-6 lg:h-6" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">{label}</p>
-                  <p className="text-[11px] text-muted-foreground">{sub}</p>
+                  <p className="font-semibold text-sm lg:text-base">{label}</p>
+                  <p className="text-[11px] lg:text-sm text-muted-foreground">{sub}</p>
                 </div>
                 {badge && <Badge variant="secondary" className="text-[10px] shrink-0">{badge}</Badge>}
-                <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground" />
               </div>
             </Card>
           ))}
@@ -869,7 +869,7 @@ export default function SellWizard() {
 
   /* Details form shared between all entry methods */
   const renderDetailsForm = () => (
-    <div className="space-y-3">
+    <div className="space-y-3 lg:space-y-4">
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
         <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Nike Air Force 1 White Trainers" className="text-base" />
@@ -883,8 +883,8 @@ export default function SellWizard() {
             )}
           </Label>
           <Select value={form.condition} onValueChange={(v) => { setForm((f) => ({ ...f, condition: v })); setUrlImportedNoCondition(false); }}>
-            <SelectTrigger
-              className="h-10"
+          <SelectTrigger
+              className="h-10 lg:h-12"
               style={urlImportedNoCondition && !form.condition ? {
                 boxShadow: "0 0 0 2px hsl(38 92% 50% / 0.7)",
                 borderColor: "hsl(38 92% 50% / 0.5)",
@@ -899,7 +899,7 @@ export default function SellWizard() {
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
           <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
-            <SelectTrigger className="h-10"><SelectValue placeholder="Select…" /></SelectTrigger>
+            <SelectTrigger className="h-10 lg:h-12"><SelectValue placeholder="Select…" /></SelectTrigger>
             <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
           </Select>
         </div>
@@ -932,7 +932,7 @@ export default function SellWizard() {
                   key={chip}
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, colour: f.colour === chip ? "" : chip }))}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                  className={`px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full text-[11px] lg:text-xs font-medium border transition-all ${
                     form.colour === chip
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-muted/60 text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
@@ -975,7 +975,7 @@ export default function SellWizard() {
       {/* FIX Gap 1: if item already created (e.g. backed from step 2), show "Continue" not "Create" */}
       {createdItem ? (
         <Button
-          className="w-full h-11 font-semibold mt-2"
+          className="w-full h-11 lg:h-12 font-semibold mt-2 lg:text-base"
           onClick={() => {
             setStepStatus((s) => ({ ...s, 1: "done" }));
             setDirection(1);
@@ -987,7 +987,7 @@ export default function SellWizard() {
         </Button>
       ) : (
         <Button
-          className="w-full h-11 font-semibold mt-2"
+          className="w-full h-11 lg:h-12 font-semibold mt-2 lg:text-base"
           disabled={!form.title || !form.condition || creating || uploading}
           onClick={createItem}
         >
@@ -1014,35 +1014,35 @@ export default function SellWizard() {
       </div>
 
       {priceLoading && (
-        <div className="py-12 flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-xs">Checking Vinted, eBay & Depop…</p>
+        <div className="py-12 lg:py-20 flex flex-col items-center gap-3 text-muted-foreground">
+          <Loader2 className="w-8 h-8 lg:w-12 lg:h-12 animate-spin text-primary" />
+          <p className="text-xs lg:text-sm">Checking Vinted, eBay & Depop…</p>
         </div>
       )}
 
       {priceResult && !priceLoading && (
         <div className="space-y-3">
           {/* Recommended price hero */}
-          <div className="rounded-xl border border-success/30 bg-success/5 p-4 text-center">
-            <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">Recommended Price</p>
-            <p className="text-4xl font-display font-bold text-success">
+          <div className="rounded-xl border border-success/30 bg-success/5 p-4 lg:p-8 text-center">
+            <p className="text-[10px] lg:text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1">Recommended Price</p>
+            <p className="text-4xl lg:text-6xl font-display font-bold text-success">
               £{priceResult.recommended_price?.toFixed(2) ?? "—"}
             </p>
             {priceResult.confidence_score != null && (
-              <p className="text-xs text-muted-foreground mt-1">{priceResult.confidence_score}% confidence</p>
+              <p className="text-xs lg:text-sm text-muted-foreground mt-1">{priceResult.confidence_score}% confidence</p>
             )}
           </div>
 
           {/* Market range bar */}
           {priceResult.price_range_low != null && priceResult.price_range_high != null && (
-            <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="rounded-lg border border-border bg-muted/30 p-3 lg:p-5">
               <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">Market Range</p>
-              <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+              <div className="flex items-center justify-between text-xs lg:text-sm font-bold mb-1.5">
                 <span>£{priceResult.price_range_low.toFixed(0)}</span>
                 <span className="text-muted-foreground">—</span>
                 <span>£{priceResult.price_range_high.toFixed(0)}</span>
               </div>
-              <div className="relative h-2 rounded-full bg-border">
+              <div className="relative h-2 lg:h-3 rounded-full bg-border">
                 {(() => {
                   const low = priceResult.price_range_low!;
                   const high = priceResult.price_range_high!;
@@ -1054,7 +1054,7 @@ export default function SellWizard() {
                     <>
                       <div className="absolute inset-0 rounded-full bg-gradient-to-r from-warning/60 via-success to-success/60" />
                       <div
-                        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-success shadow-md z-10"
+                        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 lg:w-5 lg:h-5 rounded-full bg-white border-2 border-success shadow-md z-10"
                         style={{ left: `${pct}%`, transform: `translateX(-50%) translateY(-50%)` }}
                       />
                     </>
@@ -1066,14 +1066,14 @@ export default function SellWizard() {
 
           {/* AI insight */}
           {priceResult.ai_insights && (
-            <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
-            <p className={`text-xs text-muted-foreground leading-relaxed ${insightsExpanded ? "" : "line-clamp-3"}`}>
+            <div className="rounded-lg border border-border bg-background p-3 lg:p-5 space-y-1.5">
+            <p className={`text-xs lg:text-sm text-muted-foreground leading-relaxed ${insightsExpanded ? "" : "line-clamp-3"}`}>
                 {priceResult.ai_insights}
               </p>
               {priceResult.ai_insights.length > 240 && (
                 <button
                   onClick={() => setInsightsExpanded((v) => !v)}
-                  className="text-[10px] font-medium text-primary hover:underline"
+                  className="text-[10px] lg:text-xs font-medium text-primary hover:underline"
                 >
                   {insightsExpanded ? "Show less" : "Read more"}
                 </button>
@@ -1084,7 +1084,7 @@ export default function SellWizard() {
           {!priceAccepted ? (
             <div className="space-y-3">
               <Button
-                className="w-full h-11 font-semibold bg-success hover:bg-success/90 text-success-foreground active:scale-[0.98]"
+                className="w-full h-11 lg:h-12 font-semibold bg-success hover:bg-success/90 text-success-foreground active:scale-[0.98]"
                 onClick={() => acceptPrice()}
                 disabled={!priceResult.recommended_price}
               >
@@ -1176,23 +1176,23 @@ export default function SellWizard() {
       </div>
 
       {optimiseLoading && (
-        <div className="py-12 flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-xs">AI is crafting your listing…</p>
+        <div className="py-12 lg:py-20 flex flex-col items-center gap-3 text-muted-foreground">
+          <Loader2 className="w-8 h-8 lg:w-12 lg:h-12 animate-spin text-primary" />
+          <p className="text-xs lg:text-sm">AI is crafting your listing…</p>
         </div>
       )}
 
       {optimiseResult && !optimiseLoading && (
         <div className="space-y-3">
           {/* Health score card with breakdown info */}
-          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+          <div className="rounded-lg border border-border bg-muted/20 p-3 lg:p-5 space-y-2">
             <div className="flex items-center gap-3">
               <HealthScoreMini score={optimiseResult.health_score} />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold">
+                <p className="text-xs lg:text-sm font-semibold">
                   Health Score: {optimiseResult.health_score}/100
                 </p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[10px] lg:text-xs text-muted-foreground">
                   {optimiseResult.health_score >= 80
                     ? "Excellent — ready to post!"
                     : optimiseResult.health_score >= 60
@@ -1210,8 +1210,8 @@ export default function SellWizard() {
                 { label: "Details", pts: optimiseResult.completeness_score ?? "?", max: 25 },
               ].map(({ label, pts, max }) => (
                 <div key={label} className="text-center">
-                  <p className="text-[9px] text-muted-foreground font-medium">{label}</p>
-                  <p className={`text-[9px] font-bold ${typeof pts === "number" && pts < max ? "text-warning" : "text-success"}`}>{pts}/{max}</p>
+                  <p className="text-[9px] lg:text-xs text-muted-foreground font-medium">{label}</p>
+                  <p className={`text-[9px] lg:text-xs font-bold ${typeof pts === "number" && pts < max ? "text-warning" : "text-success"}`}>{pts}/{max}</p>
                 </div>
               ))}
             </div>
@@ -1222,29 +1222,29 @@ export default function SellWizard() {
             )}
           </div>
 
-          <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
+          <div className="rounded-lg border border-border bg-background p-3 lg:p-5 space-y-1.5">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Optimised Title</p>
+              <p className="text-[10px] lg:text-xs uppercase tracking-wider font-semibold text-muted-foreground">Optimised Title</p>
               <CopyBtn text={optimiseResult.optimised_title} label="Title" />
             </div>
-            <p className="text-sm font-semibold leading-snug">{optimiseResult.optimised_title}</p>
+            <p className="text-sm lg:text-base font-semibold leading-snug">{optimiseResult.optimised_title}</p>
           </div>
 
-          <div className="rounded-lg border border-border bg-background p-3 space-y-1.5">
+          <div className="rounded-lg border border-border bg-background p-3 lg:p-5 space-y-1.5">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Optimised Description</p>
+              <p className="text-[10px] lg:text-xs uppercase tracking-wider font-semibold text-muted-foreground">Optimised Description</p>
               <CopyBtn text={optimiseResult.optimised_description} label="Description" />
             </div>
-            <p className={`text-xs text-muted-foreground leading-relaxed ${descExpanded ? "" : "line-clamp-5"}`}>{optimiseResult.optimised_description}</p>
+            <p className={`text-xs lg:text-sm text-muted-foreground leading-relaxed ${descExpanded ? "" : "line-clamp-5"}`}>{optimiseResult.optimised_description}</p>
             {optimiseResult.optimised_description.length > 300 && (
-              <button onClick={() => setDescExpanded(v => !v)} className="text-[10px] text-primary hover:underline mt-1">
+              <button onClick={() => setDescExpanded(v => !v)} className="text-[10px] lg:text-xs text-primary hover:underline mt-1">
                 {descExpanded ? "Show less" : "Read more"}
               </button>
             )}
           </div>
 
           {!optimiseSaved ? (
-            <Button className="w-full h-11 font-semibold" onClick={saveOptimised}>
+            <Button className="w-full h-11 lg:h-12 font-semibold" onClick={saveOptimised}>
               <Check className="w-4 h-4 mr-2" /> Save optimised listing
             </Button>
           ) : (
@@ -1265,14 +1265,14 @@ export default function SellWizard() {
   /* ═══ STEP 4: PHOTOS ═══ */
   const renderStep4 = () => (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">Enhance your photos with AI for better click-through rates.</p>
+      <p className="text-xs lg:text-sm text-muted-foreground">Enhance your photos with AI for better click-through rates.</p>
 
       {/* Full-width portrait image preview — motivates photo enhancement */}
       {createdItem?.image_url ? (
-        <div className="relative w-full max-w-[220px] mx-auto aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border shadow-sm">
+        <div className="relative w-full max-w-[220px] lg:max-w-[320px] mx-auto aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border shadow-sm">
           <img src={createdItem.image_url} alt="" className="w-full h-full object-cover" />
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-            <p className="text-white text-[10px] font-medium truncate">{createdItem.title}</p>
+            <p className="text-white text-[10px] lg:text-xs font-medium truncate">{createdItem.title}</p>
           </div>
         </div>
       ) : (
@@ -1284,7 +1284,7 @@ export default function SellWizard() {
       {!photoDone && !photoPolling && (
         <div className="space-y-2">
           <Button
-            className="w-full h-11 font-semibold"
+            className="w-full h-11 lg:h-12 font-semibold"
             onClick={() => {
               if (createdItem) {
                 // Mark that user has intentionally gone to Photo Studio
@@ -1345,9 +1345,9 @@ export default function SellWizard() {
           transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
           className="text-center py-2"
         >
-          <div className="text-3xl mb-2">🎉</div>
-          <h3 className="font-display font-bold text-lg">You're ready to list!</h3>
-          <p className="text-xs text-muted-foreground mt-1">Your Vinted-Ready Pack is complete. Copy the details below and list it now.</p>
+          <div className="text-3xl lg:text-5xl mb-2">🎉</div>
+          <h3 className="font-display font-bold text-lg lg:text-2xl">You're ready to list!</h3>
+          <p className="text-xs lg:text-sm text-muted-foreground mt-1">Your Vinted-Ready Pack is complete. Copy the details below and list it now.</p>
         </motion.div>
 
         {createdItem && !showFallback && (
@@ -1401,8 +1401,8 @@ export default function SellWizard() {
           </motion.div>
         )}
 
-        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-          <p className="text-xs font-semibold">Listed on Vinted? Paste the URL to track it:</p>
+        <div className="rounded-xl border border-border bg-muted/30 p-4 lg:p-6 space-y-2">
+          <p className="text-xs lg:text-sm font-semibold">Listed on Vinted? Paste the URL to track it:</p>
           <div className="flex gap-2">
             <Input
               value={vintedUrlInput}
@@ -1425,7 +1425,7 @@ export default function SellWizard() {
           {/* FIX Gap 7: disable View Item button while markingListed to prevent double navigation */}
           <Button
             variant="outline"
-            className="flex-1 h-11 font-semibold"
+            className="flex-1 h-11 lg:h-12 font-semibold"
             disabled={markingListed}
             onClick={() => {
               if (!createdItem) return;
@@ -1436,7 +1436,7 @@ export default function SellWizard() {
             View Item
           </Button>
           <Button
-            className="flex-1 h-11 font-semibold"
+            className="flex-1 h-11 lg:h-12 font-semibold"
             onClick={() => window.open("https://www.vinted.co.uk/items/new", "_blank")}
           >
             List on Vinted <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
@@ -1492,7 +1492,7 @@ export default function SellWizard() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Header ── */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border flex items-center gap-3 px-4 h-14 shrink-0">
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border flex items-center gap-3 px-4 lg:px-8 h-14 lg:h-16 shrink-0">
         <button
           onClick={() => navigate("/listings")}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -1503,9 +1503,9 @@ export default function SellWizard() {
         <div className="flex items-center gap-1.5">
           <Rocket className="w-4 h-4 text-primary" />
           {headerItemTitle && currentStep > 1 ? (
-            <span className="font-display font-bold text-sm truncate max-w-[160px]">{headerItemTitle}</span>
+            <span className="font-display font-bold text-sm lg:text-base truncate max-w-[160px] lg:max-w-[260px]">{headerItemTitle}</span>
           ) : (
-            <span className="font-display font-bold text-sm">Sell Wizard</span>
+            <span className="font-display font-bold text-sm lg:text-base">Sell Wizard</span>
           )}
         </div>
         <div className="flex-1" />
@@ -1519,7 +1519,7 @@ export default function SellWizard() {
 
       {/* ── Step content ── FIX 8: id for scroll-to-top targeting */}
       <div id="sell-wizard-scroll" className="flex-1 overflow-y-auto">
-        <div className="max-w-lg mx-auto px-4 py-6 pb-32">
+        <div className="max-w-lg lg:max-w-2xl mx-auto px-4 lg:px-8 py-6 lg:py-10 pb-32 lg:pb-36">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={currentStep}
@@ -1531,11 +1531,11 @@ export default function SellWizard() {
               transition={{ duration: 0.2, ease: "easeInOut" }}
             >
               {/* Step header */}
-              <div className="mb-5">
-                <h2 className="font-display font-bold text-xl">
+              <div className="mb-5 lg:mb-8">
+                <h2 className="font-display font-bold text-xl lg:text-3xl">
                   {stepMeta[currentStep]?.title}
                 </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs lg:text-sm text-muted-foreground mt-0.5">
                   {stepMeta[currentStep]?.sub}
                 </p>
               </div>
@@ -1548,15 +1548,15 @@ export default function SellWizard() {
 
       {/* ── Sticky footer nav (not on step 1 or 5) ── */}
       {showFooterNav && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border px-4 pt-3 pb-4 space-y-1.5">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border px-4 lg:px-8 pt-3 lg:pt-4 pb-4 lg:pb-6 space-y-1.5">
           <div className="flex gap-3">
             {currentStep > 1 && (
-              <Button variant="outline" className="h-12 px-5 font-semibold" onClick={goBack}>
+              <Button variant="outline" className="h-12 lg:h-14 px-5 lg:px-8 font-semibold" onClick={goBack}>
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
               </Button>
             )}
             <Button
-              className="flex-1 h-12 font-semibold"
+              className="flex-1 h-12 lg:h-14 font-semibold lg:text-base"
               disabled={!canAdvance()}
               onClick={goNext}
             >
@@ -1565,7 +1565,7 @@ export default function SellWizard() {
           </div>
           {/* Blocked reason shown as helper below button — never inside button */}
           {blocked && (
-            <p className="text-center text-[11px] text-muted-foreground">{blocked}</p>
+            <p className="text-center text-[11px] lg:text-xs text-muted-foreground">{blocked}</p>
           )}
         </div>
       )}
