@@ -316,7 +316,7 @@ export default function SellWizard() {
     if (currentStep === 1 && !entryMethod) return "Choose how to add your item";
     if (currentStep === 2 && !priceAccepted) return "Accept a price to continue";
     if (currentStep === 3 && !optimiseSaved) return "Save optimised listing to continue";
-    if (currentStep === 4 && !photoDone && stepStatus[4] !== "skipped") return "Enhance or skip photos";
+    if (currentStep === 4 && !photoDone && stepStatus[4] !== "skipped" && !photoPolling) return "Enhance or skip photos";
     return "";
   };
 
@@ -1390,8 +1390,8 @@ export default function SellWizard() {
       )}
 
       {photoPolling && (
-        <Button variant="outline" className="w-full h-11 font-semibold" onClick={skipPhotos}>
-          I'm done — Continue
+        <Button className="w-full h-11 font-semibold" onClick={skipPhotos}>
+          I'm done — Continue <ArrowRight className="w-4 h-4 ml-1.5" />
         </Button>
       )}
 
@@ -1719,8 +1719,8 @@ export default function SellWizard() {
             )}
             <Button
               className="flex-1 h-12 lg:h-14 font-semibold lg:text-base"
-              disabled={!canAdvance()}
-              onClick={goNext}
+              disabled={!canAdvance() && !(currentStep === 4 && photoPolling)}
+              onClick={currentStep === 4 && photoPolling && !photoDone ? skipPhotos : goNext}
             >
               Continue <ArrowRight className="w-4 h-4 ml-1.5" />
             </Button>
