@@ -651,7 +651,7 @@ export default function SellWizard() {
           category: createdItem.category,
           size: createdItem.size,
           condition: createdItem.condition,
-          colour: createdItem.colour,
+          colour: createdItem.colour || form.colour,
           material: createdItem.material,
         },
       });
@@ -1236,9 +1236,11 @@ export default function SellWizard() {
               <CopyBtn text={optimiseResult.optimised_description} label="Description" />
             </div>
             <p className={`text-xs text-muted-foreground leading-relaxed ${descExpanded ? "" : "line-clamp-5"}`}>{optimiseResult.optimised_description}</p>
-            <button onClick={() => setDescExpanded(v => !v)} className="text-[10px] text-primary hover:underline mt-1">
-              {descExpanded ? "Show less" : "Read more"}
-            </button>
+            {optimiseResult.optimised_description.length > 300 && (
+              <button onClick={() => setDescExpanded(v => !v)} className="text-[10px] text-primary hover:underline mt-1">
+                {descExpanded ? "Show less" : "Read more"}
+              </button>
+            )}
           </div>
 
           {!optimiseSaved ? (
