@@ -1,138 +1,164 @@
 
-# Sell Wizard — World-Class Polish & Cohesion Audit
+# End-to-End Wizard Audit — Bugs, Gaps & World-Class Fixes
 
-## Full Audit of Current State
+## What Was Tested (Mental Walkthrough of Every Step)
 
-After reading every line of `SellWizard.tsx`, `ListingWizard.tsx`, `AppShellV2.tsx`, `Dashboard.tsx`, and `NewItemWizard.tsx`, here is the complete list of gaps, bugs, and UX problems found.
+Full flow traced: Dashboard → /sell → Step 1 (Add) → Step 2 (Price) → Step 3 (Optimise) → Step 4 (Photos) → /vintography → Back to /sell → Step 5 (Pack) → /items/:id
 
----
-
-## Issues Found (Priority Order)
-
-### Critical — Broken Flow Logic
-
-**Issue 1: Step 2 is a ghost step**
-In `renderStepContent()`, `case 2` returns `null`. The step title says "Details" in the progress bar but the wizard jumps directly from step 1 to step 3 via `setCurrentStep(3)` inside `createItem()`. However, the `canAdvance()` check for step 2 references `form.title && form.condition`, and `advanceBlockedReason()` references step 2 — meaning if someone somehow lands on step 2, they see a blank page. The progress bar also shows "Details" as a step dot that never gets content. This needs to be resolved: either remove step 2 from `STEPS` and reindex to 5 steps, or give it real content. The cleanest fix is to collapse it: after `createItem()` succeeds, jump straight to step 3 (already done), and remove step 2 from the `STEPS` array so the progress bar only shows 5 steps: Add → Price → Optimise → Photos → Pack.
-
-**Issue 2: `canAdvance` on step 1 is wrong**
-`canAdvance()` for step 1 returns `!!entryMethod` — but this allows advancing as soon as you pick URL/Photo/Manual, before you've actually filled in the form or clicked "Create Item". The real gating on step 1 happens inside `renderDetailsForm` via the "Create Item" button, which is disabled unless `form.title && form.condition`. The "Continue →" footer button on step 1 should either be hidden (since step 1 manages its own CTA inline) or the footer itself should not appear on step 1. Currently `showFooterNav = currentStep !== 1 && currentStep !== 6` — so it IS hidden on step 1 already. But `canAdvance()` returning `true` after just picking a method could still cause issues. This is fine architecturally since the footer is hidden, but needs clean-up for correctness.
-
-**Issue 3: Progress bar step labels are misaligned**
-With the ghost step 2, the progress bar shows 6 dots: Add, Details, Price, Optimise, Photos, Pack. But step 2 ("Details") never gets content — it's skipped by jumping to step 3 after createItem. The visual progress bar therefore shows a step that the user never experiences. On mobile this is especially confusing since the dots are tiny and the user can't tell what step 2 was.
+Every file read: `SellWizard.tsx` (1302 lines), `Dashboard.tsx`, `AppShellV2.tsx`, `Vintography.tsx`, `OptimizeListing.tsx`, `PriceCheck.tsx`, `ItemDetail.tsx`, `VintedReadyPack.tsx`, `PageShell.tsx`, `MobileBottomNav.tsx`, `App.tsx`.
 
 ---
 
-### High — Missing UX Moments
+## Bugs Found
 
-**Issue 4: No step header for step 2**
-In the `renderStepContent()` switch, `case 2` returns `null` and there is no `{currentStep === 2 && "Details"}` text in the step header block. The `h2` step title has entries for 1, 3, 4, 5, 6 — but not 2. If someone reaches step 2 via Back navigation from step 3, they see a blank content area with no heading.
+### Bug 1 — Critical: `MobileBottomNav` double-renders on `/sell` (orphaned component)
+`src/components/MobileBottomNav.tsx` exists as a standalone component (a legacy nav with 5 tabs: Home, Items, Price, Optimise, Photos). The new `AppShellV2` has its own bottom nav built in. `MobileBottomNav` is NOT used in `SellWizard` (which is a bare `div.min-h-screen`), so this file appears orphaned. However it IS still imported somewhere and, if it were accidentally rendered, would collide with `AppShellV2`'s nav. Confirm it is not rendered anywhere — then delete it to prevent future confusion.
 
-**Issue 5: Back button from step 3 navigates to the empty step 2**
-If the user is on step 3 (Price) and taps Back, they go to step 2 (the empty ghost step). They should go back to step 1 (Add Item) or the back button should not be shown when it would lead to an empty step. The fix: on step 3, pressing Back should go to step 1, and re-show the entry form they filled out.
+### Bug 2 — Critical: `goNext` closure stale dependency
+`canAdvance` is a regular function (not wrapped in `useCallback`), so the `goNext` `useCallback` that calls `canAdvance()` captures a stale version from the render it was created in. `goNext` has `[currentStep, canAdvance]` in its dependency array but `canAdvance` is a new function reference every render. This causes double-renders but more critically: the `startPhotoPolling` callback also has `[createdItem, goNext]` in its dep array, which means every time `goNext` re-creates, the interval gets reset. Fix: wrap `canAdvance` in `useCallback` with its real dependencies (`[currentStep, priceAccepted, optimiseSaved, photoDone, stepStatus, entryMethod]`).
 
-**Issue 6: No "Start over" / "Add another item" CTA on step 6**
-Once the user completes the flow and is on the Pack step, there is no way to start a new wizard session. The only options are "View Item" and "List on Vinted". Adding a subtle "Sell another item" link that resets all state is a critical retention feature — sellers frequently list multiple items in one session.
+### Bug 3 — Critical: Photo polling `goNext` closure captures wrong step
+Inside `startPhotoPolling`, the success path calls `setTimeout(() => goNext(), 800)`. But `goNext` is captured at the time the interval was started. If the user navigates to `/vintography` via `navigate(...)`, polling continues (the interval is still running after navigation). When the user returns to `/sell` at step 4, the re-entry `useEffect` starts a fresh check and restarts polling — but the OLD interval (started before navigation) may still be running and its `goNext` closure has the step from before navigation. This could double-advance or call `goNext` on the wrong step. Fix: always `clearInterval` before `startPhotoPolling` starts a new one.
 
-**Issue 7: Photo step (step 5) opens Photo Studio in a new tab**
-This is a jarring UX break. On mobile, opening a new tab loses context of the wizard entirely. The better pattern: open it in the same window, but on return detect the change via the existing poll mechanism. The current `window.open(..., "_blank")` should be `navigate('/vintography?itemId=...')` since we poll for `last_photo_edit_at` anyway. This way mobile users stay in the app and the poll detects when they save.
+### Bug 4 — High: Step 4 "Open Photo Studio" fires `startPhotoPolling` AND then immediately navigates away — but polling intervals don't survive navigation
+When the user clicks "Open Photo Studio", the code calls `navigate(...)` AND `startPhotoPolling()`. But navigating away unmounts `SellWizard`, which triggers the cleanup `useEffect` (line 310-314) that calls `clearInterval(photoIntervalRef.current)`. So by the time the user is in Vintography, the poll is dead. The re-entry `useEffect` on mount back at step 4 correctly handles this — BUT the order matters: `startPhotoPolling` is called, then `navigate` is called, then on unmount the interval is killed. The re-entry detect on return works correctly, so this is only an issue if someone fast-taps and returns before the first interval fires. However, the fix is simple: call `navigate` first, don't call `startPhotoPolling` at all on departure — let the re-entry detect handle everything.
 
-**Issue 8: No explanation of what each step does before the AI runs**
-When steps 3 and 4 auto-fire their edge function calls immediately on step entry, the user has zero context for what's happening. A "Loading" spinner appears with "Checking Vinted, eBay & Depop…" — but there's no step intro that sets expectations. World-class onboarding flows (Stripe, Notion, Linear) show a single sentence of context before the loading begins. Currently the loading state just appears with no lead-in.
+### Bug 5 — High: `VintedReadyPack` returns `null` silently when `!item.last_optimised_at`
+In `VintedReadyPack.tsx` line 105-106: `if (!isReady) return null; if (score != null && score < 60) return null;`. The `showFallback` check in `SellWizard` step 5 checks `!createdItem?.last_optimised_at || (healthScore != null && healthScore < 60)`. But `createdItem.last_optimised_at` is only set after `saveOptimised()` is called — which requires the user to click "Save optimised listing". If the user somehow skips step 3 (impossible via normal flow but possible via URL or reset) or if `optimiseSaved` state was set but `last_optimised_at` wasn't written to `createdItem` state correctly, they land on step 5 with a 🎉 header and blank content. The `saveOptimised` function does update `createdItem` state correctly, so this should be fine for the happy path — but the health score from the DB is an integer while the wizard stores it from `optimiseResult.health_score` which goes through a normalisation: `typeof data?.health_score === "object" ? (data.health_score?.overall ?? 0) : (data?.health_score ?? 0)`. This normalisation is correct. No immediate bug but fragile.
 
-**Issue 9: Dashboard "Add Item" button still goes to `/listings?action=add`**
-In `Dashboard.tsx` line 99, the "Add Item" Quick Action navigates to `/listings?action=add` instead of `/sell`. This is inconsistent — clicking "Sell" in the nav bar goes to the wizard, but clicking "Add Item" on the dashboard goes somewhere else entirely.
+### Bug 6 — High: Step 5 "List on Vinted" button opens `vinted.co.uk` in a new tab via `window.open`
+Line 1167: `window.open("https://www.vinted.co.uk/items/new", "_blank")`. On iOS Safari, `window.open` in a click handler is blocked by popup blockers unless it happens synchronously. Since this is in a Button's `onClick` (synchronous), it should be fine — but is inconsistent with the goal of keeping users in-app. This is acceptable behaviour (Vinted's listing form IS external), but the button label "List on Vinted" with an external link icon is clear enough.
 
-**Issue 10: No way to edit item details after step 1**
-Once the item is created and the user reaches step 3, they can't change the title, brand, or condition without abandoning the wizard and going to the Item Detail page. If the user typed the title wrong in step 1, they're stuck. A small "Edit details" link on step 3 or 4 that shows an inline edit panel would complete the flow. For now, at minimum there should be a "tap to edit" link on step 3 that links to `/items/:id` in a new tab.
+### Bug 7 — Medium: "Edit item details" opens in new tab, killing wizard state
+Line 925: `window.open(\`/items/${createdItem.id}\`, "_blank")`. This is the intentional escape hatch. However, the comment says "so the user can fix a typo without losing wizard context" — but on mobile Safari, new tabs often lose the original tab's React state when memory is reclaimed. The user may return to find the wizard reset. A better approach: navigate in-app with a `returnTo=/sell` param on the Item Detail page, and detect the return. For now the UX note says "new tab" in the code comment, which is accurate but still fragile on mobile. This should become an in-app navigation.
+
+### Bug 8 — Medium: Milestone flag `vintifi_first_listing_complete` set every time step 5 is reached, not just the first time
+Line 293: `localStorage.setItem("vintifi_first_listing_complete", "1")` runs every time `currentStep === 5` — including when the user hits "Start a new listing" and completes a 2nd or 3rd item. The Dashboard de-dupes via `localStorage.removeItem` on first read, so subsequent completions won't re-show the banner (because the flag was already removed after the first time). But for the 5-listings milestone (line 297-306), it checks `count === 5` exactly — this is fine. The first listing flag however fires on every completion, which means if the user does listing #1 and the Dashboard hasn't been visited yet, then does listing #2, both `vintifi_first_listing_complete` flags pile up but only one is stored (localStorage overwrites). On Dashboard visit only one banner shows. This is acceptable behaviour but could be cleaner by checking: `if (!localStorage.getItem("vintifi_first_listing_seen")) { localStorage.setItem("vintifi_first_listing_complete", "1"); localStorage.setItem("vintifi_first_listing_seen", "1"); }`.
+
+### Bug 9 — Medium: Photo Studio "Back to Sell Wizard" navigates to `/sell` but wizard state is lost if the user refreshed or the page was evicted
+When navigating from step 4 to `/vintography?itemId=...&returnTo=/sell` and then pressing "Back to Sell Wizard", the user returns to `/sell` — but `SellWizard` is a fully uncontrolled component with no URL-based state persistence. If the page was refreshed in Vintography (or memory was cleared on mobile), returning to `/sell` starts the wizard from scratch at step 1. The user sees the "Add your item" screen with no trace of their item. The re-entry detection `useEffect` only fires when `currentStep === 4 && createdItem` — but `createdItem` is null after a fresh mount. Fix: persist `createdItem.id` to `sessionStorage` when the user navigates to Photo Studio. On mount, if `sessionStorage` has a `sell_wizard_item_id`, re-fetch the item and restore state to step 4.
+
+### Bug 10 — Low: `canAdvance` for step 1 returns `!!entryMethod` 
+This is "allowed" because the footer nav is hidden on step 1, but the `advanceBlockedReason` for step 1 says "Choose how to add your item" — which would show if someone somehow saw the footer. No real bug since footer is hidden, but `canAdvance` returning `true` after just picking "Manual" entry (before filling anything in) is semantically wrong. Clean up by returning `false` for step 1 always, since step 1 manages its own "Create Item" button.
+
+### Bug 11 — Low: `direction` state set to `-1` in `resetWizard` instead of `1`
+Line 218: `setDirection(-1)`. After reset, the wizard should animate forward (direction = 1) since we're going back to step 1 from step 5. The slide-in transition will animate from the wrong direction. Fix: `setDirection(1)`.
 
 ---
 
-### Medium — Polish & Cohesion
+## UX Gaps Found
 
-**Issue 11: The sticky footer "Continue" button shows the blocked reason as button text**
-`{blocked ? blocked : "Continue"}` — so when the user hasn't saved the optimised listing, the button reads "Save optimised listing to continue". This is a poor UX pattern — disabled button text should be a neutral label, with the reason shown as a helper below or in a tooltip. The button should always say "Continue →" and be visually disabled, with the reason appearing below it as a small helper line.
+### Gap 1 — No "item already created" guard on step 1 "Create Item" button
+If `createdItem` is already set (e.g., user pressed Back from step 2), and they re-click "Create Item" without changing anything, `createItem()` runs again and creates a duplicate item. There's no `if (createdItem) return;` guard. The button in `renderDetailsForm` is only disabled during `creating || uploading` — not when an item already exists. Fix: add `disabled={!!createdItem || !form.title || !form.condition || creating || uploading}` and change the button label when `createdItem` exists to "Continue to Price →" which calls `goNext()` or `setCurrentStep(2)`.
 
-**Issue 12: Step 6 Pack empty state when VintedReadyPack returns null**
-If health score is below 60 after optimisation, `VintedReadyPack` returns null silently — and step 6 shows a confetti header + blank space. There should be a fallback: if the pack component returns null (detectable via checking the score client-side), show a simplified manual copy section with just the title and description text boxes.
+### Gap 2 — Step 3 "Re-generate" button resets `optimiseSaved` but the footer "Continue" is already enabled from the previous save
+If the user saves the optimised listing (clicking "Save optimised listing"), then regenerates (clicking "Re-generate"), `setOptimiseResult(null)` and `runOptimise()` are called — but `optimiseSaved` stays `true`. The footer Continue button remains enabled even though a new (unsaved) optimisation is loading. The fix: add `setOptimiseSaved(false)` in the Re-generate handler.
 
-**Issue 13: Photo step shows an image preview that's tiny (56×56px)**
-The current item image thumbnail in step 5 is `w-14 h-14` (56px). On a 390px wide mobile screen this is barely visible and doesn't motivate the user to enhance their photos. It should be a proper portrait-ratio image preview (like a Vinted listing card) at full width or at least half-width, so the user can see their photo and feel the impact of enhancing it.
+### Gap 3 — Step 2 price range bar divides by zero when `low === high`
+Lines 836-851: `const pct = ((rec - low) / (high - low)) * 100`. If `low === high` (e.g., only one comparable found), this is `0/0 = NaN`. The `Math.max(5, Math.min(95, pct))` call then produces `NaN`, and the `style={{ left: "calc(NaN% - 5px)" }}` renders the dot offscreen. Guard: `const pct = high === low ? 50 : ((rec - low) / (high - low)) * 100`.
 
-**Issue 14: The "Sell Wizard" header title is only on desktop — on mobile the header is 14px**
-The header title text `font-bold text-sm` renders the "Sell Wizard" label very small. On mobile this is competing with the "← Items" back link and the "Step X of 6" indicator. A cleaner mobile header: just the step name centered (e.g. "Set a price"), with the back arrow left-aligned and the step count top-right. Same pattern as Depop's listing flow.
+### Gap 4 — No loading state between `navigate("/sell")` and the first step render (from Dashboard)
+Clicking "List your first item" on Dashboard immediately navigates to `/sell`. The wizard has no `useEffect` that fires a loading overlay — it just renders step 1 instantly. This is actually fine (step 1 is static content). No fix needed.
 
-**Issue 15: Progress bar labels hidden on mobile**
-`hidden sm:block` on the step labels means on any screen under 640px (the majority of mobile phones including iPhone SE, 12, 13, 14), no labels appear at all — just the numbered circles. This makes the progress bar feel like floating bubbles with no context. On small screens, show at least a single current-step label below the bar: "Step 3 of 5 — Price".
+### Gap 5 — Photo Studio "Best results" guidance banner uses `sessionStorage` — dismissed state lost on app restart
+Line 449: `if (!sessionStorage.getItem("vintography_guidance_dismissed"))`. Session storage is cleared when the browser tab is closed, so this banner re-appears on every session. For a world-class experience, use `localStorage` so the dismiss is persistent.
 
-**Issue 16: Sell Wizard renders inside the AppShell on mobile (double nav bars)**
-The `SellWizard` page renders completely standalone (its own header + no AppShell wrapper), but the AppShell's mobile bottom nav still shows because... let me check if `/sell` uses `AppShellV2`. Looking at the code, `SellWizard` does NOT use `AppShellV2` — it's a bare `div.min-h-screen`. So the bottom nav does NOT show. However the AppShell header from `AppShellV2` also doesn't show. This is correct — it's a standalone full-page flow. But the `/sell` route needs to confirm it doesn't get wrapped. Looking at `App.tsx` — the route should be outside `AppShellV2`. This needs verification.
+### Gap 6 — No "Sell Wizard" entry in mobile hamburger sheet nav
+`AppShellV2`'s `NAV_ITEMS` (line 26-34) includes "Sell" as a route — so it IS in the sheet. This is correct. ✅
 
-**Issue 17: No item name shown in the header once item is created**
-From step 3 onwards, the header just says "Sell Wizard" with no reference to the specific item. This makes the flow feel generic. Once `createdItem` is set, the header should show a truncated item title (e.g. "Nike Air Force 1…") so the user knows which item they're working on.
+### Gap 7 — Step 5 has TWO "View Item" paths that may conflict
+Step 5 has a "View Item" button (line 1154-1163) that navigates to `/items/:id`. It also has a "Mark Listed" flow (line 1133-1151) that, after a 1-second timeout, also navigates to `/items/:id`. If the user clicks "Mark Listed" and then quickly clicks "View Item", both navigations fire, causing two navigations. Fix: disable both buttons during `markingListed`.
 
-**Issue 18: No confetti or delight moment on step 6 for fully complete items**
-Step 6 shows a 🎉 emoji but no actual animation. The `VintedReadyPack` component itself is visually strong, but arriving at step 6 should feel like a genuine achievement moment. A `framer-motion` scale + fade entrance for the header + `VintedReadyPack` would make it feel world-class.
+### Gap 8 — Listing health score in `VintedReadyPack` vs in `SellWizard` are from different data sources
+`createdItem.health_score` in the wizard is updated via `setCreatedItem` from `saveOptimised()`. `VintedReadyPack` receives `item={createdItem as any}`. This is correct. ✅
+
+### Gap 9 — No scrolling to top between steps on mobile
+When the user advances from step 1 (which can be long on mobile — URL form + details form = lots of content) to step 2, the scroll position stays at the bottom. The content transitions with `AnimatePresence` but the container `div.flex-1.overflow-y-auto` doesn't scroll to top. This means the user may land on step 2 with the loading spinner off-screen. Fix: add `window.scrollTo(0, 0)` or target the scroll container's `.scrollTop = 0` inside `goNext` and `setCurrentStep` calls.
+
+### Gap 10 — "Start a new listing" resets but doesn't clear `sessionStorage`
+The proposed Bug 9 fix (storing `sell_wizard_item_id` in `sessionStorage`) would need to be cleared in `resetWizard`. This is a forward-compatibility note, not a current bug.
 
 ---
 
 ## The Fix Plan
 
-### Changes to `src/pages/SellWizard.tsx`
-
-**1. Fix STEPS array — drop the ghost "Details" step**
-Remove step 2 from `STEPS`. Redefine as 5 steps: Add → Price → Optimise → Photos → Pack. Renumber all `currentStep` references accordingly (step 3 becomes step 2, step 4 becomes step 3, etc.). The `createItem()` function which jumps directly to step 3 (price) now jumps to step 2 (price). This removes the ghost step, the blank back-navigation issue, and the misaligned progress bar in one shot.
-
-**2. Fix goBack() on price step to return to step 1**
-Since step 2 is now the price step and step 1 is Add Item, pressing Back on step 2 correctly goes to step 1. On step 1, the Back button should not be shown (the "← Items" header link suffices). Hide the Back button when `currentStep === 1`.
-
-**3. Rewrite the sticky footer button — split label from blocked reason**
-Change from: `{blocked ? blocked : "Continue"}` inside the button to always showing "Continue →" as button text (disabled when blocked), with the blocked reason shown as a small helper line below the footer: `{blocked && <p className="text-center text-xs text-muted-foreground">{blocked}</p>}`.
-
-**4. Fix Dashboard "Add Item" to go to `/sell`**
-In `Dashboard.tsx`, change `navigate("/listings?action=add")` to `navigate("/sell")`.
-
-**5. Fix step 5 Photo Studio to navigate in-app instead of new tab**
-Change `window.open(...)` to `navigate(...)` for the Photo Studio link. The polling mechanism already handles the return detection so the UX works identically but without the jarring tab break.
-
-**6. Improve step 5 photo preview to full-width card**
-Change the tiny `w-14 h-14` thumbnail to a proper `aspect-[4/5]` card image that fills the width of the content area, matching how the item looks in a Vinted listing. This motivates the user to enhance it.
-
-**7. Upgrade mobile progress bar — add current step label below**
-Below the dots progress bar, add a single centered line: `Step 2 of 5 — Price Check` that appears on all screen sizes. This replaces the per-step `hidden sm:block` labels (which can stay for larger screens) with always-visible context.
-
-**8. Update header to show item name once created**
-Once `createdItem` is set, change the center header text from "Sell Wizard" to the item's truncated title (max 22 chars + "…") in a smaller font. The rocket icon stays.
-
-**9. Add "Sell another item" reset link on step 6**
-Below the CTA buttons on the Pack step, add a small `text-muted-foreground text-xs` link: "Start a new listing →" that calls a `resetWizard()` function setting all state back to initial and returning to step 1. This is critical for high-volume sellers who list 10+ items in a session.
-
-**10. Add entrance animation to step 6 header**
-Wrap the "🎉 You're ready to list!" section in a `motion.div` with `initial={{ scale: 0.9, opacity: 0 }}` and `animate={{ scale: 1, opacity: 1 }}` with a spring transition and a short delay, giving the completion moment genuine delight.
-
-**11. Fallback when VintedReadyPack returns null in step 6**
-Check `createdItem?.health_score` client-side. If it's below 60 or null, show a manual fallback section with the optimised title and description in copy-able text boxes instead of silently rendering nothing.
-
-**12. Add "Edit details" escape hatch on price step**
-Below the loading/result area on step 2 (price), add a small footer link: `Having second thoughts? Edit item details` that navigates to `/items/:id` in a new tab so the user can fix a typo without losing wizard context.
-
----
-
-## Files to Change
+### Files to Change
 
 | File | Changes |
 |------|---------|
-| `src/pages/SellWizard.tsx` | Remove ghost step 2, fix step numbering (5 steps total), fix footer button pattern, fix Photo Studio navigation, improve photo preview, header shows item name, add step label under progress bar, add "Sell another" reset, add step 6 entrance animation, add health score fallback |
-| `src/pages/Dashboard.tsx` | Fix "Add Item" quick action to navigate to `/sell` |
+| `src/pages/SellWizard.tsx` | 10 targeted fixes (see below) |
+| `src/pages/Vintography.tsx` | 1 fix: sessionStorage → localStorage for guidance banner |
+| `src/pages/OptimizeListing.tsx` | 1 fix: add `setOptimiseSaved(false)` guard (N/A — this is in SellWizard step 3) |
 
 No new files. No database changes. No edge function changes.
 
 ---
 
-## Result
+### Changes to `src/pages/SellWizard.tsx` (10 changes)
 
-After these changes the wizard will be:
-- **5 clean steps** with no ghost steps: Add → Price → Optimise → Photos → Pack
-- **Mobile-perfect**: visible step context at all times, in-app Photo Studio navigation, proper image previews, clear disabled state feedback
-- **Delightful**: animated step 6 completion, item name in header from step 2 onwards
-- **Complete loop**: "Sell another item" keeps high-volume sellers in the flow
-- **Consistent**: Dashboard "Add Item" always goes to the wizard
+**Fix 1 — Wrap `canAdvance` in `useCallback`**
+Convert `canAdvance` from a plain function to `useCallback` with deps `[currentStep, priceAccepted, optimiseSaved, photoDone, stepStatus, entryMethod]`. This eliminates the stale closure problem in `goNext` and `startPhotoPolling`.
+
+**Fix 2 — Duplicate item guard on "Create Item" button**
+In `renderDetailsForm`, add `createdItem` to the disabled check: `disabled={!!createdItem || !form.title || !form.condition || creating || uploading}`. When `createdItem` is set, change button text to "Continue to Price →" and call `setCurrentStep(2)` instead of `createItem`.
+
+**Fix 3 — Re-generate button resets `optimiseSaved`**
+In the Re-generate handler (line 942): add `setOptimiseSaved(false)` before calling `runOptimise()` so the footer Continue button correctly disables while the new result loads.
+
+**Fix 4 — Price range bar divide-by-zero guard**
+Line 839: change to `const pct = high === low ? 50 : ((rec - low) / (high - low)) * 100;` to prevent NaN positioning when only one comparable exists.
+
+**Fix 5 — Clear interval before starting polling (double-poll guard)**
+In `startPhotoPolling`, add `if (photoIntervalRef.current) clearInterval(photoIntervalRef.current);` as the first line before creating the new interval.
+
+**Fix 6 — Don't call `startPhotoPolling` on Photo Studio departure**
+In the "Open Photo Studio" click handler (line 1019-1026), remove the `startPhotoPolling()` call entirely. The re-entry `useEffect` handles detection on return. The poll being killed on navigate was the bug — so don't start it at that moment.
+
+**Fix 7 — Persist wizard state to `sessionStorage` before navigating to Photo Studio**
+When navigating to `/vintography` from step 4, write `sessionStorage.setItem("sell_wizard_item_id", createdItem.id)` and `sessionStorage.setItem("sell_wizard_step", "4")`. On `SellWizard` mount, check for these keys — if found, re-fetch the item from Supabase and restore to step 4 with `createdItem` set. In `resetWizard`, clear both keys.
+
+**Fix 8 — Scroll to top on step advance**
+In `goNext` callback, after `setCurrentStep(s => ...)`, add: `setTimeout(() => { const el = document.getElementById("sell-wizard-scroll"); if (el) el.scrollTop = 0; }, 50)`. Add `id="sell-wizard-scroll"` to the `div.flex-1.overflow-y-auto` container (line 1248).
+
+**Fix 9 — Disable both CTA buttons during `markingListed`**
+Line 1154: add `disabled={markingListed}` to the "View Item" button to prevent conflicting double navigation.
+
+**Fix 10 — Fix `resetWizard` direction**
+Line 218: change `setDirection(-1)` to `setDirection(1)` so the wizard animates correctly forward from the start after reset.
+
+---
+
+### Changes to `src/pages/Vintography.tsx` (1 change)
+
+**Fix 11 — Persist guidance banner dismissal across sessions**
+Line 449 and 462: replace `sessionStorage` with `localStorage` for the `vintography_guidance_dismissed` key, so users who dismiss the tip don't see it again on every new browser session.
+
+---
+
+### Changes to `src/pages/OptimizeListing.tsx` (none — this file's analogous "re-generate" pattern is in SellWizard's step 3)
+
+---
+
+## Priority Order
+
+1. Bug 9 (sessionStorage restore) — most impactful on mobile where page eviction is common
+2. Gap 1 (duplicate item creation guard) — prevents data pollution
+3. Bug 3 / Fix 5 (poll double-start, interval cleanup) — prevents ghost polls and stale closures
+4. Bug 2 / Fix 1 (canAdvance useCallback) — prevents double renders and stale `goNext`
+5. Fix 3 (Re-generate resets optimiseSaved) — UX correctness
+6. Fix 4 (divide-by-zero on price bar) — visual bug in single-comparable edge case
+7. Fix 8 (scroll to top) — mobile experience polish
+8. Fix 9 (disable View Item during markingListed) — prevents double navigation
+9. Fix 10 (resetWizard direction) — cosmetic
+10. Fix 11 (localStorage for guidance banner) — polish
+
+## Expected Outcome
+
+After these fixes:
+- **Zero data corruption**: no duplicate items created from Back navigation
+- **Bulletproof polling**: single interval, no ghost polls, no stale closures
+- **State survives navigation**: returning from Photo Studio always restores the correct step
+- **Mathematically safe**: no NaN in price bar, no divide-by-zero
+- **Mobile-first scroll**: step transitions always start at the top
+- **Correct animations**: reset wizard animates forward not backward
+- **Persistent UX preferences**: Photo Studio guidance banner dismisses forever, not per-session
