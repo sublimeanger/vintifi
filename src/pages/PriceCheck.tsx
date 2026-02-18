@@ -212,6 +212,12 @@ export default function PriceCheck() {
       toast.success("Price analysis complete!");
       const isUnlimitedAfter = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
       if (!isUnlimitedAfter) toast("−1 credit used", { duration: 2000 });
+
+      // Milestone: first price check ever
+      if (!localStorage.getItem("vintifi_first_price_check_seen")) {
+        localStorage.setItem("vintifi_first_price_check", "1");
+        localStorage.setItem("vintifi_first_price_check_seen", "1");
+      }
     } catch (err: any) {
       toast.error(err.message || "Analysis failed. Try again.");
     } finally {

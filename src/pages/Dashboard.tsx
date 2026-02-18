@@ -33,11 +33,42 @@ export default function Dashboard() {
   const [needsAttentionCount, setNeedsAttentionCount] = useState(0);
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const celebrationDismissed = useRef(false);
+  // ─── Milestone banners ───
+  const [activeBanners, setActiveBanners] = useState<string[]>([]);
+  const bannersReadRef = useRef(false);
+
+  // All milestone config
+  const MILESTONES: Record<string, {
+    emoji: string; title: string; body: string; action?: { label: string; route: string };
+  }> = {
+    vintifi_first_listing_complete: {
+      emoji: "🎉",
+      title: "First listing complete!",
+      body: "You're officially a data-driven seller. AI pricing & optimisation done — you're ahead of the pack.",
+      action: { label: "View my listing", route: "/listings" },
+    },
+    vintifi_five_listings_complete: {
+      emoji: "🔥",
+      title: "5 listings — you're on a roll!",
+      body: "Five items live and counting. Check your Trend Radar to see what's rising this week.",
+      action: { label: "Open Trend Radar", route: "/trends" },
+    },
+    vintifi_first_price_check: {
+      emoji: "📊",
+      title: "First price check done!",
+      body: "You just unlocked data-driven pricing. Run a check on every item for maximum profit.",
+      action: { label: "Check another item", route: "/price-check" },
+    },
+    vintifi_first_optimisation: {
+      emoji: "✨",
+      title: "First AI optimisation complete!",
+      body: "Your listing is now Vinted algorithm-ready. AI titles get up to 3× more views.",
+      action: { label: "Optimise another", route: "/optimize" },
+    },
+  };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || bannersReadRef.current) return;
     const fetchAll = async () => {
       const [activeRes, needsAttRes, recentRes] = await Promise.all([
         supabase.from("listings").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "active"),
@@ -51,18 +82,24 @@ export default function Dashboard() {
       setRecentItems((recentRes.data || []) as RecentItem[]);
       setLoaded(true);
 
-      // Check for first-listing celebration flag
-      if (
-        !celebrationDismissed.current &&
-        localStorage.getItem("vintifi_first_listing_complete") === "1"
-      ) {
-        localStorage.removeItem("vintifi_first_listing_complete");
-        // Small delay so the dashboard has painted first
-        setTimeout(() => setShowCelebration(true), 400);
+      // Collect all pending milestone flags
+      bannersReadRef.current = true;
+      const pending: string[] = [];
+      for (const key of Object.keys(MILESTONES)) {
+        if (localStorage.getItem(key) === "1") {
+          localStorage.removeItem(key);
+          pending.push(key);
+        }
+      }
+      if (pending.length > 0) {
+        setTimeout(() => setActiveBanners(pending), 400);
       }
     };
     fetchAll();
   }, [user]);
+
+  const dismissBanner = (key: string) =>
+    setActiveBanners((prev) => prev.filter((k) => k !== key));
 
   const handleAnalyze = () => {
     if (!url.trim()) { toast.error("Paste a Vinted URL or enter item details"); return; }
@@ -80,46 +117,48 @@ export default function Dashboard() {
           <p className="text-muted-foreground text-[10px] sm:text-sm">Your selling command centre</p>
         </motion.div>
 
-        {/* First-listing celebration banner */}
-        <AnimatePresence>
-          {showCelebration && (
-            <motion.div
-              initial={{ opacity: 0, y: -12, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="relative rounded-2xl bg-gradient-to-r from-primary/10 via-accent/10 to-success/10 border border-primary/20 p-3.5 sm:p-4 overflow-hidden"
-            >
-              {/* Subtle shimmer sweep */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer-sweep pointer-events-none" />
-              <div className="flex items-start gap-3 relative z-10">
-                <div className="text-2xl sm:text-3xl leading-none select-none">🎉</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-display font-bold text-sm sm:text-base text-foreground leading-tight">
-                    First listing complete!
-                  </p>
-                  <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-                    You're officially a data-driven seller. Price check &amp; AI optimisation done — you're ahead of the pack.
-                  </p>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="mt-2 h-7 px-2.5 text-[11px] text-primary hover:bg-primary/10 -ml-1"
-                    onClick={() => { setShowCelebration(false); navigate("/listings"); }}
+        {/* Milestone banners */}
+        <AnimatePresence mode="sync">
+          {activeBanners.map((key) => {
+            const m = MILESTONES[key];
+            if (!m) return null;
+            return (
+              <motion.div
+                key={key}
+                initial={{ opacity: 0, y: -12, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                className="relative rounded-2xl bg-gradient-to-r from-primary/10 via-accent/10 to-success/10 border border-primary/20 p-3.5 sm:p-4 overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent pointer-events-none" />
+                <div className="flex items-start gap-3 relative z-10">
+                  <div className="text-2xl sm:text-3xl leading-none select-none">{m.emoji}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-display font-bold text-sm sm:text-base text-foreground leading-tight">{m.title}</p>
+                    <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">{m.body}</p>
+                    {m.action && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="mt-2 h-7 px-2.5 text-[11px] text-primary hover:bg-primary/10 -ml-1"
+                        onClick={() => { dismissBanner(key); navigate(m.action!.route); }}
+                      >
+                        {m.action.label} <ChevronRight className="w-3 h-3 ml-0.5" />
+                      </Button>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => dismissBanner(key)}
+                    className="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-90"
+                    aria-label="Dismiss"
                   >
-                    View my listing <ChevronRight className="w-3 h-3 ml-0.5" />
-                  </Button>
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => { setShowCelebration(false); celebrationDismissed.current = true; }}
-                  className="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-90"
-                  aria-label="Dismiss"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          )}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
 
         {/* Quick Price Check */}
