@@ -255,16 +255,29 @@ export default function Dashboard() {
               <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
             </div>
           ) : recentItems.length === 0 ? (
-            <div className="text-center py-6 sm:py-8">
-              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-2.5">
-                <Sparkles className="w-5 h-5 text-primary" />
+            <button
+              onClick={() => navigate("/sell")}
+              className="w-full rounded-xl border-2 border-dashed border-primary/30 bg-primary/[0.03] hover:bg-primary/[0.07] active:scale-[0.98] transition-all p-3.5 text-left group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="relative shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+                    <Rocket className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                  <span className="absolute inset-0 rounded-xl bg-primary/40 animate-ping" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-xs text-foreground">List your first item</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">AI pricing &amp; optimisation in under 2 min</p>
+                </div>
+                <motion.div
+                  animate={{ x: [0, 4, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                >
+                  <ChevronRight className="w-4 h-4 text-primary shrink-0" />
+                </motion.div>
               </div>
-              <p className="text-xs font-medium mb-0.5">No items yet</p>
-              <p className="text-[10px] text-muted-foreground mb-3">Add your first item to get started</p>
-              <Button size="sm" onClick={() => navigate("/listings")} className="h-9 rounded-xl text-xs">
-                <Package className="w-3.5 h-3.5 mr-1.5" /> Add Item
-              </Button>
-            </div>
+            </button>
           ) : (
             <div className="space-y-1">
               {recentItems.map((item) => (
