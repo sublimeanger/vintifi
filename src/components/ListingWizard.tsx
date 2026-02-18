@@ -511,6 +511,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
               }
             </div>
           </div>
+        </div>
 
         {/* Seller notes / defect disclosure */}
         <div className="space-y-1.5 pt-1">
