@@ -16,6 +16,7 @@ import {
   Check, ChevronLeft, Loader2, Copy, Search, Sparkles, ImageIcon,
   Camera, Rocket, PoundSterling, Link2, Pencil, Upload, Plus, X,
   ArrowRight, Package, AlertCircle, ExternalLink, RotateCcw, Home,
+  Share2, MessageCircle,
 } from "lucide-react";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
@@ -1405,10 +1406,30 @@ export default function SellWizard() {
                 <span>Vinted fee (~5%)</span>
                 <span>-£{(createdItem.current_price * 0.05).toFixed(2)}</span>
               </div>
-              <div className="border-t border-border mt-2 pt-2 flex justify-between items-center font-bold text-success">
-                <span>Est. Net Profit</span>
-                <span>£{(createdItem.current_price * 0.95 - createdItem.purchase_price).toFixed(2)}</span>
-              </div>
+              {(() => {
+                const netProfit = createdItem.current_price * 0.95 - createdItem.purchase_price;
+                const marginPct = createdItem.purchase_price > 0
+                  ? Math.round((netProfit / createdItem.purchase_price) * 100)
+                  : null;
+                const isNeg = netProfit < 0;
+                return (
+                  <div className={`border-t border-border mt-2 pt-2 flex justify-between items-center font-bold ${isNeg ? "text-destructive" : "text-success"}`}>
+                    <span>Est. Net Profit</span>
+                    <div className="flex items-center gap-2">
+                      <span>£{netProfit.toFixed(2)}</span>
+                      {marginPct !== null && (
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                          isNeg
+                            ? "bg-destructive/10 border-destructive/30 text-destructive"
+                            : "bg-success/10 border-success/30 text-success"
+                        }`}>
+                          {isNeg ? "" : "+"}{marginPct}% margin
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </motion.div>
         )}
@@ -1484,6 +1505,38 @@ export default function SellWizard() {
           </div>
         </div>
 
+        {/* Share row: WhatsApp + clipboard */}
+        {createdItem && (() => {
+          const displayTitle = createdItem.optimised_title || createdItem.title;
+          const displayDesc = createdItem.optimised_description || createdItem.description || "";
+          const shareText = [displayTitle, displayDesc].filter(Boolean).join("\n\n");
+          const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+          return (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-11 lg:h-12 font-semibold gap-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareText);
+                  toast.success("Listing copied — paste into Vinted!");
+                }}
+              >
+                <Copy className="w-4 h-4" /> Copy to clipboard
+              </Button>
+              <Button
+                variant="outline"
+                className="h-11 lg:h-12 px-4 font-semibold gap-2 border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#25D366]"
+                asChild
+              >
+                <a href={waUrl} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="hidden sm:inline">WhatsApp</span>
+                </a>
+              </Button>
+            </div>
+          );
+        })()}
+
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -1505,15 +1558,14 @@ export default function SellWizard() {
           </Button>
         </div>
 
-        {/* "Sell another item" reset link */}
-        <div className="text-center pt-1">
-          <button
-            onClick={resetWizard}
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <RotateCcw className="w-3 h-3" /> Start a new listing
-          </button>
-        </div>
+        {/* "Sell another item" — proper button, not a tiny link */}
+        <Button
+          variant="ghost"
+          className="w-full h-10 text-sm text-muted-foreground hover:text-foreground font-medium gap-2"
+          onClick={resetWizard}
+        >
+          <RotateCcw className="w-3.5 h-3.5" /> Sell another item
+        </Button>
       </div>
     );
   };
