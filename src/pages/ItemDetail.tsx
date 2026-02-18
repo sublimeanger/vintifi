@@ -16,7 +16,7 @@ import {
   Eye, Heart, Calendar, PoundSterling, TrendingUp,
   Package, MoreHorizontal, Clock, Zap, Tag, Ruler,
   ShieldCheck, Loader2, Copy, Check, ExternalLink,
-  ArrowRight, Download, Hash, Flame,
+  ArrowRight, Download, Hash, Flame, Rocket,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PhotosTab } from "@/components/PhotosTab";
 import { VintedReadyPack } from "@/components/VintedReadyPack";
+import { ListingWizard } from "@/components/ListingWizard";
 
 type Listing = {
   id: string;
@@ -107,6 +108,7 @@ export default function ItemDetail() {
   const [priceInput, setPriceInput] = useState("");
   const [editingShipping, setEditingShipping] = useState(false);
   const [shippingInput, setShippingInput] = useState("");
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Quick Hashtags state
   const [hashtags, setHashtags] = useState<string[]>([]);
@@ -383,6 +385,27 @@ export default function ItemDetail() {
 
         {/* ═══ OVERVIEW TAB ═══ */}
         <TabsContent value="overview" className="space-y-2.5 sm:space-y-6">
+          {/* Wizard launch card — shown when not yet listed */}
+          {!item.vinted_url && (
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => setWizardOpen(true)}
+              className="w-full text-left gradient-border rounded-xl group active:scale-[0.99] transition-transform"
+            >
+              <div className="rounded-xl bg-card px-4 py-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                  <Rocket className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-display font-bold leading-tight">Get ready to list — guided walkthrough</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Price → Optimise → Photos → Vinted-Ready Pack in one flow</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+              </div>
+            </motion.button>
+          )}
+
           {/* Vinted-Ready Pack — top of Overview when ready */}
           <VintedReadyPack item={item} onOptimise={handleOptimise} onPhotoStudio={handlePhotoStudio} />
 
@@ -873,6 +896,13 @@ export default function ItemDetail() {
         </TabsContent>
       </Tabs>
 
+      {/* Listing Wizard overlay */}
+      <ListingWizard
+        item={item}
+        isOpen={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onItemUpdate={(updated) => setItem(updated as Listing)}
+      />
     </PageShell>
   );
 }
