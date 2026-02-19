@@ -17,9 +17,10 @@ export function CreditBar({ used, limit, unlimited }: Props) {
     );
   }
 
+  const remaining = Math.max(0, limit - used);
   const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
-  const isLow = limit - used <= 2;
-  const isEmpty = used >= limit;
+  const isLow = remaining <= 2;
+  const isEmpty = remaining <= 0;
 
   return (
     <div className="flex items-center gap-3 px-1 lg:px-2">
@@ -29,7 +30,7 @@ export function CreditBar({ used, limit, unlimited }: Props) {
         className={`h-2 flex-1 ${isEmpty ? "[&>div]:bg-destructive" : isLow ? "[&>div]:bg-accent" : ""}`}
       />
       <span className={`text-xs lg:text-sm font-semibold tabular-nums shrink-0 ${isEmpty ? "text-destructive" : isLow ? "text-accent" : "text-muted-foreground"}`}>
-        {used}/{limit} credits
+        {isEmpty ? "No credits left" : `${remaining} credit${remaining === 1 ? "" : "s"} left`}
       </span>
     </div>
   );
