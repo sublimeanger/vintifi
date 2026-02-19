@@ -36,7 +36,7 @@ const TIER_ICONS: Record<string, typeof Crown> = {
   enterprise: Shield,
 };
 
-const UPGRADE_TIERS: TierKey[] = ["pro", "business", "scale", "enterprise"];
+const UPGRADE_TIERS: TierKey[] = ["pro", "business"];
 
 export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits }: UpgradeModalProps) {
   const isMobile = useIsMobile();
