@@ -24,6 +24,7 @@ import ItemDetail from "./pages/ItemDetail";
 import TrendRadar from "./pages/TrendRadar";
 import SellWizard from "./pages/SellWizard";
 import NotFound from "./pages/NotFound";
+import BriefDownload from "./pages/BriefDownload";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/brief" element={<BriefDownload />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/features" element={<Features />} />
             <Route path="/pricing" element={<Pricing />} />
