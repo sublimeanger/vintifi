@@ -1,46 +1,102 @@
 
-# Design System Upgrade — CSS & Config Only
 
-A pure visual refresh. No component logic, page structure, or functionality changes. Only 3 files are touched.
+## Analysis: Pipeline Conflicts and Preset Saving
 
----
+### Part 1: Illogical Operation Pairings
 
-## What changes
+Currently the pipeline allows some combinations that don't make sense:
 
-### 1. `index.html`
-- Remove the current Google Fonts link (Plus Jakarta Sans + Inter)
-- Add new Google Fonts link: **Sora** (display/headings), **DM Sans** (body), **JetBrains Mono** (mono/prices)
-- Update the meta description to be photo-led
+| Combination | Why it's illogical |
+|---|---|
+| Flatlay + Mannequin | Both are full re-compositions -- a garment can't be both flat-laid AND on a mannequin |
+| Flatlay/Mannequin + Lifestyle BG | These operations already create a complete scene; adding a lifestyle background on top would conflict |
+| Lifestyle BG before Clean BG | Lifestyle adds a scene, then Clean BG strips it away -- wasted credits |
+| Clean BG before Flatlay/Mannequin | These ops generate their own background, so removing it first is pointless |
 
-### 2. `tailwind.config.ts`
-- Update `fontFamily` to use `DM Sans` as `sans`, `Sora` as `display`, `JetBrains Mono` as `mono`
-- Add `boxShadow` tokens: `coral` and `coral-hover` (warm coral glow shadows)
-- Update `borderRadius` tokens to slightly rounder values (sm: 6px, md/DEFAULT: 10px, lg: 14px, xl: 20px, 2xl: 26px)
+**Valid chains** (examples):
+- Clean BG then Lifestyle BG (remove, then replace -- logical)
+- Clean BG then Enhance
+- Steam and Press then Clean BG then Lifestyle BG
+- AI Model then Enhance
 
-### 3. `src/index.css`
-- Replace `:root` CSS custom properties: warmer cream background (`30 15% 98%`), slightly warmer charcoal foreground, updated sidebar dark navy, coral primary bumped to `350 80% 58%`
-- Replace `.dark` CSS custom properties with matching warm-dark values
-- Confirm no hardcoded `font-family: Inter` or `Plus Jakarta Sans` strings remain
+### Part 2: "Save My Settings" -- Reusable Presets
 
----
-
-## What does NOT change
-- No `.tsx` component files
-- No page layouts or routes
-- No edge functions
-- No `constants.ts`
-- No functionality whatsoever
+Allow sellers to save their current pipeline configuration (operations + parameters like background choice) as a named personal preset, then apply it to any future photo with one tap.
 
 ---
 
-## Technical detail
+### Implementation Plan
 
-| Token | Before | After |
-|---|---|---|
-| `--background` | `220 20% 97%` (cool grey) | `30 15% 98%` (warm cream) |
-| `--primary` | `350 75% 55%` | `350 80% 58%` (slightly punchier coral) |
-| `font-sans` | Inter | DM Sans |
-| `font-display` | Plus Jakarta Sans | Sora |
-| `font-mono` | — | JetBrains Mono |
-| `borderRadius.lg` | `var(--radius)` | `14px` |
-| `--radius` | `0.75rem` | `0.625rem` |
+**Step 1: Strengthen pipeline conflict rules** in `vintographyReducer.ts`
+
+Update `getAvailableOpsToAdd()` and `canAddOperation()` with these new rules:
+- Flatlay and Mannequin are mutually exclusive (if one is in the pipeline, the other is hidden)
+- If Flatlay or Mannequin is present, Lifestyle BG is blocked (and vice versa)
+- If Lifestyle BG is present, Clean BG cannot come AFTER it (order-aware check)
+- If Flatlay or Mannequin is present, Clean BG is blocked (redundant step)
+
+These changes ensure the "Add Effect" dropdown and Operation Bar never offer illogical options.
+
+**Step 2: Add a "Saved Presets" feature**
+
+- Create a new database table `user_presets` with columns:
+  - `id` (uuid, primary key)
+  - `user_id` (uuid, not null)
+  - `name` (text, not null) -- e.g. "My Studio Look"
+  - `pipeline` (jsonb, not null) -- stores the full pipeline array with operations and params
+  - `created_at` (timestamptz)
+  - RLS: users can only read/write their own presets
+
+- Add a "Save as Preset" button in the config area (near the Generate button) that captures the current pipeline state and prompts for a name.
+
+- In the `QuickPresets` component, add a "My Presets" section that loads saved presets from the database and renders them alongside the built-in presets. Tapping one calls `REPLACE_PIPELINE` with the saved configuration.
+
+- Add a delete option (swipe or long-press on mobile, hover X on desktop) to remove saved presets.
+
+**Step 3: Wire up the UI**
+
+- After a successful generation, show a subtle "Save this setup" prompt if the pipeline has 2+ steps or custom params, encouraging users to save for reuse.
+- Saved presets appear at the top of the Quick Presets area with a "My Presets" label and a distinct visual style (e.g. a small star icon).
+
+---
+
+### Technical Details
+
+**Conflict matrix** (added to `getAvailableOpsToAdd`):
+
+```text
+MUTUALLY_EXCLUSIVE groups:
+  Group A: flatlay, mannequin, lifestyle_bg
+  (only one "scene-setting" operation allowed per pipeline)
+
+REDUNDANCY rules:
+  If pipeline contains flatlay OR mannequin -> block clean_bg
+  If pipeline contains clean_bg -> block flatlay, mannequin
+```
+
+**Database migration SQL:**
+
+```text
+CREATE TABLE public.user_presets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  pipeline jsonb NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.user_presets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own presets"
+  ON public.user_presets FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+```
+
+**Files to create/modify:**
+- `src/components/vintography/vintographyReducer.ts` -- updated conflict rules
+- `src/components/vintography/QuickPresets.tsx` -- add "My Presets" section
+- `src/components/vintography/ConfigContainer.tsx` -- add "Save as Preset" button
+- `src/pages/Vintography.tsx` -- wire save/load preset handlers
+- Database migration for `user_presets` table
+
