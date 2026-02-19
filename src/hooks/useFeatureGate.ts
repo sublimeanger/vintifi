@@ -16,7 +16,8 @@ export type FeatureKey =
   | "cross_listings"
   | "portfolio_optimizer"
   | "charity_briefing"
-  | "vintography";
+  | "vintography"
+  | "sell_wizard";
 
 type TierLevel = "free" | "pro" | "business" | "scale" | "enterprise";
 
@@ -51,6 +52,7 @@ const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
   portfolio_optimizer: { minTier: "pro", usesCredits: false, label: "Portfolio Optimiser" },
   charity_briefing: { minTier: "pro", usesCredits: false, label: "Charity Briefing" },
   vintography: { minTier: "free", usesCredits: true, creditType: "optimizations", label: "Vintography" },
+  sell_wizard: { minTier: "free", usesCredits: true, creditType: "optimizations", label: "Sell Wizard" },
 };
 
 export function useFeatureGate(feature: FeatureKey) {
@@ -87,6 +89,10 @@ export function useFeatureGate(feature: FeatureKey) {
   const showUpgrade = useCallback(() => setUpgradeOpen(true), []);
   const hideUpgrade = useCallback(() => setUpgradeOpen(false), []);
 
+  // first-item-free pass awareness (only relevant for sell_wizard feature)
+  const firstItemPassUsed = profile?.first_item_pass_used ?? false;
+  const freePassActive = feature === "sell_wizard" && userTier === "free" && !firstItemPassUsed;
+
   return {
     allowed,
     reason,
@@ -98,5 +104,7 @@ export function useFeatureGate(feature: FeatureKey) {
     featureLabel: config.label,
     userTier,
     config,
+    freePassActive,
+    firstItemPassUsed,
   };
 }

@@ -217,7 +217,7 @@ serve(async (req) => {
     const creditsData = await creditsRes.json();
     if (creditsData.length > 0) {
       const c = creditsData[0];
-      if (c.credits_limit < 999) {
+      if (c.credits_limit < 999999) {
         const totalUsed = (c.price_checks_used || 0) + (c.optimizations_used || 0) + (c.vintography_used || 0);
         if (totalUsed >= c.credits_limit) {
           return new Response(

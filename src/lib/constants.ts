@@ -4,7 +4,7 @@ export const STRIPE_TIERS = {
     price: 0,
     price_id: null,
     product_id: null,
-    credits: 5,
+    credits: 3,
     features: [
       "5 credits/month — no card required",
       "AI Price Check on any Vinted item",
