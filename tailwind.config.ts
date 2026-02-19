@@ -14,8 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Plus Jakarta Sans", "system-ui", "sans-serif"],
+        sans: ["DM Sans", "system-ui", "sans-serif"],
+        display: ["Sora", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -67,9 +68,17 @@ export default {
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "6px",
+        DEFAULT: "10px",
+        md: "10px",
+        lg: "14px",
+        xl: "20px",
+        "2xl": "26px",
+        full: "9999px",
+      },
+      boxShadow: {
+        coral: "0 4px 24px -4px hsl(350 80% 58% / 0.28)",
+        "coral-hover": "0 8px 32px -4px hsl(350 80% 58% / 0.42)",
       },
       keyframes: {
         "accordion-down": {
