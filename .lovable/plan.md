@@ -1,79 +1,130 @@
 
-# Pricing Restructure: Remove Unlimited, Add Enterprise Tier
+# Phase 1 — Critical Fixes Implementation Plan
 
-## The Problem
+This plan covers every item defined in Part 11, Phase 1 of the Vintifi Repositioning Brief v3.0. There are four distinct fixes, two of which are live bugs affecting real users right now. No other phases will be touched until these are verified.
 
-The current **Scale** tier (£49.99/month) gives users truly **unlimited credits** — the `useFeatureGate` hook treats any user with `subscription_tier === "scale"` OR `credits_limit >= 999` as unlimited, bypassing all credit checks entirely. This means a Scale subscriber can run thousands of AI operations a month that cost you real money in OpenAI/Firecrawl/Apify fees, for just £49.99. This is commercially unviable.
+---
 
-## The Fix: 5-Tier Model With Hard Credit Caps
+## What is being fixed and why
 
-Replace the current 4-tier model with a commercially sound 5-tier model. No tier will ever have truly unlimited credits — instead, each has a generous but metered cap.
+### Bug 1 — Translation credit deduction is completely missing (CRITICAL)
 
-```text
-Free      →  5 credits/mo    — £0
-Pro       →  50 credits/mo   — £9.99/mo
-Business  →  200 credits/mo  — £24.99/mo
-Scale     →  600 credits/mo  — £49.99/mo   (was "unlimited")
-Enterprise→  1,500 credits/mo — £99.99/mo  (NEW tier)
+**File:** `supabase/functions/translate-listing/index.ts`
+
+The function reaches line 120 and returns a successful translation response without ever calling `increment_usage_credit`. Every Business+ user who triggers a translation consumes real AI compute (Gemini 2.5 Flash) at our cost, but zero credits are deducted from their account. They can translate unlimited times for free.
+
+**Fix:** After the AI call succeeds and translations are parsed (line 113–118), insert a call to the `increment_usage_credit` RPC before the return on line 120. Charge 1 credit per language translated (not 1 per call), which aligns with the credit cost table in Section 4.5.
+
+The RPC signature is: `increment_usage_credit(p_user_id, p_column, p_amount)`. Column: `optimizations_used`. Amount: `languages.length` (number of target languages, defaulting to 4 if none specified).
+
+The credit check (does the user have enough credits before we even call the AI?) should also be added, pulling their usage record first, to prevent a race where a user with 0 credits still gets a translation because we didn't check before firing the AI request.
+
+---
+
+### Bug 2 — Scale tier users see "Unlimited" instead of their credit balance
+
+**File:** `src/components/AppShellV2.tsx`, line 56
+
+Current broken code:
+```
+const isUnlimited = tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
 ```
 
-At ~£0.02/credit variable cost, 1,500 credits = ~£30 in API costs vs £99.99 revenue = healthy margin. Scale at 600 = ~£12 in costs vs £49.99 = still strong.
+This has two problems:
+1. `tier === "scale"` — hardcoded: all Scale users (600-credit cap) see "Unlimited ∞" and never see low-credit warnings
+2. `>= 999` — the threshold is too low: any user with 999+ credits would be treated as unlimited, which catches the Scale tier (600-credit cap would not, but Enterprise at 1500 would incorrectly trigger this)
 
-## Files That Will Change
+Fixed code per the brief:
+```
+const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
+```
 
-### 1. `src/lib/constants.ts`
-- Rename current `scale` tier credits from `-1` → `600`
-- Add a new `enterprise` tier object with: price £99.99, 1,500 credits, annual pricing, Stripe price_id (new product to create in Stripe), and feature list
-- Update annual prices accordingly
+This restricts the "Unlimited" display exclusively to manually gifted accounts (the 999999 sentinel). Scale users (600 credits) and Enterprise users (1500 credits) will correctly see their numeric balance and low-credit amber warnings when ≤2 credits remain.
 
-### 2. `src/hooks/useFeatureGate.ts`
-- **Critical fix:** Remove the special `isUnlimited` bypass that checks `userTier === "scale"` or `credits_limit >= 999`
-- Add `enterprise` to the `TierLevel` type and `TIER_ORDER`
-- All tiers (including Scale and Enterprise) go through the normal credit check — `isUnlimited` should only be true if `credits_limit` is set to a special sentinel like `999999` (used only for manually-gifted accounts like Mel's)
-- Update any feature `minTier` assignments if Enterprise-only features exist
+---
 
-### 3. `src/components/UpgradeModal.tsx`
-- Add `enterprise` to the `UPGRADE_TIERS` array so it appears in the upgrade modal
-- Add an icon for the Enterprise tier
+### Phase 1 Item 3 — Add `first_item_pass_used` column to `profiles` table
 
-### 4. `src/pages/marketing/Pricing.tsx`
-- Update the `personas` section to include Enterprise persona (e.g. "Vinted Pro Businesses")
-- Update `comparisonFeatures` table — replace "Unlimited" in the Scale column with "600" and add Enterprise column with "1,500"
-- Update the `Scale` persona description to reflect 600 credits, not unlimited
-- Add Enterprise to the persona grid
+**Database migration required.**
 
-### 5. `supabase/functions/stripe-webhook/index.ts`
-- Add new Enterprise product IDs to `TIER_MAP` once the Stripe products are created
-- Map Enterprise products → `{ tier: "enterprise", credits: 1500 }`
+This column gates the "First Item Free" experience that will be fully implemented in Phase 2. It needs to exist in the schema now so Phase 2 can be built against it without a blocking migration later.
 
-## Stripe Products to Create
+SQL:
+```sql
+ALTER TABLE profiles ADD COLUMN first_item_pass_used BOOLEAN DEFAULT false;
+```
 
-Two new Stripe products are needed:
-- **Enterprise Monthly**: £99.99/mo, 1,500 credits
-- **Enterprise Annual**: ~£959.88/yr (~£79.99/mo, ~20% saving)
+The column defaults to `false` for all rows, including new ones created by the `handle_new_user()` trigger. No trigger update is needed at this stage — that is Phase 2's job.
 
-These will be created via the Stripe MCP tools and their price IDs dropped into `constants.ts`.
+---
 
-## Database Impact
+### Phase 1 Item 4 — Existing user migration for `first_item_pass_used`
 
-Current Scale users have `credits_limit = 999` or `999999`. The webhook will set Enterprise users to `1500`. Mel's account (manually set to 999999) will remain unaffected as her `credits_limit` value is used as the "gifted unlimited" sentinel.
+**Data migration (SQL run as part of the same migration file).** This sets the correct initial value for all existing users so Phase 2's logic starts from a known-good state:
 
-The `isUnlimited` logic will be updated to: `credits_limit >= 999999` — only true for manually-gifted accounts, not purchasable tiers.
+- Free users with **no listings** → `first_item_pass_used = false` (they haven't used their free pass yet, they still get it)
+- Free users **with ≥1 listing** → `first_item_pass_used = true` (they have already listed items, the pass is considered consumed)
+- Paid users (Pro/Business/Scale/Enterprise) → `first_item_pass_used = true` (they have a paid plan, the free pass concept doesn't apply to them)
 
-## What "Unlimited" Becomes
+```sql
+-- Free users with no listings get the pass
+UPDATE profiles
+SET first_item_pass_used = false
+WHERE subscription_tier = 'free'
+  AND user_id NOT IN (SELECT DISTINCT user_id FROM listings);
 
-The word "Unlimited" disappears from all paid tier marketing copy. It is replaced with:
-- Scale: "600 credits/month — enough for 600 price checks or photo edits"
-- Enterprise: "1,500 credits/month — for high-volume Vinted Pro businesses"
-- Credit top-up packs remain available at all tiers for bursting beyond the monthly cap
+-- Free users with listings have implicitly used it
+UPDATE profiles
+SET first_item_pass_used = true
+WHERE subscription_tier = 'free'
+  AND user_id IN (SELECT DISTINCT user_id FROM listings);
 
-## Summary of All Touch Points
+-- All paid users mark as used (pass is irrelevant for them)
+UPDATE profiles
+SET first_item_pass_used = true
+WHERE subscription_tier IN ('pro', 'business', 'scale', 'enterprise');
+```
+
+---
+
+## Files being changed
 
 | File | Change |
 |---|---|
-| `src/lib/constants.ts` | Fix Scale credits (-1→600), add Enterprise tier |
-| `src/hooks/useFeatureGate.ts` | Remove tier-based unlimited bypass, add enterprise to TIER_ORDER |
-| `src/components/UpgradeModal.tsx` | Add enterprise to upgrade modal |
-| `src/pages/marketing/Pricing.tsx` | Add Enterprise card, fix comparison table |
-| `supabase/functions/stripe-webhook/index.ts` | Add Enterprise product IDs |
-| Stripe (via MCP) | Create 2 new products: Enterprise monthly + annual |
+| `supabase/functions/translate-listing/index.ts` | Add credit pre-check + `increment_usage_credit` RPC call |
+| `src/components/AppShellV2.tsx` | Fix `isUnlimited` line 56 |
+| Database migration (new file) | Add `first_item_pass_used` column + run user migration |
+
+## Files NOT being changed in Phase 1
+
+Everything else. No wizard changes, no navigation, no marketing pages, no other edge functions.
+
+---
+
+## Technical implementation detail — translate-listing fix
+
+The full logic sequence in the edge function after this fix:
+
+1. Auth check (already exists)
+2. Tier check — Business+ required (already exists)
+3. **NEW:** Fetch user's `usage_credits` row via service role client
+4. **NEW:** Check if `credits_limit - (price_checks_used + optimizations_used + vintography_used) >= languages.length` — if not enough credits, return 402 with a clear message
+5. Call AI (already exists)
+6. Parse response (already exists)
+7. **NEW:** Call `increment_usage_credit(user.id, 'optimizations_used', languages.length)`
+8. Return translations (already exists)
+
+The unlimited sentinel check (999999) is also applied here so gifted accounts bypass the credit check entirely.
+
+---
+
+## Risk assessment
+
+All four changes are low-risk:
+
+- The `translate-listing` fix adds behaviour (credit deduction) that was always supposed to be there. The only risk is it could now reject users who have 0 credits, which is the correct behaviour.
+- The `AppShellV2` fix is a one-line change to a display condition with no side effects on data.
+- The DB column addition uses `DEFAULT false`, so it cannot break any existing query (existing rows get `false`, new rows get `false`).
+- The data migration uses simple UPDATE statements with explicit WHERE clauses. No joins, no subqueries that could affect unintended rows.
+
+No Phase 2, 3, 4, 5 or 6 items are in scope here.
