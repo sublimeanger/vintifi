@@ -52,7 +52,7 @@ export function EmptyState({ itemId, linkedItemTitle, onFilesSelected }: Props) 
           <Button
             size="lg"
             className="h-12 px-8 text-sm active:scale-95 transition-transform"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
           >
             <Camera className="w-4 h-4 mr-2" /> Choose Photos
           </Button>
