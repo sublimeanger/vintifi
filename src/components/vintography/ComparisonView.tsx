@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Loader2, ChevronRight, Columns2, Layers, ZoomIn, ZoomOut, RotateCcw, Sparkles } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Columns2, Layers, ZoomIn, ZoomOut, RotateCcw, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export type ProcessingStep = "uploading" | "analysing" | "generating" | "finalising" | null;
@@ -396,9 +396,9 @@ export function ComparisonView({
             )}
             {processedUrl && (
               <div className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none" style={{ left: `${clipPercent}%` }}>
-                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                  <ChevronRight className="w-4 h-4 text-primary-foreground -ml-0.5" />
-                  <ChevronRight className="w-4 h-4 text-primary-foreground -ml-3 rotate-180" />
+              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-primary flex items-center justify-center shadow-lg border-2 border-primary-foreground/20">
+                  <ChevronLeft className="w-3.5 h-3.5 text-primary-foreground -mr-1" />
+                  <ChevronRight className="w-3.5 h-3.5 text-primary-foreground -ml-1" />
                 </div>
               </div>
             )}
