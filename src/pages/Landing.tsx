@@ -464,11 +464,11 @@ export default function Landing() {
               </div>
               <div className="flex-1 w-full max-w-md">
               <BeforeAfterSlider
-                  beforeSrc="/marketing/denim-dress-before.png"
-                  afterSrc="/marketing/denim-dress-after.png"
+                  beforeSrc="/marketing/nike-sweatshirt-before.jpeg"
+                  afterSrc="/marketing/nike-sweatshirt-after.png"
                   beforeLabel="Phone snap"
                   afterLabel="Studio shot"
-                  badge="AI Model + Deep Steam"
+                  badge="Lifestyle Shot + Enhance"
                   aspectRatio="4/5"
                 />
               </div>
