@@ -396,7 +396,26 @@ export function ComparisonView({
             )}
             {processedUrl && (
               <div className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none" style={{ left: `${clipPercent}%` }}>
-              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-primary flex items-center justify-center shadow-lg border-2 border-primary-foreground/20">
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-primary flex items-center justify-center shadow-lg border-2 border-primary-foreground/20 cursor-ew-resize pointer-events-auto"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const container = containerRef.current;
+                    if (!container) return;
+                    const onMove = (mv: MouseEvent) => {
+                      const rect = container.getBoundingClientRect();
+                      const pct = Math.max(0, Math.min(100, ((mv.clientX - rect.left) / rect.width) * 100));
+                      setSliderValue([pct]);
+                    };
+                    const onUp = () => {
+                      document.removeEventListener("mousemove", onMove);
+                      document.removeEventListener("mouseup", onUp);
+                    };
+                    document.addEventListener("mousemove", onMove);
+                    document.addEventListener("mouseup", onUp);
+                  }}
+                >
                   <ChevronLeft className="w-3.5 h-3.5 text-primary-foreground -mr-1" />
                   <ChevronRight className="w-3.5 h-3.5 text-primary-foreground -ml-1" />
                 </div>
