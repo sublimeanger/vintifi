@@ -14,8 +14,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  Loader2, Wand2, RotateCcw, Info, X, Coins, Package, Star,
+  Loader2, Wand2, RotateCcw, Info, X, Coins, Package, Star, ChevronDown,
 } from "lucide-react";
+import {
+  Collapsible, CollapsibleTrigger, CollapsibleContent,
+} from "@/components/ui/collapsible";
 
 // Sub-components
 import { CreditBar } from "@/components/vintography/CreditBar";
@@ -783,7 +786,22 @@ export default function Vintography() {
                   />
                 )}
 
-                {/* Zone 3: Generate button always visible + optional config drawer */}
+                {/* Zone 3: Inline config (collapsible) + Generate button always visible */}
+                {!state.isProcessing && activeStep && (
+                  <Collapsible
+                    defaultOpen={!["clean_bg", "enhance"].includes(activeOp)}
+                    key={activeOp}
+                  >
+                    <CollapsibleTrigger className="flex items-center justify-between w-full rounded-xl border border-border bg-card px-3 py-2.5 active:scale-[0.98] transition-transform">
+                      <span className="text-xs font-semibold">{OP_LABEL[activeOp]} Settings</span>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="rounded-xl border border-border border-t-0 rounded-t-none bg-card px-3 py-3 space-y-3">
+                      {configContent}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
                 <div className="space-y-2">
                   <GenerateButton />
                   {state.pipeline.length >= 2 && !state.isProcessing && (
@@ -792,27 +810,6 @@ export default function Vintography() {
                     </Button>
                   )}
                 </div>
-
-                {!state.isProcessing && (
-                  <Button
-                    onClick={() => dispatch({ type: "SET_DRAWER_OPEN", open: true })}
-                    variant="outline"
-                    className="w-full h-9 text-sm"
-                  >
-                    Customize {OP_LABEL[activeOp]}
-                  </Button>
-                )}
-
-                {/* Mobile Config Bottom Sheet */}
-                <ConfigContainer
-                  open={state.drawerOpen}
-                  onClose={() => dispatch({ type: "SET_DRAWER_OPEN", open: false })}
-                  drawerTitle={OP_LABEL[activeOp]}
-                  drawerHeightVh={activeOp === "ai_model" ? 72 : activeOp === "lifestyle_bg" ? 68 : 50}
-                  footer={<GenerateButton />}
-                >
-                  {configContent}
-                </ConfigContainer>
 
                 {/* Result actions */}
                 <ResultActions
