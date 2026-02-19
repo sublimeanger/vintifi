@@ -689,7 +689,7 @@ export default function Vintography() {
                     processing={state.isProcessing}
                     processingStep={null}
                     operationId={activeOp}
-                    resultLabel={OP_RESULT_LABEL[activeOp]}
+                    resultLabel={state.pipeline.map(s => OP_RESULT_LABEL[s.operation]).join(" + ")}
                     variations={[]}
                     currentVariation={0}
                     onVariationChange={() => {}}
@@ -910,7 +910,7 @@ export default function Vintography() {
                       processing={state.isProcessing}
                       processingStep={null}
                       operationId={activeOp}
-                      resultLabel={OP_RESULT_LABEL[activeOp]}
+                      resultLabel={state.pipeline.map(s => OP_RESULT_LABEL[s.operation]).join(" + ")}
                       variations={[]}
                       currentVariation={0}
                       onVariationChange={() => {}}
