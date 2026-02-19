@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight, Zap, TrendingUp, Sparkles, Camera, ChevronLeft, ChevronRight } from "lucide-react";
-import { STRIPE_TIERS } from "@/lib/constants";
+import { STRIPE_TIERS, type TierKey } from "@/lib/constants";
+
+const PUBLIC_TIERS: TierKey[] = ["free", "pro", "business"];
 import MarketingLayout from "@/components/MarketingLayout";
 
 const fadeUp = {
@@ -204,7 +206,7 @@ export default function Landing() {
     setAutoPlay(false);
   };
 
-  const tiers = Object.entries(STRIPE_TIERS);
+  const tiers = (Object.entries(STRIPE_TIERS) as [TierKey, (typeof STRIPE_TIERS)[TierKey]][]).filter(([key]) => PUBLIC_TIERS.includes(key));
 
   return (
     <MarketingLayout>
@@ -612,13 +614,13 @@ export default function Landing() {
         </div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <h2 className="font-display text-xl sm:text-3xl md:text-5xl font-bold mb-3 sm:mb-4 text-secondary-foreground">
-            Your first 3 credits are free.
+            Your next listing deserves better photos.
           </h2>
           <p className="text-secondary-foreground/80 text-sm sm:text-lg mb-2 max-w-lg mx-auto">
-            One studio shot. One price check. One optimised listing.
+            Professional studio shots from your phone — in seconds.
           </p>
           <p className="text-secondary-foreground/60 text-xs sm:text-base mb-6 sm:mb-8 max-w-sm mx-auto">
-            A complete first sell — on us. No card. No catch.
+            Start free. No card. No catch.
           </p>
           <Button
             size="lg"
