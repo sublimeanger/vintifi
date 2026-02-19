@@ -37,7 +37,7 @@ const personas = [
     tier: "Free",
     emoji: "👋",
     headline: "Testing the waters",
-    desc: "5 credits every month, no card needed. Enough to price a few items and see if Vintifi is for you.",
+    desc: "3 credits every month — no card needed. Enough to try Photo Studio, price an item, and optimise a listing. A full first sell, on us.",
   },
   {
     tier: "Pro",
@@ -67,7 +67,7 @@ const personas = [
 ];
 
 const comparisonFeatures = [
-  { name: "Credits / month", free: "5", pro: "50", business: "200", scale: "600", enterprise: "1,500" },
+  { name: "Credits / month", free: "3", pro: "50", business: "200", scale: "600", enterprise: "1,500" },
   { name: "AI Price Check", free: "✓", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
   { name: "Import from Vinted URL", free: "✓", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
   { name: "Vintography Photo Studio", free: "✓ (credits)", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
@@ -79,7 +79,7 @@ const comparisonFeatures = [
   { name: "Seasonal Calendar + Niche Finder", free: "—", pro: "✓", business: "✓", scale: "✓", enterprise: "✓" },
   { name: "Arbitrage Scanner", free: "—", pro: "—", business: "✓", scale: "✓", enterprise: "✓" },
   { name: "Clearance Radar", free: "—", pro: "—", business: "✓", scale: "✓", enterprise: "✓" },
-  { name: "Items Tracked", free: "20", pro: "Unlimited", business: "Unlimited", scale: "Unlimited", enterprise: "Unlimited" },
+  { name: "Items Tracked", free: "10", pro: "Unlimited", business: "Unlimited", scale: "Unlimited", enterprise: "Unlimited" },
   { name: "Competitor Tracking", free: "—", pro: "3", business: "15", scale: "50", enterprise: "50" },
   { name: "Multi-language Listings", free: "—", pro: "—", business: "5 languages", scale: "All", enterprise: "All" },
   { name: "P&L Tracking", free: "✓", pro: "✓", business: "✓ + CSV", scale: "✓ + CSV", enterprise: "✓ + CSV" },
@@ -99,7 +99,7 @@ const faqs = [
   },
   {
     q: "What if I only sell a few items a month?",
-    a: "Free plan gives you 5 credits — that's 5 price checks or photo edits a month. No card required. It's enough to stop underpricing your best items and start understanding what the market actually pays.",
+    a: "Free plan gives you 3 credits — that's one Photo Studio edit, one price check, and one listing optimisation. Enough to try a complete sell. No card required.",
   },
   {
     q: "Does it work on all Vinted categories?",
@@ -115,7 +115,7 @@ const faqs = [
   },
   {
     q: "Can I really start for free?",
-    a: "Absolutely. Our Free plan gives you 5 credits per month for price checks and photo edits — no credit card required. It's enough to see the value before committing.",
+    a: "Absolutely. Our Free plan gives you 3 credits per month — no credit card required. That's one Photo Studio edit, one price check, and one listing optimisation. Enough to see the value before committing.",
   },
   {
     q: "What happens when I run out of credits?",
@@ -147,7 +147,7 @@ export default function Pricing() {
   const navigate = useNavigate();
   const [annual, setAnnual] = useState(false);
 
-  usePageMeta("Pricing — Vintifi", "Start free with 5 credits. Pro from £9.99/month. 14-day money-back guarantee. No lock-in. See results in 90 seconds.");
+  usePageMeta("Pricing — Vintifi", "Start free with 3 credits. Studio photos without a studio. AI pricing in 30 seconds. Pro from £9.99/month. 14-day money-back guarantee.");
 
   const tiers = Object.entries(STRIPE_TIERS) as [TierKey, (typeof STRIPE_TIERS)[TierKey]][];
 
@@ -167,7 +167,7 @@ export default function Pricing() {
               <span className="text-gradient">on day one.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-2">
-              Sellers on Pro and above price 40× faster than manually browsing Vinted.
+              Studio photos without a studio. AI pricing without the research. Start free — your first complete sell is on us.
             </motion.p>
             <motion.p variants={fadeUp} className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-6 sm:mb-10">
               Start free — no card required. Every paid plan includes a 7-day free trial.
@@ -223,7 +223,7 @@ export default function Pricing() {
               <Star className="w-4 h-4 text-primary fill-primary" />
             </div>
             <p className="font-display text-base sm:text-xl font-extrabold text-foreground mb-1">
-              Sellers on Pro and above price 40× faster than manually browsing Vinted.
+              Phone snap to studio shot in one tap. AI pricing in 30 seconds. Your first 3 credits are free.
             </p>
             <p className="text-muted-foreground text-xs sm:text-sm">The plan pays for itself the first time you avoid underpricing an item.</p>
           </motion.div>
@@ -496,10 +496,10 @@ export default function Pricing() {
               Start free today. See results tonight.
             </motion.h2>
             <motion.p variants={fadeUp} className="text-secondary-foreground/70 text-sm sm:text-base mb-2 max-w-xl mx-auto">
-              Your first 5 credits are waiting — no card needed.
+              Your first 3 credits are waiting — no card needed.
             </motion.p>
             <motion.p variants={fadeUp} className="text-secondary-foreground/50 text-xs sm:text-sm mb-6 sm:mb-8">
-              5 price checks. 5 AI listings. 5 studio photos. All free.
+              One studio shot. One price check. One optimised listing. A complete first sell — on us.
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-xl shadow-primary/20 w-full sm:w-auto active:scale-95 transition-transform">

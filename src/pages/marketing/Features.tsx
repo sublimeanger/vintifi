@@ -18,25 +18,106 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.15 } },
 };
 
+// Photo stats lead — scroll-stopping photography is the hook
 const outcomeStats = [
-  { value: "< 30 sec", label: "Average time to price an item" },
-  { value: "100/100", label: "Max achievable Health Score" },
-  { value: "18", label: "Vinted markets covered" },
-  { value: "3 modes", label: "AI Model, Mannequin, Flat-Lay" },
+  { value: "3 modes", label: "AI Model, Mannequin & Flat-Lay" },
+  { value: "1-tap", label: "Phone snap to studio shot" },
+  { value: "16", label: "Background scenes available" },
   { value: "40×", label: "Faster than manual research" },
+  { value: "100/100", label: "Max listing Health Score" },
   { value: "£0", label: "Extra fees on top of Vinted" },
 ];
 
+// Photo Studio leads — it's what buyers see first
 const features = [
   {
+    icon: Camera,
+    badge: "Photo Studio",
+    id: "photo-studio",
+    title: "Vintography Photo Studio",
+    headline: "Your phone snap. Studio quality. One tap.",
+    desc1: "Buyers scroll through hundreds of listings in minutes. The photo is the first thing they see — and the only thing that makes them click. Vintography takes your phone snap and produces the kind of shot you'd expect from a professional product photographer.",
+    desc2: "Three modes built for Vinted. AI Model places your garment on a photorealistic model — choose male or female, Editorial, Natural Photo, or Street Style. Mannequin gives you ghost, headless, and dress form effects. Flat-Lay Pro creates clean overhead compositions in 5 styles. 16 background scenes, batch processing, and a full gallery included.",
+    callout: "You don't need a studio, a mannequin, or any experience. You need Vintifi and five seconds. Tap once — your bedroom floor becomes a professional product shot.",
+    stat: "1 tap",
+    statLabel: "from phone snap to studio-quality product shot",
+    mockTitle: "Vintography Photo Studio",
+    mockContent: (
+      <div className="space-y-3">
+        <div className="flex gap-1.5">
+          {["AI Model", "Mannequin", "Flat-Lay"].map((tab, i) => (
+            <div key={tab} className={`flex-1 text-center py-1.5 rounded-md text-[10px] font-medium transition-colors ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{tab}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 text-center">
+          {["Editorial", "Natural Photo", "Street Style"].map((style, i) => (
+            <div key={style} className={`rounded-lg p-2 border text-[10px] font-medium cursor-pointer transition-colors ${i === 1 ? "border-primary bg-primary/5 text-primary" : "border-border bg-card text-muted-foreground"}`}>
+              {style}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-muted/50 border border-border p-2 text-center">
+            <div className="w-full h-14 rounded bg-muted flex items-center justify-center mb-1">
+              <span className="text-[10px] text-muted-foreground">📱 Phone snap</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Before</p>
+          </div>
+          <div className="rounded-lg bg-success/5 border border-success/30 p-2 text-center">
+            <div className="w-full h-14 rounded bg-gradient-to-br from-success/10 to-primary/10 flex items-center justify-center mb-1">
+              <span className="text-[10px] text-success font-medium">✨ Studio quality</span>
+            </div>
+            <p className="text-[10px] text-success font-medium">After — 1 tap</p>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    icon: Sparkles,
+    badge: "AI-Powered",
+    id: "listing-optimiser",
+    title: "AI Listing Optimiser",
+    headline: "Once buyers click, the listing closes the sale.",
+    desc1: "The photo gets the click. The listing closes the sale. Vintifi's AI generates a complete, search-optimised listing for Vinted — keyword-rich title, compelling description, and a hashtag set ready to copy-paste directly into your listing.",
+    desc2: "Every listing gets a Health Score out of 100 measuring title keywords, description quality, photo count, price competitiveness, and category accuracy. Items scoring below 60 get flagged with specific, actionable improvements.",
+    callout: "Vinted's search algorithm reads your listing title first. An AI-optimised title means more buyers find your item before they ever see a competitor's.",
+    stat: "100/100",
+    statLabel: "maximum achievable Listing Health Score",
+    mockTitle: "Listing Health Score",
+    mockContent: (
+      <div className="space-y-3">
+        <div className="flex items-center gap-4 sm:gap-5">
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0">
+            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+              <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" className="stroke-muted" />
+              <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" stroke="hsl(var(--success))" strokeDasharray="264" strokeDashoffset="40" strokeLinecap="round" />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center font-display font-bold text-base sm:text-lg text-foreground">85</span>
+          </div>
+          <div className="space-y-1.5 text-xs flex-1">
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-success shrink-0" /> Title Keywords: Excellent</div>
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-success shrink-0" /> Description: Strong</div>
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-accent shrink-0" /> Add 2 more hashtags</div>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["#nike", "#airmax", "#trainers", "#uk10", "#sneakers"].map(t => (
+            <span key={t} className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{t}</span>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  {
     icon: Zap,
-    badge: "Core Feature",
+    badge: "Price Intelligence",
     id: "price-intelligence",
     title: "Price Intelligence Engine",
-    headline: "Know exactly what your item is worth — in seconds",
-    desc1: "Paste any Vinted listing URL and get an AI-powered pricing report in seconds. We analyse comparable sold and active listings across the marketplace, factoring in brand desirability, condition, seasonal demand, and market saturation.",
+    headline: "Priced wrong, it sits. Priced right, it sells.",
+    desc1: "Paste any Vinted listing URL and get an AI pricing report in seconds — comparable sold items, brand desirability, condition, seasonal demand, and market saturation all factored in. Not a guess. A confidence-scored recommendation with a plain-English explanation of why.",
     desc2: "Get a recommended sell price with confidence scoring, price distribution data, average days-to-sell, and plain-English AI insights explaining the market dynamics behind every recommendation.",
-    callout: "Stop pricing by gut feel. Know your item's exact market value in seconds — including how long it takes to sell at different price points.",
+    callout: "Most Vinted sellers underprice by instinct, or overprice and watch the listing sit for weeks. Vintifi tells you the exact number — and why.",
     stat: "40×",
     statLabel: "faster than manual price research across Vinted",
     mockTitle: "Price Intelligence Report",
@@ -96,85 +177,6 @@ const features = [
         <div className="flex gap-2">
           <div className="flex-1 h-8 rounded-md bg-muted/50 border border-dashed border-border flex items-center justify-center text-[10px] text-muted-foreground">
             📷 Or upload photos
-          </div>
-        </div>
-      </div>
-    ),
-  },
-  {
-    icon: Sparkles,
-    badge: "AI-Powered",
-    id: "listing-optimiser",
-    title: "AI Listing Optimiser",
-    headline: "Listings that sell themselves — written by AI",
-    desc1: "Upload your photos and provide minimal details. Our AI generates a complete, SEO-optimised listing engineered for Vinted's search algorithm — including a keyword-rich title, compelling description, and hashtag set ready to copy-paste.",
-    desc2: "Every listing gets a Health Score out of 100 measuring title keywords, description quality, photo count, price competitiveness, and category accuracy. Items scoring below 60 get flagged with specific, actionable improvements.",
-    callout: "Your listing title is the first thing Vinted's search algorithm reads. An AI-optimised title means more buyers find your item, full stop.",
-    stat: "100/100",
-    statLabel: "maximum achievable Listing Health Score",
-    mockTitle: "Listing Health Score",
-    mockContent: (
-      <div className="space-y-3">
-        <div className="flex items-center gap-4 sm:gap-5">
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0">
-            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-              <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" className="stroke-muted" />
-              <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" stroke="hsl(var(--success))" strokeDasharray="264" strokeDashoffset="40" strokeLinecap="round" />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center font-display font-bold text-base sm:text-lg text-foreground">85</span>
-          </div>
-          <div className="space-y-1.5 text-xs flex-1">
-            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-success shrink-0" /> Title Keywords: Excellent</div>
-            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-success shrink-0" /> Description: Strong</div>
-            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-accent shrink-0" /> Add 2 more hashtags</div>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {["#nike", "#airmax", "#trainers", "#uk10", "#sneakers"].map(t => (
-            <span key={t} className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{t}</span>
-          ))}
-        </div>
-      </div>
-    ),
-  },
-  {
-    icon: Camera,
-    badge: "Photo Studio",
-    id: "photo-studio",
-    title: "Vintography Photo Studio",
-    headline: "Professional product photos — powered by AI",
-    desc1: "Three shooting modes, one platform. AI Model places your garment on a photorealistic male or female model — choose Editorial, Natural Photo, or Street Style. Mannequin creates ghost, headless, or dress form effects. Flat-Lay Pro generates clean overhead compositions in 5 styles.",
-    desc2: "16 background scenes, batch processing for multiple images at once, and a gallery to manage all your edits. Every enhanced photo is saved and can be applied to your listings with one tap. No studio. No equipment. No experience needed.",
-    callout: "Buyers scroll fast. Studio-quality photos stop the scroll. A professional product image is the single highest-impact change a Vinted seller can make.",
-    stat: "3 modes",
-    statLabel: "AI Model · Mannequin · Flat-Lay Pro",
-    mockTitle: "Vintography Photo Studio",
-    mockContent: (
-      <div className="space-y-3">
-        <div className="flex gap-1.5">
-          {["AI Model", "Flat-Lay", "Mannequin"].map((tab, i) => (
-            <div key={tab} className={`flex-1 text-center py-1.5 rounded-md text-[10px] font-medium transition-colors ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{tab}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-1.5 text-center">
-          {["Editorial", "Natural Photo", "Street Style"].map((style, i) => (
-            <div key={style} className={`rounded-lg p-2 border text-[10px] font-medium cursor-pointer transition-colors ${i === 1 ? "border-primary bg-primary/5 text-primary" : "border-border bg-card text-muted-foreground"}`}>
-              {style}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg bg-muted/50 border border-border p-2 text-center">
-            <div className="w-full h-14 rounded bg-muted flex items-center justify-center mb-1">
-              <span className="text-[10px] text-muted-foreground">Phone snap</span>
-            </div>
-            <p className="text-[10px] text-muted-foreground">Before</p>
-          </div>
-          <div className="rounded-lg bg-success/5 border border-success/30 p-2 text-center">
-            <div className="w-full h-14 rounded bg-gradient-to-br from-success/10 to-primary/10 flex items-center justify-center mb-1">
-              <span className="text-[10px] text-success font-medium">✨ Studio quality</span>
-            </div>
-            <p className="text-[10px] text-success font-medium">After</p>
           </div>
         </div>
       </div>
@@ -286,7 +288,7 @@ export default function Features() {
 
   usePageMeta(
     "Features — Vintifi",
-    "Price intelligence, AI listing optimiser, Vintography photo studio, trend radar, arbitrage scanner, and inventory manager. Seven tools. One platform. Built for Vinted sellers."
+    "AI photo studio turns phone snaps into studio shots in one tap. AI pricing in 30 seconds. Listing optimiser, trend radar, and more. Built exclusively for Vinted sellers."
   );
 
   return (
@@ -300,17 +302,21 @@ export default function Features() {
         <div className="container mx-auto px-4 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.h1 variants={fadeUp} className="font-display text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-4 sm:mb-6">
-              Your Unfair Advantage
+              Professional photos. AI pricing.
               <br />
-              <span className="text-gradient">on Vinted</span>
+              <span className="text-gradient">Your phone is all you need.</span>
             </motion.h1>
-            <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-2">
-              Seven precision tools. One platform. Built exclusively for Vinted sellers
-            </motion.p>
             <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8">
-              who want to sell faster, price smarter, and look more professional than every other seller in their category.
+              Vintography turns your phone snap into a studio shot in one tap. AI pricing and listing optimisation do the rest. Everything in one place, built exclusively for Vinted.
             </motion.p>
-            <motion.div variants={fadeUp}>
+            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                size="lg"
+                className="h-12 text-sm sm:text-base font-semibold px-8 active:scale-95 transition-transform shadow-xl shadow-primary/20 w-full sm:w-auto"
+                onClick={() => navigate("/auth?mode=signup")}
+              >
+                Start Free — No Card Required <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
               <Button
                 variant="outline"
                 size="lg"
@@ -430,13 +436,13 @@ export default function Features() {
             variants={stagger}
           >
             <motion.h2 variants={fadeUp} className="font-display text-xl sm:text-3xl md:text-5xl font-extrabold mb-3 sm:mb-4">
-              Seven tools. Start using them free.
+              Start with the photo. Everything else follows.
             </motion.h2>
             <motion.p variants={fadeUp} className="text-muted-foreground text-sm sm:text-lg mb-2 max-w-xl mx-auto">
-              5 free credits. No credit card. See your first result in 90 seconds.
+              3 free credits — try Photo Studio, price an item, optimise a listing. No card.
             </motion.p>
             <motion.p variants={fadeUp} className="text-muted-foreground/70 text-xs sm:text-sm mb-6 sm:mb-8 max-w-md mx-auto">
-              Price an item. Optimise a listing. Try the Photo Studio. All free, right now.
+              A complete first sell, on us. See your results in 90 seconds.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-xl shadow-primary/20 w-full sm:w-auto active:scale-95 transition-transform">
