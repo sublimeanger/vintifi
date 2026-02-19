@@ -373,7 +373,7 @@ ${QUALITY_MANDATE}`,
 const MODEL_MAP: Record<string, string> = {
   remove_bg: "google/gemini-2.5-flash-image",
   smart_bg: "google/gemini-2.5-flash-image",
-  model_shot: "google/gemini-2.5-flash-image",
+  model_shot: "google/gemini-3-pro-image-preview",
   mannequin_shot: "google/gemini-2.5-flash-image",
   ghost_mannequin: "google/gemini-2.5-flash-image",
   flatlay_style: "google/gemini-2.5-flash-image",
@@ -531,25 +531,6 @@ serve(async (req) => {
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
-    // Convert input image to base64 data URL — the gateway may drop images when given external URLs
-    let imageDataUrl = image_url;
-    if (image_url.startsWith("http")) {
-      try {
-        const imgResp = await fetch(image_url);
-        if (imgResp.ok) {
-          const imgBuf = await imgResp.arrayBuffer();
-          const imgBase64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
-          const contentType = imgResp.headers.get("content-type") || "image/jpeg";
-          imageDataUrl = `data:${contentType};base64,${imgBase64}`;
-          console.log(`Converted image to base64 data URL (${imgBase64.length} chars)`);
-        } else {
-          console.error(`Failed to fetch image: ${imgResp.status}`);
-        }
-      } catch (e) {
-        console.error("Image fetch error:", e);
-      }
-    }
-
     let aiResponse: Response;
     try {
       console.log(`Calling AI gateway with model ${model} for operation ${operation}`);
@@ -566,7 +547,7 @@ serve(async (req) => {
               role: "user",
               content: [
                 { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: imageDataUrl } },
+                { type: "image_url", image_url: { url: image_url } },
               ],
             },
           ],
