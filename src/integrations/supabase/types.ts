@@ -994,6 +994,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_presets: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          pipeline: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          pipeline: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          pipeline?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       vintography_jobs: {
         Row: {
           created_at: string

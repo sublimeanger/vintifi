@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  Loader2, Wand2, RotateCcw, Info, X, Coins, Package,
+  Loader2, Wand2, RotateCcw, Info, X, Coins, Package, Star,
 } from "lucide-react";
 
 // Sub-components
@@ -22,7 +22,7 @@ import { CreditBar } from "@/components/vintography/CreditBar";
 import { ComparisonView } from "@/components/vintography/ComparisonView";
 import { GalleryCard, type VintographyJob } from "@/components/vintography/GalleryCard";
 import { PhotoFilmstrip, type PhotoEditState } from "@/components/vintography/PhotoFilmstrip";
-import { QuickPresets, type Preset } from "@/components/vintography/QuickPresets";
+import { QuickPresets, type Preset, type SavedPreset } from "@/components/vintography/QuickPresets";
 import { OperationBar } from "@/components/vintography/OperationBar";
 import { ConfigContainer } from "@/components/vintography/ConfigContainer";
 import { PipelineStrip } from "@/components/vintography/PipelineStrip";
@@ -73,6 +73,51 @@ export default function Vintography() {
   const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
+  const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
+
+  // ─── Fetch saved presets ───
+  const fetchSavedPresets = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("user_presets")
+      .select("id, name, pipeline")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (data) {
+      setSavedPresets(data.map((d: any) => ({ id: d.id, name: d.name, pipeline: d.pipeline })));
+    }
+  }, [user]);
+
+  useEffect(() => { fetchSavedPresets(); }, [fetchSavedPresets]);
+
+  const handleSavePreset = async () => {
+    if (!user) return;
+    const name = prompt("Name your preset:");
+    if (!name?.trim()) return;
+    const { error } = await supabase.from("user_presets").insert({
+      user_id: user.id,
+      name: name.trim(),
+      pipeline: state.pipeline as any,
+    });
+    if (error) { toast.error("Failed to save preset"); return; }
+    toast.success("Preset saved!");
+    fetchSavedPresets();
+  };
+
+  const handleDeleteSavedPreset = async (id: string) => {
+    const { error } = await supabase.from("user_presets").delete().eq("id", id);
+    if (error) { toast.error("Failed to delete preset"); return; }
+    setSavedPresets((prev) => prev.filter((p) => p.id !== id));
+    toast.success("Preset deleted");
+  };
+
+  const handleSavedPresetSelect = (preset: SavedPreset) => {
+    const pipeline = preset.pipeline.map((s) => ({
+      operation: s.operation as Operation,
+      params: s.params || {},
+    }));
+    dispatch({ type: "REPLACE_PIPELINE", pipeline });
+  };
 
   // Credits
   const totalUsed = credits
@@ -705,6 +750,9 @@ export default function Vintography() {
                   }}
                   disabled={state.isProcessing}
                   userTier={(profile as any)?.subscription_tier || "free"}
+                  savedPresets={savedPresets}
+                  onSavedPresetSelect={handleSavedPresetSelect}
+                  onDeleteSavedPreset={handleDeleteSavedPreset}
                 />
                 <div>
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Choose Effect</p>
@@ -734,7 +782,14 @@ export default function Vintography() {
                 )}
 
                 {/* Zone 3: Always-visible Generate + "Configure" toggle + bottom-sheet drawer */}
-                <GenerateButton />
+                <div className="space-y-2">
+                  <GenerateButton />
+                  {state.pipeline.length >= 2 && !state.isProcessing && (
+                    <Button variant="ghost" size="sm" className="w-full text-xs" onClick={handleSavePreset}>
+                      <Star className="w-3.5 h-3.5 mr-1.5" /> Save as Preset
+                    </Button>
+                  )}
+                </div>
 
                 {!state.isProcessing && (
                   <Button
@@ -818,6 +873,9 @@ export default function Vintography() {
                     }}
                     disabled={state.isProcessing}
                     userTier={(profile as any)?.subscription_tier || "free"}
+                    savedPresets={savedPresets}
+                    onSavedPresetSelect={handleSavedPresetSelect}
+                    onDeleteSavedPreset={handleDeleteSavedPreset}
                   />
 
                   <div>
@@ -852,8 +910,13 @@ export default function Vintography() {
                   </div>
 
                   {/* Sticky Generate button */}
-                  <div className="sticky bottom-4 pt-2">
+                  <div className="sticky bottom-4 pt-2 space-y-2">
                     <GenerateButton />
+                    {state.pipeline.length >= 2 && !state.isProcessing && (
+                      <Button variant="ghost" size="sm" className="w-full text-xs" onClick={handleSavePreset}>
+                        <Star className="w-3.5 h-3.5 mr-1.5" /> Save as Preset
+                      </Button>
+                    )}
                   </div>
                 </div>
 

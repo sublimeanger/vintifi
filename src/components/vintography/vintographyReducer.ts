@@ -177,6 +177,16 @@ export function buildApiParams(step: PipelineStep): Record<string, string> {
   return step.params as Record<string, string>;
 }
 
+// ─── Conflict rules ───
+const SCENE_OPS: Operation[] = ["flatlay", "mannequin", "lifestyle_bg"];
+
+function hasSceneOp(pipeline: PipelineStep[]): Operation | null {
+  for (const s of pipeline) {
+    if (SCENE_OPS.includes(s.operation)) return s.operation;
+  }
+  return null;
+}
+
 /** Pipeline validation rules */
 export function canAddOperation(pipeline: PipelineStep[], op: Operation): boolean {
   if (pipeline.length >= 4) return false;
@@ -184,6 +194,20 @@ export function canAddOperation(pipeline: PipelineStep[], op: Operation): boolea
   if (pipeline.some((s) => s.operation === op)) return false;
   // ai_model can only be first step
   if (op === "ai_model" && pipeline.length > 0) return false;
+
+  const existingScene = hasSceneOp(pipeline);
+
+  // Mutual exclusivity: only one scene-setting op allowed
+  if (SCENE_OPS.includes(op) && existingScene) return false;
+
+  // Redundancy: clean_bg is pointless before flatlay/mannequin (they generate their own BG)
+  const hasFlatlayOrMannequin = pipeline.some((s) => s.operation === "flatlay" || s.operation === "mannequin");
+  if (op === "clean_bg" && hasFlatlayOrMannequin) return false;
+
+  // Redundancy: flatlay/mannequin after clean_bg is fine conceptually but they re-compose anyway
+  const hasCleanBg = pipeline.some((s) => s.operation === "clean_bg");
+  if ((op === "flatlay" || op === "mannequin") && hasCleanBg) return false;
+
   return true;
 }
 
@@ -191,9 +215,7 @@ export function getAvailableOpsToAdd(pipeline: PipelineStep[]): Operation[] {
   const all: Operation[] = ["clean_bg", "lifestyle_bg", "flatlay", "mannequin", "ai_model", "enhance", "decrease"];
   const hasAiModel = pipeline.some((s) => s.operation === "ai_model");
   return all.filter((op) => {
-    if (pipeline.some((s) => s.operation === op)) return false;
-    if (pipeline.length >= 4) return false;
-    if (op === "ai_model" && pipeline.length > 0) return false;
+    if (!canAddOperation(pipeline, op)) return false;
     // If ai_model is first, only enhance/decrease can follow
     if (hasAiModel && op !== "enhance" && op !== "decrease") return false;
     return true;
