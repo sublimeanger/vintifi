@@ -425,7 +425,12 @@ serve(async (req) => {
       });
     }
 
-    const { image_url, operation, parameters, garment_context, sell_wizard } = await req.json();
+    let { image_url, operation, parameters, garment_context, sell_wizard } = await req.json();
+
+    // Auto-reroute ghost mannequin type to dedicated operation
+    if (operation === "mannequin_shot" && parameters?.mannequin_type === "ghost") {
+      operation = "ghost_mannequin";
+    }
 
     if (!image_url || !operation) {
       return new Response(JSON.stringify({ error: "image_url and operation are required" }), {
