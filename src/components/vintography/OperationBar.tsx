@@ -90,7 +90,7 @@ export function OperationBar({
           <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </div>
-      <div ref={scrollRef} className="w-full flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5">
+      <div ref={scrollRef} className="w-full flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5 lg:flex-wrap lg:overflow-visible">
         {operations.map((op) => {
           const Icon = OP_ICONS[op.id];
           const isActive = op.id === activeOp;
@@ -109,7 +109,7 @@ export function OperationBar({
               ref={(el) => { buttonRefs.current[op.id] = el; }}
               whileTap={{ scale: 0.93 }}
               onClick={handleClick}
-              className={`relative flex-shrink-0 flex flex-col items-center gap-1 rounded-xl px-3 py-2.5 border transition-all min-w-[72px] ${
+              className={`relative flex-shrink-0 lg:flex-shrink flex flex-col items-center gap-1 rounded-xl px-3 py-2.5 border transition-all min-w-[72px] lg:min-w-0 lg:flex-1 lg:basis-[calc(25%-6px)] ${
                 op.locked
                   ? "border-border/50 opacity-60 bg-muted/30"
                   : isActive
