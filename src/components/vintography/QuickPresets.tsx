@@ -222,6 +222,9 @@ export function QuickPresets({ onSelect, onLockedTap, disabled, userTier, savedP
               </div>
               <p className="font-semibold text-xs">{p.label}</p>
               <p className="text-[10px] text-muted-foreground">{p.desc}</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">
+                {p.steps.reduce((sum, s) => sum + (s.operation === "model_shot" ? 4 : 1), 0)} cr
+              </p>
             </Card>
           ))}
         </div>
