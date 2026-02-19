@@ -10,9 +10,9 @@ const corsHeaders = {
 // ── Hyper-optimised fashion-photography prompts ──────────────────────
 const QUALITY_MANDATE = `OUTPUT REQUIREMENTS: Deliver the highest possible resolution and quality. The result must be indistinguishable from work by a professional fashion photographer using a full-frame camera with a prime lens. Maintain pixel-level sharpness on fabric textures, stitching, and hardware.`;
 
-const NO_TEXT = `ABSOLUTELY ZERO text, watermarks, labels, captions, annotations, logos, signatures, stamps, or any form of written content anywhere in the image. Not even subtle or blurred text. The image must be completely free of any characters or symbols.`;
+const NO_TEXT = `CRITICAL — NO ADDED TEXT OR LABELS: Do NOT add any text, labels, captions, titles, annotations, watermarks, signatures, stamps, banners, "Before"/"After" labels, operation names, or any form of written content to the output image. The output must contain ZERO added characters or symbols. If the original garment has printed text, logos, or brand labels on it, preserve those exactly as they are — but NEVER add new text that was not on the original garment. This is the #1 rule — violating it ruins the image.`;
 
-const GARMENT_PRESERVE = `GARMENT INTEGRITY (NON-NEGOTIABLE): Preserve every single detail of the garment with forensic accuracy — all logos, prints, embroidery, textures, stitching patterns, buttons, zippers, tags, brand markers, fabric weave, and colour must remain perfectly intact, unaltered, and unobscured. Maintain accurate colour reproduction under the new lighting conditions. DO NOT change the garment type — if the input is a crewneck sweatshirt, it must remain a crewneck sweatshirt. DO NOT add a hood, DO NOT change the neckline, DO NOT alter the silhouette. The garment identity must be preserved exactly. ${NO_TEXT}`;
+const GARMENT_PRESERVE = `GARMENT INTEGRITY (NON-NEGOTIABLE): Preserve every single detail of the garment with forensic accuracy — all logos, prints, embroidery, textures, stitching patterns, buttons, zippers, tags, brand markers, fabric weave, and colour must remain perfectly intact, unaltered, and unobscured. Maintain accurate colour reproduction under the new lighting conditions. DO NOT change the garment type — if the input is a crewneck sweatshirt, it must remain a crewneck sweatshirt. DO NOT add a hood, DO NOT change the neckline, DO NOT alter the silhouette. The garment identity must be preserved exactly.`;
 
 // Build garment context block from optional metadata
 function buildGarmentContext(garmentContext?: string): string {
@@ -526,6 +526,8 @@ serve(async (req) => {
     if (garment_context && !["model_shot"].includes(operation)) {
       prompt += buildGarmentContext(garment_context);
     }
+    // Prepend the no-text rule so the model sees it FIRST — this is the strongest position for instruction following
+    prompt = `${NO_TEXT}\n\n${prompt}`;
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
