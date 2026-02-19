@@ -117,6 +117,37 @@ export default function Dashboard() {
           <p className="text-muted-foreground text-[10px] sm:text-sm">Your selling command centre</p>
         </motion.div>
 
+        {/* First-item-free banner */}
+        {profile?.first_item_pass_used === false && (
+          <motion.div
+            initial={{ opacity: 0, y: -12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 400, damping: 28, delay: 0.2 }}
+            className="relative rounded-2xl overflow-hidden border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-accent/10 p-4 sm:p-5"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+            <div className="relative z-10 flex items-start gap-3">
+              <div className="text-2xl sm:text-3xl leading-none select-none shrink-0">🎁</div>
+              <div className="flex-1 min-w-0">
+                <p className="font-display font-bold text-sm sm:text-base text-foreground leading-tight">
+                  Your first item is free
+                </p>
+                <p className="text-[11px] sm:text-sm text-muted-foreground mt-1 leading-snug">
+                  Go through the Sell Wizard to get professional photos, an AI listing, and pricing — on us.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-3 h-8 px-4 text-xs font-semibold rounded-xl active:scale-95 transition-transform"
+                  onClick={() => navigate("/sell")}
+                >
+                  <Rocket className="w-3.5 h-3.5 mr-1.5" />
+                  Start the Sell Wizard
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Milestone banners */}
         <AnimatePresence mode="sync">
           {activeBanners.map((key) => {
