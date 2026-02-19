@@ -15,6 +15,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, Package, Search, Sparkles, ImageIcon,
   LogOut, Menu, Zap, Settings, TrendingUp, Plus, Rocket,
+  MoreHorizontal,
 } from "lucide-react";
 
 type NavItem = {
@@ -24,20 +25,16 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Package, label: "Items", path: "/listings" },
-  { icon: Rocket, label: "Sell", path: "/sell" },
-  { icon: Search, label: "Price Check", path: "/price-check" },
-  { icon: Sparkles, label: "Optimise", path: "/optimize" },
-  { icon: TrendingUp, label: "Trends", path: "/trends" },
-  { icon: ImageIcon, label: "Photo Studio", path: "/vintography" },
+  { icon: LayoutDashboard, label: "Dashboard",    path: "/dashboard" },
+  { icon: ImageIcon,       label: "Photo Studio", path: "/vintography" },
+  { icon: Rocket,          label: "Sell",         path: "/sell" },
+  { icon: Package,         label: "My Items",     path: "/listings" },
 ];
 
 const BOTTOM_TABS: NavItem[] = [
-  { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
-  { icon: Package, label: "Items", path: "/listings" },
-  { icon: TrendingUp, label: "Trends", path: "/trends" },
-  { icon: Sparkles, label: "Optimise", path: "/optimize" },
+  { icon: LayoutDashboard, label: "Home",   path: "/dashboard" },
+  { icon: ImageIcon,       label: "Photos", path: "/vintography" },
+  { icon: Package,         label: "Items",  path: "/listings" },
 ];
 
 interface AppShellV2Props {
@@ -50,6 +47,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
   const location = useLocation();
   const { user, profile, credits, signOut } = useAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
 
   const tier = (profile?.subscription_tier || "free") as keyof typeof STRIPE_TIERS;
   const tierInfo = STRIPE_TIERS[tier] || STRIPE_TIERS.free;
@@ -86,6 +84,31 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
             {isActive(item.path) && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
           </button>
         ))}
+
+        {/* Secondary tools */}
+        <div className="pt-3 mt-2 border-t border-sidebar-border/50">
+          <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">More tools</p>
+          {[
+            { icon: TrendingUp, label: "Trends",      path: "/trends" },
+            { icon: Search,     label: "Price Check",  path: "/price-check" },
+            { icon: Sparkles,   label: "Optimise",     path: "/optimize" },
+          ].map((item) => (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150",
+                isActive(item.path)
+                  ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
+                  : "text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+              )}
+            >
+              <item.icon className="w-4 h-4 shrink-0" />
+              {item.label}
+              {isActive(item.path) && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+            </button>
+          ))}
+        </div>
       </nav>
 
       <div className="p-4 border-t border-sidebar-border bg-gradient-to-t from-sidebar-accent/30 to-transparent space-y-3">
@@ -153,6 +176,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
               </SheetTitle>
             </SheetHeader>
             <nav className="flex-1 min-h-0 px-3 py-4 space-y-1 overflow-y-auto">
+              {/* Primary nav items */}
               {NAV_ITEMS.map((item) => (
                 <button
                   key={item.path}
@@ -167,6 +191,29 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
                   <item.icon className="w-4 h-4 shrink-0" /> {item.label}
                 </button>
               ))}
+
+              {/* Secondary "More tools" section */}
+              <div className="pt-3 mt-2 border-t border-sidebar-border/50">
+                <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">More tools</p>
+                {[
+                  { icon: TrendingUp, label: "Trends",      path: "/trends" },
+                  { icon: Search,     label: "Price Check",  path: "/price-check" },
+                  { icon: Sparkles,   label: "Optimise",     path: "/optimize" },
+                ].map((item) => (
+                  <button
+                    key={item.path}
+                    onClick={() => { navigate(item.path); setSheetOpen(false); }}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors active:scale-[0.98]",
+                      isActive(item.path)
+                        ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
+                        : "text-sidebar-foreground/50 hover:bg-sidebar-accent",
+                    )}
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" /> {item.label}
+                  </button>
+                ))}
+              </div>
             </nav>
             <div className="p-4 border-t border-sidebar-border shrink-0 space-y-2">
               <button
@@ -192,7 +239,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
   const bottomNav = (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-background/90 backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-around h-14">
-        {/* First 2 tabs */}
+        {/* Left 2 tabs: Home, Photos */}
         {BOTTOM_TABS.slice(0, 2).map((tab) => {
           const active = isActive(tab.path);
           return (
@@ -235,12 +282,12 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
           </span>
         </button>
 
-        {/* Last 2 tabs */}
-        {BOTTOM_TABS.slice(2).map((tab) => {
+        {/* Items tab */}
+        {(() => {
+          const tab = BOTTOM_TABS[2];
           const active = isActive(tab.path);
           return (
             <button
-              key={tab.path}
               onClick={() => navigate(tab.path)}
               className={cn(
                 "relative flex flex-col items-center justify-center gap-0 flex-1 h-full transition-all min-w-0 active:scale-90",
@@ -260,7 +307,59 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
               </span>
             </button>
           );
-        })}
+        })()}
+
+        {/* More tab */}
+        <Sheet open={moreSheetOpen} onOpenChange={setMoreSheetOpen}>
+          <SheetTrigger asChild>
+            <button
+              className={cn(
+                "relative flex flex-col items-center justify-center gap-0 flex-1 h-full transition-all min-w-0 active:scale-90",
+                moreSheetOpen ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <MoreHorizontal className="w-5 h-5 relative z-10" />
+              <span className="text-[9px] font-medium relative z-10 mt-0.5">More</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="p-0 bg-background rounded-t-2xl">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-border" />
+            </div>
+            <SheetHeader className="px-5 pb-3">
+              <SheetTitle className="text-sm font-semibold text-muted-foreground">More</SheetTitle>
+            </SheetHeader>
+            <div className="px-3 pb-6 space-y-1">
+              {[
+                { icon: TrendingUp, label: "Trends",      path: "/trends" },
+                { icon: Search,     label: "Price Check",  path: "/price-check" },
+                { icon: Sparkles,   label: "Optimise",     path: "/optimize" },
+                { icon: Settings,   label: "Settings",     path: "/settings" },
+              ].map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => { navigate(item.path); setMoreSheetOpen(false); }}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors active:scale-[0.98]",
+                    isActive(item.path)
+                      ? "bg-primary/10 text-primary font-semibold"
+                      : "text-foreground hover:bg-muted",
+                  )}
+                >
+                  <item.icon className="w-4 h-4 shrink-0" /> {item.label}
+                </button>
+              ))}
+              <div className="pt-1 border-t border-border/60 mt-1">
+                <button
+                  onClick={() => { signOut(); setMoreSheetOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.98]"
+                >
+                  <LogOut className="w-4 h-4 shrink-0" /> Sign Out
+                </button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </nav>
   );
