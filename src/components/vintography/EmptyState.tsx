@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useId } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function EmptyState({ itemId, linkedItemTitle, onFilesSelected }: Props) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileId = useId();
   const navigate = useNavigate();
 
   return (
@@ -49,13 +49,13 @@ export function EmptyState({ itemId, linkedItemTitle, onFilesSelected }: Props) 
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <Button
-            size="lg"
-            className="h-12 px-8 text-sm active:scale-95 transition-transform"
-            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+          {/* Use native <label> instead of programmatic .click() — works reliably on all browsers including iOS Safari */}
+          <label
+            htmlFor={fileId}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 text-sm active:scale-95 transition-transform cursor-pointer"
           >
-            <Camera className="w-4 h-4 mr-2" /> Choose Photos
-          </Button>
+            <Camera className="w-4 h-4" /> Choose Photos
+          </label>
           {!itemId && (
             <ItemPickerDialog
               onSelect={(picked) => {
@@ -74,13 +74,14 @@ export function EmptyState({ itemId, linkedItemTitle, onFilesSelected }: Props) 
         </div>
       </div>
       <input
-        ref={fileInputRef}
+        id={fileId}
         type="file"
         accept="image/*,.heic,.heif"
         multiple
-        className="hidden"
+        className="sr-only"
         onChange={(e) => {
           if (e.target.files?.length) onFilesSelected(e.target.files);
+          e.target.value = "";
         }}
       />
     </Card>
