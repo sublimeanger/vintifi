@@ -73,11 +73,20 @@ export const presets: Preset[] = [
 
 type Props = {
   onSelect: (preset: Preset) => void;
+  onLockedTap: (tierRequired: string) => void;
   disabled: boolean;
+  userTier: string;
 };
 
-export function QuickPresets({ onSelect, disabled }: Props) {
+export function QuickPresets({ onSelect, onLockedTap, disabled, userTier }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const TIER_ORDER: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+  const userLevel = TIER_ORDER[userTier] ?? 0;
+  const isLocked = (preset: Preset): boolean => {
+    const requiredLevel = TIER_ORDER[preset.tier.toLowerCase()] ?? 0;
+    return userLevel < requiredLevel;
+  };
 
   const scroll = (dir: "left" | "right") => {
     if (scrollRef.current) {
@@ -110,14 +119,27 @@ export function QuickPresets({ onSelect, disabled }: Props) {
         {presets.map((p) => (
           <Card
             key={p.id}
-            onClick={() => !disabled && onSelect(p)}
-            className={`p-3 cursor-pointer transition-all active:scale-[0.97] hover:border-accent/40 flex-shrink-0 w-[140px] ${disabled ? "opacity-50 pointer-events-none" : ""}`}
+            onClick={() => {
+              if (disabled) return;
+              if (isLocked(p)) {
+                onLockedTap(p.tier.toLowerCase());
+              } else {
+                onSelect(p);
+              }
+            }}
+            className={`p-3 cursor-pointer transition-all active:scale-[0.97] flex-shrink-0 w-[140px] ${
+              disabled ? "opacity-50 pointer-events-none" :
+              isLocked(p) ? "opacity-60 border-border/50" :
+              "hover:border-accent/40"
+            }`}
           >
             <div className="flex items-start justify-between mb-1.5">
               <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
                 <p.icon className="w-4 h-4 text-accent" />
               </div>
-              <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{p.tier}</Badge>
+              <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${isLocked(p) ? "bg-muted text-muted-foreground" : ""}`}>
+                {isLocked(p) ? "🔒 " : ""}{p.tier}
+              </Badge>
             </div>
             <p className="font-semibold text-xs">{p.label}</p>
             <p className="text-[10px] text-muted-foreground">{p.desc}</p>
