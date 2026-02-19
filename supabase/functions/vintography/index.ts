@@ -371,15 +371,15 @@ ${QUALITY_MANDATE}`,
 
 // Models per operation
 const MODEL_MAP: Record<string, string> = {
-  remove_bg: "gemini-2.0-flash-exp",
-  smart_bg: "gemini-2.0-flash-exp",
-  model_shot: "gemini-2.0-flash-exp",
-  mannequin_shot: "gemini-2.0-flash-exp",
-  ghost_mannequin: "gemini-2.0-flash-exp",
-  flatlay_style: "gemini-2.0-flash-exp",
-  selfie_shot: "gemini-2.0-flash-exp",
-  enhance: "gemini-2.0-flash-exp",
-  decrease: "gemini-2.0-flash-exp",
+  remove_bg: "gemini-2.5-flash-image",
+  smart_bg: "gemini-2.5-flash-image",
+  model_shot: "gemini-2.5-flash-image",
+  mannequin_shot: "gemini-2.5-flash-image",
+  ghost_mannequin: "gemini-2.5-flash-image",
+  flatlay_style: "gemini-2.5-flash-image",
+  selfie_shot: "gemini-2.5-flash-image",
+  enhance: "gemini-2.5-flash-image",
+  decrease: "gemini-2.5-flash-image",
 };
 
 // Operations allowed per tier
