@@ -315,7 +315,7 @@ export default function Vintography() {
       }
 
       fetchGallery();
-      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 200);
       setTimeout(() => dispatch({ type: "RESULT_READY_FLASH" }), 3000);
     } catch (err: any) {
       toast.error(err.message || "Processing failed. Try again.");

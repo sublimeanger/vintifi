@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -46,6 +46,17 @@ export function OperationBar({
 }: Props) {
   const activeOp = pipeline[activePipelineIndex]?.operation;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  useEffect(() => {
+    if (activeOp && buttonRefs.current[activeOp]) {
+      buttonRefs.current[activeOp]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [activeOp]);
 
   const scroll = (dir: "left" | "right") => {
     if (scrollRef.current) {
@@ -95,6 +106,7 @@ export function OperationBar({
           return (
             <motion.button
               key={op.id}
+              ref={(el) => { buttonRefs.current[op.id] = el; }}
               whileTap={{ scale: 0.93 }}
               onClick={handleClick}
               className={`relative flex-shrink-0 flex flex-col items-center gap-1 rounded-xl px-3 py-2.5 border transition-all min-w-[72px] ${
