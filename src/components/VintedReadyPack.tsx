@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { type Easing, motion } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { HealthScoreMini } from "@/components/HealthScoreGauge";
 import {
   Copy, Check, Download, ExternalLink, Package,
-  Sparkles, ImageIcon, Hash, Type, FileText, ShieldCheck,
+  Sparkles, ImageIcon, Hash, Type, FileText, ShieldCheck, RefreshCw,
 } from "lucide-react";
 
 type Listing = {
@@ -98,6 +98,21 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReadyPackProps) {
   const [downloading, setDownloading] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+
+  // Hashtag rate limiting: 5-second debounce + max 3 per session
+  const [hashtagCount, setHashtagCount] = useState(0);
+  const [hashtagCooldown, setHashtagCooldown] = useState(false);
+  const hashtagTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const MAX_HASHTAG_REGEN = 3;
+
+  const handleRegenerateHashtags = () => {
+    if (hashtagCooldown || hashtagCount >= MAX_HASHTAG_REGEN) return;
+    setHashtagCount((c) => c + 1);
+    setHashtagCooldown(true);
+    if (hashtagTimerRef.current) clearTimeout(hashtagTimerRef.current);
+    hashtagTimerRef.current = setTimeout(() => setHashtagCooldown(false), 5000);
+    toast.info("Hashtags refreshed");
+  };
 
   const isReady = !!item.last_optimised_at;
   const score = item.health_score;
@@ -284,7 +299,24 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
                   Hashtags ({hashtags.length})
                 </span>
               </div>
-              <CopyButton text={hashtags.join(" ")} label="Hashtags" />
+              <div className="flex items-center gap-1">
+                {hashtagCount < MAX_HASHTAG_REGEN ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5"
+                    disabled={hashtagCooldown}
+                    onClick={handleRegenerateHashtags}
+                    title={hashtagCooldown ? "Wait 5 seconds…" : `Regenerate (${MAX_HASHTAG_REGEN - hashtagCount} left)`}
+                  >
+                    <RefreshCw className={`w-3 h-3 ${hashtagCooldown ? "animate-spin" : ""}`} />
+                    {hashtagCooldown ? "Wait…" : "Regenerate"}
+                  </Button>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground font-medium px-1">Max regenerations reached</span>
+                )}
+                <CopyButton text={hashtags.join(" ")} label="Hashtags" />
+              </div>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {hashtags.map((tag) => (

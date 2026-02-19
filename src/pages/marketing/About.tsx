@@ -84,7 +84,7 @@ export default function About() {
               <span className="text-gradient">for sellers</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              We believe every Vinted seller deserves the same data intelligence that powers enterprise e-commerce.
+              We built an AI photo studio that turns any phone camera photo into a professional listing image — then added smart pricing and listing tools to help you sell faster.
             </motion.p>
           </motion.div>
         </div>
@@ -103,8 +103,8 @@ export default function About() {
             <div className="absolute -top-4 left-0 sm:left-8 text-5xl sm:text-8xl font-serif text-primary/10 leading-none select-none">"</div>
             <div className="absolute -bottom-4 right-0 sm:right-8 text-5xl sm:text-8xl font-serif text-primary/10 leading-none select-none rotate-180">"</div>
             <div className="border-l-4 border-r-4 border-primary/20 px-4 sm:px-12 py-3 sm:py-4">
-              <p className="font-display text-base sm:text-2xl md:text-3xl font-bold leading-relaxed text-foreground">
-                Our mission is to <span className="text-gradient">democratise reselling intelligence</span> — giving every seller, from side-hustlers to full-time entrepreneurs, the tools to price perfectly, source smartly, and sell with confidence.
+            <p className="font-display text-base sm:text-2xl md:text-3xl font-bold leading-relaxed text-foreground">
+                Vintifi started with a simple question: why do professional retailers get beautiful product photos and small Vinted sellers don't? We built an <span className="text-gradient">AI photo studio</span> that turns any phone camera photo into a professional listing image — then added smart pricing and listing tools to help you sell faster.
               </p>
             </div>
           </motion.blockquote>

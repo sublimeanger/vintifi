@@ -1764,6 +1764,34 @@ export default function SellWizard() {
         >
           <RotateCcw className="w-3.5 h-3.5" /> Sell another item
         </Button>
+
+        {/* Low-credit nudge — shown when ≤5 credits remain and not unlimited */}
+        {!isUnlimitedUser && creditsRemaining <= 5 && (
+          <div className="rounded-xl border border-warning/25 bg-warning/[0.06] p-4 space-y-3">
+            <p className="text-xs sm:text-sm font-semibold text-foreground">
+              Ready to list more? Top up credits or upgrade your plan →
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-10 font-semibold text-xs border-warning/40 hover:bg-warning/10 hover:text-warning hover:border-warning"
+                onClick={() => navigate("/settings?tab=billing")}
+              >
+                Buy 10 credits — £2.99
+              </Button>
+              {isFreeUser && (
+                <Button
+                  size="sm"
+                  className="flex-1 h-10 font-semibold text-xs"
+                  onClick={() => navigate("/pricing")}
+                >
+                  Upgrade to Pro — £9.99/mo
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
