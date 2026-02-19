@@ -105,24 +105,6 @@ export function OperationBar({
                   : "border-border hover:border-primary/30 bg-card"
               }`}
             >
-              {/* Lock badge */}
-              {op.locked && (
-                <div className="absolute -top-1.5 -right-1.5 z-10">
-                  <div className="w-4 h-4 rounded-full bg-muted border border-border flex items-center justify-center">
-                    <Lock className="w-2 h-2 text-muted-foreground" />
-                  </div>
-                </div>
-              )}
-
-              {/* Tier badge (unlocked but premium) */}
-              {!op.locked && op.tierLabel && (
-                <div className="absolute -top-1.5 -right-1.5 z-10">
-                  <Badge className="text-[8px] px-1 py-0 h-3.5 leading-none bg-primary text-primary-foreground">
-                    {op.tierLabel}
-                  </Badge>
-                </div>
-              )}
-
               <Icon
                 className={`w-4 h-4 ${
                   op.locked
@@ -139,13 +121,19 @@ export function OperationBar({
               >
                 {OP_LABEL[op.id]}
               </span>
-              <span
-                className={`text-[9px] leading-none ${
-                  isActive ? "text-primary/70" : "text-muted-foreground"
-                }`}
-              >
-                {op.creditCost === 4 ? "4 cr" : "1 cr"}
-              </span>
+              {op.tierLabel ? (
+                <span className="text-[8px] leading-none font-semibold text-primary/80 bg-primary/10 rounded px-1 py-0.5">
+                  {op.tierLabel}
+                </span>
+              ) : (
+                <span
+                  className={`text-[9px] leading-none ${
+                    isActive ? "text-primary/70" : "text-muted-foreground"
+                  }`}
+                >
+                  {op.creditCost === 4 ? "4 cr" : "1 cr"}
+                </span>
+              )}
             </motion.button>
           );
         })}
