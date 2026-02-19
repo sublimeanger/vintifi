@@ -676,6 +676,30 @@ export default function Vintography() {
         <div className="space-y-3 sm:space-y-4 lg:space-y-5">
           <CreditBar used={totalUsed} limit={creditsLimit} unlimited={isUnlimited} />
 
+          {/* Low-credit amber banner — shown when ≤2 credits remain and not unlimited */}
+          {!isUnlimited && (creditsLimit - totalUsed) <= 2 && (creditsLimit - totalUsed) >= 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-3 rounded-xl bg-warning/10 border border-warning/25 p-3 lg:p-4"
+            >
+              <Coins className="w-4 h-4 lg:w-5 lg:h-5 text-warning shrink-0" />
+              <p className="text-xs lg:text-sm text-foreground flex-1">
+                <span className="font-semibold">
+                  {creditsLimit - totalUsed <= 0 ? "No credits left." : `You have ${creditsLimit - totalUsed} credit${creditsLimit - totalUsed === 1 ? "" : "s"} left.`}
+                </span>{" "}
+                Top up 10 for £2.99 →
+              </p>
+              <Button
+                size="sm"
+                className="shrink-0 h-8 text-xs font-semibold bg-warning text-warning-foreground hover:bg-warning/90"
+                onClick={() => navigate("/settings?tab=billing")}
+              >
+                Top Up
+              </Button>
+            </motion.div>
+          )}
+
           {/* Guidance banner */}
           {!localStorage.getItem("vintography_guidance_dismissed") && (
             <motion.div

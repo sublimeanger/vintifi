@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Mail, ArrowRight, Zap, TrendingUp, Shield } from "lucide-react";
+import { Loader2, Mail, ArrowRight, Zap, TrendingUp, Shield, Sparkles } from "lucide-react";
 
 const testimonialQuotes = [
   { quote: "Vintifi paid for itself in the first week. My pricing accuracy went from guesswork to 87%.", name: "Sarah K.", role: "Full-Time Reseller" },
@@ -114,15 +114,16 @@ export default function Auth() {
           <h1 className="font-display text-3xl font-extrabold mb-2">
             <span className="text-gradient">Vintifi</span>
           </h1>
-          <p className="text-secondary-foreground/60 text-sm">AI-Powered Vinted Intelligence</p>
+          <p className="text-secondary-foreground/60 text-sm">Professional Vinted listings start here.</p>
         </div>
 
         <div className="relative z-10 space-y-6">
           <div className="space-y-4">
             {[
-              { icon: Zap, text: "AI-powered pricing in under 8 seconds" },
-              { icon: TrendingUp, text: "Catch trends before they peak" },
-              { icon: Shield, text: "Data-driven decisions, not guesswork" },
+              { icon: Zap, text: "AI photo studio — transform any photo" },
+              { icon: TrendingUp, text: "Smart listings — AI-written titles & descriptions" },
+              { icon: Shield, text: "Market pricing — know what to charge" },
+              { icon: Sparkles, text: "Your first item is completely free" },
             ].map((item) => (
               <div key={item.text} className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
