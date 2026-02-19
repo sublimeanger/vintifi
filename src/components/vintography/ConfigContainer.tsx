@@ -13,7 +13,7 @@ type Props = {
 
 /**
  * On mobile: renders a ConfigDrawer bottom sheet with footer pinned.
- * On desktop: renders a plain scrollable div; footer is rendered inline below.
+ * On desktop: renders a scroll-constrained panel with pinned footer.
  */
 export function ConfigContainer({
   open,
@@ -39,11 +39,18 @@ export function ConfigContainer({
     );
   }
 
-  // Desktop: inline scrollable section + sticky footer at bottom of left panel
+  // Desktop: scrollable config area with pinned Generate button
   return (
-    <div className="space-y-3">
-      <div className="space-y-3">{children}</div>
-      <div className="sticky bottom-4">{footer}</div>
+    <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden" style={{ maxHeight: "calc(100vh - 280px)" }}>
+      {/* Scrollable config content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {children}
+      </div>
+
+      {/* Pinned footer — always visible */}
+      <div className="flex-shrink-0 px-4 py-3 border-t border-border bg-card">
+        {footer}
+      </div>
     </div>
   );
 }
