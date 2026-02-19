@@ -1,40 +1,62 @@
 
-# Fix: Kill the Ghost Drawer on Mobile
 
-## Root Cause
+# Switch Photo Studio to Google Gemini API Direct
 
-Two issues combine to create the bug:
+## Why
 
-1. **Reducer auto-opens drawer**: `REPLACE_PIPELINE`, `ADD_PIPELINE_STEP`, and `SET_ACTIVE_PIPELINE_INDEX` all set `drawerOpen: true` unconditionally
-2. **Portal escapes CSS hiding**: The desktop `ConfigContainer` (line 898) sits inside a `hidden lg:grid` div, but `ConfigDrawer` uses vaul's `Drawer` which portals to `document.body` -- so it renders on mobile regardless of the parent being hidden
+The Lovable AI gateway (`ai.gateway.lovable.dev`) is returning 500 errors for all image operations. Your `GOOGLE_AI_API_KEY` secret is already configured, so we can bypass the gateway entirely and call Google's Gemini API directly.
 
-## Fix (3 small changes)
+## Changes -- All in `supabase/functions/vintography/index.ts`
 
-### 1. `src/components/vintography/vintographyReducer.ts` -- Stop auto-opening drawer
+### 1. Update MODEL_MAP to Google's native model names
 
-Change three reducer cases to NOT set `drawerOpen: true`:
+Remove the `google/` prefix from all model names:
+- `google/gemini-2.5-flash-image` becomes `gemini-2.5-flash-image`
+- `google/gemini-3-pro-image-preview` becomes `gemini-3-pro-image-preview`
 
-- **REPLACE_PIPELINE** (around line 116): change `drawerOpen: true` to `drawerOpen: false`
-- **ADD_PIPELINE_STEP** (around line 100): change `drawerOpen: true` to `drawerOpen: false`  
-- **SET_ACTIVE_PIPELINE_INDEX** (line 109): change `drawerOpen: true` to `drawerOpen: false`
+### 2. Switch API key from LOVABLE_API_KEY to GOOGLE_AI_API_KEY
 
-The desktop code in `Vintography.tsx` already passes `open={true}` hardcoded to `ConfigContainer`, so the desktop panel is always visible regardless of `drawerOpen` state. The explicit `SET_DRAWER_OPEN` dispatch in `handleOpSelect` on desktop still works.
+Replace the `lovableApiKey` lookup with `googleApiKey = Deno.env.get("GOOGLE_AI_API_KEY")`.
 
-### 2. `src/pages/Vintography.tsx` -- Desktop handleOpSelect cleanup
+### 3. Replace the AI gateway call with Google's native API
 
-In `handleOpSelect`, the existing code dispatches `SET_DRAWER_OPEN` for desktop only (`if (!isMobile)`). This stays as-is -- it's already correct.
+Instead of calling `ai.gateway.lovable.dev/v1/chat/completions` with OpenAI-compatible format, call `generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` with Google's native format:
 
-### 3. `src/pages/Vintography.tsx` -- Remove stale mobile SET_DRAWER_OPEN dispatches
+- Fetch the source image, convert to base64 in chunks (avoids stack overflow)
+- Send as `inlineData` with `mimeType` in Google's `contents/parts` structure
+- Use `generationConfig.responseModalities: ["TEXT", "IMAGE"]`
+- Auth via `x-goog-api-key` header instead of `Authorization: Bearer`
 
-The `handlePresetSelect` and `handleSavedPresetSelect` functions have lines like:
+### 4. Update response parsing
+
+Google returns images in `candidates[0].content.parts[].inlineData.data` (raw base64) instead of `choices[0].message.images[0].image_url.url` (data URL). This means the existing `.replace(/^data:image\/\w+;base64,/, "")` line is no longer needed -- Google gives raw base64 directly.
+
+### 5. Better error handling
+
+- Detect and report safety filter blocks (`finishReason === "SAFETY"`)
+- Log text-only responses for debugging when no image is returned
+- Handle 429 rate limits from Google's API
+
+## What stays the same
+
+- All prompts (OPERATION_PROMPTS, QUALITY_MANDATE, NO_TEXT, GARMENT_PRESERVE)
+- Auth, tier checking, credit logic
+- Job creation and status updates
+- Image upload to storage
+- Credit deduction
+- Everything in the frontend
+
+## Technical detail
+
+The key payload difference:
+
+```text
+BEFORE (Lovable Gateway - OpenAI format):
+  POST ai.gateway.lovable.dev/v1/chat/completions
+  { model, messages: [{ role: "user", content: [{ type: "text" }, { type: "image_url" }] }], modalities }
+
+AFTER (Google Direct):
+  POST generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+  { contents: [{ parts: [{ text }, { inlineData: { mimeType, data } }] }], generationConfig: { responseModalities } }
 ```
-if (isMobile) dispatch({ type: "SET_DRAWER_OPEN", open: false });
-```
-These become unnecessary since the reducer no longer opens the drawer. Remove them to clean up dead code.
 
-## What This Fixes
-
-- Tapping a Quick Preset on mobile no longer triggers a bottom-sheet drawer
-- The inline collapsible config + Generate button remain visible and accessible
-- Desktop layout is completely unaffected (ConfigContainer uses hardcoded `open={true}`)
-- One-tap flow restored: select preset then hit Generate
