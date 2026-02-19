@@ -1,7 +1,8 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { STRIPE_TIERS } from "@/lib/constants";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -11,11 +12,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Package, Search, Sparkles, ImageIcon,
   LogOut, Menu, Zap, Settings, TrendingUp, Plus, Rocket,
-  MoreHorizontal,
+  MoreHorizontal, X, ChevronRight,
 } from "lucide-react";
 
 type NavItem = {
@@ -23,6 +24,35 @@ type NavItem = {
   label: string;
   path: string;
 };
+
+const TOUR_STEPS = [
+  {
+    step: 1,
+    emoji: "📊",
+    title: "Your Dashboard",
+    body: "This is your selling command centre — see active listings, performance stats, and trending brands at a glance.",
+  },
+  {
+    step: 2,
+    emoji: "📸",
+    title: "Photo Studio",
+    body: "Transform any phone photo into a professional listing image. Remove backgrounds, add flat-lay styling, or get AI model shots.",
+    navHint: "Tap 'Photos' in the bottom nav (or 'Photo Studio' in the sidebar).",
+  },
+  {
+    step: 3,
+    emoji: "🚀",
+    title: "Sell Wizard",
+    body: "List a new item in under 2 minutes. Add details → enhance photos → AI listing → pricing → ready to post.",
+    navHint: "Tap the '+' Sell button in the centre of the bottom nav.",
+  },
+  {
+    step: 4,
+    emoji: "🎁",
+    title: "Your first item is free",
+    body: "Every new account gets a complete first-item pass — professional photos, AI listing, and market pricing — completely free.",
+  },
+];
 
 const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard",    path: "/dashboard" },
@@ -48,6 +78,35 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
   const { user, profile, credits, signOut } = useAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
+  const [tourStep, setTourStep] = useState<number | null>(null);
+
+  // Show tour for new users (tour_completed === false) only on dashboard
+  useEffect(() => {
+    if (!profile) return;
+    const alreadyDone = localStorage.getItem("vintifi_tour_completed") === "1";
+    if (!alreadyDone && profile.tour_completed === false && location.pathname === "/dashboard") {
+      // Small delay so page renders first
+      const t = setTimeout(() => setTourStep(1), 800);
+      return () => clearTimeout(t);
+    }
+  }, [profile?.tour_completed, location.pathname]);
+
+  const completeTour = async () => {
+    setTourStep(null);
+    localStorage.setItem("vintifi_tour_completed", "1");
+    if (user) {
+      await supabase.from("profiles").update({ tour_completed: true } as any).eq("user_id", user.id);
+    }
+  };
+
+  const advanceTour = () => {
+    if (tourStep === null) return;
+    if (tourStep >= TOUR_STEPS.length) {
+      completeTour();
+    } else {
+      setTourStep(tourStep + 1);
+    }
+  };
 
   const tier = (profile?.subscription_tier || "free") as keyof typeof STRIPE_TIERS;
   const tierInfo = STRIPE_TIERS[tier] || STRIPE_TIERS.free;
@@ -372,6 +431,8 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
     </nav>
   );
 
+  const currentTourStep = tourStep !== null ? TOUR_STEPS[tourStep - 1] : null;
+
   return (
     <div className="flex min-h-screen bg-background">
       {sidebar}
@@ -384,6 +445,85 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
         </main>
         {bottomNav}
       </div>
+
+      {/* Onboarding Tour Overlay */}
+      <AnimatePresence>
+        {currentTourStep && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="tour-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] bg-background/60 backdrop-blur-sm"
+              onClick={completeTour}
+            />
+            {/* Tour card */}
+            <motion.div
+              key={`tour-step-${tourStep}`}
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-[61] w-[calc(100vw-2rem)] max-w-sm"
+            >
+              <div className="bg-card border border-border rounded-2xl shadow-2xl p-5">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{currentTourStep.emoji}</span>
+                    <div>
+                      <p className="font-display font-bold text-sm">{currentTourStep.title}</p>
+                      <p className="text-[10px] text-muted-foreground">Step {currentTourStep.step} of {TOUR_STEPS.length}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={completeTour}
+                    className="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                    aria-label="Close tour"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mb-1">{currentTourStep.body}</p>
+                {currentTourStep.navHint && (
+                  <p className="text-[10px] text-primary/70 font-medium mt-1">{currentTourStep.navHint}</p>
+                )}
+                {/* Progress dots */}
+                <div className="flex items-center gap-1 mt-3 mb-3">
+                  {TOUR_STEPS.map((s) => (
+                    <div
+                      key={s.step}
+                      className={cn(
+                        "h-1.5 rounded-full transition-all",
+                        s.step === tourStep ? "w-5 bg-primary" : s.step < (tourStep ?? 0) ? "w-3 bg-primary/40" : "w-3 bg-muted"
+                      )}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground"
+                    onClick={completeTour}
+                  >
+                    Skip
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 text-xs font-semibold"
+                    onClick={advanceTour}
+                  >
+                    {tourStep === TOUR_STEPS.length ? "Done 🎉" : "Next"}
+                    {tourStep !== TOUR_STEPS.length && <ChevronRight className="w-3.5 h-3.5 ml-1" />}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

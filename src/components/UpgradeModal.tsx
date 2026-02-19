@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Zap, Crown, Sparkles, X, CreditCard, Shield } from "lucide-react";
+import { Loader2, Zap, Crown, Sparkles, CreditCard, Shield, Coffee } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -40,11 +41,34 @@ const UPGRADE_TIERS: TierKey[] = ["pro", "business"];
 
 export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits }: UpgradeModalProps) {
   const isMobile = useIsMobile();
-  const { profile } = useAuth();
+  const navigate = useNavigate();
+  const { profile, credits } = useAuth();
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
   const [loadingCredit, setLoadingCredit] = useState<string | null>(null);
 
   const userTier = (profile?.subscription_tier || "free") as TierKey;
+  const totalUsed = credits ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used : 0;
+  const creditsRemaining = credits ? credits.credits_limit - totalUsed : null;
+  const isZeroCredits = creditsRemaining !== null && creditsRemaining <= 0 && (credits?.credits_limit ?? 0) < 999999;
+
+  // The smallest credit pack (10 credits / £2.99)
+  const smallPack = CREDIT_PACKS[0];
+  const proPlan = STRIPE_TIERS.pro;
+
+  const handleBuySmallPack = async () => {
+    setLoadingCredit(smallPack.price_id);
+    try {
+      const { data, error } = await supabase.functions.invoke("buy-credits", {
+        body: { price_id: smallPack.price_id },
+      });
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to start checkout");
+    } finally {
+      setLoadingCredit(null);
+    }
+  };
 
   const handleUpgrade = async (tier: TierKey) => {
     const priceId = STRIPE_TIERS[tier].price_id;
@@ -81,6 +105,49 @@ export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits 
 
   const content = (
     <div className="space-y-4 sm:space-y-5 pb-2">
+      {/* Zero-credit inline dual-card — shown at top when user has 0 credits */}
+      {isZeroCredits && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/[0.03] p-3.5 space-y-3">
+          <p className="font-display font-bold text-sm text-foreground flex items-center gap-1.5">
+            <span>⚡</span> You're out of credits
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Buy credit pack */}
+            <Card className="p-3 text-center border-primary/20 bg-primary/[0.02]">
+              <p className="font-display font-bold text-base">{smallPack.credits}</p>
+              <p className="text-[10px] text-muted-foreground mb-0.5">credits</p>
+              <p className="font-display font-bold text-sm mb-2">£{smallPack.price}</p>
+              <Button
+                size="sm"
+                className="w-full h-8 text-xs font-semibold"
+                onClick={handleBuySmallPack}
+                disabled={loadingCredit === smallPack.price_id}
+              >
+                {loadingCredit === smallPack.price_id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Buy Now"}
+              </Button>
+            </Card>
+            {/* Upgrade to Pro */}
+            <Card className="p-3 text-center border-primary/30 bg-primary/[0.04]">
+              <p className="font-display font-bold text-base text-primary">{proPlan.credits}</p>
+              <p className="text-[10px] text-muted-foreground mb-0.5">credits/mo</p>
+              <p className="font-display font-bold text-sm mb-2">£{proPlan.price}/mo</p>
+              <Button
+                size="sm"
+                variant="default"
+                className="w-full h-8 text-xs font-semibold"
+                onClick={() => handleUpgrade("pro")}
+                disabled={loadingTier === "pro"}
+              >
+                {loadingTier === "pro" ? <Loader2 className="w-3 h-3 animate-spin" /> : "Upgrade"}
+              </Button>
+            </Card>
+          </div>
+          <p className="text-[10px] text-muted-foreground text-center flex items-center justify-center gap-1">
+            <Coffee className="w-3 h-3" /> Less than a coffee → {smallPack.credits} more edits
+          </p>
+        </div>
+      )}
+
       {reason && (
         <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm">
           {reason}
