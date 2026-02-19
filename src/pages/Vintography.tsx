@@ -892,32 +892,34 @@ export default function Vintography() {
                   <PipelineStripInline />
 
                   {/* Config zone — scroll-constrained with pinned Generate */}
-                  <ConfigContainer
-                    open={true}
-                    onClose={() => {}}
-                    drawerTitle={OP_LABEL[activeOp]}
-                    footer={
-                      <div className="space-y-2">
-                        <GenerateButton />
-                        {state.pipeline.length >= 2 && !state.isProcessing && (
-                          <Button variant="ghost" size="sm" className="w-full text-xs" onClick={handleSavePreset}>
-                            <Star className="w-3.5 h-3.5 mr-1.5" /> Save as Preset
-                          </Button>
-                        )}
-                      </div>
-                    }
-                  >
-                    {state.isProcessing ? (
-                      <ProcessingOverlay
-                        isProcessing={state.isProcessing}
-                        pipeline={state.pipeline}
-                        processingStepIndex={state.processingStepIndex}
-                        isMobile={false}
-                      />
-                    ) : (
-                      configContent
-                    )}
-                  </ConfigContainer>
+                  {!isMobile && (
+                    <ConfigContainer
+                      open={true}
+                      onClose={() => {}}
+                      drawerTitle={OP_LABEL[activeOp]}
+                      footer={
+                        <div className="space-y-2">
+                          <GenerateButton />
+                          {state.pipeline.length >= 2 && !state.isProcessing && (
+                            <Button variant="ghost" size="sm" className="w-full text-xs" onClick={handleSavePreset}>
+                              <Star className="w-3.5 h-3.5 mr-1.5" /> Save as Preset
+                            </Button>
+                          )}
+                        </div>
+                      }
+                    >
+                      {state.isProcessing ? (
+                        <ProcessingOverlay
+                          isProcessing={state.isProcessing}
+                          pipeline={state.pipeline}
+                          processingStepIndex={state.processingStepIndex}
+                          isMobile={false}
+                        />
+                      ) : (
+                        configContent
+                      )}
+                    </ConfigContainer>
+                  )}
                 </div>
 
                 {/* ── RIGHT PANEL ── */}
