@@ -33,7 +33,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   const [scrolled, setScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [announcementDismissed, setAnnouncementDismissed] = useState(() => {
-    try { return localStorage.getItem("ann_vintography_v2") === "1"; } catch { return false; }
+    try { return localStorage.getItem("ann_vintography_v3") === "1"; } catch { return false; }
   });
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
   const dismissAnnouncement = () => {
     setAnnouncementDismissed(true);
-    try { localStorage.setItem("ann_vintography_v2", "1"); } catch {}
+    try { localStorage.setItem("ann_vintography_v3", "1"); } catch {}
   };
 
   return (
@@ -69,9 +69,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <div className="bg-primary text-primary-foreground px-4 py-2 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium relative">
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
               <span>
-                New: AI Model & Mannequin shots now live in Photo Studio →{" "}
+                Vintography Photo Studio — AI Model, Mannequin &amp; Flat-Lay. Turn your phone snap into a studio shot →{" "}
                 <Link to="/features" className="underline underline-offset-2 hover:opacity-80 transition-opacity">
-                  See what's new
+                  Try free
                 </Link>
               </span>
               <button
