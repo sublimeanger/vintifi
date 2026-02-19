@@ -49,10 +49,10 @@ export const presets: Preset[] = [
   {
     id: "ghost_to_clean",
     label: "Ghost to Clean",
-    desc: "Ghost Mannequin + Remove BG",
+    desc: "Invisible Mannequin + Remove BG",
     icon: Ghost,
     steps: [
-      { operation: "ghost_mannequin" },
+      { operation: "mannequin_shot", parameters: { mannequin_type: "ghost", lighting_style: "soft_studio", model_bg: "studio" } },
       { operation: "remove_bg" },
     ],
     tier: "Pro",
