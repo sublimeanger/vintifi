@@ -551,7 +551,10 @@ serve(async (req) => {
               ],
             },
           ],
-          modalities: ["image", "text"],
+          // Use multiple parameter names to ensure the gateway picks up image generation mode
+          modalities: ["text", "image"],
+          response_modalities: ["text", "image"],
+          generation_config: { response_modalities: ["TEXT", "IMAGE"] },
         }),
       });
       console.log(`AI gateway responded with status ${aiResponse.status}`);
