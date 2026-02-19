@@ -1,4 +1,4 @@
-import { useReducer, useRef, useCallback, useEffect } from "react";
+import { useReducer, useRef, useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -328,14 +328,10 @@ export default function Vintography() {
   const handleOpSelect = (op: Operation) => {
     const existingIndex = state.pipeline.findIndex((s) => s.operation === op);
     if (existingIndex >= 0) {
-      // Already in pipeline — jump to that step
+      // Already in pipeline — jump to that step and open drawer
       dispatch({ type: "SET_ACTIVE_PIPELINE_INDEX", index: existingIndex });
-    } else if (state.pipeline.length === 1 && state.pipeline[0].operation === "clean_bg" && op !== "clean_bg") {
-      // Replace the default clean_bg if it's the only step and user picks something else
-      dispatch({ type: "REPLACE_PIPELINE", pipeline: [{ operation: op, params: defaultParams(op) }] });
     } else {
-      dispatch({ type: "SET_ACTIVE_PIPELINE_INDEX", index: state.pipeline.findIndex((s) => s.operation === op) });
-      // Toggle: if not in pipeline, replace active step
+      // Replace entire pipeline with just this op (single-op mode when tapping bar)
       dispatch({ type: "REPLACE_PIPELINE", pipeline: [{ operation: op, params: defaultParams(op) }] });
     }
     dispatch({ type: "SET_DRAWER_OPEN", open: true });
@@ -786,18 +782,18 @@ export default function Vintography() {
 
                     {/* Always-visible Generate button on mobile */}
                     <GenerateButton />
-                  </div>
 
-                  {/* Mobile Config Drawer */}
-                  <ConfigContainer
-                    open={state.drawerOpen}
-                    onClose={() => dispatch({ type: "SET_DRAWER_OPEN", open: false })}
-                    drawerTitle={OP_LABEL[activeOp]}
-                    drawerHeightVh={activeOp === "ai_model" ? 72 : activeOp === "lifestyle_bg" ? 68 : 50}
-                    footer={<GenerateButton />}
-                  >
-                    {configContent}
-                  </ConfigContainer>
+                    {/* Mobile Config Drawer — inside lg:hidden so it only mounts on mobile */}
+                    <ConfigContainer
+                      open={state.drawerOpen}
+                      onClose={() => dispatch({ type: "SET_DRAWER_OPEN", open: false })}
+                      drawerTitle={OP_LABEL[activeOp]}
+                      drawerHeightVh={activeOp === "ai_model" ? 72 : activeOp === "lifestyle_bg" ? 68 : 50}
+                      footer={<GenerateButton />}
+                    >
+                      {configContent}
+                    </ConfigContainer>
+                  </div>
 
                   {/* Result actions */}
                   <ResultActions
@@ -908,5 +904,3 @@ export default function Vintography() {
   );
 }
 
-// Missing import — useState is used above but not imported from React
-import { useState } from "react";
