@@ -120,7 +120,6 @@ export default function Vintography() {
       params: s.params || {},
     }));
     dispatch({ type: "REPLACE_PIPELINE", pipeline });
-    if (isMobile) dispatch({ type: "SET_DRAWER_OPEN", open: false });
   };
 
   // Credits
@@ -391,8 +390,6 @@ export default function Vintography() {
       params: (s.parameters || {}) as Record<string, string>,
     }));
     dispatch({ type: "REPLACE_PIPELINE", pipeline: newPipeline });
-    // On mobile, don't auto-open drawer — keep Generate button visible inline
-    if (isMobile) dispatch({ type: "SET_DRAWER_OPEN", open: false });
   };
 
   // ─── Filmstrip select ───

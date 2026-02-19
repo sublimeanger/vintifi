@@ -97,7 +97,7 @@ export function vintographyReducer(
         ...state,
         pipeline: [...state.pipeline, action.step],
         activePipelineIndex: state.pipeline.length,
-        drawerOpen: true,
+        drawerOpen: false,
       };
     case "REMOVE_PIPELINE_STEP": {
       if (state.pipeline.length <= 1) return state; // always keep at least 1
@@ -106,7 +106,7 @@ export function vintographyReducer(
       return { ...state, pipeline: newPipeline, activePipelineIndex: newActive };
     }
     case "SET_ACTIVE_PIPELINE_INDEX":
-      return { ...state, activePipelineIndex: action.index, drawerOpen: true };
+      return { ...state, activePipelineIndex: action.index, drawerOpen: false };
     case "UPDATE_STEP_PARAMS": {
       const newPipeline = state.pipeline.map((step, i) =>
         i === action.index ? { ...step, params: { ...step.params, ...action.params } } : step
@@ -114,7 +114,7 @@ export function vintographyReducer(
       return { ...state, pipeline: newPipeline };
     }
     case "REPLACE_PIPELINE":
-      return { ...state, pipeline: action.pipeline, activePipelineIndex: 0, drawerOpen: true };
+      return { ...state, pipeline: action.pipeline, activePipelineIndex: 0, drawerOpen: false };
     case "PROCESSING_START":
       return { ...state, isProcessing: true, processingStepIndex: 0 };
     case "PROCESSING_STEP_START":
