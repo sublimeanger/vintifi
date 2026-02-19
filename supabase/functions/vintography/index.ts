@@ -536,7 +536,7 @@ serve(async (req) => {
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
-    // Convert input image to base64 data URL
+    // Convert input image to base64 data URL with compression
     let imagePayloadUrl = image_url;
     if (image_url.startsWith("http")) {
       try {
@@ -546,17 +546,49 @@ serve(async (req) => {
           const bytes = new Uint8Array(imgBuf);
           const contentType = imgResp.headers.get("content-type") || "image/jpeg";
           
+          // Try to compress large images to keep payload under ~1MB
+          let finalBytes = bytes;
+          let finalContentType = contentType;
+          if (bytes.length > 500_000) {
+            try {
+              const blob = new Blob([bytes], { type: contentType });
+              const bitmap = await createImageBitmap(blob);
+              const { width, height } = bitmap;
+              const MAX_DIM = 1536;
+              let newW = width;
+              let newH = height;
+              if (width > MAX_DIM || height > MAX_DIM) {
+                const scale = MAX_DIM / Math.max(width, height);
+                newW = Math.round(width * scale);
+                newH = Math.round(height * scale);
+              }
+              const canvas = new OffscreenCanvas(newW, newH);
+              const ctx = canvas.getContext("2d")!;
+              // Fill white background (handles PNG transparency -> JPEG)
+              ctx.fillStyle = "#FFFFFF";
+              ctx.fillRect(0, 0, newW, newH);
+              ctx.drawImage(bitmap, 0, 0, newW, newH);
+              bitmap.close();
+              const jpegBlob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.82 });
+              finalBytes = new Uint8Array(await jpegBlob.arrayBuffer());
+              finalContentType = "image/jpeg";
+              console.log(`Compressed: ${bytes.length} -> ${finalBytes.length} bytes (${newW}x${newH})`);
+            } catch (compErr) {
+              console.warn("Compression failed, using original:", compErr);
+            }
+          }
+          
           const chunkSize = 8192;
           let binary = "";
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            const end = Math.min(i + chunkSize, bytes.length);
-            const chunk = bytes.subarray(i, end);
+          for (let i = 0; i < finalBytes.length; i += chunkSize) {
+            const end = Math.min(i + chunkSize, finalBytes.length);
+            const chunk = finalBytes.subarray(i, end);
             for (let j = 0; j < chunk.length; j++) {
               binary += String.fromCharCode(chunk[j]);
             }
           }
           const imgBase64 = btoa(binary);
-          imagePayloadUrl = `data:${contentType};base64,${imgBase64}`;
+          imagePayloadUrl = `data:${finalContentType};base64,${imgBase64}`;
           console.log(`Base64 payload: ${imgBase64.length} chars (${(imgBase64.length / 1024).toFixed(0)}KB)`);
         } else {
           console.error(`Failed to fetch image: ${imgResp.status}`);
