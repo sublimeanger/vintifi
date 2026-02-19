@@ -72,7 +72,14 @@ ${QUALITY_MANDATE}`,
       christmas_market: "a magical winter market evening setting — strings of warm fairy lights rendered as beautiful golden bokeh (f/1.8 equivalent) filling the background with romantic light points. Cold, crisp air atmosphere. Softly blurred market stalls and wooden huts in the far background. Festive, enchanting, winter lifestyle",
     };
 
+    const isStudioScene = ["studio_white", "studio_grey", "marble_luxury", "linen_flat"].includes(style || "studio_white");
+    const hangingInstruction = isStudioScene
+      ? `GARMENT PRESENTATION: The garment is displayed flat or ghost-style (no body, no hanger visible), floating naturally centred in the scene as a clean product shot.`
+      : `GARMENT PRESENTATION: The garment MUST be hung on a slim metal clothing rail or a high-quality wooden coat hanger. The hanger and rail should be visible and look real — this is non-negotiable. The garment hangs naturally under gravity with realistic fabric drape and weight. Do NOT float the garment in space, do NOT show it on a flat surface, do NOT show it being held. It must look like a boutique or editorial styling shot where the garment hangs on a rail in the scene. The rail should be positioned in the upper portion of the frame with the garment hanging down naturally.`;
+
     return `You are an editorial fashion photographer creating lifestyle product imagery. Take this clothing item and place it naturally into the following scene: ${styles[style] || styles.studio_white}.
+
+${hangingInstruction}
 
 DEPTH OF FIELD: The garment must be tack-sharp with the background showing natural photographic bokeh (as if shot at f/2.8 on a 50mm lens). The transition from sharp garment to blurred background should be smooth and natural.
 
