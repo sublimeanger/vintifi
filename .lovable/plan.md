@@ -1,89 +1,156 @@
 
-# Phase 1 — Critical Fixes Implementation Plan
+# Phase 2 — Credit System & Free Tier Rework
 
-This plan covers every item defined in Part 11, Phase 1 of the Vintifi Repositioning Brief v3.0. There are four distinct fixes, two of which are live bugs affecting real users right now. No other phases will be touched until these are verified.
-
----
-
-## What is being fixed and why
-
-### Bug 1 — Translation credit deduction is completely missing (CRITICAL)
-
-**File:** `supabase/functions/translate-listing/index.ts`
-
-The function reaches line 120 and returns a successful translation response without ever calling `increment_usage_credit`. Every Business+ user who triggers a translation consumes real AI compute (Gemini 2.5 Flash) at our cost, but zero credits are deducted from their account. They can translate unlimited times for free.
-
-**Fix:** After the AI call succeeds and translations are parsed (line 113–118), insert a call to the `increment_usage_credit` RPC before the return on line 120. Charge 1 credit per language translated (not 1 per call), which aligns with the credit cost table in Section 4.5.
-
-The RPC signature is: `increment_usage_credit(p_user_id, p_column, p_amount)`. Column: `optimizations_used`. Amount: `languages.length` (number of target languages, defaulting to 4 if none specified).
-
-The credit check (does the user have enough credits before we even call the AI?) should also be added, pulling their usage record first, to prevent a race where a user with 0 credits still gets a translation because we didn't check before firing the AI request.
+This plan covers every item in Part 11, Phase 2 of the Vintifi Repositioning Brief v3.0. Phase 1 is confirmed complete. Phase 2 is self-contained — it touches the database trigger, one edge function guard, the feature gate hook, and the sell wizard's first-item-free UI branch. Nothing from Phase 3 (wizard reorder), Phase 4 (navigation), or Phase 5 (marketing) is in scope.
 
 ---
 
-### Bug 2 — Scale tier users see "Unlimited" instead of their credit balance
+## What is changing and why
 
-**File:** `src/components/AppShellV2.tsx`, line 56
+### Change 1 — Database: `handle_new_user` trigger grants 3 credits, not 5
 
-Current broken code:
-```
-const isUnlimited = tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
-```
+**Current state:** The `handle_new_user` function inserts a `usage_credits` row with `credits_limit = 5`.
 
-This has two problems:
-1. `tier === "scale"` — hardcoded: all Scale users (600-credit cap) see "Unlimited ∞" and never see low-credit warnings
-2. `>= 999` — the threshold is too low: any user with 999+ credits would be treated as unlimited, which catches the Scale tier (600-credit cap would not, but Enterprise at 1500 would incorrectly trigger this)
+**New state:** New signups get `credits_limit = 3`.
 
-Fixed code per the brief:
-```
-const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
-```
+Rationale: The repositioning brief changes the Free tier from "5 credits per month" to "3 credits per month" (enough for: 1 remove-background, 1 optimise, 1 price check — a complete single-item trial). This makes the upgrade case sharper.
 
-This restricts the "Unlimited" display exclusively to manually gifted accounts (the 999999 sentinel). Scale users (600 credits) and Enterprise users (1500 credits) will correctly see their numeric balance and low-credit amber warnings when ≤2 credits remain.
-
----
-
-### Phase 1 Item 3 — Add `first_item_pass_used` column to `profiles` table
-
-**Database migration required.**
-
-This column gates the "First Item Free" experience that will be fully implemented in Phase 2. It needs to exist in the schema now so Phase 2 can be built against it without a blocking migration later.
-
-SQL:
+**Migration SQL:**
 ```sql
-ALTER TABLE profiles ADD COLUMN first_item_pass_used BOOLEAN DEFAULT false;
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  INSERT INTO public.profiles (user_id, display_name, referral_code)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
+    upper(substr(md5(random()::text), 1, 8))
+  );
+
+  INSERT INTO public.usage_credits (user_id, credits_limit)
+  VALUES (NEW.id, 3);
+
+  RETURN NEW;
+END;
+$$;
 ```
 
-The column defaults to `false` for all rows, including new ones created by the `handle_new_user()` trigger. No trigger update is needed at this stage — that is Phase 2's job.
+**Important:** Existing user credit limits are NOT changed — this only affects new signups from this point forward. Current free users keep their existing credits_limit value.
 
 ---
 
-### Phase 1 Item 4 — Existing user migration for `first_item_pass_used`
+### Change 2 — Database: `enforce_listing_limit` trigger: Free tier cap drops from 20 to 10
 
-**Data migration (SQL run as part of the same migration file).** This sets the correct initial value for all existing users so Phase 2's logic starts from a known-good state:
+**Current state:** Free tier allows 20 active+reserved listings.
 
-- Free users with **no listings** → `first_item_pass_used = false` (they haven't used their free pass yet, they still get it)
-- Free users **with ≥1 listing** → `first_item_pass_used = true` (they have already listed items, the pass is considered consumed)
-- Paid users (Pro/Business/Scale/Enterprise) → `first_item_pass_used = true` (they have a paid plan, the free pass concept doesn't apply to them)
+**New state:** Free tier allows 10 active+reserved listings.
 
+Rationale: The brief reduces the free item cap to 10 to create a tighter conversion moment. Users who hit 10 items and want to track more must upgrade to Pro (200 items).
+
+**Migration SQL:**
 ```sql
--- Free users with no listings get the pass
-UPDATE profiles
-SET first_item_pass_used = false
-WHERE subscription_tier = 'free'
-  AND user_id NOT IN (SELECT DISTINCT user_id FROM listings);
+CREATE OR REPLACE FUNCTION public.enforce_listing_limit()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  current_tier TEXT;
+  current_count INTEGER;
+  max_allowed INTEGER;
+BEGIN
+  SELECT subscription_tier INTO current_tier
+  FROM public.profiles
+  WHERE user_id = NEW.user_id;
 
--- Free users with listings have implicitly used it
-UPDATE profiles
-SET first_item_pass_used = true
-WHERE subscription_tier = 'free'
-  AND user_id IN (SELECT DISTINCT user_id FROM listings);
+  SELECT count(*) INTO current_count
+  FROM public.listings
+  WHERE user_id = NEW.user_id
+    AND status IN ('active', 'reserved');
 
--- All paid users mark as used (pass is irrelevant for them)
-UPDATE profiles
-SET first_item_pass_used = true
-WHERE subscription_tier IN ('pro', 'business', 'scale', 'enterprise');
+  max_allowed := CASE current_tier
+    WHEN 'free'       THEN 10
+    WHEN 'pro'        THEN 200
+    WHEN 'business'   THEN 1000
+    WHEN 'scale'      THEN 5000
+    WHEN 'enterprise' THEN 999999
+    ELSE 10
+  END;
+
+  IF current_count >= max_allowed THEN
+    RAISE EXCEPTION 'Listing limit reached for your % plan (% of % allowed). Upgrade to add more items.',
+      COALESCE(current_tier, 'free'), current_count, max_allowed;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
 ```
+
+**Note:** This change is immediate and affects all new listing inserts. Existing users who already have 10-20 items listed are not affected — their listings remain; they simply cannot add new ones until they upgrade or remove some.
+
+---
+
+### Change 3 — `useFeatureGate.ts`: Update free tier credit count to 3 and add first-item-free awareness
+
+**Current state:** `FEATURE_CONFIG.price_check` has `minTier: "free"`. The free tier credit count displayed elsewhere is 5 (from `STRIPE_TIERS.free.credits`).
+
+**Changes to `src/hooks/useFeatureGate.ts`:**
+
+1. The `FEATURE_CONFIG` map needs a new `"sell_wizard"` feature key added — this is the composite key used to gate the full wizard flow for free users. It will represent the "first item free" pass.
+
+2. Return `firstItemPassAvailable` and `firstItemPassUsed` from the hook when the feature is `sell_wizard` — so the wizard UI can conditionally show the "Try it free — first item on us" banner vs the gated state.
+
+3. Update the `useFeatureGate` return to expose a `freePassActive` boolean for the sell_wizard feature — `true` if the user is on free tier AND `first_item_pass_used === false`.
+
+**New FeatureKey added:** `"sell_wizard"` with `minTier: "free"`, `usesCredits: true`.
+
+---
+
+### Change 4 — `src/lib/constants.ts`: Update Free tier credits to 3
+
+**Current state:** `STRIPE_TIERS.free.credits = 5`
+
+**New state:** `STRIPE_TIERS.free.credits = 3`
+
+This ensures the pricing page, upgrade modal, and any UI that reads from this constant reflects the correct 3-credit free tier allowance.
+
+---
+
+### Change 5 — `supabase/functions/optimize-listing/index.ts`: Fix unlimited sentinel threshold
+
+**Current state:** The credit check on line 220 reads `if (c.credits_limit < 999)` — this is the same bug that existed in AppShellV2 before Phase 1. The threshold of `< 999` is too low. It means any account with 999+ credits (e.g. Enterprise at 1500) would bypass the credit check incorrectly.
+
+**Fix:** Change `< 999` to `< 999999` on the unlimited sentinel check.
+
+Same fix applies in `supabase/functions/price-check/index.ts` at line 244 where `c.credits_limit < 999` appears identically.
+
+---
+
+### Change 6 — `SellWizard.tsx`: First-item-free pass UI
+
+**Current state:** The sell wizard has no concept of the first-item-free pass. All free users with 0 credits are blocked by the credit system before they can run a price check (step 2) or optimise (step 3).
+
+**New behaviour:**
+
+The wizard itself does not need gating at the top level because Step 1 (Add Item) is always free — it just writes to the database. The credit-consuming steps are Step 2 (Price Check — 1 credit) and Step 3 (Optimise — 1 credit).
+
+The first-item-free pass works by granting 3 credits at signup (handled by Change 1). The wizard does not need special bypass logic — the 3 credits cover exactly: 1 price check + 1 optimise + 1 vintography operation = 3 credits. This is the intended free trial sequence.
+
+**What does need updating in the wizard:**
+
+1. **Step 2 header** — When a free user enters step 2 and `creditsRemaining <= 1` after using the price check, show a subtle inline nudge: "This used 1 of your 3 free credits — upgrade for unlimited checks."
+
+2. **Step 3 header** — When a free user enters step 3 and `creditsRemaining === 0` after using optimise, the "Save Optimised Listing" step still completes, but upon completion show a conversion banner: "You've completed your free item. Upgrade to Pro to sell more."
+
+3. **Credit exhaustion guard** — If a free user somehow reaches Step 2 or Step 3 with 0 credits (e.g. they ran a standalone price check from the dashboard and burned their credits before using the wizard), the current edge function `403` response will surface as a toast error. This is acceptable — no special UI needed beyond the existing error toast. The wizard is not locked behind `FeatureGate` at the page level since Step 1 is always free.
+
+**Implementation approach:** Read `credits` from `useAuth()` inside the SellWizard component (it's already imported but `credits` isn't destructured). Add `const { user, credits, profile } = useAuth()` and derive `creditsRemaining` inline. Show the nudge banners conditionally in `renderStep2` and `renderStep3`.
 
 ---
 
@@ -91,40 +158,27 @@ WHERE subscription_tier IN ('pro', 'business', 'scale', 'enterprise');
 
 | File | Change |
 |---|---|
-| `supabase/functions/translate-listing/index.ts` | Add credit pre-check + `increment_usage_credit` RPC call |
-| `src/components/AppShellV2.tsx` | Fix `isUnlimited` line 56 |
-| Database migration (new file) | Add `first_item_pass_used` column + run user migration |
+| Database migration (new file) | Replace `handle_new_user` function (3 credits), replace `enforce_listing_limit` (10 free items) |
+| `src/lib/constants.ts` | `STRIPE_TIERS.free.credits` → 3 |
+| `src/hooks/useFeatureGate.ts` | Add `sell_wizard` FeatureKey, expose `freePassActive` |
+| `supabase/functions/optimize-listing/index.ts` | Fix `< 999` → `< 999999` sentinel |
+| `supabase/functions/price-check/index.ts` | Fix `< 999` → `< 999999` sentinel |
+| `src/pages/SellWizard.tsx` | Destructure `credits` + `profile` from `useAuth`, add nudge banners in steps 2 and 3 |
 
-## Files NOT being changed in Phase 1
+## Files NOT being changed in Phase 2
 
-Everything else. No wizard changes, no navigation, no marketing pages, no other edge functions.
-
----
-
-## Technical implementation detail — translate-listing fix
-
-The full logic sequence in the edge function after this fix:
-
-1. Auth check (already exists)
-2. Tier check — Business+ required (already exists)
-3. **NEW:** Fetch user's `usage_credits` row via service role client
-4. **NEW:** Check if `credits_limit - (price_checks_used + optimizations_used + vintography_used) >= languages.length` — if not enough credits, return 402 with a clear message
-5. Call AI (already exists)
-6. Parse response (already exists)
-7. **NEW:** Call `increment_usage_credit(user.id, 'optimizations_used', languages.length)`
-8. Return translations (already exists)
-
-The unlimited sentinel check (999999) is also applied here so gifted accounts bypass the credit check entirely.
+- No sidebar/navigation changes (Phase 4)
+- No wizard step reorder (Phase 3)
+- No marketing pages (Phase 5)
+- No changes to `translate-listing` (fixed in Phase 1)
+- No changes to `AppShellV2` (fixed in Phase 1)
+- No `import-wardrobe` changes
 
 ---
 
 ## Risk assessment
 
-All four changes are low-risk:
-
-- The `translate-listing` fix adds behaviour (credit deduction) that was always supposed to be there. The only risk is it could now reject users who have 0 credits, which is the correct behaviour.
-- The `AppShellV2` fix is a one-line change to a display condition with no side effects on data.
-- The DB column addition uses `DEFAULT false`, so it cannot break any existing query (existing rows get `false`, new rows get `false`).
-- The data migration uses simple UPDATE statements with explicit WHERE clauses. No joins, no subqueries that could affect unintended rows.
-
-No Phase 2, 3, 4, 5 or 6 items are in scope here.
+- **Database functions:** Both `handle_new_user` and `enforce_listing_limit` are replaced in-place using `CREATE OR REPLACE`. No existing data is affected. Existing users keep their credits. Existing listings are not deleted.
+- **`< 999` → `< 999999` sentinel fix:** This is a pure bug fix. The only effect is that Enterprise users (1500 credit limit) will now correctly have their credits tracked rather than bypassing the check. This is correct behaviour.
+- **Wizard nudge banners:** Purely additive UI — conditional renders that only appear when `creditsRemaining` is low. No wizard flow logic is changed.
+- **Constants change:** `STRIPE_TIERS.free.credits = 3` only affects display strings on the pricing page and upgrade modal. No functional logic derives its credit limit from this constant — the database `credits_limit` column is the source of truth.
