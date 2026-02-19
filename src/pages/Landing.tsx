@@ -463,12 +463,12 @@ export default function Landing() {
                 </Button>
               </div>
               <div className="flex-1 w-full max-w-md">
-                <BeforeAfterSlider
-                  beforeSrc="/marketing/hoodie-before.png"
-                  afterSrc="/marketing/hoodie-cleanBG-steam.png"
+              <BeforeAfterSlider
+                  beforeSrc="/marketing/denim-dress-before.png"
+                  afterSrc="/marketing/denim-dress-after.png"
                   beforeLabel="Phone snap"
                   afterLabel="Studio shot"
-                  badge="Clean BG + Steam & Press"
+                  badge="AI Model + Deep Steam"
                   aspectRatio="4/5"
                 />
               </div>
