@@ -5,18 +5,12 @@ export type FeatureKey =
   | "price_check"
   | "optimize_listing"
   | "bulk_optimize"
-  | "arbitrage_scanner"
   | "niche_finder"
-  | "competitor_tracker"
   | "trend_radar_full"
-  | "dead_stock"
-  | "clearance_radar"
-  | "seasonal_calendar"
-  | "relist_scheduler"
-  | "cross_listings"
-  | "portfolio_optimizer"
-  | "charity_briefing"
   | "vintography"
+  | "vintography_flatlay"
+  | "vintography_mannequin"
+  | "vintography_ai_model"
   | "sell_wizard";
 
 type TierLevel = "free" | "pro" | "business" | "scale" | "enterprise";
@@ -40,18 +34,12 @@ const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
   price_check: { minTier: "free", usesCredits: true, creditType: "price_checks", label: "Price Check" },
   optimize_listing: { minTier: "pro", usesCredits: true, creditType: "optimizations", label: "Listing Optimiser" },
   bulk_optimize: { minTier: "business", usesCredits: true, creditType: "optimizations", label: "Bulk Optimiser" },
-  arbitrage_scanner: { minTier: "business", usesCredits: false, label: "Arbitrage Scanner" },
   niche_finder: { minTier: "pro", usesCredits: false, label: "Niche Finder" },
-  competitor_tracker: { minTier: "pro", usesCredits: false, label: "Competitor Tracker" },
   trend_radar_full: { minTier: "pro", usesCredits: false, label: "Full Trend Radar" },
-  dead_stock: { minTier: "pro", usesCredits: false, label: "Dead Stock Engine" },
-  clearance_radar: { minTier: "business", usesCredits: false, label: "Clearance Radar" },
-  seasonal_calendar: { minTier: "pro", usesCredits: false, label: "Seasonal Calendar" },
-  relist_scheduler: { minTier: "pro", usesCredits: false, label: "Relist Scheduler" },
-  cross_listings: { minTier: "business", usesCredits: false, label: "Cross-Listings" },
-  portfolio_optimizer: { minTier: "pro", usesCredits: false, label: "Portfolio Optimiser" },
-  charity_briefing: { minTier: "pro", usesCredits: false, label: "Charity Briefing" },
-  vintography: { minTier: "free", usesCredits: true, creditType: "optimizations", label: "Vintography" },
+  vintography: { minTier: "free", usesCredits: true, creditType: "optimizations", label: "Photo Studio" },
+  vintography_flatlay: { minTier: "pro", usesCredits: true, creditType: "optimizations", label: "Flat-Lay Pro" },
+  vintography_mannequin: { minTier: "pro", usesCredits: true, creditType: "optimizations", label: "Mannequin Shot" },
+  vintography_ai_model: { minTier: "business", usesCredits: true, creditType: "optimizations", label: "AI Model Shot" },
   sell_wizard: { minTier: "free", usesCredits: true, creditType: "optimizations", label: "Sell Wizard" },
 };
 
