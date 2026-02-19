@@ -541,12 +541,16 @@ serve(async (req) => {
     const imgArrayBuffer = await imgResponse.arrayBuffer();
     const imgBytes = new Uint8Array(imgArrayBuffer);
     // Chunked base64 encoding to avoid stack overflow on large images
-    let imgBase64 = "";
-    const CHUNK = 32768;
+    let imgBinary = "";
+    const CHUNK = 8192;
     for (let i = 0; i < imgBytes.length; i += CHUNK) {
-      imgBase64 += String.fromCharCode(...imgBytes.subarray(i, i + CHUNK));
+      const end = Math.min(i + CHUNK, imgBytes.length);
+      const chunk = imgBytes.subarray(i, end);
+      for (let j = 0; j < chunk.length; j++) {
+        imgBinary += String.fromCharCode(chunk[j]);
+      }
     }
-    imgBase64 = btoa(imgBase64);
+    const imgBase64 = btoa(imgBinary);
     const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
     const mimeType = contentType.split(";")[0].trim();
 
