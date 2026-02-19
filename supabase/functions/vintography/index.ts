@@ -551,10 +551,7 @@ serve(async (req) => {
               ],
             },
           ],
-          // Use multiple parameter names to ensure the gateway picks up image generation mode
-          modalities: ["text", "image"],
-          response_modalities: ["text", "image"],
-          generation_config: { response_modalities: ["TEXT", "IMAGE"] },
+          modalities: ["image", "text"],
         }),
       });
       console.log(`AI gateway responded with status ${aiResponse.status}`);
@@ -596,12 +593,17 @@ serve(async (req) => {
     const aiData = await aiResponse.json();
     const message = aiData.choices?.[0]?.message;
     
+    console.log("Response message keys:", JSON.stringify(message ? Object.keys(message) : "null"));
+    console.log("Has images array:", !!message?.images, "length:", message?.images?.length);
+    console.log("Content type:", typeof message?.content);
+    
     // Try multiple response formats the gateway might use
     let imageResult: string | null = null;
     
-    // Format 1: images array (some gateway versions)
+    // Format 1: images array (documented format)
     if (!imageResult && message?.images?.[0]?.image_url?.url) {
       imageResult = message.images[0].image_url.url;
+      console.log("Found image via Format 1 (images array)");
     }
     // Format 2: inline content array with image parts
     if (!imageResult && Array.isArray(message?.content)) {
@@ -609,18 +611,19 @@ serve(async (req) => {
         p.type === "image_url" || p.type === "image" || p.image_url
       );
       imageResult = imgPart?.image_url?.url || imgPart?.url || null;
+      if (imageResult) console.log("Found image via Format 2 (content array)");
     }
     // Format 3: content is a base64 data URL string
     if (!imageResult && typeof message?.content === "string" && message.content.startsWith("data:image")) {
       imageResult = message.content;
+      console.log("Found image via Format 3 (base64 string)");
     }
     
     console.log("Image result found:", !!imageResult, imageResult ? `(length: ${imageResult.length})` : "(null)");
 
     if (!imageResult) {
-      console.error("No image in response. Message keys:", JSON.stringify(message ? Object.keys(message) : "null"));
-      console.error("Content type:", typeof message?.content, Array.isArray(message?.content) ? `(array len ${message.content.length})` : "");
-      console.error("Content preview:", JSON.stringify(message?.content)?.substring(0, 500));
+      // Log full structure for debugging (truncated)
+      console.error("FULL AI RESPONSE:", JSON.stringify(aiData).substring(0, 3000));
       await adminClient
         .from("vintography_jobs")
         .update({ status: "failed", error_message: "No image generated" })
