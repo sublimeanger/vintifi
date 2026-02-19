@@ -255,14 +255,14 @@ ${QUALITY_MANDATE}`;
   },
 
   ghost_mannequin: () =>
-    `Apply a professional ghost mannequin / invisible mannequin effect to this clothing photo. Remove any visible mannequin, hanger, or dress form so the garment appears to float naturally in a 3D shape as if worn by an invisible person.
+    `Remove the mannequin, hanger, or any support structure from this garment photo. Keep the garment in its natural 3D worn shape as if worn by an invisible person.
 
-CRITICAL DETAILS:
-- Maintain the garment's natural shape, volume, and 3D structure throughout
-- Fill in any gaps where the mannequin was visible (neckline, sleeve openings, waistband) with realistic fabric continuation showing the garment's interior or clean white background
-- Inner collar labels and interior fabric should be visible where naturally expected
-- Clean, pure white background (#FFFFFF) with a subtle grounding shadow beneath
-- The result should match the quality standard of ASOS or Net-a-Porter product imagery
+INTERIOR FILLS (mandatory):
+- Neckline opening: fill with a realistic view of the interior collar and inner fabric.
+- Sleeve openings: fill each cuff with interior sleeve fabric, not white void.
+- Hem opening: show a subtle glimpse of the garment's inner lining or fabric.
+
+BACKGROUND: Pure white (#FFFFFF) with a soft, diffused grounding shadow directly beneath the garment.
 
 ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`,
@@ -385,7 +385,7 @@ const MODEL_MAP: Record<string, string> = {
 // Operations allowed per tier
 const TIER_OPERATIONS: Record<string, string[]> = {
   free: ["remove_bg", "enhance", "decrease"],
-  pro: ["remove_bg", "enhance", "decrease", "smart_bg", "flatlay_style", "mannequin_shot", "selfie_shot"],
+  pro: ["remove_bg", "enhance", "decrease", "smart_bg", "flatlay_style", "mannequin_shot", "ghost_mannequin", "selfie_shot"],
   business: ["remove_bg", "enhance", "decrease", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
   scale: ["remove_bg", "enhance", "decrease", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
 };
@@ -468,7 +468,7 @@ serve(async (req) => {
     const limit = credits?.credits_limit ?? 5;
 
     // AI Model shots cost 4 credits (uses expensive Pro model); everything else costs 1
-    const creditsToDeduct = operation === "model_shot" ? 4 : 1;
+    const creditsToDeduct = operation === "model_shot" ? 4 : operation === "ghost_mannequin" ? 2 : 1;
 
     // ── First-item-free pass check ──────────────────────────────────────
     // AI Model shots are never free — too expensive even on the free pass
