@@ -274,7 +274,7 @@ export default function Vintography() {
   // ─── Process image (single call) ───
   const processImage = async (imageUrl: string, operation: string, params: Record<string, string>): Promise<string | null> => {
     const { data, error } = await supabase.functions.invoke("vintography", {
-      body: { image_url: imageUrl, operation, parameters: params, garment_context: garmentContext || undefined },
+      body: { image_url: imageUrl, operation, parameters: params, garment_context: garmentContext || undefined, sell_wizard: fromWizard || undefined },
     });
     if (error) throw error;
     if (data?.error) { toast.error(data.error); return null; }
@@ -687,7 +687,15 @@ export default function Vintography() {
                 </div>
 
                 {/* Zone 2: Quick Presets + Operation Bar */}
-                <QuickPresets onSelect={handlePresetSelect} disabled={state.isProcessing} />
+                <QuickPresets
+                  onSelect={handlePresetSelect}
+                  onLockedTap={(tier) => {
+                    if (tier === "business") setActiveLockedGate("ai_model");
+                    else if (tier === "pro") setActiveLockedGate("flatlay");
+                  }}
+                  disabled={state.isProcessing}
+                  userTier={(profile as any)?.subscription_tier || "free"}
+                />
                 <div>
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Choose Effect</p>
                   <OperationBar
@@ -791,7 +799,15 @@ export default function Vintography() {
 
                 {/* ── LEFT PANEL ── */}
                 <div className="min-w-0 space-y-4" style={{ maxWidth: '420px' }}>
-                  <QuickPresets onSelect={handlePresetSelect} disabled={state.isProcessing} />
+                  <QuickPresets
+                    onSelect={handlePresetSelect}
+                    onLockedTap={(tier) => {
+                      if (tier === "business") setActiveLockedGate("ai_model");
+                      else if (tier === "pro") setActiveLockedGate("flatlay");
+                    }}
+                    disabled={state.isProcessing}
+                    userTier={(profile as any)?.subscription_tier || "free"}
+                  />
 
                   <div>
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Choose Effect</p>
