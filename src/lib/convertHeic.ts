@@ -1,4 +1,4 @@
-import heic2any from "heic2any";
+import { toast } from "sonner";
 
 /**
  * If the file is HEIC/HEIF, convert it to JPEG client-side.
@@ -13,10 +13,21 @@ export async function ensureDisplayableImage(file: File): Promise<File> {
 
   if (!isHeic) return file;
 
-  const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
-  const resultBlob = Array.isArray(blob) ? blob[0] : blob;
-  const newName = file.name.replace(/\.heic$/i, ".jpg").replace(/\.heif$/i, ".jpg");
-  return new File([resultBlob], newName, { type: "image/jpeg" });
+  try {
+    const toastId = toast.loading("Converting HEIC photo…");
+    // Dynamic import so the large library only loads when needed
+    const { default: heic2any } = await import("heic2any");
+    const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+    const resultBlob = Array.isArray(blob) ? blob[0] : blob;
+    const newName = file.name.replace(/\.heic$/i, ".jpg").replace(/\.heif$/i, ".jpg");
+    toast.dismiss(toastId);
+    return new File([resultBlob], newName, { type: "image/jpeg" });
+  } catch (err) {
+    console.error("HEIC conversion failed:", err);
+    toast.error("Could not convert HEIC photo. Try converting to JPG first.");
+    // Return original file as fallback so the flow doesn't break entirely
+    return file;
+  }
 }
 
 /**
