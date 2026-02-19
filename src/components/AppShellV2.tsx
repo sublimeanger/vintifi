@@ -52,9 +52,10 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
   const tier = (profile?.subscription_tier || "free") as keyof typeof STRIPE_TIERS;
   const tierInfo = STRIPE_TIERS[tier] || STRIPE_TIERS.free;
   const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
+  const isFirstItemFree = profile?.first_item_pass_used === false;
   const totalUsed = credits ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used : 0;
   const checksRemaining = isUnlimited ? Infinity : (credits ? credits.credits_limit - totalUsed : 0);
-  const creditsLow = !isUnlimited && checksRemaining <= 2;
+  const creditsLow = !isUnlimited && !isFirstItemFree && checksRemaining <= 2;
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -113,15 +114,16 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
       <div className="p-4 border-t border-sidebar-border bg-gradient-to-t from-sidebar-accent/30 to-transparent space-y-3">
         <button
-          onClick={() => navigate("/settings")}
+          onClick={() => navigate(isFirstItemFree ? "/sell" : "/settings")}
           className={cn(
             "flex items-center gap-2 rounded-lg px-3 py-2 transition-all w-full",
-            creditsLow ? "bg-warning/20 hover:bg-warning/30" : "bg-sidebar-accent/60 hover:bg-sidebar-accent",
+            isFirstItemFree ? "bg-primary/15 hover:bg-primary/25 border border-primary/25" : creditsLow ? "bg-warning/20 hover:bg-warning/30" : "bg-sidebar-accent/60 hover:bg-sidebar-accent",
           )}
         >
-          <Zap className={cn("w-3.5 h-3.5 shrink-0", creditsLow ? "text-warning" : "text-primary")} />
-          <span className={cn("text-xs font-medium", creditsLow ? "text-warning" : "text-sidebar-foreground/80")}>
-            {isUnlimited ? "Unlimited" : checksRemaining} AI credits
+          <span className="text-base leading-none shrink-0">{isFirstItemFree ? "🎁" : ""}</span>
+          {!isFirstItemFree && <Zap className={cn("w-3.5 h-3.5 shrink-0", creditsLow ? "text-warning" : "text-primary")} />}
+          <span className={cn("text-xs font-medium leading-tight", isFirstItemFree ? "text-primary" : creditsLow ? "text-warning" : "text-sidebar-foreground/80")}>
+            {isFirstItemFree ? "First Item Free" : isUnlimited ? "Unlimited" : `${checksRemaining} AI credits`}
           </span>
         </button>
 
@@ -154,14 +156,20 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
       </h1>
       <div className="flex items-center gap-1.5">
         <button
-          onClick={() => navigate("/settings")}
+          onClick={() => navigate(isFirstItemFree ? "/sell" : "/settings")}
           className={cn(
             "flex items-center gap-1 rounded-full px-2.5 py-1 transition-colors active:scale-95",
-            creditsLow ? "bg-warning/15" : "bg-muted/60",
+            isFirstItemFree ? "bg-primary/15 border border-primary/25" : creditsLow ? "bg-warning/15" : "bg-muted/60",
           )}
         >
-          <Zap className={cn("w-3 h-3", creditsLow ? "text-warning" : "text-primary")} />
-          <span className={cn("text-[11px] font-bold tabular-nums", creditsLow && "text-warning")}>{isUnlimited ? "∞" : checksRemaining}</span>
+          {isFirstItemFree ? (
+            <span className="text-[11px] font-bold text-primary">🎁 Free</span>
+          ) : (
+            <>
+              <Zap className={cn("w-3 h-3", creditsLow ? "text-warning" : "text-primary")} />
+              <span className={cn("text-[11px] font-bold tabular-nums", creditsLow && "text-warning")}>{isUnlimited ? "∞" : checksRemaining}</span>
+            </>
+          )}
         </button>
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
