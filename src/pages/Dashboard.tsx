@@ -5,12 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppShellV2 } from "@/components/AppShellV2";
 import {
   Search, Loader2, Zap, Package, AlertTriangle,
   ChevronRight, Sparkles, ImageIcon, ArrowDown, Rocket, X,
+  TrendingUp, TrendingDown, Minus,
 } from "lucide-react";
 
 type RecentItem = {
@@ -25,6 +27,14 @@ type RecentItem = {
   last_optimised_at: string | null;
 };
 
+type TrendItem = {
+  id: string;
+  brand_or_item: string;
+  trend_direction: string;
+  opportunity_score: number | null;
+  category: string;
+};
+
 export default function Dashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -33,6 +43,7 @@ export default function Dashboard() {
   const [needsAttentionCount, setNeedsAttentionCount] = useState(0);
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [trends, setTrends] = useState<TrendItem[]>([]);
   // ─── Milestone banners ───
   const [activeBanners, setActiveBanners] = useState<string[]>([]);
   const bannersReadRef = useRef(false);
@@ -70,16 +81,18 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user || bannersReadRef.current) return;
     const fetchAll = async () => {
-      const [activeRes, needsAttRes, recentRes] = await Promise.all([
+      const [activeRes, needsAttRes, recentRes, trendsRes] = await Promise.all([
         supabase.from("listings").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "active"),
         supabase.from("listings").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "active").or("description.is.null,health_score.is.null,image_url.is.null"),
         supabase.from("listings").select("id, title, brand, image_url, status, updated_at, health_score, last_price_check_at, last_optimised_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(5),
+        supabase.from("trends").select("id, brand_or_item, trend_direction, opportunity_score, category").order("opportunity_score", { ascending: false }).limit(3),
       ]);
 
       const count = activeRes.count || 0;
       setActiveCount(count);
       setNeedsAttentionCount(needsAttRes.count || 0);
       setRecentItems((recentRes.data || []) as RecentItem[]);
+      setTrends((trendsRes.data || []) as TrendItem[]);
       setLoaded(true);
 
       // Collect all pending milestone flags
@@ -373,6 +386,64 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
+
+        {/* Trending Now strip */}
+        {trends.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-display font-bold text-xs sm:text-base flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                Trending Now
+              </h3>
+              {profile?.subscription_tier && profile.subscription_tier !== "free" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/trends")}
+                  className="text-[10px] sm:text-xs h-7 px-2"
+                >
+                  See all <ChevronRight className="w-3 h-3 ml-0.5" />
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-0.5 px-0.5">
+              {trends.map((trend) => {
+                const isRising = trend.trend_direction === "rising";
+                const isFalling = trend.trend_direction === "falling";
+                const DirectionIcon = isRising ? TrendingUp : isFalling ? TrendingDown : Minus;
+                return (
+                  <motion.div
+                    key={trend.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="shrink-0 w-36 sm:w-44"
+                    onClick={() => navigate(`/trends?brand=${encodeURIComponent(trend.brand_or_item)}`)}
+                  >
+                    <Card className="p-3 cursor-pointer hover:border-primary/30 transition-all active:scale-[0.97]">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+                          isRising ? "bg-emerald-500/10" : isFalling ? "bg-destructive/10" : "bg-muted"
+                        }`}>
+                          <DirectionIcon className={`w-3 h-3 ${
+                            isRising ? "text-emerald-500" : isFalling ? "text-destructive" : "text-muted-foreground"
+                          }`} />
+                        </div>
+                        {trend.opportunity_score != null && (
+                          <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-bold">
+                            {trend.opportunity_score}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold leading-tight truncate">{trend.brand_or_item}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{trend.category}</p>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </AppShellV2>
   );

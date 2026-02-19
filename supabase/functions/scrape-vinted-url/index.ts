@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -464,6 +465,42 @@ function mergeResults(base: any, supplement: any): any {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // ── Auth (optional — used for logging only) ──────────────────
+  let userId: string | null = null;
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const token = authHeader.replace("Bearer ", "");
+      const { data } = await supabaseClient.auth.getClaims(token);
+      if (data?.claims?.sub) userId = data.claims.sub;
+    }
+  } catch (_) { /* non-fatal */ }
+
+  // Admin client for DB logging
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  async function logScrapeJob(tierNumber: number, url: string) {
+    if (!userId) return; // only log for authenticated users
+    try {
+      await supabaseAdmin.from("scrape_jobs").insert({
+        job_type: "url_import",
+        status: "completed",
+        raw_results: { resolution_tier: tierNumber, url },
+        processed: true,
+      });
+    } catch (e) {
+      console.error("[scrape-log] Failed to log job:", e);
+    }
+  }
+
   try {
     const { url } = await req.json();
 
@@ -489,6 +526,7 @@ serve(async (req) => {
 
     if (isComplete(result)) {
       console.log("=== Tier 1 complete — returning immediately ===");
+      await logScrapeJob(1, url);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -500,6 +538,7 @@ serve(async (req) => {
 
     if (isComplete(result)) {
       console.log("=== Tier 2 complete — returning ===");
+      await logScrapeJob(2, url);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -511,6 +550,7 @@ serve(async (req) => {
 
     if (isComplete(result)) {
       console.log("=== Tier 3 complete — returning ===");
+      await logScrapeJob(3, url);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -521,6 +561,9 @@ serve(async (req) => {
     if (apifyToken) {
       const tier4 = await fetchViaApifyDirect(url, itemId, apifyToken);
       result = mergeResults(result, tier4);
+      if (result?.title) {
+        await logScrapeJob(4, url);
+      }
     }
 
     // Final: ensure we return a well-shaped object
