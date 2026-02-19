@@ -1,47 +1,31 @@
 
 
-# Add HEIC Image Upload Support
+## Fix: Remove Broken Base64 Conversion from Vintography Edge Function
 
-## Problem
-HEIC is the default photo format on iPhones. While `accept="image/*"` lets users select HEIC files, browsers cannot display them natively, so they'll fail to preview or render as broken images.
+### What Happened
 
-## Solution
-Convert HEIC files to JPEG on the client side before uploading or previewing, using the `heic2any` library. This is transparent to the user -- they just pick their photos as normal.
+A base64 image conversion was recently added to the edge function to work around a suspected gateway issue. But the conversion code crashes on any image larger than ~65KB due to JavaScript's call stack limit, causing **every** Photo Studio operation to fail silently with "AI did not return an image."
 
-### Changes
+The HEIC conversion is unrelated -- it runs in the browser and is working correctly.
 
-**1. Install `heic2any` package**
-- A lightweight client-side library that converts HEIC/HEIF blobs to JPEG/PNG
+### The Fix
 
-**2. Create `src/lib/convertHeic.ts` -- shared utility**
-- Export an `ensureDisplayableImage(file: File): Promise<File>` function
-- If the file is HEIC/HEIF (check by MIME type `image/heic`, `image/heif`, or `.heic`/`.heif` extension), convert to JPEG using `heic2any`
-- If it's already a supported format, return it unchanged
-- This keeps the conversion logic in one place for all upload points
+**File: `supabase/functions/vintography/index.ts`**
 
-**3. Update all upload handlers to run files through the converter**
+**Remove the base64 conversion block** (lines ~533-551 from the last diff) that converts `image_url` to a data URL. Revert to sending the original `image_url` directly to the gateway, which is how it worked before.
 
-Apply `ensureDisplayableImage` before uploading in these files:
-- `src/pages/Vintography.tsx` -- `handleAddPhoto` and the EmptyState file handler
-- `src/components/PhotosTab.tsx` -- `handleUploadPhotos`
-- `src/components/NewItemWizard.tsx` -- photo upload handler
-- `src/pages/SellWizard.tsx` -- `handlePhotoSelect`
-- `src/pages/Welcome.tsx` -- `handleFileSelect`
+Specifically, remove:
+- The `let imageDataUrl = image_url;` variable
+- The entire `if (image_url.startsWith("http"))` block with the fetch/btoa logic
+- Change `imageDataUrl` back to `image_url` in the message content
 
-Each handler will map files through `ensureDisplayableImage` before creating object URLs or uploading to storage.
+This restores the exact behavior from when everything was working.
 
-**4. Update `accept` attributes**
+**Also verify the MODEL_MAP** is correct:
+- `model_shot` -> `google/gemini-3-pro-image-preview` (photorealistic AI models only)
+- All other operations -> `google/gemini-2.5-flash-image`
 
-Add explicit HEIC MIME types to ensure file pickers show HEIC files on all platforms:
-```
-accept="image/*,.heic,.heif"
-```
+### Deployment
 
-### Technical Details
-
-- `heic2any` runs entirely client-side (no server dependency)
-- Conversion produces a JPEG blob with 0.9 quality (good balance of size and quality)
-- The converted file keeps a `.jpg` extension for storage compatibility
-- A loading state or brief toast ("Converting photo...") can be shown during conversion since HEIC decoding takes 1-2 seconds per image
-- Files are processed in parallel using `Promise.all` for multi-file uploads
+Redeploy the `vintography` edge function after the change.
 
