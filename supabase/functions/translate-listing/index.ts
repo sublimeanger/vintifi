@@ -43,7 +43,32 @@ serve(async (req) => {
       );
     }
 
-    const targetLanguages = languages || ["fr", "de", "nl", "es"];
+    const targetLanguages: string[] = languages || ["fr", "de", "nl", "es"];
+    const langCount = targetLanguages.length;
+
+    // --- Credit pre-check ---
+    const { data: usageRow, error: usageErr } = await supabase
+      .from("usage_credits")
+      .select("credits_limit, price_checks_used, optimizations_used, vintography_used")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (usageErr) throw new Error("Failed to fetch credit balance");
+
+    const isUnlimitedAccount = (usageRow?.credits_limit ?? 0) >= 999999;
+    if (!isUnlimitedAccount) {
+      const totalUsed = (usageRow?.price_checks_used ?? 0) +
+        (usageRow?.optimizations_used ?? 0) +
+        (usageRow?.vintography_used ?? 0);
+      const remaining = (usageRow?.credits_limit ?? 0) - totalUsed;
+      if (remaining < langCount) {
+        return new Response(
+          JSON.stringify({ error: `Insufficient credits. This translation requires ${langCount} credit${langCount > 1 ? "s" : ""} (one per language), but you only have ${remaining} remaining.` }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+    // --- End credit pre-check ---
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI not configured");
@@ -116,6 +141,16 @@ Return ONLY the JSON object, no markdown or other text.`;
       console.error("Failed to parse translations:", content);
       throw new Error("AI returned invalid translation data");
     }
+
+    // --- Deduct credits (1 per language translated) ---
+    if (!isUnlimitedAccount) {
+      await supabase.rpc("increment_usage_credit", {
+        p_user_id: user.id,
+        p_column: "optimizations_used",
+        p_amount: langCount,
+      });
+    }
+    // --- End credit deduction ---
 
     return new Response(JSON.stringify({ translations }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

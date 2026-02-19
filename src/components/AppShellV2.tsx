@@ -53,7 +53,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
   const tier = (profile?.subscription_tier || "free") as keyof typeof STRIPE_TIERS;
   const tierInfo = STRIPE_TIERS[tier] || STRIPE_TIERS.free;
-  const isUnlimited = tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+  const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
   const totalUsed = credits ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used : 0;
   const checksRemaining = isUnlimited ? Infinity : (credits ? credits.credits_limit - totalUsed : 0);
   const creditsLow = !isUnlimited && checksRemaining <= 2;

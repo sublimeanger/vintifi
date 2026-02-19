@@ -689,6 +689,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           experience_level: string | null
+          first_item_pass_used: boolean | null
           id: string
           milestones_shown: string[] | null
           onboarding_completed: boolean
@@ -707,6 +708,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           experience_level?: string | null
+          first_item_pass_used?: boolean | null
           id?: string
           milestones_shown?: string[] | null
           onboarding_completed?: boolean
@@ -725,6 +727,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           experience_level?: string | null
+          first_item_pass_used?: boolean | null
           id?: string
           milestones_shown?: string[] | null
           onboarding_completed?: boolean
