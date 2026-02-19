@@ -45,28 +45,28 @@ const painPoints = [
 ];
 
 const solutionSteps = [
-  { icon: Globe, label: "Market Data", desc: "We scrape thousands of listings across Vinted and competing platforms." },
-  { icon: Sparkles, label: "AI Analysis", desc: "Our AI processes pricing patterns, trend signals, and demand indicators." },
-  { icon: BarChart3, label: "Actionable Insights", desc: "You get clear, plain-English recommendations you can act on immediately." },
+  { icon: Sparkles, label: "AI Photo Studio", desc: "One tap turns your phone snap into a studio-quality product shot. AI Model, Mannequin, or Flat-Lay — buyers click on professional photos." },
+  { icon: Globe, label: "Market Pricing", desc: "We analyse thousands of comparable listings across Vinted to give you a confidence-scored price recommendation in under 30 seconds." },
+  { icon: BarChart3, label: "Listing Intelligence", desc: "AI writes your title, description, and hashtags — tuned for Vinted search. A Health Score tells you exactly how discoverable you are." },
 ];
 
 const values = [
   { icon: Database, title: "Data-Driven", desc: "Every recommendation is backed by real market data, not gut feeling. We analyse thousands of comparable listings to give you pricing confidence." },
   { icon: Heart, title: "Seller-First", desc: "Built by resellers who understand the hustle. Every feature exists because it solves a real problem we experienced ourselves." },
-  { icon: Zap, title: "Beautifully Simple", desc: "Sophisticated intelligence shouldn't require a PhD. Our interface is as simple as a calculator while hiding powerful AI underneath." },
+  { icon: Zap, title: "Beautifully Simple", desc: "Powerful intelligence shouldn't require any expertise. Point your phone, tap once, and Vintifi does the rest — pricing, photos, and listing copy all included." },
 ];
 
 const stats = [
   { end: 18, suffix: "", label: "Vinted Markets Supported" },
-  { end: 4, suffix: "", label: "Core AI Pillars" },
+  { end: 3, suffix: "", label: "Photo Studio Modes" },
   { end: 8, suffix: "s", label: "Average Analysis Time" },
-  { end: 15, suffix: "+", label: "Tools & Features" },
+  { end: 16, suffix: "", label: "Background Scenes" },
 ];
 
 export default function About() {
   const navigate = useNavigate();
 
-  usePageMeta("About — Vintifi", "Built for Vinted sellers who want to stop guessing and start earning more. Learn about the team behind Vintifi.");
+  usePageMeta("About — Vintifi", "Built for Vinted sellers. AI Photo Studio turns your phone snap into a studio shot. AI pricing in 30 seconds. Start free — 3 credits, no card.");
 
   return (
     <MarketingLayout>
@@ -268,7 +268,7 @@ export default function About() {
               Join the movement
             </motion.h2>
             <motion.p variants={fadeUp} className="text-muted-foreground text-sm sm:text-lg mb-6 sm:mb-8 max-w-xl mx-auto">
-              Vinted sellers are using Vintifi to transform their reselling business. Start free today.
+              Thousands of Vinted sellers use Vintifi to stop underpricing, create professional photos, and sell faster. Start free — 3 credits, no card.
             </motion.p>
             <motion.div variants={fadeUp}>
               <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-sm sm:text-base font-semibold px-8 h-12 shadow-xl shadow-primary/20 w-full sm:w-auto active:scale-95 transition-transform">
