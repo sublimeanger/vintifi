@@ -531,6 +531,35 @@ serve(async (req) => {
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
+    // Convert input image to base64 data URL — gateway needs inline image data to return generated images
+    let imagePayloadUrl = image_url;
+    if (image_url.startsWith("http")) {
+      try {
+        const imgResp = await fetch(image_url);
+        if (imgResp.ok) {
+          const imgBuf = await imgResp.arrayBuffer();
+          const bytes = new Uint8Array(imgBuf);
+          const chunkSize = 8192;
+          let binary = "";
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            const end = Math.min(i + chunkSize, bytes.length);
+            const chunk = bytes.subarray(i, end);
+            for (let j = 0; j < chunk.length; j++) {
+              binary += String.fromCharCode(chunk[j]);
+            }
+          }
+          const imgBase64 = btoa(binary);
+          const contentType = imgResp.headers.get("content-type") || "image/jpeg";
+          imagePayloadUrl = `data:${contentType};base64,${imgBase64}`;
+          console.log(`Converted image to base64 data URL (${imgBase64.length} chars)`);
+        } else {
+          console.error(`Failed to fetch image: ${imgResp.status}`);
+        }
+      } catch (e) {
+        console.error("Image fetch/convert error:", e);
+      }
+    }
+
     let aiResponse: Response;
     try {
       console.log(`Calling AI gateway with model ${model} for operation ${operation}`);
@@ -547,7 +576,7 @@ serve(async (req) => {
               role: "user",
               content: [
                 { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: image_url } },
+                { type: "image_url", image_url: { url: imagePayloadUrl } },
               ],
             },
           ],
