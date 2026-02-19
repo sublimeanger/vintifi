@@ -161,11 +161,11 @@ export default function Pricing() {
               className="max-w-sm mx-auto mb-8 sm:mb-12"
             >
               <BeforeAfterSlider
-                beforeSrc="/marketing/hoodie-before.png"
-                afterSrc="/marketing/hoodie-cleanBG-steam.png"
+                beforeSrc="/marketing/denim-dress-before.png"
+                afterSrc="/marketing/denim-dress-after.png"
                 beforeLabel="Phone snap"
                 afterLabel="Studio shot"
-                badge="Clean BG + Steam & Press"
+                badge="AI Model + Deep Steam"
                 aspectRatio="4/5"
               />
               <p className="text-[11px] sm:text-xs text-muted-foreground text-center mt-3">
