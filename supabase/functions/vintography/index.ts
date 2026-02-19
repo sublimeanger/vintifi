@@ -560,30 +560,48 @@ serve(async (req) => {
       }
     }
 
+    const buildAiPayload = (imgUrl: string) => JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: imgUrl } },
+          ],
+        },
+      ],
+      modalities: ["image", "text"],
+    });
+
     let aiResponse: Response;
+    const aiHeaders = {
+      Authorization: `Bearer ${lovableApiKey}`,
+      "Content-Type": "application/json",
+    };
+
     try {
-      console.log(`Calling AI gateway with model ${model} for operation ${operation}`);
+      // Try base64 first
+      const payload = buildAiPayload(imagePayloadUrl);
+      console.log(`Calling AI gateway with model ${model} for operation ${operation} (payload ${(payload.length / 1024).toFixed(0)}KB)`);
       aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: imagePayloadUrl } },
-              ],
-            },
-          ],
-          modalities: ["image", "text"],
-        }),
+        headers: aiHeaders,
+        body: payload,
       });
       console.log(`AI gateway responded with status ${aiResponse.status}`);
+
+      // If base64 caused a 500 and we have the original URL, retry with URL directly
+      if (aiResponse.status === 500 && imagePayloadUrl !== image_url) {
+        console.log("Retrying with original image URL instead of base64...");
+        const retryPayload = buildAiPayload(image_url);
+        aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: aiHeaders,
+          body: retryPayload,
+        });
+        console.log(`AI gateway retry responded with status ${aiResponse.status}`);
+      }
     } catch (fetchErr) {
       console.error("AI gateway fetch failed:", fetchErr);
       await adminClient
