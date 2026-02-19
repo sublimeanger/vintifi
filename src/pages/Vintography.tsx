@@ -650,8 +650,7 @@ export default function Vintography() {
             </motion.div>
           )}
 
-          {/* Guidance banner */}
-          {!localStorage.getItem("vintography_guidance_dismissed") && (
+          {!isMobile && !localStorage.getItem("vintography_guidance_dismissed") && (
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
@@ -683,7 +682,7 @@ export default function Vintography() {
             /* ─── Editor: three-zone layout ─── */
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               {/* ════ MOBILE layout (< lg) ════ */}
-              <div className="lg:hidden space-y-3">
+              <div className="lg:hidden space-y-3 pb-20">
                 {/* Zone 1: Canvas — always visible at top */}
                 {hasFilmstrip && (
                   <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
@@ -743,21 +742,8 @@ export default function Vintography() {
                   />
                 </div>
 
-                {/* Zone 2: Quick Presets + Operation Bar */}
-                <QuickPresets
-                  onSelect={handlePresetSelect}
-                  onLockedTap={(tier) => {
-                    if (tier === "business") setActiveLockedGate("ai_model");
-                    else if (tier === "pro") setActiveLockedGate("flatlay");
-                  }}
-                  disabled={state.isProcessing}
-                  userTier={(profile as any)?.subscription_tier || "free"}
-                  savedPresets={savedPresets}
-                  onSavedPresetSelect={handleSavedPresetSelect}
-                  onDeleteSavedPreset={handleDeleteSavedPreset}
-                />
-                <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Choose Effect</p>
+                {/* Action picker — single compact section */}
+                <div className="space-y-2">
                   <OperationBar
                     pipeline={state.pipeline}
                     activePipelineIndex={state.activePipelineIndex}
@@ -767,10 +753,9 @@ export default function Vintography() {
                     onSelect={handleOpSelect}
                     onLockedTap={(gate) => setActiveLockedGate(gate)}
                   />
-                  {/* Pipeline strip — always visible below effect bar */}
-                  <div className="pt-1">
+                  {state.pipeline.length > 1 && (
                     <PipelineStripInline />
-                  </div>
+                  )}
                 </div>
 
                 {/* Processing strip on mobile */}
@@ -786,7 +771,7 @@ export default function Vintography() {
                 {/* Zone 3: Inline config (collapsible) + Generate button always visible */}
                 {!state.isProcessing && activeStep && (
                   <Collapsible
-                    defaultOpen={!["clean_bg", "enhance"].includes(activeOp)}
+                    defaultOpen={false}
                     key={activeOp}
                   >
                     <CollapsibleTrigger className="flex items-center justify-between w-full rounded-xl border border-border bg-card px-3 py-2.5 active:scale-[0.98] transition-transform">
@@ -799,14 +784,6 @@ export default function Vintography() {
                   </Collapsible>
                 )}
 
-                <div className="space-y-2">
-                  <GenerateButton />
-                  {state.pipeline.length >= 2 && !state.isProcessing && (
-                    <Button variant="ghost" size="sm" className="w-full text-xs" onClick={handleSavePreset}>
-                      <Star className="w-3.5 h-3.5 mr-1.5" /> Save as Preset
-                    </Button>
-                  )}
-                </div>
 
                 {/* Result actions */}
                 <ResultActions
@@ -826,13 +803,9 @@ export default function Vintography() {
                   onUseAsStartingPoint={handleUseResultAsStart}
                   onNextPhoto={handleNextPhoto}
                   onTopUp={() => navigate("/settings?tab=billing")}
+                  onSavePreset={handleSavePreset}
+                  showSavePreset={state.pipeline.length >= 2 && !state.isProcessing}
                 />
-
-                {!state.resultPhotoUrl && (
-                  <Button variant="ghost" onClick={() => dispatch({ type: "RESET_ALL" })} className="w-full h-10 text-sm active:scale-95">
-                    <RotateCcw className="w-4 h-4 mr-1.5" /> New Photo
-                  </Button>
-                )}
 
                 {state.resultPhotoUrl && itemId && (
                   <Card className="p-3 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
@@ -853,6 +826,13 @@ export default function Vintography() {
                       </Button>
                     )}
                   </Card>
+                )}
+
+                {/* Sticky Generate footer */}
+                {state.originalPhotoUrl && !state.resultPhotoUrl && (
+                  <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
+                    <GenerateButton />
+                  </div>
                 )}
               </div>
 

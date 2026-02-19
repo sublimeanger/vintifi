@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   RefreshCw, Download, RotateCcw, Image as ImageIcon,
-  Plus, Check, Loader2, ChevronRight, Wand2,
+  Plus, Check, Loader2, ChevronRight, Wand2, Star,
 } from "lucide-react";
 
 type Props = {
@@ -22,6 +22,8 @@ type Props = {
   onUseAsStartingPoint: () => void;
   onNextPhoto?: () => void;
   onTopUp?: () => void;
+  onSavePreset?: () => void;
+  showSavePreset?: boolean;
 };
 
 export function ResultActions({
@@ -41,6 +43,8 @@ export function ResultActions({
   onUseAsStartingPoint,
   onNextPhoto,
   onTopUp,
+  onSavePreset,
+  showSavePreset,
 }: Props) {
   if (!processedUrl) return null;
 
@@ -132,6 +136,15 @@ export function ResultActions({
             className="h-8 text-xs active:scale-95 transition-transform"
           >
             Next Photo <ChevronRight className="w-3 h-3 ml-0.5" />
+          </Button>
+        )}
+        {showSavePreset && onSavePreset && (
+          <Button
+            variant="ghost"
+            onClick={onSavePreset}
+            className="h-8 text-xs active:scale-95 transition-transform"
+          >
+            <Star className="w-3 h-3 mr-1" /> Save Preset
           </Button>
         )}
         <div className="flex-1" />

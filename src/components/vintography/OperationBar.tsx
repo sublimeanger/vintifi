@@ -76,20 +76,6 @@ export function OperationBar({
 
   return (
     <div className="w-full">
-      <div className="flex justify-end gap-1 mb-1.5 lg:hidden">
-        <button
-          onClick={() => scroll("left")}
-          className="w-6 h-6 rounded-md border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
-        >
-          <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
-        </button>
-        <button
-          onClick={() => scroll("right")}
-          className="w-6 h-6 rounded-md border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
-        >
-          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-        </button>
-      </div>
       <div ref={scrollRef} className="w-full flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5 lg:flex-wrap lg:overflow-visible">
         {operations.map((op) => {
           const Icon = OP_ICONS[op.id];
@@ -109,7 +95,7 @@ export function OperationBar({
               ref={(el) => { buttonRefs.current[op.id] = el; }}
               whileTap={{ scale: 0.93 }}
               onClick={handleClick}
-              className={`relative flex-shrink-0 lg:flex-shrink flex flex-col items-center gap-1 rounded-xl px-3 py-2.5 border transition-all min-w-[72px] lg:min-w-0 lg:flex-1 lg:basis-[calc(25%-6px)] ${
+              className={`relative flex-shrink-0 lg:flex-shrink flex flex-col items-center gap-0.5 rounded-lg px-2.5 py-2 border transition-all min-w-[64px] lg:min-w-0 lg:flex-1 lg:basis-[calc(25%-6px)] ${
                 op.locked
                   ? "border-border/50 opacity-60 bg-muted/30"
                   : isActive
