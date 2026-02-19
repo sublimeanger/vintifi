@@ -1,0 +1,92 @@
+import { motion } from "framer-motion";
+import { Paintbrush } from "lucide-react";
+
+const GROUPS: { heading: string; options: { value: string; label: string; desc: string; color: string }[] }[] = [
+  {
+    heading: "Studio & Clean",
+    options: [
+      { value: "studio_white", label: "White Studio", desc: "Seamless, softbox lit", color: "from-gray-50 to-white" },
+      { value: "studio_grey", label: "Grey Gradient", desc: "Mid-grey with vignette", color: "from-gray-300 to-gray-500" },
+      { value: "marble_luxury", label: "White Marble", desc: "Luxury Carrara marble", color: "from-gray-100 via-slate-50 to-gray-200" },
+      { value: "linen_flat", label: "Natural Linen", desc: "Warm Belgian linen", color: "from-stone-100 to-stone-300" },
+    ],
+  },
+  {
+    heading: "Indoor Lifestyle",
+    options: [
+      { value: "living_room_sofa", label: "Living Room", desc: "Sofa, plant, afternoon light", color: "from-amber-50 to-stone-200" },
+      { value: "bedroom_mirror", label: "Bedroom Mirror", desc: "Wall mirror, morning light", color: "from-rose-50 to-stone-100" },
+      { value: "kitchen_counter", label: "Kitchen / Brunch", desc: "Marble counter, coffee vibes", color: "from-stone-50 to-amber-100" },
+      { value: "dressing_room", label: "Dressing Room", desc: "Clothing rail, warm bulbs", color: "from-amber-100 to-rose-100" },
+      { value: "reading_nook", label: "Reading Nook", desc: "Armchair, bookshelves, lamp", color: "from-amber-200 to-amber-400" },
+      { value: "bathroom_shelf", label: "Bathroom Shelf", desc: "White tiles, vanity light", color: "from-sky-50 to-slate-100" },
+    ],
+  },
+  {
+    heading: "Outdoor & Location",
+    options: [
+      { value: "golden_hour_park", label: "Golden Hour Park", desc: "Bokeh foliage, warm rim light", color: "from-yellow-200 to-green-200" },
+      { value: "city_street", label: "City Street", desc: "Blurred urban architecture", color: "from-slate-200 to-gray-400" },
+      { value: "beach_summer", label: "Beach / Summer", desc: "Sand, turquoise ocean bokeh", color: "from-sky-200 to-yellow-100" },
+      { value: "brick_wall", label: "Brick Wall", desc: "Red-brown brick, editorial", color: "from-red-200 to-amber-300" },
+      { value: "autumn_leaves", label: "Autumn Leaves", desc: "Golden leaves, warm ambient", color: "from-orange-200 to-red-300" },
+      { value: "christmas_market", label: "Winter Market", desc: "Fairy lights, cold atmosphere", color: "from-blue-100 to-indigo-200" },
+    ],
+  },
+];
+
+type Props = {
+  bgStyle: string;
+  onChange: (v: string) => void;
+};
+
+export function LifestyleConfig({ bgStyle, onChange }: Props) {
+  return (
+    <div className="space-y-3 py-1">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Paintbrush className="w-4 h-4 text-primary" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold">Lifestyle Scene</p>
+          <p className="text-xs text-muted-foreground">Places your garment in a beautiful styled environment.</p>
+        </div>
+      </div>
+
+      {GROUPS.map((group) => (
+        <div key={group.heading}>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            {group.heading}
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {group.options.map((opt) => {
+              const selected = bgStyle === opt.value;
+              return (
+                <motion.button
+                  key={opt.value}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onChange(opt.value)}
+                  className={`flex flex-col items-start gap-1.5 rounded-xl p-2.5 border text-left transition-all ${
+                    selected
+                      ? "border-primary ring-1 ring-primary/30 bg-primary/[0.04]"
+                      : "border-border hover:border-primary/20 bg-card"
+                  }`}
+                >
+                  <div className={`w-full h-7 rounded-lg bg-gradient-to-br ${opt.color} border border-border/50`} />
+                  <div>
+                    <span className={`block text-[11px] font-semibold leading-tight ${selected ? "text-primary" : "text-foreground"}`}>
+                      {opt.label}
+                    </span>
+                    <span className="block text-[9px] text-muted-foreground leading-tight mt-0.5">
+                      {opt.desc}
+                    </span>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
