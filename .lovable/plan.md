@@ -1,165 +1,153 @@
 
-# Complete Gap Audit: Brief v3.0 vs Current Codebase
+# Final Gap Audit — Brief v3.0 vs Current Codebase
 
-## What's Already Implemented (Confirmed ✓)
+## Confirmed: What Is Already Done
 
-Going through the brief section by section:
+Every item that has been implemented in previous sessions is confirmed complete. Here is the full confirmed list:
 
-**Part 1 — Strategic Repositioning:** Messaging, hero headline, photo-first hierarchy — all reflected in Landing, Features, and marketing pages. ✓
+**Navigation** — Desktop sidebar (Dashboard → Photo Studio → Sell → My Items → "More tools" section), mobile bottom nav (Home → Photos → Sell FAB → Items → More), More sheet (Trends, Price Check, Optimise, Settings, Sign Out). ✓
 
-**Part 2 — Navigation:** Desktop sidebar order (Dashboard → Photo Studio → Sell → My Items), mobile bottom nav (Home / Photos / [Sell FAB] / Items / More), More sheet contents (Trends, Price Check, Optimise, Settings, Sign Out). ✓
+**Sell Wizard** — Add → Photos → Optimise → Price → Pack. Progress bar labels correct. Version flag `v3`. Quick Remove Background inline option. "I've finished editing" fallback button. Before/after comparison on Pack step. ✓
 
-**Part 3 — Sell Wizard Reorder:** Steps are Add → Photos → Optimise → Price → Pack. Progress bar labels match. Session recovery with version flag `v3`. Quick Remove Background inline option. "I'm done — Continue" fallback button while polling. Before/after comparison on Pack step. ✓
+**Credit System** — `first_item_pass_used` column exists in the `profiles` table. `handle_new_user()` gives 3 credits. `enforce_listing_limit()` set to 10 free items. Credits display fix (`>= 999999`). Low-credit amber banner in Photo Studio (≤2). Post-Pack low-credit nudge (≤5). Translation credit fix. ✓
 
-**Part 4 — Credit System:**
-- `first_item_pass_used` column added + migration run. ✓
-- `handle_new_user()` updated to 3 credits. ✓
-- `enforce_listing_limit()` updated to free=10. ✓
-- `AppShellV2` credits display bug fixed (`>= 999999`). ✓
-- Low-credit amber banner in Photo Studio (≤2 credits). ✓
-- Post-wizard low-credit nudge in Pack step (≤5 credits). ✓
-- Translation credit deduction fix. ✓
+**Credit Exhaustion Inline Prompt** — `UpgradeModal.tsx` already has the dual-card layout (Buy 10 credits / Upgrade to Pro) when `isZeroCredits === true`. This is confirmed done. ✓
 
-**Part 5 — Marketing Pages:**
-- Auth page left panel: photo-first messaging. ✓
-- About page mission statement updated. ✓
-- Welcome page photo-first rebuild. ✓
-- Landing page: photo-first hero, "Turn phone photos into sales." ✓
-- Features page: Photo Studio leads. ✓
-- How It Works page: 5-step flow with photo-first framing. ✓
+**Scrape Tier Monitoring** — `scrape-vinted-url` edge function already parses the `Authorization` header, extracts `userId`, and calls `logScrapeJob(tierNumber, url)` which inserts to `scrape_jobs`. The `scrape_jobs` table exists in the database with the `raw_results` JSONB column. ✓
 
-**Part 6 — Dashboard:**
-- First-item-free banner. ✓
-- Enhance Photos quick action. ✓
+**Dashboard** — First-item-free banner (shows when `first_item_pass_used === false`). "Enhance Photos" quick action → `/vintography`. Trending Now horizontal scroll strip (queries `trends` table top 3 by opportunity score, tap → `/trends`, "See all" link for Pro+). ✓
 
-**Part 7 — Vintography:**
-- Tier gating (flatlay/mannequin = Pro, AI Model = Business) with lock overlays. ✓
+**Onboarding Tour** — `TOUR_STEPS` in `AppShellV2.tsx` has 4 steps: Step 2 references Photo Studio, Step 3 references Sell Wizard. Tour triggers on `profile.tour_completed === false` and first dashboard visit. ✓
 
-**Part 9 — Bug Fixes:**
-- Translation credit deduction. ✓
-- AppShellV2 bug. ✓
-- Hashtag rate limiting (5-second debounce, 3-per-session max). ✓
-- Wizard version flag. ✓
+**Hashtag Rate Limiting** — `VintedReadyPack.tsx` has 5-second debounce and 3-per-session max with "Max regenerations reached" state. ✓
+
+**Marketing pages** — Auth page photo-first messaging, About page mission statement, Welcome page photo-first rebuild, Landing page "Turn phone photos into sales", Features page (Photo Studio leads), How It Works page (5-step flow). ✓
+
+**Vintography tier gating** — `useFeatureGate.ts` has `vintography_flatlay` (Pro), `vintography_mannequin` (Pro), `vintography_ai_model` (Business). Lock overlays + UpgradeModal on click. ✓
+
+**Pricing page** — Shows only Free, Pro, Business (`PUBLIC_TIERS = ["free", "pro", "business"]`). Scale/Enterprise hidden. FAQ section included. Credit pack mention included. ✓
 
 ---
 
 ## GENUINE REMAINING GAPS
 
-After a full read of all relevant files, there are **4 remaining gaps**:
+After the full read-through, there are **2 confirmed remaining gaps** plus **1 intentionally omitted item to discuss**.
 
 ---
 
-### GAP 1 — Dashboard: "Trending Now" strip missing
-**Section 6.1, item 8**
+### GAP 1 — Landing Page: Pricing Preview shows all 4 tiers (should be 3)
 
-The brief specifies a horizontal scroll strip at the bottom of the Dashboard showing the top 3 trending brands from the `trends` table. Each card shows: brand name, trend direction arrow, opportunity score. Tap → navigates to `/trends` with that brand filtered.
+**Section 5.1, Section 5.3**
 
-**Current state:** The Dashboard ends at the Recent Items card. There is no trending strip whatsoever — not in `src/pages/Dashboard.tsx`, not in `AppShellV2`. The word "trend" does not appear in `Dashboard.tsx`.
+The Pricing page (`/pricing`) correctly shows only 3 tiers (Free, Pro, Business). However, the Landing page (`/`) has its own inline pricing section that reads:
 
-**Brief says:**
-> "Show top 3 trending items/brands from the `trends` table as a horizontal scroll strip. Each card shows: brand name, trend direction arrow, opportunity score. Tap → navigates to `/trends` with that brand filtered. Free users see 3 trends. Pro+ see 3 trends with a 'See all trends →' link to `/trends`."
-
-**File:** `src/pages/Dashboard.tsx`
-**Change:** After the Recent Items card, add a horizontal scroll "Trending Now" strip. Query the `trends` table for top 3 by opportunity score. Each card: brand name, direction icon (TrendingUp/TrendingDown), opportunity score badge. Tap navigates to `/trends`. Pro+ users get a "See all →" link. Free users see the 3 cards without the "See all" link (natural upsell via discovery).
-
----
-
-### GAP 2 — Dashboard Onboarding Tour: references old nav items
-**Section 6.2**
-
-The brief specifies updating the 4-step onboarding tour so that:
-- Step 3 references "Photo Studio nav link" (was: Trends nav link)
-- Step 4 references "Sell nav link" (was: Optimise nav link)
-
-**Current state:** There is no tour component in `Dashboard.tsx`. A search for `tour`, `TourStep`, `showTour`, `vintifi_tour`, `tour_step` in `Dashboard.tsx` returns zero matches. However, `SettingsPage.tsx` has a "Replay the onboarding tour" button that clears `localStorage.removeItem("vintifi_tour_completed")`.
-
-**This means the tour is likely rendered elsewhere** — probably inside `AppShellV2` or triggered from the dashboard via localStorage. A search for `vintifi_tour_completed` should reveal it.
-
-**Action needed:** Find where the tour renders and update step 3 and 4 text to reference Photo Studio and Sell nav links. If the tour doesn't exist as a component (only the replay button exists), this gap is moot — the tour was never implemented and the replay button is an orphan. In that case, either implement the tour or remove the replay button from Settings.
-
----
-
-### GAP 3 — Credit Exhaustion Inline Prompt (Section 4.8, touchpoint 1)
-**Section 4.8**
-
-The brief specifies an inline card when a user attempts an action with 0 credits, showing two side-by-side options: "Buy 10 credits — £2.99" and "Upgrade to Pro — £9.99/mo".
-
-**Current state:** The `UpgradeModal` component handles the 0-credit case (it opens when credits are exhausted). The post-wizard low-credit nudge (≤5 credits, touchpoint 3) is implemented. The low-credit banner in Photo Studio (≤2 credits, touchpoint 2) is implemented.
-
-**Touchpoint 1 (credit exhaustion inline prompt) is NOT implemented.** When the UpgradeModal fires for a 0-credit user, it shows the existing tier upgrade UI — not the side-by-side "buy credits OR upgrade" card described in the brief.
-
-**Brief specifies this exact layout:**
-```
-┌─────────────────────────────────────────────┐
-│  You're out of credits                       │
-│  ┌──────────────┐  ┌─────────────────────┐  │
-│  │ 10 credits   │  │ Upgrade to Pro      │  │
-│  │ £2.99        │  │ 50 credits/month    │  │
-│  │ [Buy Now]    │  │ [Upgrade]           │  │
-│  └──────────────┘  └─────────────────────┘  │
-│  Less than a coffee ☕ → 10 more edits       │
-└─────────────────────────────────────────────┘
-```
-
-**File:** `src/components/UpgradeModal.tsx`
-**Change:** When the modal is triggered with 0 credits (i.e., `credits_remaining === 0`), show this dual-card layout at the top of the modal before the standard tier upgrade cards. The "Buy Now" CTA links to `/settings?tab=billing` (which has the credit pack purchase). The "Upgrade" CTA goes to the Stripe checkout for Pro.
-
----
-
-### GAP 4 — Scrape Tier Monitoring (Section 9.3)
-**Section 9.3**
-
-The brief specifies logging to the `scrape_jobs` table after each successful URL import, storing which resolution tier (1–4) was used.
-
-**Current state:** The `scrape-vinted-url` edge function uses `console.log` statements noting "Tier 1 complete", "Tier 2 complete" etc., but there is **zero database logging** — no `scrape_jobs` table insert anywhere in the function. The `scrape_jobs` table itself may not even exist.
-
-**Brief says:**
 ```typescript
-await supabaseAdmin.from('scrape_jobs').insert({
-  user_id: userId,
-  job_type: 'url_import',
-  status: 'completed',
-  result_data: { resolution_tier: tierNumber, url: vintedUrl },
-  created_at: new Date().toISOString()
-});
+const tiers = Object.entries(STRIPE_TIERS);
+// No filter applied — renders all 4 tiers
 ```
 
-**Note:** The edge function currently has no `user_id` from auth (it receives the URL from the body but no auth header processing). This needs to either pass `user_id` from the frontend or add auth header parsing. Also, the `scrape_jobs` table needs to exist in the schema.
+At line 207 in `Landing.tsx`:
+```typescript
+const tiers = Object.entries(STRIPE_TIERS);
+```
 
-**Files:** `supabase/functions/scrape-vinted-url/index.ts` + a new migration to create the `scrape_jobs` table if it doesn't exist.
+This renders a **4-column pricing grid** at the bottom of the landing page, including Scale (£49.99). The brief says: "Show 3 tiers only: Free, Pro, Business" everywhere. Scale and Enterprise should be hidden from all public-facing pages.
+
+**Fix:** Apply the same filter used on the Pricing page:
+```typescript
+const PUBLIC_TIERS: TierKey[] = ["free", "pro", "business"];
+const tiers = (Object.entries(STRIPE_TIERS) as [TierKey, typeof STRIPE_TIERS[TierKey]][])
+  .filter(([key]) => PUBLIC_TIERS.includes(key));
+```
+
+**File:** `src/pages/Landing.tsx` line 207
+
+**Additional note on Landing page CTA text:** The final CTA section reads "Your first 3 credits are free" — the brief specifies "Your next listing deserves better photos" as the final CTA headline. This is a minor copy gap to also fix.
 
 ---
 
-## Priority Assessment
+### GAP 2 — Photo Studio Entry State: Missing headline/subheadline copy from Section 7.1
 
-| Gap | Priority | Effort | User Impact |
-|---|---|---|---|
-| GAP 1 — Trending Now strip on Dashboard | High | Medium — needs DB query + UI | High — spec says it replaces the need for Trends in sidebar |
-| GAP 2 — Onboarding tour nav text | Low | Low (if tour exists) / High (if it doesn't) | Low — only affects first-time users |
-| GAP 3 — Credit exhaustion inline prompt | Medium | Low — UI-only UpgradeModal change | Medium — affects monetisation |
-| GAP 4 — Scrape tier monitoring | Low | Medium — DB migration + edge function | None for users, internal analytics only |
+**Section 7.1**
+
+The brief specifies a specific entry state headline when no photo is loaded:
+
+> **"Transform your Vinted photos"**
+> "Professional listings get 3x more views."
+
+Currently the upload zone shows:
+```
+"Drop your photos here"
+"or tap to upload · JPG, PNG, WebP · Max 10MB"
+```
+
+The brief also specifies the entry state should show **Quick Presets** below the upload zone (even before a photo is loaded): `[Marketplace Ready] [Model Shot] [Flat-Lay]` — giving the user a sense of what they're about to use before committing to uploading.
+
+The "From My Items" button IS already implemented (`ItemPickerDialog` with "or pick from your items" link) — that part is done.
+
+**Missing elements:**
+1. Headline: "Transform your Vinted photos" (currently "Drop your photos here")
+2. Subtext: "Professional listings get 3x more views." (currently "or tap to upload...")
+3. Quick Presets strip below upload: 3 preset buttons showing available operation types before photo upload
+
+**File:** `src/pages/Vintography.tsx` lines 729–774 (the upload zone card)
+
+---
+
+### ONE ITEM THAT IS PARTIALLY IMPLEMENTED — Vintography entry state "From My Items" button prominence
+
+The `ItemPickerDialog` exists and is linked via a small text link "or pick from your items". The brief specifies this as a **dedicated equal-weight button** next to the Upload button:
+
+```
+┌──────────────────┐  ┌─────────────────┐
+│  📸 Upload Photo │  │  📋 From My     │
+│  (drag or tap)   │  │  Items          │
+└──────────────────┘  └─────────────────┘
+```
+
+Currently the "From My Items" link is a plain text link below the Choose Photos button. This is functionally correct but visually deprioritised vs. the spec's equal-weight two-button layout.
+
+---
+
+## Summary Table
+
+| # | Gap | File | Effort | Priority |
+|---|---|---|---|---|
+| 1 | Landing page pricing shows 4 tiers instead of 3 | `src/pages/Landing.tsx` | 2 lines — add PUBLIC_TIERS filter | High — Scale tier visible to new prospects |
+| 1b | Landing page final CTA copy | `src/pages/Landing.tsx` | Copy swap only | Low |
+| 2 | Photo Studio entry state: wrong headline, missing Quick Presets strip, "From My Items" deprioritised | `src/pages/Vintography.tsx` | Medium — UI update to upload zone | Medium |
 
 ---
 
 ## Implementation Plan
 
-### Files to Change
+### File 1: `src/pages/Landing.tsx`
 
-| # | File | Change |
-|---|---|---|
-| 1 | `src/pages/Dashboard.tsx` | Add "Trending Now" horizontal scroll strip, query `trends` table top 3, each card taps to `/trends` |
-| 2 | `src/components/UpgradeModal.tsx` | Add zero-credit inline dual-card (Buy Credits + Upgrade to Pro) at top of modal when credits = 0 |
-| 3 | `src/components/AppShellV2.tsx` | Audit and update onboarding tour step references (or confirm tour doesn't exist) |
-| 4 | `supabase/functions/scrape-vinted-url/index.ts` | Add auth header parsing + `scrape_jobs` table insert after each successful tier resolution |
-| 5 | New migration | Create `scrape_jobs` table with RLS |
+Line 207: Replace `const tiers = Object.entries(STRIPE_TIERS);` with a filtered version that only includes Free, Pro, Business.
 
-### No Pricing, Stripe, or Wizard Changes Required
+Also update the final CTA headline from "Your first 3 credits are free." to "Your next listing deserves better photos." with the button remaining "Get Started Free".
 
-All previously identified gaps (wizard reorder, nav structure, credit system, marketing pages, auth messaging, hashtag rate limiting) are fully implemented and confirmed from the code review.
+### File 2: `src/pages/Vintography.tsx`
 
-### Execution Order
+Update the empty-state upload zone (lines 729–774) to:
+1. Show "Transform your Vinted photos" as the headline
+2. Show "Professional listings get 3× more views." as subtext
+3. Promote the "From My Items" link to a proper equal-weight Button (outlined) alongside the existing "Choose Photos" primary button
+4. Add a Quick Presets strip below the two buttons: 3 clickable preset chips — "Marketplace Ready" (→ selects `clean_bg`), "Flat-Lay" (→ selects `flatlay`, gated if not Pro), "AI Model Shot" (→ selects `ai_model`, gated if not Business) — that pre-select an operation when the user uploads. These chips give users an intent before they upload.
 
-1. **Trending Now strip** (highest user-facing impact, completes the dashboard spec)
-2. **Credit exhaustion prompt** (monetisation touchpoint)
-3. **Scrape tier monitoring** (internal analytics, backend only)
-4. **Onboarding tour** (lowest priority — confirm if tour component exists first)
+---
+
+## What Does NOT Need Changing
+
+Everything else in the brief is confirmed implemented:
+
+- All nav changes ✓
+- All credit system logic ✓  
+- All marketing pages (Auth, About, Welcome, Features, How It Works, Pricing) ✓
+- All wizard changes ✓
+- All bug fixes (translation credit, AppShellV2 bug, hashtag rate limiting) ✓
+- All tier gating in Photo Studio ✓
+- Dashboard (banner, quick actions, Trending Now, tour) ✓
+- Scrape tier monitoring ✓
+- Credit exhaustion inline prompt ✓
+- Onboarding tour updated to Photo Studio + Sell nav references ✓
