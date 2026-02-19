@@ -526,9 +526,8 @@ serve(async (req) => {
     if (garment_context && !["model_shot"].includes(operation)) {
       prompt += buildGarmentContext(garment_context);
     }
-    // Sandwich the no-text rule: prepend AND append — models respond to both primacy and recency positions
-    const NO_TEXT_REMINDER = `\n\nFINAL REMINDER — ZERO TEXT: Do NOT add any text, labels, captions, or annotations to the output image. Pure photograph only.`;
-    prompt = `${NO_TEXT}\n\n${prompt}${NO_TEXT_REMINDER}`;
+    // Keep no-text rule concise — long negative prompts confuse image generation models
+    prompt = `Generate an image following these instructions precisely. Do NOT add any text, labels, or watermarks.\n\n${prompt}\n\nGenerate the final image now.`;
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
@@ -592,28 +591,33 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    console.log("AI response keys:", JSON.stringify(Object.keys(aiData)));
-    console.log("AI choices[0].message keys:", JSON.stringify(aiData.choices?.[0]?.message ? Object.keys(aiData.choices[0].message) : "no message"));
+    const message = aiData.choices?.[0]?.message;
     
-    // Try multiple response formats
-    const imageResult = 
-      aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url ||
-      aiData.choices?.[0]?.message?.images?.[0]?.url ||
-      aiData.choices?.[0]?.message?.image?.url ||
-      (() => {
-        // Check if image is inline in content array
-        const content = aiData.choices?.[0]?.message?.content;
-        if (Array.isArray(content)) {
-          const imgPart = content.find((p: any) => p.type === "image_url" || p.type === "image");
-          return imgPart?.image_url?.url || imgPart?.url || null;
-        }
-        return null;
-      })();
+    // Try multiple response formats the gateway might use
+    let imageResult: string | null = null;
+    
+    // Format 1: images array (some gateway versions)
+    if (!imageResult && message?.images?.[0]?.image_url?.url) {
+      imageResult = message.images[0].image_url.url;
+    }
+    // Format 2: inline content array with image parts
+    if (!imageResult && Array.isArray(message?.content)) {
+      const imgPart = message.content.find((p: any) => 
+        p.type === "image_url" || p.type === "image" || p.image_url
+      );
+      imageResult = imgPart?.image_url?.url || imgPart?.url || null;
+    }
+    // Format 3: content is a base64 data URL string
+    if (!imageResult && typeof message?.content === "string" && message.content.startsWith("data:image")) {
+      imageResult = message.content;
+    }
     
     console.log("Image result found:", !!imageResult, imageResult ? `(length: ${imageResult.length})` : "(null)");
 
     if (!imageResult) {
-      console.error("Full AI response structure:", JSON.stringify(aiData).substring(0, 2000));
+      console.error("No image in response. Message keys:", JSON.stringify(message ? Object.keys(message) : "null"));
+      console.error("Content type:", typeof message?.content, Array.isArray(message?.content) ? `(array len ${message.content.length})` : "");
+      console.error("Content preview:", JSON.stringify(message?.content)?.substring(0, 500));
       await adminClient
         .from("vintography_jobs")
         .update({ status: "failed", error_message: "No image generated" })
