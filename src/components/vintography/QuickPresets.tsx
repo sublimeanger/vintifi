@@ -83,7 +83,7 @@ export function QuickPresets({ onSelect, disabled }: Props) {
         <p className="text-sm font-semibold">Quick Presets</p>
         <Badge variant="secondary" className="text-[9px]">Multi-step</Badge>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5">
         {presets.map((p) => (
           <Card
             key={p.id}

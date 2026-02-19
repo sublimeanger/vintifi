@@ -56,7 +56,7 @@ export function OperationBar({
   ];
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide px-0.5">
+    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5">
       {operations.map((op) => {
         const Icon = OP_ICONS[op.id];
         const isActive = op.id === activeOp;
