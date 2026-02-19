@@ -1,139 +1,143 @@
 
-# Gap Analysis: What Remains Unimplemented from the Repositioning Brief (v3.0)
+# Complete Gap Audit: Brief v3.0 vs Current Codebase
 
-Below is a complete audit of every requirement in the brief against the current codebase, with a clear status for each.
+## What's Already Implemented (Confirmed ✓)
+
+Going through the brief section by section:
+
+**Part 1 — Strategic Repositioning:** Messaging, hero headline, photo-first hierarchy — all reflected in Landing, Features, and marketing pages. ✓
+
+**Part 2 — Navigation:** Desktop sidebar order (Dashboard → Photo Studio → Sell → My Items), mobile bottom nav (Home / Photos / [Sell FAB] / Items / More), More sheet contents (Trends, Price Check, Optimise, Settings, Sign Out). ✓
+
+**Part 3 — Sell Wizard Reorder:** Steps are Add → Photos → Optimise → Price → Pack. Progress bar labels match. Session recovery with version flag `v3`. Quick Remove Background inline option. "I'm done — Continue" fallback button while polling. Before/after comparison on Pack step. ✓
+
+**Part 4 — Credit System:**
+- `first_item_pass_used` column added + migration run. ✓
+- `handle_new_user()` updated to 3 credits. ✓
+- `enforce_listing_limit()` updated to free=10. ✓
+- `AppShellV2` credits display bug fixed (`>= 999999`). ✓
+- Low-credit amber banner in Photo Studio (≤2 credits). ✓
+- Post-wizard low-credit nudge in Pack step (≤5 credits). ✓
+- Translation credit deduction fix. ✓
+
+**Part 5 — Marketing Pages:**
+- Auth page left panel: photo-first messaging. ✓
+- About page mission statement updated. ✓
+- Welcome page photo-first rebuild. ✓
+- Landing page: photo-first hero, "Turn phone photos into sales." ✓
+- Features page: Photo Studio leads. ✓
+- How It Works page: 5-step flow with photo-first framing. ✓
+
+**Part 6 — Dashboard:**
+- First-item-free banner. ✓
+- Enhance Photos quick action. ✓
+
+**Part 7 — Vintography:**
+- Tier gating (flatlay/mannequin = Pro, AI Model = Business) with lock overlays. ✓
+
+**Part 9 — Bug Fixes:**
+- Translation credit deduction. ✓
+- AppShellV2 bug. ✓
+- Hashtag rate limiting (5-second debounce, 3-per-session max). ✓
+- Wizard version flag. ✓
 
 ---
 
-## ALREADY DONE (no action needed)
+## GENUINE REMAINING GAPS
 
-These have been implemented in previous sessions:
-
-- Pricing page 3-tier structure (Free/Pro/Business only) — done
-- `useFeatureGate` ghost key removal + vintography sub-operation keys — done
-- Vintography per-card tier gating with lock overlays + UpgradeModal — done
-- `AppShellV2` credits display bug (`isUnlimited >= 999999`) — done
-- Desktop sidebar reordered to Dashboard → Photo Studio → Sell → My Items — done
-- Mobile bottom nav: Home, Photos, [Sell FAB], Items, More — done
-- Mobile "More" sheet with Trends, Price Check, Optimise, Settings, Sign Out — done
-- Sell Wizard reordered to Add → Photos → Optimise → Price → Pack — done
-- Wizard version flag `sell_wizard_version = v3` — done
-- Dashboard first-item-free banner — done
-- Translation credit deduction (`increment_usage_credit` in edge function) — confirmed already present at lines 146–152 of translate-listing
+After a full read of all relevant files, there are **4 remaining gaps**:
 
 ---
 
-## GAPS REMAINING — prioritised by spec section
+### GAP 1 — Dashboard: "Trending Now" strip missing
+**Section 6.1, item 8**
 
-### GAP 1 — Dashboard Quick Actions: "Optimise" button should be "Enhance Photos"
-**Section 6.1, item 5**
+The brief specifies a horizontal scroll strip at the bottom of the Dashboard showing the top 3 trending brands from the `trends` table. Each card shows: brand name, trend direction arrow, opportunity score. Tap → navigates to `/trends` with that brand filtered.
 
-`src/pages/Dashboard.tsx` lines 263–282: The Quick Actions section shows "Add Item" and "Optimise" buttons. The spec says the second action should be "Enhance Photos" → `/vintography`, replacing "Optimise".
+**Current state:** The Dashboard ends at the Recent Items card. There is no trending strip whatsoever — not in `src/pages/Dashboard.tsx`, not in `AppShellV2`. The word "trend" does not appear in `Dashboard.tsx`.
+
+**Brief says:**
+> "Show top 3 trending items/brands from the `trends` table as a horizontal scroll strip. Each card shows: brand name, trend direction arrow, opportunity score. Tap → navigates to `/trends` with that brand filtered. Free users see 3 trends. Pro+ see 3 trends with a 'See all trends →' link to `/trends`."
 
 **File:** `src/pages/Dashboard.tsx`
-**Change:** Replace the second quick-action button label from "Optimise" (pointing to `/optimize`) to "Enhance Photos" (pointing to `/vintography`), and swap the icon from `Sparkles` to `ImageIcon`.
+**Change:** After the Recent Items card, add a horizontal scroll "Trending Now" strip. Query the `trends` table for top 3 by opportunity score. Each card: brand name, direction icon (TrendingUp/TrendingDown), opportunity score badge. Tap navigates to `/trends`. Pro+ users get a "See all →" link. Free users see the 3 cards without the "See all" link (natural upsell via discovery).
 
 ---
 
-### GAP 2 — Credit Pack Surfacing: 3 new touchpoints not implemented
-**Section 4.8**
-
-The spec requires 3 new surfaces for credit pack upsells. None of these exist today:
-
-**2a. Low credit banner in Photo Studio (≤2 credits remaining)**
-The Vintography page has no banner when credits are low. Must add a dismissable amber banner at the top of the page:
-> "You have 2 credits left. Top up 10 for £2.99 →"
-
-**2b. Credit exhaustion inline prompt**
-When a user attempts an action with 0 credits and hits the UpgradeModal, the spec wants an inline card that shows both a credit pack option and the Pro upgrade side by side.
-
-**2c. Post-wizard completion low-credit prompt**
-`src/pages/SellWizard.tsx` Step 5 (Pack) — after the "Sell another item" button, if ≤5 credits remain, show a card:
-> "Ready to list more? Top up credits or upgrade your plan →"
-With two CTAs: "Buy 10 credits — £2.99" and "Upgrade to Pro — £9.99/mo"
-
-**Files:** `src/pages/Vintography.tsx`, `src/pages/SellWizard.tsx`
-
----
-
-### GAP 3 — Hashtag Rate Limiting (frontend debounce)
-**Section 9.4**
-
-The spec requires:
-- Disable the "Generate Hashtags" button for 5 seconds after each call
-- Per-session counter: max 3 hashtag generations per item per session
-- After 3 calls: show "Max regenerations reached" and disable permanently
-
-The `VintedReadyPack.tsx` component contains the hashtag generation UI. This is a frontend-only change — no backend needed.
-
-**File:** `src/components/VintedReadyPack.tsx`
-
----
-
-### GAP 4 — Auth Page Left Panel: messaging is outdated
-**Section 5.6**
-
-`src/pages/Auth.tsx` lines 117 and 122–133: The left brand panel says:
-- Tagline: "AI-Powered Vinted Intelligence" (old positioning)
-- Bullet points: "AI-powered pricing in under 8 seconds", "Catch trends before they peak", "Data-driven decisions, not guesswork"
-
-The spec requires:
-- Tagline: "Professional Vinted listings start here."
-- Bullet points: "AI photo studio — transform any photo", "Smart listings — AI-written titles & descriptions", "Market pricing — know what to charge", "Your first item is completely free"
-
-**File:** `src/pages/Auth.tsx`
-
----
-
-### GAP 5 — Welcome Page: still price-check focused, needs photo-first flow
-**Section 8.2**
-
-`src/pages/Welcome.tsx` shows a price-check hook as the primary action. The spec says:
-- Headline: "Welcome to Vintifi! 🎉"
-- Primary action: Upload a photo OR paste a Vinted URL — both routing to `/sell`
-- "Your first item is on us. Let's make it look amazing."
-- Skip link → Dashboard
-
-Currently the page has: "See what your items are really worth" with a price check form, item list for price-checking, and Trends link. This is entirely the wrong entry point per the new photo-first positioning.
-
-**File:** `src/pages/Welcome.tsx`
-
----
-
-### GAP 6 — About Page: mission statement needs photo-first update
-**Section 5.5**
-
-`src/pages/marketing/About.tsx` line 107: The mission statement reads "democratise reselling intelligence" — pure data/analytics framing. The spec requires an updated opening paragraph:
-
-> "Vintifi started with a simple question: why do professional retailers get beautiful product photos and small Vinted sellers don't? We built an AI photo studio that turns any phone camera photo into a professional listing image — then added smart pricing and listing tools to help you sell faster."
-
-The About page hero section (line 86) also reads: "We believe every Vinted seller deserves the same data intelligence that powers enterprise e-commerce." This needs to be updated to the photo-first narrative.
-
-**File:** `src/pages/marketing/About.tsx`
-
----
-
-### GAP 7 — Dashboard Onboarding Tour: references old nav items
+### GAP 2 — Dashboard Onboarding Tour: references old nav items
 **Section 6.2**
 
-The spec says to update the onboarding tour steps 3 and 4 to reference the new nav:
-- Step 3: Photo Studio nav link (was: Trends)
-- Step 4: Sell nav link (was: Optimise)
+The brief specifies updating the 4-step onboarding tour so that:
+- Step 3 references "Photo Studio nav link" (was: Trends nav link)
+- Step 4 references "Sell nav link" (was: Optimise nav link)
 
-This requires finding where the tour is defined. Let me confirm it exists in the Dashboard — but based on the dashboard code reviewed, I did not see an explicit tour component rendered. This may be in a separate component or may already reference the new nav items. This should be checked but is lower priority.
+**Current state:** There is no tour component in `Dashboard.tsx`. A search for `tour`, `TourStep`, `showTour`, `vintifi_tour`, `tour_step` in `Dashboard.tsx` returns zero matches. However, `SettingsPage.tsx` has a "Replay the onboarding tour" button that clears `localStorage.removeItem("vintifi_tour_completed")`.
+
+**This means the tour is likely rendered elsewhere** — probably inside `AppShellV2` or triggered from the dashboard via localStorage. A search for `vintifi_tour_completed` should reveal it.
+
+**Action needed:** Find where the tour renders and update step 3 and 4 text to reference Photo Studio and Sell nav links. If the tour doesn't exist as a component (only the replay button exists), this gap is moot — the tour was never implemented and the replay button is an orphan. In that case, either implement the tour or remove the replay button from Settings.
 
 ---
 
-### NOT IN SCOPE (spec explicitly says don't change)
+### GAP 3 — Credit Exhaustion Inline Prompt (Section 4.8, touchpoint 1)
+**Section 4.8**
 
-- Stripe integration / checkout flows
-- Edge function core AI logic
-- Database schema (except first_item_pass_used column — already done)
-- Auth flow
-- Item Detail page
-- Listings page
-- Referral system
-- Dark mode toggle
+The brief specifies an inline card when a user attempts an action with 0 credits, showing two side-by-side options: "Buy 10 credits — £2.99" and "Upgrade to Pro — £9.99/mo".
+
+**Current state:** The `UpgradeModal` component handles the 0-credit case (it opens when credits are exhausted). The post-wizard low-credit nudge (≤5 credits, touchpoint 3) is implemented. The low-credit banner in Photo Studio (≤2 credits, touchpoint 2) is implemented.
+
+**Touchpoint 1 (credit exhaustion inline prompt) is NOT implemented.** When the UpgradeModal fires for a 0-credit user, it shows the existing tier upgrade UI — not the side-by-side "buy credits OR upgrade" card described in the brief.
+
+**Brief specifies this exact layout:**
+```
+┌─────────────────────────────────────────────┐
+│  You're out of credits                       │
+│  ┌──────────────┐  ┌─────────────────────┐  │
+│  │ 10 credits   │  │ Upgrade to Pro      │  │
+│  │ £2.99        │  │ 50 credits/month    │  │
+│  │ [Buy Now]    │  │ [Upgrade]           │  │
+│  └──────────────┘  └─────────────────────┘  │
+│  Less than a coffee ☕ → 10 more edits       │
+└─────────────────────────────────────────────┘
+```
+
+**File:** `src/components/UpgradeModal.tsx`
+**Change:** When the modal is triggered with 0 credits (i.e., `credits_remaining === 0`), show this dual-card layout at the top of the modal before the standard tier upgrade cards. The "Buy Now" CTA links to `/settings?tab=billing` (which has the credit pack purchase). The "Upgrade" CTA goes to the Stripe checkout for Pro.
+
+---
+
+### GAP 4 — Scrape Tier Monitoring (Section 9.3)
+**Section 9.3**
+
+The brief specifies logging to the `scrape_jobs` table after each successful URL import, storing which resolution tier (1–4) was used.
+
+**Current state:** The `scrape-vinted-url` edge function uses `console.log` statements noting "Tier 1 complete", "Tier 2 complete" etc., but there is **zero database logging** — no `scrape_jobs` table insert anywhere in the function. The `scrape_jobs` table itself may not even exist.
+
+**Brief says:**
+```typescript
+await supabaseAdmin.from('scrape_jobs').insert({
+  user_id: userId,
+  job_type: 'url_import',
+  status: 'completed',
+  result_data: { resolution_tier: tierNumber, url: vintedUrl },
+  created_at: new Date().toISOString()
+});
+```
+
+**Note:** The edge function currently has no `user_id` from auth (it receives the URL from the body but no auth header processing). This needs to either pass `user_id` from the frontend or add auth header parsing. Also, the `scrape_jobs` table needs to exist in the schema.
+
+**Files:** `supabase/functions/scrape-vinted-url/index.ts` + a new migration to create the `scrape_jobs` table if it doesn't exist.
+
+---
+
+## Priority Assessment
+
+| Gap | Priority | Effort | User Impact |
+|---|---|---|---|
+| GAP 1 — Trending Now strip on Dashboard | High | Medium — needs DB query + UI | High — spec says it replaces the need for Trends in sidebar |
+| GAP 2 — Onboarding tour nav text | Low | Low (if tour exists) / High (if it doesn't) | Low — only affects first-time users |
+| GAP 3 — Credit exhaustion inline prompt | Medium | Low — UI-only UpgradeModal change | Medium — affects monetisation |
+| GAP 4 — Scrape tier monitoring | Low | Medium — DB migration + edge function | None for users, internal analytics only |
 
 ---
 
@@ -141,42 +145,21 @@ This requires finding where the tour is defined. Let me confirm it exists in the
 
 ### Files to Change
 
-| # | File | Section | Change |
-|---|---|---|---|
-| 1 | `src/pages/Dashboard.tsx` | 6.1 | Replace "Optimise" quick action with "Enhance Photos" → `/vintography` |
-| 2 | `src/pages/Vintography.tsx` | 4.8 | Add low-credit amber banner (≤2 credits) at top of page |
-| 3 | `src/pages/SellWizard.tsx` | 4.8 | Add post-Pack low-credit prompt (≤5 credits) below "Sell another item" |
-| 4 | `src/components/VintedReadyPack.tsx` | 9.4 | Add hashtag rate limiting: 5-second debounce + 3-per-session max |
-| 5 | `src/pages/Auth.tsx` | 5.6 | Update left panel tagline + 4 bullet points to photo-first messaging |
-| 6 | `src/pages/Welcome.tsx` | 8.2 | Rebuild as photo-first welcome: upload photo or paste URL → both go to `/sell` |
-| 7 | `src/pages/marketing/About.tsx` | 5.5 | Update mission statement + hero paragraph to photo-first language |
+| # | File | Change |
+|---|---|---|
+| 1 | `src/pages/Dashboard.tsx` | Add "Trending Now" horizontal scroll strip, query `trends` table top 3, each card taps to `/trends` |
+| 2 | `src/components/UpgradeModal.tsx` | Add zero-credit inline dual-card (Buy Credits + Upgrade to Pro) at top of modal when credits = 0 |
+| 3 | `src/components/AppShellV2.tsx` | Audit and update onboarding tour step references (or confirm tour doesn't exist) |
+| 4 | `supabase/functions/scrape-vinted-url/index.ts` | Add auth header parsing + `scrape_jobs` table insert after each successful tier resolution |
+| 5 | New migration | Create `scrape_jobs` table with RLS |
 
-### No Database or Edge Function Changes Required
+### No Pricing, Stripe, or Wizard Changes Required
 
-All 7 gaps are frontend-only changes.
+All previously identified gaps (wizard reorder, nav structure, credit system, marketing pages, auth messaging, hashtag rate limiting) are fully implemented and confirmed from the code review.
 
----
+### Execution Order
 
-## What's NOT Being Changed (already done or out of scope)
-
-- Navigation structure — already matches spec
-- Sell Wizard step order — already Add → Photos → Optimise → Price → Pack
-- Pricing page — already 3-tier with correct features
-- FeatureGate tier alignment — already done
-- Translation credit deduction — already implemented
-- Credits display bug — already fixed
-- First-item-free pass — already implemented
-- Dashboard first-item-free banner — already present
-- Selling Wizard version flag — already `v3`
-
----
-
-## Execution Order
-
-1. Dashboard quick action (30-second change)
-2. Auth page left panel (messaging swap)
-3. About page mission statement (copy update)
-4. Welcome page rebuild (photo-first)
-5. Vintography low-credit banner
-6. SellWizard post-Pack nudge
-7. VintedReadyPack hashtag rate limiting
+1. **Trending Now strip** (highest user-facing impact, completes the dashboard spec)
+2. **Credit exhaustion prompt** (monetisation touchpoint)
+3. **Scrape tier monitoring** (internal analytics, backend only)
+4. **Onboarding tour** (lowest priority — confirm if tour component exists first)
