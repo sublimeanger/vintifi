@@ -1,112 +1,220 @@
 
-# Final Audit — Brief v3.0 vs Current Codebase (v5 document)
+# Photo Studio — Full UX Redesign
 
-## What Is Confirmed Implemented
-
-Going through every section of the v5 brief against actual file contents:
-
-**Part 1 — Strategic Repositioning:** Photo-first hierarchy throughout Landing, Features, Auth, About, Welcome pages. ✓
-
-**Part 2 — Navigation:** Desktop sidebar (Dashboard → Photo Studio → Sell → My Items). Mobile bottom nav (Home / Photos / [Sell FAB] / Items / More). More sheet with Trends, Price Check, Settings, Sign Out. ✓
-
-**Part 3 — Sell Wizard:** Steps are Add → Photos → Optimise → Price → Pack (confirmed in `STEPS` const, line 60–66). Progress bar labels match. Version flag handling in place. Quick Remove Background inline option. Before/after on Pack step. ✓
-
-**Part 4 — Credit System:** `first_item_pass_used` column exists. `handle_new_user()` gives 3 credits. `enforce_listing_limit()` at 10 items. `AppShellV2` credits display fix (`>= 999999`). Low-credit amber banner in Photo Studio (≤2). Post-Pack low-credit nudge (≤5, confirmed lines 1769–1794 of SellWizard.tsx). Translation credit fix. Hashtag rate limiting (5-second debounce + max 3, confirmed lines 102–115 of VintedReadyPack.tsx). ✓
-
-**Credit Exhaustion Inline Prompt:** `UpgradeModal.tsx` has the dual-card layout (`isZeroCredits` check, lines 109–149). ✓
-
-**Part 5 — Marketing Pages:** Auth left panel ("Professional Vinted listings start here." + 4 photo-first bullets, confirmed lines 117–134 of Auth.tsx). About page mission statement updated (confirmed lines 86–109 of About.tsx). Welcome page photo-first (Upload photo → /sell, Paste URL → /sell, Skip → /dashboard, confirmed). Landing hero headline confirmed. Final CTA: "Your next listing deserves better photos." (confirmed line 617 of Landing.tsx). ✓
-
-**Part 6 — Dashboard:** First-item-free banner present. "Enhance Photos" quick action (confirmed lines 286–293). Trending Now strip (confirmed lines 390–446). ✓
-
-**Part 7 — Vintography:** Tier gating confirmed (flatlay/mannequin = Pro, AI model = Business). Upload zone headline "Transform your Vinted photos" confirmed (line 750). Quick Presets strip below upload zone confirmed (lines 783–812). "From My Items" promoted to equal-weight outlined Button (confirmed lines 763–775). ✓
-
-**Part 9 — Bug Fixes:** Translation credit fix done. AppShellV2 bug fixed. Scrape tier monitoring implemented. Hashtag rate limiting done. Wizard version flag done. ✓
-
-**Onboarding Tour:** `TOUR_STEPS` in `AppShellV2.tsx` confirmed (lines 28–55) — Step 2 references Photo Studio, Step 3 references Sell Wizard with the new nav hints. ✓
+This plan implements the complete redesign spec from `vintifi-photo-studio-redesign.md` against the current 1,588-line `Vintography.tsx`. It is a significant rebuild — everything visual changes, nothing backend changes.
 
 ---
 
-## GENUINE REMAINING GAPS
+## What the brief is asking for vs. what exists today
 
-After reading every relevant file, there are **2 minor remaining items**:
+**Current architecture (the problems):**
+- One giant 1,588-line monolithic file with all state, all UI, all logic flat
+- When you select an operation, its config options expand inline using `AnimatePresence height: 0 → auto` — this pushes the Generate button and the entire canvas off screen on mobile
+- `secondaryOp` is hardcoded as a single extra slot with no sub-option configuration — you can only chain 2 operations, and the second one always runs with default params
+- The AI Model Shot dumps all pickers (gender, look, pose, background) in a single scrolling wall
+- The Generate button on mobile is rendered *below* the ComparisonView — if you select AI Model Shot, you scroll through 600px of pickers before you can tap Generate
+- No true pipeline state — just `selectedOp` + `secondaryOp`
+
+**What the brief specifies:**
+- Three fixed zones: Canvas (always visible) / Operation Bar / Config Drawer
+- Mobile: canvas is sticky at the top, config opens in a bottom sheet drawer
+- Desktop: two-column layout with sticky Generate button at the bottom of the left panel
+- Pipeline array (1–4 steps), each step with its own params, replacing `selectedOp` + `secondaryOp`
+- AI Model Shot becomes a 3-step mini-wizard (not a wall of pickers)
+- The Generate button is always reachable — pinned to the bottom of the drawer on mobile, sticky on desktop
+- `useReducer` replaces the 15+ flat `useState` calls
 
 ---
 
-### GAP 1 — Landing Page Pricing Grid: Still shows `lg:grid-cols-4` layout (cosmetic bug)
+## Implementation Phases
 
-**Section 5.6 / Section 6**
+### Phase 1 — State model (foundation everything else builds on)
 
-The `tiers` variable is correctly filtered to 3 tiers (line 209: `PUBLIC_TIERS = ["free", "pro", "business"]`). However, the grid container at **line 545** still reads:
+Replace all the flat state variables with a `useReducer`:
 
 ```typescript
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto mb-6 sm:mb-8">
+interface PipelineStep {
+  operation: Operation;
+  params: OperationParams;
+}
+interface VintographyState {
+  originalPhotoUrl: string | null;
+  resultPhotoUrl: string | null;
+  pipeline: PipelineStep[];
+  activePipelineIndex: number;
+  isProcessing: boolean;
+  drawerOpen: boolean;
+  itemPhotos: string[];
+  photoEditStates: Record<string, PhotoEditState>;
+}
 ```
 
-With only 3 tiers rendering, `lg:grid-cols-4` leaves an empty 4th column slot, making the 3 cards look oddly spaced on large screens. The comment above the section (line 538) also still says `── All 4 plans pricing ──`.
+This replaces: `selectedOp`, `secondaryOp`, `bgStyle`, `modelGender`, `modelPose`, `modelLook`, `modelBg`, `flatlayStyle`, `modelShotStyle`, `modelFullBody`, `mannequinType`, `mannequinLighting`, `decreaseIntensity`, `processing`, `processedUrl`, `resultReady`.
 
-**Fix needed:**
-- Change `lg:grid-cols-4` → `lg:grid-cols-3`
-- Change the comment from `── All 4 plans pricing ──` to `── Pricing (3 tiers) ──`
-
-**File:** `src/pages/Landing.tsx` line 545
+The file fetching, gallery, credits, and auth state stay as they are.
 
 ---
 
-### GAP 2 — About Page: "Data-Driven" value card still uses old analytics language
+### Phase 2 — New sub-components (13 files)
 
-**Section 5.5**
+Create these in `src/components/vintography/`:
 
-The brief says to update the About page to photo-first language. The hero and mission statement are correctly updated. However, the **Values section** (lines 53–57 of About.tsx) still has the old positioning in the "Data-Driven" value card:
+**`ConfigDrawer.tsx`** — Mobile bottom sheet. Uses Framer Motion `motion.div` with `y` animation. Draggable handle, swipe-to-dismiss, independently scrollable content area, footer slot for Generate button. Variable default heights per operation (`clean_bg: 20vh`, `ai_model: 50vh` etc.).
+
+**`ConfigContainer.tsx`** — Responsive wrapper. On mobile renders `ConfigDrawer`. On desktop renders a plain scrollable `div` inside the left panel with `position: sticky; bottom: 0` Generate button.
+
+**`OperationBar.tsx`** — Horizontal scrollable strip of 7 operation pills (icon + label + lock badge if gated). Replaces the current 2×2 card grid + separate Steam row + separate AI Model card. Tapping a locked pill opens `UpgradeModal`. Tapping the active pill deselects (closes drawer).
+
+**`SimpleOperationConfig.tsx`** — Used for `clean_bg` and `enhance`. Just a description + context tip. Minimal height.
+
+**`SteamConfig.tsx`** — Segmented 3-option control (Light / Steam / Deep). Replaces the current 3-button grid.
+
+**`FlatLayConfig.tsx`** — 5 visual thumbnail cards for style. Replaces current list.
+
+**`LifestyleConfig.tsx`** — 16 background scene thumbnails in a scrollable 3-column grid. Uses existing `BackgroundPicker` data.
+
+**`MannequinConfig.tsx`** — Type (segmented), Lighting (segmented), Setting (thumbnail grid). Replaces the inline expansion.
+
+**`ModelShotWizard.tsx`** — 3-step mini-wizard with `AnimatePresence` horizontal slide transitions. Step 1: Gender + Look. Step 2: Pose + Background. Step 3: Summary + garment description + generate. Footer swaps between "Next →" and "← Back / Generate".
+
+**`PipelineStrip.tsx`** — Horizontal pill strip showing current pipeline steps. Each pill: operation name + × to remove. Active step highlighted. "+ Add Effect" button at the end (hidden if pipeline has 4 steps). Tapping a pill switches `activePipelineIndex`.
+
+**`ProcessingOverlay.tsx`** — On mobile: drawer collapses to 60px strip with progress + step counter. On desktop: left panel shows pipeline step checklist (✓ done, ● running, ○ pending). Canvas gets breathing glow animation during processing.
+
+**`ResultActions.tsx`** — Post-processing buttons: Save to Listing, Download, Try Again. Plus "Next Photo →" if multi-photo item, plus low-credit top-up prompt if ≤5 credits.
+
+**`EmptyState.tsx`** — The no-photo upload zone. Already largely correct; this moves it into its own component and adds the quick-start preset intent tracking.
+
+---
+
+### Phase 3 — Updated `handleProcess`
+
+The current `handleProcess` runs `processImage` once, then optionally a second time for `secondaryOp`. Replace with a loop over the full `pipeline` array:
 
 ```typescript
-{ icon: Database, title: "Data-Driven", desc: "Every recommendation is backed by real market data, not gut feeling. We analyse thousands of comparable listings to give you pricing confidence." },
+const handleProcess = async () => {
+  let currentUrl = state.originalPhotoUrl;
+  for (let i = 0; i < state.pipeline.length; i++) {
+    const step = state.pipeline[i];
+    dispatch({ type: 'PROCESSING_STEP_START', step: i });
+    const result = await processImage(currentUrl, OP_MAP[step.operation], buildParams(step));
+    if (!result) return; // stops on failure, shows partial result if i > 0
+    currentUrl = result;
+  }
+  dispatch({ type: 'PROCESSING_COMPLETE', resultUrl: currentUrl });
+};
 ```
 
-This is an analytics/data framing from the old "AI-powered reselling intelligence" era. The brief's messaging rules say: "NEVER lead with 'AI-powered SaaS' or 'data-driven reselling'". The values section should reflect the photo-first mission.
-
-**Fix needed:** Update the "Data-Driven" value card to align with photo-first positioning. For example:
-
-```typescript
-{ icon: Camera, title: "Photo-First", desc: "The photo is what buyers see first. We built the best AI photo studio for Vinted sellers because a professional photo is the single highest-impact upgrade you can make to any listing." },
-```
-
-The `Database` import can be removed from About.tsx if no longer used (replaced with `Camera` from lucide-react, which is already imported elsewhere in the marketing pages).
-
-**File:** `src/pages/marketing/About.tsx` lines 53–57
+**Pipeline rules enforced in the "+ Add Effect" picker:**
+- Max 4 steps
+- No duplicate operations
+- `ai_model` can only be first; only `enhance` and `decrease` can follow it
+- When `ai_model` is not first, `ai_model` is excluded from the picker
 
 ---
 
-## What Does NOT Need Changing
+### Phase 4 — Layout restructure in `Vintography.tsx`
 
-Everything else in the v5 brief is confirmed implemented:
+The page shell shrinks to ~200 lines. The three-zone structure:
 
-- Navigation structure (desktop + mobile) ✓
-- Sell Wizard step order (Add → Photos → Optimise → Price → Pack) ✓
-- All credit system logic ✓
-- All marketing pages (Auth, Welcome, Landing, Features, How It Works, Pricing) ✓
-- All wizard changes (Quick Remove BG, fallback button, before/after on Pack) ✓
-- All bug fixes ✓
-- All tier gating in Photo Studio ✓
-- Dashboard (banner, quick actions, Trending Now, onboarding tour) ✓
-- Scrape tier monitoring ✓
-- Credit exhaustion inline prompt ✓
-- Hashtag rate limiting ✓
-- Vintography entry state (headline, two equal buttons, Quick Presets strip) ✓
-- About page hero + mission statement ✓
-- Auth page left panel messaging ✓
+**Mobile layout:**
+```
+<PageShell>
+  <CreditBar />
+  <LowCreditBanner />
+  
+  {activePhotoUrl ? (
+    <>
+      <PhotoCanvas sticky />           // Zone 1 — always visible
+      <QuickPresets />                 // between canvas and bar
+      <OperationBar />                 // Zone 2 — always visible
+      <ConfigContainer>               // Zone 3 — bottom sheet on mobile
+        <ActiveStepConfig />           //   config for pipeline[activePipelineIndex]
+        <PipelineStrip />              //   chain visualiser + add effect
+        footer: <GenerateButton />     //   pinned to bottom
+      </ConfigContainer>
+      <ResultActions />                // after processing
+    </>
+  ) : (
+    <EmptyState />
+  )}
+  
+  <PreviousEdits />
+</PageShell>
+```
+
+**Desktop layout (≥1024px):**
+```
+<div className="lg:grid lg:grid-cols-[420px_1fr]">
+  <LeftPanel>
+    <QuickPresets />
+    <OperationBar />
+    <ConfigContainer>               // scrollable section
+      <ActiveStepConfig />
+      <PipelineStrip />
+    </ConfigContainer>
+    <StickyGenerate />               // sticky bottom of left panel
+  </LeftPanel>
+  
+  <RightPanel>
+    <PhotoCanvas />
+    <ResultActions />
+    <PreviousEdits />
+  </RightPanel>
+</div>
+```
 
 ---
 
-## Implementation Plan
+## File Changes Summary
 
-### File 1: `src/pages/Landing.tsx` — 2-line fix
+| File | Action | Notes |
+|---|---|---|
+| `src/pages/Vintography.tsx` | Major rewrite (~200 lines) | State → reducer, layout → 3-zone |
+| `src/components/vintography/ConfigDrawer.tsx` | Create | Mobile bottom sheet |
+| `src/components/vintography/ConfigContainer.tsx` | Create | Responsive wrapper |
+| `src/components/vintography/OperationBar.tsx` | Create | Replaces 2×2 card grid |
+| `src/components/vintography/SimpleOperationConfig.tsx` | Create | Remove BG + Enhance |
+| `src/components/vintography/SteamConfig.tsx` | Create | Steam & Press |
+| `src/components/vintography/FlatLayConfig.tsx` | Rewrite existing | From current FlatLayPicker.tsx |
+| `src/components/vintography/LifestyleConfig.tsx` | Create | 16 backgrounds |
+| `src/components/vintography/MannequinConfig.tsx` | Create | Type + lighting + setting |
+| `src/components/vintography/ModelShotWizard.tsx` | Create | 3-step mini-wizard |
+| `src/components/vintography/PipelineStrip.tsx` | Create | Chain visualiser |
+| `src/components/vintography/ProcessingOverlay.tsx` | Create | Breathing glow + progress |
+| `src/components/vintography/ResultActions.tsx` | Create | Post-processing buttons |
 
-Line 538: Change comment from `── All 4 plans pricing ──` to `── Pricing (3 tiers) ──`
-Line 545: Change `lg:grid-cols-4` to `lg:grid-cols-3`
+**Files that do NOT change:**
+- `supabase/functions/vintography/index.ts` — backend unchanged
+- `src/components/vintography/ComparisonView.tsx` — works fine as-is
+- `src/components/vintography/GalleryCard.tsx` — unchanged
+- `src/components/vintography/PhotoFilmstrip.tsx` — unchanged
+- `src/components/vintography/CreditBar.tsx` — unchanged
+- `src/components/vintography/BackgroundPicker.tsx` — data reused in LifestyleConfig
+- `useFeatureGate.ts` — unchanged
+- `UpgradeModal.tsx` — unchanged
 
-### File 2: `src/pages/marketing/About.tsx` — 1 value card update
+---
 
-Lines 53–57: Replace the "Data-Driven" value card with a "Photo-First" card using the Camera icon and photo-first description text. Remove `Database` import if it's no longer used elsewhere in the file.
+## Key Decisions
 
-These are the final 2 remaining gaps. After these are done, the brief is 100% implemented.
+**Using `vaul` (already installed) for the mobile drawer.** The project already has `vaul` installed (used in `drawer.tsx`). The `ConfigDrawer` component will use Framer Motion directly for the spring animation rather than Vaul's Drawer, because the drawer needs to be partially visible (not a full overlay) and needs a drag-to-resize behaviour that Vaul doesn't support natively.
+
+**`useIsMobile` hook** (already exists at `src/hooks/use-mobile.tsx`) will drive the `ConfigContainer` rendering decision.
+
+**The pipeline's `params` object** is typed per-operation using the `OperationParams` union from the brief. Each config component receives its own operation's params and an `onChange` callback — no shared global state for sub-options.
+
+**Credit cost calculation** — `getOperationCreditCost(op)` returns 4 for `ai_model`, 1 for everything else. Total shown on the Generate button is `pipeline.reduce((sum, step) => sum + getOperationCreditCost(step.operation), 0)`.
+
+---
+
+## What this does NOT change
+
+- The backend edge function — no changes to `vintography/index.ts`
+- Database schema — no migrations needed
+- Credit deduction RPC — atomic and correct as-is
+- The ComparisonView before/after slider
+- Photo upload/storage flow
+- Tier gating logic — same `useFeatureGate` hooks, just surfaced differently (lock badges on the OperationBar instead of on cards)
+- The existing Save to Listing / Replace Original / Add Alongside logic
+- The gallery query and `GalleryCard` component
