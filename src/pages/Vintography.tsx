@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { FeatureGate } from "@/components/FeatureGate";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { UpgradeModal } from "@/components/UpgradeModal";
 import { ItemPickerDialog } from "@/components/ItemPickerDialog";
 import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
@@ -17,7 +19,7 @@ import {
   Upload, Camera, ImageOff, Paintbrush, User as UserIcon, Sparkles,
   Loader2, Download, Wand2, RotateCcw, ChevronRight, Image as ImageIcon, Clock,
   RefreshCw, Coins, Package, Info, X, Plus, Check, Layers,
-  Sun, Zap, Wind, Ghost, ShirtIcon, PersonStanding,
+  Sun, Zap, Wind, Ghost, ShirtIcon, PersonStanding, Lock,
 } from "lucide-react";
 
 import { CreditBar } from "@/components/vintography/CreditBar";
@@ -136,6 +138,11 @@ const OP_RESULT_LABEL: Record<Operation, string> = {
 
 export default function Vintography() {
   const { user, profile, credits, refreshCredits } = useAuth();
+  const flatlayGate = useFeatureGate("vintography_flatlay");
+  const mannequinGate = useFeatureGate("vintography_mannequin");
+  const aiModelGate = useFeatureGate("vintography_ai_model");
+  // Which gate's upgrade modal to show (null = none open)
+  const [activeLockedGate, setActiveLockedGate] = useState<"flatlay" | "mannequin" | "ai_model" | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -615,10 +622,15 @@ export default function Vintography() {
       : isAiModel
         ? "Generate · 4 credits"
         : `Apply ${OPERATIONS.find(o => o.id === selectedOp)?.label || ""}`;
+    // Defensive: block generate if selected op is locked
+    const isLockedOp =
+      (selectedOp === "flatlay" && !flatlayGate.allowed) ||
+      (selectedOp === "mannequin" && !mannequinGate.allowed) ||
+      (selectedOp === "ai_model" && !aiModelGate.allowed);
     return (
       <Button
         onClick={handleProcess}
-        disabled={processing || !activePhotoUrl}
+        disabled={processing || !activePhotoUrl || isLockedOp}
         className="w-full h-12 lg:h-11 font-semibold text-sm lg:text-base active:scale-95 transition-transform"
       >
         {processing ? <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />}
@@ -749,16 +761,39 @@ export default function Vintography() {
                   <div className="grid grid-cols-2 gap-2 lg:gap-3">
                     {OPERATIONS.filter(op => op.id !== "decrease" && op.id !== "ai_model").map((op) => {
                       const isSelected = selectedOp === op.id;
+                      const gate = op.id === "flatlay" ? flatlayGate : op.id === "mannequin" ? mannequinGate : null;
+                      const isLocked = gate ? !gate.allowed : false;
+                      const tierLabel = op.id === "flatlay" || op.id === "mannequin" ? "Pro" : null;
+
+                      const handleCardClick = () => {
+                        if (isLocked) {
+                          setActiveLockedGate(op.id as "flatlay" | "mannequin");
+                        } else {
+                          setSelectedOp(op.id);
+                        }
+                      };
+
                       return (
                         <Card
                           key={op.id}
-                          onClick={() => setSelectedOp(op.id)}
-                          className={`p-3 lg:p-4 cursor-pointer transition-all active:scale-[0.97] ${
-                            isSelected
-                              ? "ring-2 ring-primary border-primary/30 bg-primary/[0.04]"
-                              : "hover:border-primary/20"
+                          onClick={handleCardClick}
+                          className={`p-3 lg:p-4 cursor-pointer transition-all active:scale-[0.97] relative overflow-hidden ${
+                            isLocked
+                              ? "opacity-70 border-border/50"
+                              : isSelected
+                                ? "ring-2 ring-primary border-primary/30 bg-primary/[0.04]"
+                                : "hover:border-primary/20"
                           }`}
                         >
+                          {/* Lock overlay icon */}
+                          {isLocked && (
+                            <div className="absolute top-2 right-2 z-10">
+                              <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+                                <Lock className="w-2.5 h-2.5 text-muted-foreground" />
+                              </div>
+                            </div>
+                          )}
+
                           {/* Before/After preview strip */}
                           <div className="flex gap-1 mb-2 lg:mb-2.5">
                             <div className={`flex-1 h-7 lg:h-10 rounded bg-gradient-to-br ${op.beforeGradient} border border-border/50`} />
@@ -773,13 +808,19 @@ export default function Vintography() {
                               <p className="font-semibold text-xs lg:text-sm leading-tight">{op.label}</p>
                               <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{op.desc}</p>
                             </div>
-                            <Badge variant="secondary" className="text-[8px] lg:text-[10px] px-1 py-0 shrink-0 mt-0.5">
-                              <Coins className="w-2 h-2 lg:w-2.5 lg:h-2.5 mr-0.5" />1
-                            </Badge>
+                            {isLocked ? (
+                              <Badge variant="outline" className="text-[8px] lg:text-[10px] px-1 py-0 shrink-0 mt-0.5 border-primary/40 text-primary">
+                                {tierLabel}
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[8px] lg:text-[10px] px-1 py-0 shrink-0 mt-0.5">
+                                <Coins className="w-2 h-2 lg:w-2.5 lg:h-2.5 mr-0.5" />1
+                              </Badge>
+                            )}
                           </div>
 
                           <AnimatePresence>
-                            {isSelected && (
+                            {isSelected && !isLocked && (
                               <motion.p
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
@@ -862,20 +903,38 @@ export default function Vintography() {
                     {/* AI Model Shot card — premium styling */}
                     {(() => {
                       const isSelected = selectedOp === "ai_model";
+                      const isLocked = !aiModelGate.allowed;
                       return (
                         <Card
-                          onClick={() => setSelectedOp("ai_model")}
-                          className={`cursor-pointer transition-all active:scale-[0.97] overflow-hidden ${
-                            isSelected
-                              ? "ring-2 ring-primary border-primary/40"
-                              : "hover:border-primary/30 border-primary/20"
+                          onClick={() => {
+                            if (isLocked) {
+                              setActiveLockedGate("ai_model");
+                            } else {
+                              setSelectedOp("ai_model");
+                            }
+                          }}
+                          className={`cursor-pointer transition-all active:scale-[0.97] overflow-hidden relative ${
+                            isLocked
+                              ? "opacity-70 border-border/50"
+                              : isSelected
+                                ? "ring-2 ring-primary border-primary/40"
+                                : "hover:border-primary/30 border-primary/20"
                           }`}
-                          style={{
+                          style={isLocked ? undefined : {
                             background: isSelected
                               ? "linear-gradient(135deg, hsl(var(--primary) / 0.07) 0%, hsl(280 70% 60% / 0.04) 100%)"
                               : "linear-gradient(135deg, hsl(var(--primary) / 0.03) 0%, hsl(280 70% 60% / 0.02) 100%)",
                           }}
                         >
+                          {/* Lock overlay */}
+                          {isLocked && (
+                            <div className="absolute top-3 right-3 z-10">
+                              <div className="flex items-center gap-1 rounded-full bg-muted border border-border px-2 py-0.5">
+                                <Lock className="w-2.5 h-2.5 text-muted-foreground" />
+                                <span className="text-[9px] font-semibold text-muted-foreground">Business</span>
+                              </div>
+                            </div>
+                          )}
                           <div className="p-3 lg:p-4">
                             {/* Header row */}
                             <div className="flex items-start justify-between gap-2 mb-2">
@@ -888,9 +947,11 @@ export default function Vintography() {
                                   <p className="text-[10px] lg:text-xs text-muted-foreground">Photorealistic human wearing your garment</p>
                                 </div>
                               </div>
-                              <Badge className="text-[8px] lg:text-[10px] px-1.5 py-0.5 shrink-0 bg-primary text-primary-foreground">
-                                <Coins className="w-2 h-2 lg:w-2.5 lg:h-2.5 mr-0.5" />4 credits
-                              </Badge>
+                              {!isLocked && (
+                                <Badge className="text-[8px] lg:text-[10px] px-1.5 py-0.5 shrink-0 bg-primary text-primary-foreground">
+                                  <Coins className="w-2 h-2 lg:w-2.5 lg:h-2.5 mr-0.5" />4 credits
+                                </Badge>
+                              )}
                             </div>
 
                             {/* Use cases */}
@@ -911,13 +972,22 @@ export default function Vintography() {
                               </ul>
                             </div>
 
-                            {/* Credit note */}
-                            <div className="flex items-center gap-1.5 rounded-lg bg-primary/[0.05] border border-primary/15 px-2.5 py-1.5">
-                               <Sparkles className="w-3 h-3 text-primary shrink-0" />
-                               <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
-                                 Powered by our most advanced AI model.
-                               </p>
-                            </div>
+                            {/* Credit note or upgrade CTA */}
+                            {isLocked ? (
+                              <Button size="sm" variant="outline" className="w-full h-8 text-xs font-semibold border-primary/40 text-primary hover:bg-primary/5"
+                                onClick={(e) => { e.stopPropagation(); setActiveLockedGate("ai_model"); }}
+                              >
+                                <Lock className="w-3 h-3 mr-1.5" />
+                                Upgrade to Business to unlock
+                              </Button>
+                            ) : (
+                              <div className="flex items-center gap-1.5 rounded-lg bg-primary/[0.05] border border-primary/15 px-2.5 py-1.5">
+                                <Sparkles className="w-3 h-3 text-primary shrink-0" />
+                                <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed">
+                                  Powered by our most advanced AI model.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </Card>
                       );
@@ -1432,6 +1502,25 @@ export default function Vintography() {
           </div>
         </div>
       </FeatureGate>
+
+      {/* Shared upgrade modal for locked Vintography sub-operations */}
+      <UpgradeModal
+        open={activeLockedGate !== null}
+        onClose={() => setActiveLockedGate(null)}
+        reason={
+          activeLockedGate === "ai_model"
+            ? "AI Model Shot requires a Business plan."
+            : activeLockedGate === "flatlay"
+              ? "Flat-Lay Pro requires a Pro plan."
+              : activeLockedGate === "mannequin"
+                ? "Mannequin Shot requires a Pro plan."
+                : undefined
+        }
+        tierRequired={
+          activeLockedGate === "ai_model" ? "business" : "pro"
+        }
+        showCredits={false}
+      />
     </PageShell>
   );
 }
