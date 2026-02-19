@@ -366,6 +366,16 @@ export default function Vintography() {
     } catch { toast.error("Download failed"); }
   };
 
+  // ─── Use current result as new starting point ───
+  const handleUseResultAsStart = () => {
+    if (!state.resultPhotoUrl) return;
+    const resultUrl = state.resultPhotoUrl;
+    dispatch({ type: "RESET_ALL" });
+    dispatch({ type: "SET_ORIGINAL_PHOTO", url: resultUrl });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    toast.success("Result set as starting point — choose your next effect", { duration: 3000 });
+  };
+
   // ─── Gallery restore ───
   const handleUseAsInput = (job: VintographyJob) => {
     const url = job.processed_url || job.original_url;
@@ -762,6 +772,7 @@ export default function Vintography() {
                   onReset={() => dispatch({ type: "RESET_ALL" })}
                   onSaveReplace={() => handleSaveToItem("replace")}
                   onSaveAdd={() => handleSaveToItem("add")}
+                  onUseAsStartingPoint={handleUseResultAsStart}
                   onNextPhoto={handleNextPhoto}
                   onTopUp={() => navigate("/settings?tab=billing")}
                 />
@@ -918,11 +929,12 @@ export default function Vintography() {
                     onReprocess={handleProcess}
                     onDownload={handleDownload}
                     onReset={() => dispatch({ type: "RESET_ALL" })}
-                    onSaveReplace={() => handleSaveToItem("replace")}
-                    onSaveAdd={() => handleSaveToItem("add")}
-                    onNextPhoto={handleNextPhoto}
-                    onTopUp={() => navigate("/settings?tab=billing")}
-                  />
+                  onSaveReplace={() => handleSaveToItem("replace")}
+                  onSaveAdd={() => handleSaveToItem("add")}
+                  onUseAsStartingPoint={handleUseResultAsStart}
+                  onNextPhoto={handleNextPhoto}
+                  onTopUp={() => navigate("/settings?tab=billing")}
+                />
 
                   {!state.resultPhotoUrl && (
                     <Button variant="ghost" onClick={() => dispatch({ type: "RESET_ALL" })} className="w-full h-10 text-sm active:scale-95">

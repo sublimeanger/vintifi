@@ -1,5 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Download, RotateCcw, Image as ImageIcon, Plus, Check, Loader2, ChevronRight } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import {
+  RefreshCw, Download, RotateCcw, Image as ImageIcon,
+  Plus, Check, Loader2, ChevronRight, Wand2,
+} from "lucide-react";
 
 type Props = {
   processedUrl: string | null;
@@ -15,6 +19,7 @@ type Props = {
   onReset: () => void;
   onSaveReplace: () => void;
   onSaveAdd: () => void;
+  onUseAsStartingPoint: () => void;
   onNextPhoto?: () => void;
   onTopUp?: () => void;
 };
@@ -33,6 +38,7 @@ export function ResultActions({
   onReset,
   onSaveReplace,
   onSaveAdd,
+  onUseAsStartingPoint,
   onNextPhoto,
   onTopUp,
 }: Props) {
@@ -43,13 +49,14 @@ export function ResultActions({
 
   return (
     <div className="space-y-2">
-      {/* Save to Item — replace vs add alongside */}
-      {itemId && (
-        <div className="flex gap-2">
+      {/* Primary actions row */}
+      <div className="flex gap-2">
+        {/* Save to item (if linked) */}
+        {itemId && (
           <Button
             onClick={onSaveReplace}
             disabled={activePhotoSaved || savingToItem}
-            className={`flex-1 h-10 text-sm font-semibold active:scale-95 transition-all ${
+            className={`flex-1 h-11 text-sm font-semibold active:scale-95 transition-all ${
               activePhotoSaved
                 ? "bg-success/90 text-success-foreground hover:bg-success/80"
                 : "bg-success text-success-foreground hover:bg-success/90"
@@ -62,54 +69,78 @@ export function ResultActions({
             ) : (
               <ImageIcon className="w-4 h-4 mr-1.5" />
             )}
-            {activePhotoSaved ? "Saved ✓" : "Replace Original"}
+            {activePhotoSaved ? "Saved ✓" : "Save to Listing"}
           </Button>
-          {!activePhotoSaved && (
-            <Button
-              variant="outline"
-              onClick={onSaveAdd}
-              disabled={savingToItem}
-              className="h-10 text-sm active:scale-95 transition-transform px-3"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Alongside
-            </Button>
-          )}
-        </div>
-      )}
+        )}
 
-      {/* Secondary actions */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          onClick={onReprocess}
-          disabled={processing}
-          className="h-9 text-sm active:scale-95 transition-transform"
-        >
-          <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Try Again
-        </Button>
+        {/* Download — always available */}
         <Button
           variant="outline"
           onClick={onDownload}
-          className="h-9 text-sm active:scale-95 transition-transform"
+          className={`h-11 text-sm active:scale-95 transition-transform ${itemId ? "px-3" : "flex-1"}`}
         >
-          <Download className="w-3.5 h-3.5 mr-1.5" /> Download
+          <Download className="w-4 h-4 mr-1.5" /> Download
+        </Button>
+
+        {/* Add alongside (if linked and not yet saved) */}
+        {itemId && !activePhotoSaved && (
+          <Button
+            variant="outline"
+            onClick={onSaveAdd}
+            disabled={savingToItem}
+            className="h-11 text-sm active:scale-95 transition-transform px-3"
+            title="Add as extra photo"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* Edit Further — the key new action */}
+      <Card
+        onClick={onUseAsStartingPoint}
+        className="p-3 cursor-pointer border-primary/20 bg-primary/[0.03] hover:bg-primary/[0.06] hover:border-primary/30 transition-all active:scale-[0.98]"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Wand2 className="w-4 h-4 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">Edit this result further</p>
+            <p className="text-[10px] text-muted-foreground">
+              Use as your new starting point — apply another effect
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </div>
+      </Card>
+
+      {/* Tertiary actions */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          onClick={onReprocess}
+          disabled={processing}
+          className="h-8 text-xs active:scale-95 transition-transform"
+        >
+          <RefreshCw className="w-3 h-3 mr-1" /> Retry
         </Button>
         {hasNextPhoto && onNextPhoto && (
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={onNextPhoto}
-            className="h-9 text-sm active:scale-95 transition-transform"
+            className="h-8 text-xs active:scale-95 transition-transform"
           >
-            Next Photo <ChevronRight className="w-3.5 h-3.5 ml-1" />
+            Next Photo <ChevronRight className="w-3 h-3 ml-0.5" />
           </Button>
         )}
+        <div className="flex-1" />
         <Button
           variant="ghost"
           onClick={onReset}
-          className="h-9 text-sm active:scale-95 transition-transform"
+          className="h-8 text-xs text-muted-foreground active:scale-95 transition-transform"
         >
-          <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> New Photo
+          <RotateCcw className="w-3 h-3 mr-1" /> Start Over
         </Button>
       </div>
 
