@@ -369,17 +369,17 @@ ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`,
 };
 
-// Models per operation — gemini-3-pro-image-preview is the only model that reliably returns images via the gateway
+// Models per operation — only model_shot uses gemini-3-pro-image-preview; everything else uses 2.5-flash
 const MODEL_MAP: Record<string, string> = {
-  remove_bg: "google/gemini-3-pro-image-preview",
-  smart_bg: "google/gemini-3-pro-image-preview",
+  remove_bg: "google/gemini-2.5-flash",
+  smart_bg: "google/gemini-2.5-flash",
   model_shot: "google/gemini-3-pro-image-preview",
-  mannequin_shot: "google/gemini-3-pro-image-preview",
-  ghost_mannequin: "google/gemini-3-pro-image-preview",
-  flatlay_style: "google/gemini-3-pro-image-preview",
-  selfie_shot: "google/gemini-3-pro-image-preview",
-  enhance: "google/gemini-3-pro-image-preview",
-  decrease: "google/gemini-3-pro-image-preview",
+  mannequin_shot: "google/gemini-2.5-flash",
+  ghost_mannequin: "google/gemini-2.5-flash",
+  flatlay_style: "google/gemini-2.5-flash",
+  selfie_shot: "google/gemini-2.5-flash",
+  enhance: "google/gemini-2.5-flash",
+  decrease: "google/gemini-2.5-flash",
 };
 
 // Operations allowed per tier
@@ -536,7 +536,7 @@ serve(async (req) => {
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
-    // Convert input image to base64 data URL — gateway needs inline image data to return generated images
+    // Convert input image to base64 data URL with compression to keep payload small
     let imagePayloadUrl = image_url;
     if (image_url.startsWith("http")) {
       try {
@@ -544,19 +544,47 @@ serve(async (req) => {
         if (imgResp.ok) {
           const imgBuf = await imgResp.arrayBuffer();
           const bytes = new Uint8Array(imgBuf);
+          
+          // Compress image server-side using OffscreenCanvas (available in Deno/Workers)
+          let compressedBytes = bytes;
+          let contentType = imgResp.headers.get("content-type") || "image/jpeg";
+          try {
+            const blob = new Blob([bytes], { type: contentType });
+            const imageBitmap = await createImageBitmap(blob);
+            const { width, height } = imageBitmap;
+            const MAX_DIM = 1536;
+            let newW = width;
+            let newH = height;
+            if (width > MAX_DIM || height > MAX_DIM) {
+              const scale = MAX_DIM / Math.max(width, height);
+              newW = Math.round(width * scale);
+              newH = Math.round(height * scale);
+            }
+            const canvas = new OffscreenCanvas(newW, newH);
+            const ctx = canvas.getContext("2d")!;
+            ctx.drawImage(imageBitmap, 0, 0, newW, newH);
+            imageBitmap.close();
+            const compressedBlob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.85 });
+            compressedBytes = new Uint8Array(await compressedBlob.arrayBuffer());
+            contentType = "image/jpeg";
+            console.log(`Compressed image: ${bytes.length} -> ${compressedBytes.length} bytes (${newW}x${newH})`);
+          } catch (compressErr) {
+            console.warn("Image compression failed, using original:", compressErr);
+            compressedBytes = bytes;
+          }
+          
           const chunkSize = 8192;
           let binary = "";
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            const end = Math.min(i + chunkSize, bytes.length);
-            const chunk = bytes.subarray(i, end);
+          for (let i = 0; i < compressedBytes.length; i += chunkSize) {
+            const end = Math.min(i + chunkSize, compressedBytes.length);
+            const chunk = compressedBytes.subarray(i, end);
             for (let j = 0; j < chunk.length; j++) {
               binary += String.fromCharCode(chunk[j]);
             }
           }
           const imgBase64 = btoa(binary);
-          const contentType = imgResp.headers.get("content-type") || "image/jpeg";
           imagePayloadUrl = `data:${contentType};base64,${imgBase64}`;
-          console.log(`Converted image to base64 data URL (${imgBase64.length} chars)`);
+          console.log(`Final base64 payload: ${imgBase64.length} chars`);
         } else {
           console.error(`Failed to fetch image: ${imgResp.status}`);
         }
