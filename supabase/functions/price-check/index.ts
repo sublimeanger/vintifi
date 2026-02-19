@@ -217,7 +217,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { url, brand, category, condition, size, itemId, title } = await req.json();
+    const { url, brand, category, condition, size, itemId, title, sell_wizard } = await req.json();
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Not authenticated");
@@ -233,21 +233,40 @@ serve(async (req) => {
     const userId = userData.id;
     if (!userId) throw new Error("Invalid user");
 
-    // Check credits
-    const creditsRes = await fetch(
-      `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}&select=price_checks_used,optimizations_used,vintography_used,credits_limit`,
-      { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
-    );
-    const creditsData = await creditsRes.json();
-    if (creditsData.length > 0) {
-      const c = creditsData[0];
-      if (c.credits_limit < 999999) {
-        const totalUsed = (c.price_checks_used || 0) + (c.optimizations_used || 0) + (c.vintography_used || 0);
-        if (totalUsed >= c.credits_limit) {
-          return new Response(
-            JSON.stringify({ error: "Monthly credit limit reached. Upgrade your plan for more." }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
+    // ── First-item-free pass check ──────────────────────────────────────
+    // If this call is from the Sell Wizard AND the user hasn't used their free pass yet,
+    // skip all credit checks and deduction entirely.
+    let useFirstItemPass = false;
+    if (sell_wizard) {
+      const profileRes = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}&select=first_item_pass_used`,
+        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+      );
+      const profileData = await profileRes.json();
+      if (profileData.length > 0 && profileData[0].first_item_pass_used === false) {
+        useFirstItemPass = true;
+        console.log(`[first-item-pass] User ${userId} — skipping credit deduction for price-check`);
+      }
+    }
+    // ── End first-item-free pass check ──────────────────────────────────
+
+    // Check credits (only if not on free pass)
+    if (!useFirstItemPass) {
+      const creditsRes = await fetch(
+        `${supabaseUrl}/rest/v1/usage_credits?user_id=eq.${userId}&select=price_checks_used,optimizations_used,vintography_used,credits_limit`,
+        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+      );
+      const creditsData = await creditsRes.json();
+      if (creditsData.length > 0) {
+        const c = creditsData[0];
+        if (c.credits_limit < 999999) {
+          const totalUsed = (c.price_checks_used || 0) + (c.optimizations_used || 0) + (c.vintography_used || 0);
+          if (totalUsed >= c.credits_limit) {
+            return new Response(
+              JSON.stringify({ error: "Monthly credit limit reached. Upgrade your plan for more." }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
         }
       }
     }
@@ -505,16 +524,18 @@ Return raw JSON only (no markdown):
       }),
     });
 
-    // Atomic increment — prevents race condition double-spend
-    await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
-      method: "POST",
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ p_user_id: userId, p_column: "price_checks_used", p_amount: 1 }),
-    });
+    // Atomic increment — skip if on first-item-free pass
+    if (!useFirstItemPass) {
+      await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
+        method: "POST",
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ p_user_id: userId, p_column: "price_checks_used", p_amount: 1 }),
+      });
+    }
 
     return new Response(JSON.stringify(report), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

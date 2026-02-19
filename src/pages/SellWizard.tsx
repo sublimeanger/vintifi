@@ -294,9 +294,13 @@ export default function SellWizard() {
   }, [user]);
 
   // ─── Reset wizard for "Sell another item" ───
-  const resetWizard = () => {
+  const resetWizard = async () => {
+    // Mark first-item-free pass as used whenever the wizard resets from Step 5
+    // (covers "Sell another item" click without entering Vinted URL)
+    if (currentStep === 5 && profile?.first_item_pass_used === false && user) {
+      await supabase.from("profiles").update({ first_item_pass_used: true }).eq("user_id", user.id);
+    }
     setCurrentStep(1);
-    // FIX 10: direction should be 1 (forward) when resetting to step 1
     setDirection(1);
     setStepStatus({ 1: "pending", 2: "pending", 3: "pending", 4: "pending", 5: "pending" });
     setEntryMethod(null);
@@ -653,6 +657,7 @@ export default function SellWizard() {
           title: createdItem.title || form.title,
           size: createdItem.size || form.size,
           currentPrice: createdItem.current_price,
+          sell_wizard: true,
         },
       });
       if (error) throw error;
@@ -702,6 +707,7 @@ export default function SellWizard() {
           colour: createdItem.colour || form.colour,
           material: createdItem.material,
           seller_notes: form.seller_notes.trim() || storedNotes,
+          sell_wizard: true,
         },
       });
       if (error) throw error;
@@ -783,7 +789,7 @@ export default function SellWizard() {
     setQuickBgProcessing(true);
     try {
       const { data, error } = await supabase.functions.invoke("vintography", {
-        body: { operation: "clean_bg", imageUrl: createdItem.image_url, itemId: createdItem.id },
+        body: { operation: "remove_bg", image_url: createdItem.image_url, itemId: createdItem.id, sell_wizard: true },
       });
       if (error) throw error;
       const processedUrl = data?.processed_url || data?.url;
@@ -802,11 +808,15 @@ export default function SellWizard() {
     }
   };
 
-  // ─── Step 5: Mark as listed ───
+  // ─── Step 5: Mark as listed — also marks first_item_pass as used ───
   const markAsListed = async () => {
     if (!vintedUrlInput.trim() || !createdItem) return;
     setMarkingListed(true);
     await supabase.from("listings").update({ vinted_url: vintedUrlInput.trim() }).eq("id", createdItem.id);
+    // Mark first-item-free pass as used on wizard completion
+    if (profile?.first_item_pass_used === false) {
+      await supabase.from("profiles").update({ first_item_pass_used: true }).eq("user_id", user!.id);
+    }
     setMarkingListed(false);
     toast.success("🎉 Item marked as listed on Vinted!");
     setTimeout(() => navigate(`/items/${createdItem.id}`), 1000);

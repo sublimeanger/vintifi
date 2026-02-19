@@ -418,7 +418,7 @@ serve(async (req) => {
       });
     }
 
-    const { image_url, operation, parameters, garment_context } = await req.json();
+    const { image_url, operation, parameters, garment_context, sell_wizard } = await req.json();
 
     if (!image_url || !operation) {
       return new Response(JSON.stringify({ error: "image_url and operation are required" }), {
@@ -463,7 +463,23 @@ serve(async (req) => {
     // AI Model shots cost 4 credits (uses expensive Pro model); everything else costs 1
     const creditsToDeduct = operation === "model_shot" ? 4 : 1;
 
-    if (credits && limit < 999) {
+    // ── First-item-free pass check ──────────────────────────────────────
+    // AI Model shots are never free — too expensive even on the free pass
+    let useFirstItemPass = false;
+    if (sell_wizard && operation !== "model_shot") {
+      const { data: passProfile } = await adminClient
+        .from("profiles")
+        .select("first_item_pass_used")
+        .eq("user_id", user.id)
+        .single();
+      if (passProfile?.first_item_pass_used === false) {
+        useFirstItemPass = true;
+        console.log(`[first-item-pass] User ${user.id} — skipping credit deduction for vintography (${operation})`);
+      }
+    }
+    // ── End first-item-free pass check ──────────────────────────────────
+
+    if (!useFirstItemPass && credits && limit < 999) {
       const totalUsed = (credits.price_checks_used || 0) + (credits.optimizations_used || 0) + (credits.vintography_used || 0);
       if (totalUsed + creditsToDeduct > limit) {
         const msg = operation === "model_shot"
@@ -591,16 +607,18 @@ serve(async (req) => {
       .update({ status: "completed", processed_url: publicUrl.publicUrl })
       .eq("id", job.id);
 
-    // Atomic increment — prevents race condition double-spend (passes weighted amount for model_shot)
-    await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
-      method: "POST",
-      headers: {
-        apikey: supabaseServiceKey,
-        Authorization: `Bearer ${supabaseServiceKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ p_user_id: user.id, p_column: "vintography_used", p_amount: creditsToDeduct }),
-    });
+    // Atomic increment — skip if on first-item-free pass
+    if (!useFirstItemPass) {
+      await fetch(`${supabaseUrl}/rest/v1/rpc/increment_usage_credit`, {
+        method: "POST",
+        headers: {
+          apikey: supabaseServiceKey,
+          Authorization: `Bearer ${supabaseServiceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ p_user_id: user.id, p_column: "vintography_used", p_amount: creditsToDeduct }),
+      });
+    }
 
     return new Response(
       JSON.stringify({
