@@ -48,7 +48,6 @@ import {
   buildApiParams,
   defaultParams,
   PipelineStep,
-  canAddOperation,
 } from "@/components/vintography/vintographyReducer";
 
 export default function Vintography() {
@@ -533,6 +532,9 @@ export default function Vintography() {
     </>
   );
 
+  // ─── Derived helpers ───
+  const activePhotoUrl = state.originalPhotoUrl;
+
   return (
     <PageShell
       title="Photo Studio"
@@ -620,23 +622,172 @@ export default function Vintography() {
           ) : (
             /* ─── Editor: three-zone layout ─── */
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              {/* Desktop: two-column */}
-              <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-[420px_1fr] lg:gap-6 lg:items-start">
+              {/* ════ MOBILE layout (< lg) ════ */}
+              <div className="lg:hidden space-y-3">
+                {/* Zone 1: Canvas — always visible at top */}
+                {hasFilmstrip && (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+                    <Card className="p-3">
+                      <PhotoFilmstrip
+                        photos={state.itemPhotos}
+                        activeUrl={state.originalPhotoUrl}
+                        editStates={state.photoEditStates}
+                        itemId={itemId}
+                        onSelect={handleFilmstripSelect}
+                        onAddPhoto={() => addPhotoInputRef.current?.click()}
+                      />
+                      {editedCount > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t border-border">
+                          {savedCount > 0
+                            ? `${savedCount} of ${editedCount} edits saved to listing`
+                            : `${editedCount} photo${editedCount > 1 ? "s" : ""} edited — tap Save to apply`}
+                        </p>
+                      )}
+                    </Card>
+                    <input
+                      ref={addPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleAddPhoto(e.target.files)}
+                    />
+                  </motion.div>
+                )}
 
-                {/* ── LEFT PANEL (desktop) ── */}
-                <div className="space-y-3 lg:space-y-4">
+                {!itemId && state.itemPhotos.length > 1 && (
+                  <Card className="p-3">
+                    <PhotoFilmstrip
+                      photos={state.itemPhotos}
+                      activeUrl={state.originalPhotoUrl}
+                      editStates={state.photoEditStates}
+                      itemId={null}
+                      onSelect={handleFilmstripSelect}
+                    />
+                  </Card>
+                )}
 
-                  {/* Quick Presets */}
-                  <QuickPresets
-                    onSelect={handlePresetSelect}
-                    disabled={state.isProcessing}
+                <div
+                  ref={resultRef}
+                  className={`rounded-xl transition-all duration-700 ${state.resultReady ? "ring-2 ring-success ring-offset-2 shadow-lg shadow-success/20" : ""}`}
+                >
+                  <ComparisonView
+                    originalUrl={state.originalPhotoUrl!}
+                    processedUrl={state.resultPhotoUrl}
+                    processing={state.isProcessing}
+                    processingStep={null}
+                    operationId={activeOp}
+                    resultLabel={OP_RESULT_LABEL[activeOp]}
+                    variations={[]}
+                    currentVariation={0}
+                    onVariationChange={() => {}}
                   />
+                </div>
 
-                  {/* Zone 2: Operation Bar */}
+                {/* Zone 2: Quick Presets + Operation Bar */}
+                <QuickPresets onSelect={handlePresetSelect} disabled={state.isProcessing} />
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Choose Effect</p>
+                  <OperationBar
+                    pipeline={state.pipeline}
+                    activePipelineIndex={state.activePipelineIndex}
+                    flatlayLocked={!flatlayGate.allowed}
+                    mannequinLocked={!mannequinGate.allowed}
+                    aiModelLocked={!aiModelGate.allowed}
+                    onSelect={handleOpSelect}
+                    onLockedTap={(gate) => setActiveLockedGate(gate)}
+                  />
+                </div>
+
+                {/* Processing strip on mobile */}
+                {state.isProcessing && (
+                  <ProcessingOverlay
+                    isProcessing={state.isProcessing}
+                    pipeline={state.pipeline}
+                    processingStepIndex={state.processingStepIndex}
+                    isMobile={true}
+                  />
+                )}
+
+                {/* Zone 3: Always-visible Generate + "Configure" toggle + bottom-sheet drawer */}
+                <GenerateButton />
+
+                {!state.isProcessing && (
+                  <Button
+                    onClick={() => dispatch({ type: "SET_DRAWER_OPEN", open: !state.drawerOpen })}
+                    variant="outline"
+                    className="w-full h-9 text-sm"
+                  >
+                    {state.drawerOpen ? "Close Options" : `Configure ${OP_LABEL[activeOp]}`}
+                  </Button>
+                )}
+
+                {/* Mobile Config Bottom Sheet */}
+                <ConfigContainer
+                  open={state.drawerOpen}
+                  onClose={() => dispatch({ type: "SET_DRAWER_OPEN", open: false })}
+                  drawerTitle={OP_LABEL[activeOp]}
+                  drawerHeightVh={activeOp === "ai_model" ? 72 : activeOp === "lifestyle_bg" ? 68 : 50}
+                  footer={<GenerateButton />}
+                >
+                  {configContent}
+                </ConfigContainer>
+
+                {/* Result actions */}
+                <ResultActions
+                  processedUrl={state.resultPhotoUrl}
+                  itemId={itemId}
+                  activePhotoSaved={activePhotoSaved}
+                  savingToItem={state.savingToItem}
+                  processing={state.isProcessing}
+                  itemPhotos={state.itemPhotos}
+                  activePhotoUrl={activePhotoUrl}
+                  creditsLow={creditsLow}
+                  onReprocess={handleProcess}
+                  onDownload={handleDownload}
+                  onReset={() => dispatch({ type: "RESET_ALL" })}
+                  onSaveReplace={() => handleSaveToItem("replace")}
+                  onSaveAdd={() => handleSaveToItem("add")}
+                  onNextPhoto={handleNextPhoto}
+                  onTopUp={() => navigate("/settings?tab=billing")}
+                />
+
+                {!state.resultPhotoUrl && (
+                  <Button variant="ghost" onClick={() => dispatch({ type: "RESET_ALL" })} className="w-full h-10 text-sm active:scale-95">
+                    <RotateCcw className="w-4 h-4 mr-1.5" /> New Photo
+                  </Button>
+                )}
+
+                {state.resultPhotoUrl && itemId && (
+                  <Card className="p-3 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Next Steps</p>
+                    {hasFilmstrip && editedCount > 0 ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">{state.itemPhotos.length} photos · {editedCount} enhanced</p>
+                          <p className="text-xs text-muted-foreground">
+                            {savedCount < editedCount ? `Save ${editedCount - savedCount} remaining edit${editedCount - savedCount > 1 ? "s" : ""} above` : "All edits saved"}
+                          </p>
+                        </div>
+                        <Button size="sm" onClick={() => navigate(`/items/${itemId}?tab=photos`)}>View Photos</Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" className="w-full" onClick={() => navigate(`/items/${itemId}`)}>
+                        View Listing <Package className="w-3.5 h-3.5 ml-1.5" />
+                      </Button>
+                    )}
+                  </Card>
+                )}
+              </div>
+
+              {/* ════ DESKTOP layout (≥ lg): two-column ════ */}
+              <div className="hidden lg:grid lg:grid-cols-[420px_1fr] lg:gap-6 lg:items-start">
+
+                {/* ── LEFT PANEL ── */}
+                <div className="space-y-4">
+                  <QuickPresets onSelect={handlePresetSelect} disabled={state.isProcessing} />
+
                   <div>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      Choose Effect
-                    </p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Choose Effect</p>
                     <OperationBar
                       pipeline={state.pipeline}
                       activePipelineIndex={state.activePipelineIndex}
@@ -648,33 +799,28 @@ export default function Vintography() {
                     />
                   </div>
 
-                  {/* Zone 3: Config (desktop only — mobile uses ConfigContainer drawer) */}
-                  <div className="hidden lg:block">
-                    <ConfigContainer
-                      open={state.drawerOpen}
-                      onClose={() => dispatch({ type: "SET_DRAWER_OPEN", open: false })}
-                      drawerTitle={OP_LABEL[activeOp]}
-                      drawerHeightVh={activeOp === "ai_model" ? 70 : activeOp === "lifestyle_bg" ? 65 : 45}
-                      footer={<GenerateButton />}
-                    >
-                      {state.isProcessing ? (
-                        <ProcessingOverlay
-                          isProcessing={state.isProcessing}
-                          pipeline={state.pipeline}
-                          processingStepIndex={state.processingStepIndex}
-                          isMobile={false}
-                        />
-                      ) : (
-                        configContent
-                      )}
-                    </ConfigContainer>
+                  {/* Config zone — inline on desktop (no drawer) */}
+                  <div className="space-y-3">
+                    {state.isProcessing ? (
+                      <ProcessingOverlay
+                        isProcessing={state.isProcessing}
+                        pipeline={state.pipeline}
+                        processingStepIndex={state.processingStepIndex}
+                        isMobile={false}
+                      />
+                    ) : (
+                      configContent
+                    )}
+                  </div>
+
+                  {/* Sticky Generate button */}
+                  <div className="sticky bottom-4 pt-2">
+                    <GenerateButton />
                   </div>
                 </div>
 
-                {/* ── RIGHT PANEL: Canvas + actions ── */}
+                {/* ── RIGHT PANEL ── */}
                 <div className="lg:sticky lg:top-6 space-y-3">
-
-                  {/* Filmstrip */}
                   {hasFilmstrip && (
                     <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
                       <Card className="p-3">
@@ -704,7 +850,6 @@ export default function Vintography() {
                     </motion.div>
                   )}
 
-                  {/* Non-item multi-photo filmstrip */}
                   {!itemId && state.itemPhotos.length > 1 && (
                     <Card className="p-3">
                       <PhotoFilmstrip
@@ -717,7 +862,6 @@ export default function Vintography() {
                     </Card>
                   )}
 
-                  {/* Canvas — ComparisonView with glow on result ready */}
                   <div
                     ref={resultRef}
                     className={`rounded-xl transition-all duration-700 ${state.resultReady ? "ring-2 ring-success ring-offset-2 shadow-lg shadow-success/20" : ""}`}
@@ -735,67 +879,6 @@ export default function Vintography() {
                     />
                   </div>
 
-                  {/* Mobile: Operation Bar + Config (bottom sheet) */}
-                  <div className="lg:hidden space-y-3">
-                    {/* Quick Presets on mobile */}
-                    <QuickPresets
-                      onSelect={handlePresetSelect}
-                      disabled={state.isProcessing}
-                    />
-
-                    {/* Operation pills */}
-                    <div>
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                        Choose Effect
-                      </p>
-                      <OperationBar
-                        pipeline={state.pipeline}
-                        activePipelineIndex={state.activePipelineIndex}
-                        flatlayLocked={!flatlayGate.allowed}
-                        mannequinLocked={!mannequinGate.allowed}
-                        aiModelLocked={!aiModelGate.allowed}
-                        onSelect={handleOpSelect}
-                        onLockedTap={(gate) => setActiveLockedGate(gate)}
-                      />
-                    </div>
-
-                    {/* Processing overlay on mobile */}
-                    {state.isProcessing && (
-                      <ProcessingOverlay
-                        isProcessing={state.isProcessing}
-                        pipeline={state.pipeline}
-                        processingStepIndex={state.processingStepIndex}
-                        isMobile={true}
-                      />
-                    )}
-
-                    {/* Generate button — always visible on mobile */}
-                    {!state.isProcessing && (
-                      <Button
-                        onClick={() => dispatch({ type: "SET_DRAWER_OPEN", open: !state.drawerOpen })}
-                        variant="outline"
-                        className="w-full h-10 text-sm"
-                      >
-                        Configure {OP_LABEL[activeOp]}
-                      </Button>
-                    )}
-
-                    {/* Always-visible Generate button on mobile */}
-                    <GenerateButton />
-
-                    {/* Mobile Config Drawer — inside lg:hidden so it only mounts on mobile */}
-                    <ConfigContainer
-                      open={state.drawerOpen}
-                      onClose={() => dispatch({ type: "SET_DRAWER_OPEN", open: false })}
-                      drawerTitle={OP_LABEL[activeOp]}
-                      drawerHeightVh={activeOp === "ai_model" ? 72 : activeOp === "lifestyle_bg" ? 68 : 50}
-                      footer={<GenerateButton />}
-                    >
-                      {configContent}
-                    </ConfigContainer>
-                  </div>
-
-                  {/* Result actions */}
                   <ResultActions
                     processedUrl={state.resultPhotoUrl}
                     itemId={itemId}
@@ -803,7 +886,7 @@ export default function Vintography() {
                     savingToItem={state.savingToItem}
                     processing={state.isProcessing}
                     itemPhotos={state.itemPhotos}
-                    activePhotoUrl={state.originalPhotoUrl}
+                    activePhotoUrl={activePhotoUrl}
                     creditsLow={creditsLow}
                     onReprocess={handleProcess}
                     onDownload={handleDownload}
@@ -814,18 +897,12 @@ export default function Vintography() {
                     onTopUp={() => navigate("/settings?tab=billing")}
                   />
 
-                  {/* New Photo button when no result */}
                   {!state.resultPhotoUrl && (
-                    <Button
-                      variant="ghost"
-                      onClick={() => dispatch({ type: "RESET_ALL" })}
-                      className="w-full h-10 text-sm active:scale-95"
-                    >
+                    <Button variant="ghost" onClick={() => dispatch({ type: "RESET_ALL" })} className="w-full h-10 text-sm active:scale-95">
                       <RotateCcw className="w-4 h-4 mr-1.5" /> New Photo
                     </Button>
                   )}
 
-                  {/* Next steps card */}
                   {state.resultPhotoUrl && itemId && (
                     <Card className="p-3 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Next Steps</p>
@@ -834,14 +911,10 @@ export default function Vintography() {
                           <div>
                             <p className="text-sm font-semibold">{state.itemPhotos.length} photos · {editedCount} enhanced</p>
                             <p className="text-xs text-muted-foreground">
-                              {savedCount < editedCount
-                                ? `Save your ${editedCount - savedCount} remaining edit${editedCount - savedCount > 1 ? "s" : ""} above`
-                                : "All edits saved — your listing is ready"}
+                              {savedCount < editedCount ? `Save ${editedCount - savedCount} remaining edit${editedCount - savedCount > 1 ? "s" : ""} above` : "All edits saved"}
                             </p>
                           </div>
-                          <Button size="sm" onClick={() => navigate(`/items/${itemId}?tab=photos`)}>
-                            View Photos
-                          </Button>
+                          <Button size="sm" onClick={() => navigate(`/items/${itemId}?tab=photos`)}>View Photos</Button>
                         </div>
                       ) : (
                         <Button size="sm" className="w-full" onClick={() => navigate(`/items/${itemId}`)}>
