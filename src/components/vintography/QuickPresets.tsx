@@ -1,6 +1,7 @@
+import { useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Zap, ShoppingBag, Crown, Palmtree, Ghost, Layers } from "lucide-react";
+import { Zap, ShoppingBag, Crown, Palmtree, Ghost, Layers, ChevronLeft, ChevronRight } from "lucide-react";
 
 export type Preset = {
   id: string;
@@ -76,14 +77,36 @@ type Props = {
 };
 
 export function QuickPresets({ onSelect, disabled }: Props) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (dir: "left" | "right") => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: dir === "right" ? 160 : -160, behavior: "smooth" });
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-2">
         <Zap className="w-4 h-4 text-accent" />
         <p className="text-sm font-semibold">Quick Presets</p>
         <Badge variant="secondary" className="text-[9px]">Multi-step</Badge>
+        <div className="ml-auto flex gap-1">
+          <button
+            onClick={() => scroll("left")}
+            className="w-6 h-6 rounded-md border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
+          >
+            <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => scroll("right")}
+            className="w-6 h-6 rounded-md border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
+          >
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+        </div>
       </div>
-      <div className="w-full flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5">
+      <div ref={scrollRef} className="w-full flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5">
         {presets.map((p) => (
           <Card
             key={p.id}
