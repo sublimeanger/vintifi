@@ -790,12 +790,10 @@ export default function Vintography() {
               <div className="hidden lg:grid lg:grid-cols-[420px_1fr] lg:gap-6 lg:items-start">
 
                 {/* ── LEFT PANEL ── */}
-                <div className="min-w-0 space-y-4">
-                  <div className="overflow-x-hidden">
-                    <QuickPresets onSelect={handlePresetSelect} disabled={state.isProcessing} />
-                  </div>
+                <div className="min-w-0 space-y-4 overflow-hidden">
+                  <QuickPresets onSelect={handlePresetSelect} disabled={state.isProcessing} />
 
-                  <div className="overflow-x-hidden">
+                  <div>
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Choose Effect</p>
                     <p className="text-[10px] text-muted-foreground mb-2">Tap an effect to configure it. Chain up to 4 effects.</p>
                     <OperationBar
