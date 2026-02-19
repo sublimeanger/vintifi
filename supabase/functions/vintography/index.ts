@@ -378,7 +378,7 @@ const MODEL_MAP: Record<string, string> = {
 // Operations allowed per tier
 const TIER_OPERATIONS: Record<string, string[]> = {
   free: ["remove_bg", "enhance", "decrease"],
-  pro: ["remove_bg", "enhance", "decrease", "smart_bg", "flatlay_style", "model_shot", "mannequin_shot", "selfie_shot"],
+  pro: ["remove_bg", "enhance", "decrease", "smart_bg", "flatlay_style", "mannequin_shot", "selfie_shot"],
   business: ["remove_bg", "enhance", "decrease", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
   scale: ["remove_bg", "enhance", "decrease", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
 };
