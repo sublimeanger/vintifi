@@ -371,15 +371,15 @@ ${QUALITY_MANDATE}`,
 
 // Models per operation
 const MODEL_MAP: Record<string, string> = {
-  remove_bg: "google/gemini-2.5-flash-image",
-  smart_bg: "google/gemini-2.5-flash-image",         // flash: background compositing, same quality 3x faster
-  model_shot: "google/gemini-3-pro-image-preview",   // pro: photorealistic human rendering — justified at 4 credits
-  mannequin_shot: "google/gemini-2.5-flash-image",   // flash: no human face/skin needed, same mannequin quality
-  ghost_mannequin: "google/gemini-2.5-flash-image",
-  flatlay_style: "google/gemini-2.5-flash-image",    // flash: compositional task, same quality 3x faster
-  selfie_shot: "google/gemini-2.5-flash-image",      // flash: switched from pro — ~93% cost saving
-  enhance: "google/gemini-2.5-flash-image",
-  decrease: "google/gemini-2.5-flash-image",         // flash: fabric smoothing, no complex scene-building needed
+  remove_bg: "gemini-2.0-flash-exp",
+  smart_bg: "gemini-2.0-flash-exp",
+  model_shot: "gemini-2.0-flash-exp",
+  mannequin_shot: "gemini-2.0-flash-exp",
+  ghost_mannequin: "gemini-2.0-flash-exp",
+  flatlay_style: "gemini-2.0-flash-exp",
+  selfie_shot: "gemini-2.0-flash-exp",
+  enhance: "gemini-2.0-flash-exp",
+  decrease: "gemini-2.0-flash-exp",
 };
 
 // Operations allowed per tier
@@ -406,9 +406,9 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const googleApiKey = Deno.env.get("GOOGLE_AI_API_KEY");
 
-    if (!lovableApiKey) {
+    if (!googleApiKey) {
       return new Response(JSON.stringify({ error: "AI service not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -532,30 +532,50 @@ serve(async (req) => {
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // ── Fetch source image and convert to base64 ──────────────────────
+    const imgResponse = await fetch(image_url);
+    if (!imgResponse.ok) {
+      await adminClient.from("vintography_jobs").update({ status: "failed", error_message: "Failed to fetch source image" }).eq("id", job.id);
+      return new Response(JSON.stringify({ error: "Failed to fetch source image" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const imgArrayBuffer = await imgResponse.arrayBuffer();
+    const imgBytes = new Uint8Array(imgArrayBuffer);
+    // Chunked base64 encoding to avoid stack overflow on large images
+    let imgBase64 = "";
+    const CHUNK = 32768;
+    for (let i = 0; i < imgBytes.length; i += CHUNK) {
+      imgBase64 += String.fromCharCode(...imgBytes.subarray(i, i + CHUNK));
+    }
+    imgBase64 = btoa(imgBase64);
+    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
+    const mimeType = contentType.split(";")[0].trim();
+
+    console.log(`Image fetched: ${imgBytes.length} bytes, mime: ${mimeType}, base64 length: ${imgBase64.length}`);
+
+    // ── Call Google Gemini API directly ────────────────────────────────
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const aiResponse = await fetch(geminiUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
         "Content-Type": "application/json",
+        "x-goog-api-key": googleApiKey,
       },
       body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: image_url } },
-            ],
-          },
-        ],
-        modalities: ["image", "text"],
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType, data: imgBase64 } },
+          ],
+        }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"],
+        },
       }),
     });
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errText);
+      console.error("Gemini API error:", aiResponse.status, errText);
 
       await adminClient
         .from("vintography_jobs")
@@ -566,8 +586,6 @@ serve(async (req) => {
       const msg =
         status === 429
           ? "Rate limit exceeded, please try again shortly."
-          : status === 402
-          ? "AI credits exhausted. Please add funds."
           : "AI processing failed. Please try again.";
 
       return new Response(JSON.stringify({ error: msg }), {
@@ -577,9 +595,35 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    const imageResult = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
-    if (!imageResult) {
+    // Check for safety filter blocks
+    const finishReason = aiData.candidates?.[0]?.finishReason;
+    if (finishReason === "SAFETY") {
+      console.error("Gemini safety filter blocked the request:", JSON.stringify(aiData.candidates?.[0]?.safetyRatings));
+      await adminClient.from("vintography_jobs").update({ status: "failed", error_message: "Content was blocked by safety filters" }).eq("id", job.id);
+      return new Response(JSON.stringify({ error: "Image was blocked by safety filters. Try a different photo." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Extract image from Google's response format
+    const parts = aiData.candidates?.[0]?.content?.parts || [];
+    let base64Data: string | null = null;
+    let resultMimeType = "image/png";
+    for (const part of parts) {
+      if (part.inlineData?.data) {
+        base64Data = part.inlineData.data;
+        resultMimeType = part.inlineData.mimeType || "image/png";
+        break;
+      }
+    }
+
+    // Log any text parts for debugging
+    const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
+    if (textParts.length > 0) {
+      console.log("Gemini text response:", textParts.join(" "));
+    }
+
+    if (!base64Data) {
+      console.error("No image in Gemini response. Parts:", JSON.stringify(parts.map((p: any) => Object.keys(p))));
       await adminClient
         .from("vintography_jobs")
         .update({ status: "failed", error_message: "No image generated" })
@@ -591,13 +635,14 @@ serve(async (req) => {
       });
     }
 
-    const base64Data = imageResult.replace(/^data:image\/\w+;base64,/, "");
+    // Google returns raw base64 directly — no data URL prefix to strip
     const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-    const filePath = `${user.id}/${job.id}.png`;
+    const fileExt = resultMimeType.includes("png") ? "png" : "jpg";
+    const filePath = `${user.id}/${job.id}.${fileExt}`;
 
     const { error: uploadError } = await adminClient.storage
       .from("vintography")
-      .upload(filePath, binaryData, { contentType: "image/png", upsert: true });
+      .upload(filePath, binaryData, { contentType: resultMimeType, upsert: true });
 
     if (uploadError) {
       await adminClient
