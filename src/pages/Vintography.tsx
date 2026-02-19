@@ -790,7 +790,7 @@ export default function Vintography() {
               <div className="hidden lg:grid lg:grid-cols-[420px_1fr] lg:gap-6 lg:items-start">
 
                 {/* ── LEFT PANEL ── */}
-                <div className="min-w-0 space-y-4 overflow-hidden">
+                <div className="min-w-0 space-y-4" style={{ maxWidth: '420px' }}>
                   <QuickPresets onSelect={handlePresetSelect} disabled={state.isProcessing} />
 
                   <div>
