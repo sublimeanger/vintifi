@@ -1,5 +1,11 @@
-import { useRef, ReactNode } from "react";
-import { motion, AnimatePresence, useDragControls } from "framer-motion";
+import { ReactNode } from "react";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerFooter,
+} from "@/components/ui/drawer";
 
 type Props = {
   open: boolean;
@@ -7,69 +13,32 @@ type Props = {
   title: string;
   children: ReactNode;
   footer: ReactNode;
-  defaultHeightVh?: number; // e.g. 50
+  defaultHeightVh?: number;
 };
 
 export function ConfigDrawer({ open, onClose, title, children, footer, defaultHeightVh = 45 }: Props) {
-  const dragControls = useDragControls();
-  const constraintsRef = useRef<HTMLDivElement>(null);
-
   return (
-    <AnimatePresence>
+    <Drawer open={open} onOpenChange={(o) => { if (!o) onClose(); }} modal={true}>
       {open && (
-        <>
-          {/* Backdrop — semi-transparent, tap to dismiss */}
-          <motion.div
-            key="backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-[2px]"
-          />
+        <DrawerContent
+          className="focus:outline-none"
+          style={{ maxHeight: `${Math.min(defaultHeightVh + 10, 85)}vh` }}
+        >
+          <DrawerHeader className="pb-2">
+            <DrawerTitle className="text-sm">{title}</DrawerTitle>
+          </DrawerHeader>
 
-          {/* Drawer */}
-          <motion.div
-            key="drawer"
-            ref={constraintsRef}
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 400, damping: 40 }}
-            drag="y"
-            dragControls={dragControls}
-            dragListener={false}
-            dragConstraints={{ top: 0 }}
-            dragElastic={{ top: 0, bottom: 0.4 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 80) onClose();
-            }}
-            className="fixed left-0 right-0 bottom-0 z-50 flex flex-col rounded-t-2xl bg-card border-t border-border shadow-2xl"
-            style={{ maxHeight: `${defaultHeightVh}vh` }}
-          >
-            {/* Drag handle */}
-            <div
-              onPointerDown={(e) => dragControls.start(e)}
-              className="flex-shrink-0 flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing"
-            >
-              <div className="w-10 h-1 rounded-full bg-border" />
-              {title && (
-                <p className="text-xs font-semibold text-muted-foreground mt-2">{title}</p>
-              )}
-            </div>
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-3">
+            {children}
+          </div>
 
-            {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-3">
-              {children}
-            </div>
-
-            {/* Pinned footer — always visible */}
-            <div className="flex-shrink-0 px-4 py-3 border-t border-border bg-card">
-              {footer}
-            </div>
-          </motion.div>
-        </>
+          {/* Pinned footer */}
+          <DrawerFooter className="pt-2 pb-4">
+            {footer}
+          </DrawerFooter>
+        </DrawerContent>
       )}
-    </AnimatePresence>
+    </Drawer>
   );
 }
