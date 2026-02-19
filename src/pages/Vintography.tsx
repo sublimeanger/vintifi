@@ -499,6 +499,20 @@ export default function Vintography() {
     );
   };
 
+  // ─── Pipeline strip (rendered inline, not in drawer) ───
+  const PipelineStripInline = () => (
+    <PipelineStrip
+      pipeline={state.pipeline}
+      activePipelineIndex={state.activePipelineIndex}
+      onSelectStep={(i) => dispatch({ type: "SET_ACTIVE_PIPELINE_INDEX", index: i })}
+      onRemoveStep={(i) => dispatch({ type: "REMOVE_PIPELINE_STEP", index: i })}
+      onAddStep={(op) => dispatch({ type: "ADD_PIPELINE_STEP", step: { operation: op, params: defaultParams(op) } })}
+      flatlayLocked={!flatlayGate.allowed}
+      mannequinLocked={!mannequinGate.allowed}
+      aiModelLocked={!aiModelGate.allowed}
+    />
+  );
+
   // ─── Config drawer content for mobile / desktop wrapper ───
   const configContent = (
     <>
@@ -518,17 +532,6 @@ export default function Vintography() {
           />
         </div>
       )}
-      {/* Pipeline strip */}
-      <PipelineStrip
-        pipeline={state.pipeline}
-        activePipelineIndex={state.activePipelineIndex}
-        onSelectStep={(i) => dispatch({ type: "SET_ACTIVE_PIPELINE_INDEX", index: i })}
-        onRemoveStep={(i) => dispatch({ type: "REMOVE_PIPELINE_STEP", index: i })}
-        onAddStep={(op) => dispatch({ type: "ADD_PIPELINE_STEP", step: { operation: op, params: defaultParams(op) } })}
-        flatlayLocked={!flatlayGate.allowed}
-        mannequinLocked={!mannequinGate.allowed}
-        aiModelLocked={!aiModelGate.allowed}
-      />
     </>
   );
 
@@ -696,6 +699,10 @@ export default function Vintography() {
                     onSelect={handleOpSelect}
                     onLockedTap={(gate) => setActiveLockedGate(gate)}
                   />
+                  {/* Pipeline strip — always visible below effect bar */}
+                  <div className="pt-1">
+                    <PipelineStripInline />
+                  </div>
                 </div>
 
                 {/* Processing strip on mobile */}
@@ -783,11 +790,14 @@ export default function Vintography() {
               <div className="hidden lg:grid lg:grid-cols-[420px_1fr] lg:gap-6 lg:items-start">
 
                 {/* ── LEFT PANEL ── */}
-                <div className="space-y-4">
-                  <QuickPresets onSelect={handlePresetSelect} disabled={state.isProcessing} />
+                <div className="min-w-0 space-y-4">
+                  <div className="overflow-x-hidden">
+                    <QuickPresets onSelect={handlePresetSelect} disabled={state.isProcessing} />
+                  </div>
 
-                  <div>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Choose Effect</p>
+                  <div className="overflow-x-hidden">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Choose Effect</p>
+                    <p className="text-[10px] text-muted-foreground mb-2">Tap an effect to configure it. Chain up to 4 effects.</p>
                     <OperationBar
                       pipeline={state.pipeline}
                       activePipelineIndex={state.activePipelineIndex}
@@ -798,6 +808,9 @@ export default function Vintography() {
                       onLockedTap={(gate) => setActiveLockedGate(gate)}
                     />
                   </div>
+
+                  {/* Pipeline strip — always visible between bar and config */}
+                  <PipelineStripInline />
 
                   {/* Config zone — inline on desktop (no drawer) */}
                   <div className="space-y-3">

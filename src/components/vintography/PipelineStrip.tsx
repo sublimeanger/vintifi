@@ -53,7 +53,7 @@ export function PipelineStrip({
       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
         Effect Pipeline · {pipeline.length} step{pipeline.length !== 1 ? "s" : ""}
       </p>
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide -mx-0.5 px-0.5">
+      <div className="flex items-center gap-1.5 flex-wrap pb-0.5">
         {pipeline.map((step, i) => {
           const isActive = i === activePipelineIndex;
           return (
@@ -92,7 +92,7 @@ export function PipelineStrip({
 
         {/* + Add Effect button with controlled dropdown */}
         {available.length > 0 && (
-          <div className="relative shrink-0" ref={dropdownRef}>
+          <div className="relative" ref={dropdownRef}>
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => setDropdownOpen((v) => !v)}
@@ -105,11 +105,11 @@ export function PipelineStrip({
             <AnimatePresence>
               {dropdownOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                  initial={{ opacity: 0, y: 4, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.97 }}
                   transition={{ duration: 0.12 }}
-                  className="absolute left-0 top-full mt-1.5 z-50 min-w-[160px] rounded-xl border border-border bg-card shadow-xl p-1"
+                  className="absolute left-0 bottom-full mb-1.5 z-[100] min-w-[160px] rounded-xl border border-border bg-card shadow-xl p-1"
                 >
                   {available.map((op) => (
                     <button
