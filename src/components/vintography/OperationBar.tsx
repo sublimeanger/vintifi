@@ -133,18 +133,19 @@ export function OperationBar({
               >
                 {OP_LABEL[op.id]}
               </span>
-              {op.tierLabel && (
+              {op.tierLabel ? (
                 <span className="text-[8px] leading-none font-semibold text-primary/80 bg-primary/10 rounded px-1 py-0.5">
                   {op.tierLabel}
                 </span>
+              ) : (
+                <span
+                  className={`text-[9px] leading-none ${
+                    isActive ? "text-primary/70" : "text-muted-foreground"
+                  }`}
+                >
+                  {op.creditCost === 4 ? "4 cr" : "1 cr"}
+                </span>
               )}
-              <span
-                className={`text-[9px] leading-none ${
-                  isActive ? "text-primary/70" : "text-muted-foreground"
-                }`}
-              >
-                {op.creditCost === 4 ? "4 cr" : "1 cr"}
-              </span>
             </motion.button>
           );
         })}

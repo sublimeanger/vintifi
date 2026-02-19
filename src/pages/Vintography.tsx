@@ -52,8 +52,6 @@ import {
   defaultParams,
   PipelineStep,
 } from "@/components/vintography/vintographyReducer";
-import { useVintographyDraftSave, readDraft, clearDraft } from "@/hooks/useVintographyDraft";
-import { ensureDisplayableImage, ensureDisplayableImages } from "@/lib/convertHeic";
 
 export default function Vintography() {
   const { user, profile, credits, refreshCredits } = useAuth();
@@ -79,34 +77,6 @@ export default function Vintography() {
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
-  const [draftRestored, setDraftRestored] = useState(false);
-
-  // ─── Autosave draft to localStorage ───
-  useVintographyDraftSave(
-    user?.id,
-    state.originalPhotoUrl,
-    state.resultPhotoUrl,
-    state.pipeline,
-    state.activePipelineIndex,
-    garmentContext,
-  );
-
-  // ─── Restore draft on mount (only if no itemId/image_url params) ───
-  useEffect(() => {
-    if (!user || draftRestored) return;
-    setDraftRestored(true);
-    // Don't restore if we're loading from URL params
-    if (searchParams.get("itemId") || searchParams.get("image_url")) return;
-    const draft = readDraft(user.id);
-    if (!draft) return;
-    dispatch({ type: "SET_ORIGINAL_PHOTO", url: draft.originalPhotoUrl });
-    dispatch({ type: "REPLACE_PIPELINE", pipeline: draft.pipeline });
-    if (draft.resultPhotoUrl) {
-      dispatch({ type: "SET_RESULT_PHOTO", url: draft.resultPhotoUrl });
-    }
-    if (draft.garmentContext) setGarmentContext(draft.garmentContext);
-    toast.success("Session restored", { duration: 3000 });
-  }, [user]);
 
   // ─── Fetch saved presets ───
   const fetchSavedPresets = useCallback(async () => {
@@ -240,12 +210,11 @@ export default function Vintography() {
   // ─── File upload ───
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!user) return null;
-    const converted = await ensureDisplayableImage(file);
-    if (!converted.type.startsWith("image/")) { toast.error("Please upload an image file"); return null; }
-    if (converted.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return null; }
-    const ext = converted.name.split(".").pop() || "jpg";
+    if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return null; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return null; }
+    const ext = file.name.split(".").pop() || "jpg";
     const path = `${user.id}/vintography-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
-    const { error } = await supabase.storage.from("listing-photos").upload(path, converted, { contentType: converted.type, upsert: true });
+    const { error } = await supabase.storage.from("listing-photos").upload(path, file, { contentType: file.type, upsert: true });
     if (error) { toast.error("Failed to upload image"); return null; }
     const { data: pub } = supabase.storage.from("listing-photos").getPublicUrl(path);
     return pub.publicUrl;
@@ -260,7 +229,6 @@ export default function Vintography() {
         dispatch({ type: "SET_ORIGINAL_PHOTO", url });
         dispatch({ type: "SET_ITEM_PHOTOS", urls: [] });
         dispatch({ type: "RESET_ALL" });
-        if (user) clearDraft(user.id);
         dispatch({ type: "SET_ORIGINAL_PHOTO", url });
       }
     } else {
@@ -338,7 +306,6 @@ export default function Vintography() {
           duration: 5000,
         });
       }
-      if (user) clearDraft(user.id);
       await supabase.from("item_activity").insert({
         user_id: user!.id,
         listing_id: itemId,
@@ -451,7 +418,6 @@ export default function Vintography() {
     if (!state.resultPhotoUrl) return;
     const resultUrl = state.resultPhotoUrl;
     dispatch({ type: "RESET_ALL" });
-    if (user) clearDraft(user.id);
     dispatch({ type: "SET_ORIGINAL_PHOTO", url: resultUrl });
     window.scrollTo({ top: 0, behavior: "smooth" });
     toast.success("Result set as starting point — choose your next effect", { duration: 3000 });
@@ -461,21 +427,14 @@ export default function Vintography() {
   const handleUseAsInput = (job: VintographyJob) => {
     const url = job.processed_url || job.original_url;
     dispatch({ type: "RESET_ALL" });
-    if (user) clearDraft(user.id);
     dispatch({ type: "SET_ORIGINAL_PHOTO", url });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDeleteJob = async (jobId: string) => {
-    if (!user) return;
-    // Optimistically remove from UI
+    const { error } = await supabase.from("vintography_jobs").delete().eq("id", jobId);
+    if (error) { toast.error("Failed to delete"); return; }
     setGallery((prev) => prev.filter((j) => j.id !== jobId));
-    const { error } = await supabase.from("vintography_jobs").delete().eq("id", jobId).eq("user_id", user.id);
-    if (error) {
-      toast.error("Failed to delete");
-      fetchGallery(); // revert on failure
-      return;
-    }
     toast.success("Deleted");
   };
 
@@ -748,7 +707,7 @@ export default function Vintography() {
                     <input
                       ref={addPhotoInputRef}
                       type="file"
-                      accept="image/*,.heic,.heif"
+                      accept="image/*"
                       className="hidden"
                       onChange={(e) => handleAddPhoto(e.target.files)}
                     />
@@ -861,7 +820,7 @@ export default function Vintography() {
                   creditsLow={creditsLow}
                   onReprocess={handleProcess}
                   onDownload={handleDownload}
-                   onReset={() => { dispatch({ type: "RESET_ALL" }); if (user) clearDraft(user.id); }}
+                  onReset={() => dispatch({ type: "RESET_ALL" })}
                   onSaveReplace={() => handleSaveToItem("replace")}
                   onSaveAdd={() => handleSaveToItem("add")}
                   onUseAsStartingPoint={handleUseResultAsStart}
@@ -870,7 +829,7 @@ export default function Vintography() {
                 />
 
                 {!state.resultPhotoUrl && (
-                   <Button variant="ghost" onClick={() => { dispatch({ type: "RESET_ALL" }); if (user) clearDraft(user.id); }} className="w-full h-10 text-sm active:scale-95">
+                  <Button variant="ghost" onClick={() => dispatch({ type: "RESET_ALL" })} className="w-full h-10 text-sm active:scale-95">
                     <RotateCcw className="w-4 h-4 mr-1.5" /> New Photo
                   </Button>
                 )}
@@ -985,7 +944,7 @@ export default function Vintography() {
                       <input
                         ref={addPhotoInputRef}
                         type="file"
-                        accept="image/*,.heic,.heif"
+                        accept="image/*"
                         className="hidden"
                         onChange={(e) => handleAddPhoto(e.target.files)}
                       />
@@ -1032,7 +991,7 @@ export default function Vintography() {
                     creditsLow={creditsLow}
                     onReprocess={handleProcess}
                     onDownload={handleDownload}
-                    onReset={() => { dispatch({ type: "RESET_ALL" }); if (user) clearDraft(user.id); }}
+                    onReset={() => dispatch({ type: "RESET_ALL" })}
                   onSaveReplace={() => handleSaveToItem("replace")}
                   onSaveAdd={() => handleSaveToItem("add")}
                   onUseAsStartingPoint={handleUseResultAsStart}
@@ -1041,7 +1000,7 @@ export default function Vintography() {
                 />
 
                   {!state.resultPhotoUrl && (
-                    <Button variant="ghost" onClick={() => { dispatch({ type: "RESET_ALL" }); if (user) clearDraft(user.id); }} className="w-full h-10 text-sm active:scale-95">
+                    <Button variant="ghost" onClick={() => dispatch({ type: "RESET_ALL" })} className="w-full h-10 text-sm active:scale-95">
                       <RotateCcw className="w-4 h-4 mr-1.5" /> New Photo
                     </Button>
                   )}

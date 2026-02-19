@@ -255,14 +255,14 @@ ${QUALITY_MANDATE}`;
   },
 
   ghost_mannequin: () =>
-    `Remove the mannequin, hanger, or any support structure from this garment photo. Keep the garment in its natural 3D worn shape as if worn by an invisible person.
+    `Apply a professional ghost mannequin / invisible mannequin effect to this clothing photo. Remove any visible mannequin, hanger, or dress form so the garment appears to float naturally in a 3D shape as if worn by an invisible person.
 
-INTERIOR FILLS (mandatory):
-- Neckline opening: fill with a realistic view of the interior collar and inner fabric.
-- Sleeve openings: fill each cuff with interior sleeve fabric, not white void.
-- Hem opening: show a subtle glimpse of the garment's inner lining or fabric.
-
-BACKGROUND: Pure white (#FFFFFF) with a soft, diffused grounding shadow directly beneath the garment.
+CRITICAL DETAILS:
+- Maintain the garment's natural shape, volume, and 3D structure throughout
+- Fill in any gaps where the mannequin was visible (neckline, sleeve openings, waistband) with realistic fabric continuation showing the garment's interior or clean white background
+- Inner collar labels and interior fabric should be visible where naturally expected
+- Clean, pure white background (#FFFFFF) with a subtle grounding shadow beneath
+- The result should match the quality standard of ASOS or Net-a-Porter product imagery
 
 ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`,
@@ -369,23 +369,23 @@ ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`,
 };
 
-// Models per operation — model_shot uses gemini-3-pro-image-preview; everything else uses 2.5-flash-image
+// Models per operation
 const MODEL_MAP: Record<string, string> = {
   remove_bg: "google/gemini-2.5-flash-image",
-  smart_bg: "google/gemini-2.5-flash-image",
-  model_shot: "google/gemini-3-pro-image-preview",
-  mannequin_shot: "google/gemini-2.5-flash-image",
+  smart_bg: "google/gemini-2.5-flash-image",         // flash: background compositing, same quality 3x faster
+  model_shot: "google/gemini-3-pro-image-preview",   // pro: photorealistic human rendering — justified at 4 credits
+  mannequin_shot: "google/gemini-2.5-flash-image",   // flash: no human face/skin needed, same mannequin quality
   ghost_mannequin: "google/gemini-2.5-flash-image",
-  flatlay_style: "google/gemini-2.5-flash-image",
-  selfie_shot: "google/gemini-2.5-flash-image",
+  flatlay_style: "google/gemini-2.5-flash-image",    // flash: compositional task, same quality 3x faster
+  selfie_shot: "google/gemini-2.5-flash-image",      // flash: switched from pro — ~93% cost saving
   enhance: "google/gemini-2.5-flash-image",
-  decrease: "google/gemini-2.5-flash-image",
+  decrease: "google/gemini-2.5-flash-image",         // flash: fabric smoothing, no complex scene-building needed
 };
 
 // Operations allowed per tier
 const TIER_OPERATIONS: Record<string, string[]> = {
   free: ["remove_bg", "enhance", "decrease"],
-  pro: ["remove_bg", "enhance", "decrease", "smart_bg", "flatlay_style", "mannequin_shot", "ghost_mannequin", "selfie_shot"],
+  pro: ["remove_bg", "enhance", "decrease", "smart_bg", "flatlay_style", "mannequin_shot", "selfie_shot"],
   business: ["remove_bg", "enhance", "decrease", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
   scale: ["remove_bg", "enhance", "decrease", "smart_bg", "model_shot", "mannequin_shot", "ghost_mannequin", "flatlay_style", "selfie_shot"],
 };
@@ -425,12 +425,7 @@ serve(async (req) => {
       });
     }
 
-    let { image_url, operation, parameters, garment_context, sell_wizard } = await req.json();
-
-    // Auto-reroute ghost mannequin type to dedicated operation
-    if (operation === "mannequin_shot" && parameters?.mannequin_type === "ghost") {
-      operation = "ghost_mannequin";
-    }
+    const { image_url, operation, parameters, garment_context, sell_wizard } = await req.json();
 
     if (!image_url || !operation) {
       return new Response(JSON.stringify({ error: "image_url and operation are required" }), {
@@ -473,7 +468,7 @@ serve(async (req) => {
     const limit = credits?.credits_limit ?? 5;
 
     // AI Model shots cost 4 credits (uses expensive Pro model); everything else costs 1
-    const creditsToDeduct = operation === "model_shot" ? 4 : operation === "ghost_mannequin" ? 2 : 1;
+    const creditsToDeduct = operation === "model_shot" ? 4 : 1;
 
     // ── First-item-free pass check ──────────────────────────────────────
     // AI Model shots are never free — too expensive even on the free pass
@@ -531,125 +526,32 @@ serve(async (req) => {
     if (garment_context && !["model_shot"].includes(operation)) {
       prompt += buildGarmentContext(garment_context);
     }
-    // Keep no-text rule concise — long negative prompts confuse image generation models
-    prompt = `Generate an image following these instructions precisely. Do NOT add any text, labels, or watermarks.\n\n${prompt}\n\nGenerate the final image now.`;
+    // Sandwich the no-text rule: prepend AND append — models respond to both primacy and recency positions
+    const NO_TEXT_REMINDER = `\n\nFINAL REMINDER — ZERO TEXT: Do NOT add any text, labels, captions, or annotations to the output image. Pure photograph only.`;
+    prompt = `${NO_TEXT}\n\n${prompt}${NO_TEXT_REMINDER}`;
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
-    // Convert input image to base64 data URL with compression
-    let imagePayloadUrl = image_url;
-    if (image_url.startsWith("http")) {
-      try {
-        const imgResp = await fetch(image_url);
-        if (imgResp.ok) {
-          const imgBuf = await imgResp.arrayBuffer();
-          const bytes = new Uint8Array(imgBuf);
-          const contentType = imgResp.headers.get("content-type") || "image/jpeg";
-          
-          // Try to compress large images to keep payload under ~1MB
-          let finalBytes = bytes;
-          let finalContentType = contentType;
-          if (bytes.length > 500_000) {
-            try {
-              const blob = new Blob([bytes], { type: contentType });
-              const bitmap = await createImageBitmap(blob);
-              const { width, height } = bitmap;
-              const MAX_DIM = 1536;
-              let newW = width;
-              let newH = height;
-              if (width > MAX_DIM || height > MAX_DIM) {
-                const scale = MAX_DIM / Math.max(width, height);
-                newW = Math.round(width * scale);
-                newH = Math.round(height * scale);
-              }
-              const canvas = new OffscreenCanvas(newW, newH);
-              const ctx = canvas.getContext("2d")!;
-              // Fill white background (handles PNG transparency -> JPEG)
-              ctx.fillStyle = "#FFFFFF";
-              ctx.fillRect(0, 0, newW, newH);
-              ctx.drawImage(bitmap, 0, 0, newW, newH);
-              bitmap.close();
-              const jpegBlob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.82 });
-              finalBytes = new Uint8Array(await jpegBlob.arrayBuffer());
-              finalContentType = "image/jpeg";
-              console.log(`Compressed: ${bytes.length} -> ${finalBytes.length} bytes (${newW}x${newH})`);
-            } catch (compErr) {
-              console.warn("Compression failed, using original:", compErr);
-            }
-          }
-          
-          const chunkSize = 8192;
-          let binary = "";
-          for (let i = 0; i < finalBytes.length; i += chunkSize) {
-            const end = Math.min(i + chunkSize, finalBytes.length);
-            const chunk = finalBytes.subarray(i, end);
-            for (let j = 0; j < chunk.length; j++) {
-              binary += String.fromCharCode(chunk[j]);
-            }
-          }
-          const imgBase64 = btoa(binary);
-          imagePayloadUrl = `data:${finalContentType};base64,${imgBase64}`;
-          console.log(`Base64 payload: ${imgBase64.length} chars (${(imgBase64.length / 1024).toFixed(0)}KB)`);
-        } else {
-          console.error(`Failed to fetch image: ${imgResp.status}`);
-        }
-      } catch (e) {
-        console.error("Image fetch/convert error:", e);
-      }
-    }
-
-    const buildAiPayload = (imgUrl: string) => JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: imgUrl } },
-          ],
-        },
-      ],
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: image_url } },
+            ],
+          },
+        ],
+        modalities: ["image", "text"],
+      }),
     });
-
-    let aiResponse: Response;
-    const aiHeaders = {
-      Authorization: `Bearer ${lovableApiKey}`,
-      "Content-Type": "application/json",
-    };
-
-    try {
-      // Try base64 first
-      const payload = buildAiPayload(imagePayloadUrl);
-      console.log(`Calling AI gateway with model ${model} for operation ${operation} (payload ${(payload.length / 1024).toFixed(0)}KB)`);
-      aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: aiHeaders,
-        body: payload,
-      });
-      console.log(`AI gateway responded with status ${aiResponse.status}`);
-
-      // If base64 caused a 500 and we have the original URL, retry with URL directly
-      if (aiResponse.status === 500 && imagePayloadUrl !== image_url) {
-        console.log("Retrying with original image URL instead of base64...");
-        const retryPayload = buildAiPayload(image_url);
-        aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: aiHeaders,
-          body: retryPayload,
-        });
-        console.log(`AI gateway retry responded with status ${aiResponse.status}`);
-      }
-    } catch (fetchErr) {
-      console.error("AI gateway fetch failed:", fetchErr);
-      await adminClient
-        .from("vintography_jobs")
-        .update({ status: "failed", error_message: `AI fetch error: ${fetchErr}` })
-        .eq("id", job.id);
-      return new Response(JSON.stringify({ error: "AI service unavailable. Please try again." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
@@ -675,39 +577,9 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    const message = aiData.choices?.[0]?.message;
-    
-    console.log("Response message keys:", JSON.stringify(message ? Object.keys(message) : "null"));
-    console.log("Has images array:", !!message?.images, "length:", message?.images?.length);
-    console.log("Content type:", typeof message?.content);
-    
-    // Try multiple response formats the gateway might use
-    let imageResult: string | null = null;
-    
-    // Format 1: images array (documented format)
-    if (!imageResult && message?.images?.[0]?.image_url?.url) {
-      imageResult = message.images[0].image_url.url;
-      console.log("Found image via Format 1 (images array)");
-    }
-    // Format 2: inline content array with image parts
-    if (!imageResult && Array.isArray(message?.content)) {
-      const imgPart = message.content.find((p: any) => 
-        p.type === "image_url" || p.type === "image" || p.image_url
-      );
-      imageResult = imgPart?.image_url?.url || imgPart?.url || null;
-      if (imageResult) console.log("Found image via Format 2 (content array)");
-    }
-    // Format 3: content is a base64 data URL string
-    if (!imageResult && typeof message?.content === "string" && message.content.startsWith("data:image")) {
-      imageResult = message.content;
-      console.log("Found image via Format 3 (base64 string)");
-    }
-    
-    console.log("Image result found:", !!imageResult, imageResult ? `(length: ${imageResult.length})` : "(null)");
+    const imageResult = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
     if (!imageResult) {
-      // Log full structure for debugging (truncated)
-      console.error("FULL AI RESPONSE:", JSON.stringify(aiData).substring(0, 3000));
       await adminClient
         .from("vintography_jobs")
         .update({ status: "failed", error_message: "No image generated" })

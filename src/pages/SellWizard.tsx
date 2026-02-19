@@ -18,7 +18,6 @@ import {
   ArrowRight, Package, AlertCircle, ExternalLink, RotateCcw, Home,
   Share2, MessageCircle,
 } from "lucide-react";
-import { ensureDisplayableImages } from "@/lib/convertHeic";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
@@ -480,9 +479,8 @@ export default function SellWizard() {
   const uploadPhotos = async (files: File[]): Promise<string[]> => {
     if (!user) return [];
     setUploading(true);
-    const converted = await ensureDisplayableImages(files.slice(0, 5));
     const urls: string[] = [];
-    for (const file of converted) {
+    for (const file of files.slice(0, 5)) {
       if (!file.type.startsWith("image/")) continue;
       if (file.size > 10 * 1024 * 1024) continue;
       const ext = file.name.split(".").pop() || "jpg";
@@ -498,9 +496,8 @@ export default function SellWizard() {
   };
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawFiles = Array.from(e.target.files || []).slice(0, 5 - photoUrls.length);
-    if (rawFiles.length === 0) return;
-    const files = await ensureDisplayableImages(rawFiles);
+    const files = Array.from(e.target.files || []).slice(0, 5 - photoUrls.length);
+    if (files.length === 0) return;
     const objectUrls = files.map((f) => URL.createObjectURL(f));
     setPhotoFiles((prev) => [...prev, ...files]);
     setPhotoUrls((prev) => [...prev, ...objectUrls]);
@@ -950,7 +947,7 @@ export default function SellWizard() {
               <p className="text-xs text-muted-foreground mt-1">JPG, PNG · Max 10MB · Up to 5</p>
             </Card>
           )}
-          <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handlePhotoSelect} />
+          <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
           {photoUrls.length > 0 && renderDetailsForm()}
         </div>
       );
