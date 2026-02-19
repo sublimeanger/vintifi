@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { ImageIcon, GripVertical, Save, Loader2, Plus, Upload, X, Wand2 } from "lucide-react";
+import { ensureDisplayableImage } from "@/lib/convertHeic";
 import {
   DndContext,
   closestCenter,
@@ -154,7 +155,8 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
     setUploading(true);
     try {
       const newUrls: string[] = [];
-      for (const file of Array.from(files)) {
+      for (const rawFile of Array.from(files)) {
+        const file = await ensureDisplayableImage(rawFile);
         if (!file.type.startsWith("image/")) continue;
         const ext = file.name.split(".").pop() || "jpg";
         const path = `${user.id}/${item.id}/${crypto.randomUUID()}.${ext}`;
@@ -271,7 +273,7 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
   if (photos.length === 0) {
     return (
       <>
-        <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUploadPhotos} />
+        <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleUploadPhotos} />
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Photos</h3>
           <div className="flex items-center gap-2">
@@ -302,7 +304,7 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
 
   return (
     <>
-      <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUploadPhotos} />
+      <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleUploadPhotos} />
 
       {/* Header */}
       <div className="flex items-center justify-between">
