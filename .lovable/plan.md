@@ -1,51 +1,40 @@
 
-
-# Fix Photo Studio Mobile Experience
-
-## Problem
-On mobile, tapping a Quick Preset (e.g., "Marketplace Ready") or an operation causes a bottom sheet drawer to appear showing operation configuration. This drawer traps the user -- they can't easily proceed or find the Generate button. The experience feels broken and unusable.
+# Fix: Kill the Ghost Drawer on Mobile
 
 ## Root Cause
-The `ConfigContainer` component renders a `ConfigDrawer` (vaul bottom sheet) on mobile. When operations or presets are selected, even though code tries to keep the drawer closed, the drawer's config content and the "Customize" button create a confusing flow where users get trapped in a modal overlay.
 
-## Solution: Inline Config on Mobile (No Drawer)
+Two issues combine to create the bug:
 
-Remove the bottom-sheet drawer pattern entirely on mobile. Instead, show configuration inline in the page flow, matching how desktop already works with a scrollable config panel.
+1. **Reducer auto-opens drawer**: `REPLACE_PIPELINE`, `ADD_PIPELINE_STEP`, and `SET_ACTIVE_PIPELINE_INDEX` all set `drawerOpen: true` unconditionally
+2. **Portal escapes CSS hiding**: The desktop `ConfigContainer` (line 898) sits inside a `hidden lg:grid` div, but `ConfigDrawer` uses vaul's `Drawer` which portals to `document.body` -- so it renders on mobile regardless of the parent being hidden
 
-### Changes
+## Fix (3 small changes)
 
-**1. `src/pages/Vintography.tsx` -- Mobile layout overhaul**
+### 1. `src/components/vintography/vintographyReducer.ts` -- Stop auto-opening drawer
 
-- Remove the "Customize [Operation]" button (lines 796-804) that opens the drawer
-- Remove the `ConfigContainer` / drawer usage on mobile (lines 807-815)  
-- Instead, render the config content (`renderActiveConfig()`) inline between the Operation Bar and the Generate button
-- Keep the Generate button always visible and never inside a drawer
-- Show config as a collapsible/expandable inline section (using Collapsible from Radix) so users can optionally see settings without being trapped
-- The mobile layout order becomes:
-  1. Canvas (photo preview)
-  2. Quick Presets strip
-  3. Choose Effect (Operation Bar) + Pipeline Strip
-  4. Inline config (collapsible, default expanded for ops with options, collapsed for simple ones like Clean BG / Enhance)
-  5. Generate button (always visible, never in a modal)
-  6. Result actions
+Change three reducer cases to NOT set `drawerOpen: true`:
 
-**2. `src/components/vintography/SimpleOperationConfig.tsx`** -- Keep as-is (info-only cards for clean_bg/enhance)
+- **REPLACE_PIPELINE** (around line 116): change `drawerOpen: true` to `drawerOpen: false`
+- **ADD_PIPELINE_STEP** (around line 100): change `drawerOpen: true` to `drawerOpen: false`  
+- **SET_ACTIVE_PIPELINE_INDEX** (line 109): change `drawerOpen: true` to `drawerOpen: false`
 
-**3. Remove drawer state dependency on mobile** -- The `drawerOpen` state and `SET_DRAWER_OPEN` dispatches for mobile become unnecessary since config is always inline.
+The desktop code in `Vintography.tsx` already passes `open={true}` hardcoded to `ConfigContainer`, so the desktop panel is always visible regardless of `drawerOpen` state. The explicit `SET_DRAWER_OPEN` dispatch in `handleOpSelect` on desktop still works.
 
-### Technical Details
+### 2. `src/pages/Vintography.tsx` -- Desktop handleOpSelect cleanup
 
-- Use Radix `Collapsible` component (already installed) for the inline config section
-- Auto-expand for operations that have configurable options (lifestyle_bg, flatlay, mannequin, ai_model, decrease)
-- Auto-collapse for simple operations (clean_bg, enhance) since they just show info text
-- The collapsible header shows the operation name + a chevron toggle
-- Generate button stays fixed at the bottom of the visible flow, never inside any overlay
-- Desktop layout remains completely unchanged
+In `handleOpSelect`, the existing code dispatches `SET_DRAWER_OPEN` for desktop only (`if (!isMobile)`). This stays as-is -- it's already correct.
 
-### What This Fixes
-- No more trapping drawer on preset/operation selection
-- Generate button always visible and reachable
-- Users can see and adjust config without modal context switches
-- Smooth, native-feeling scroll experience
-- One-tap flow: select preset, hit Generate
+### 3. `src/pages/Vintography.tsx` -- Remove stale mobile SET_DRAWER_OPEN dispatches
 
+The `handlePresetSelect` and `handleSavedPresetSelect` functions have lines like:
+```
+if (isMobile) dispatch({ type: "SET_DRAWER_OPEN", open: false });
+```
+These become unnecessary since the reducer no longer opens the drawer. Remove them to clean up dead code.
+
+## What This Fixes
+
+- Tapping a Quick Preset on mobile no longer triggers a bottom-sheet drawer
+- The inline collapsible config + Generate button remain visible and accessible
+- Desktop layout is completely unaffected (ConfigContainer uses hardcoded `open={true}`)
+- One-tap flow restored: select preset then hit Generate
