@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import MarketingLayout from "@/components/MarketingLayout";
 import {
   ArrowRight, ArrowDown, TrendingDown, DollarSign, Clock,
-  Database, Sparkles, Heart, Zap, Globe,
+  Camera, Sparkles, Heart, Zap, Globe,
   BarChart3,
 } from "lucide-react";
 
@@ -51,7 +51,7 @@ const solutionSteps = [
 ];
 
 const values = [
-  { icon: Database, title: "Data-Driven", desc: "Every recommendation is backed by real market data, not gut feeling. We analyse thousands of comparable listings to give you pricing confidence." },
+  { icon: Camera, title: "Photo-First", desc: "The photo is what buyers see first. We built the best AI photo studio for Vinted sellers because a professional photo is the single highest-impact upgrade you can make to any listing." },
   { icon: Heart, title: "Seller-First", desc: "Built by resellers who understand the hustle. Every feature exists because it solves a real problem we experienced ourselves." },
   { icon: Zap, title: "Beautifully Simple", desc: "Powerful intelligence shouldn't require any expertise. Point your phone, tap once, and Vintifi does the rest — pricing, photos, and listing copy all included." },
 ];
