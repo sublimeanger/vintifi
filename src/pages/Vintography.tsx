@@ -727,16 +727,15 @@ export default function Vintography() {
 
           {/* ─── No active photo: show upload zone ─── */}
           {!activePhotoUrl ? (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
               <Card
-                className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-colors cursor-pointer p-8 sm:p-12 lg:p-20 text-center"
-                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-colors p-8 sm:p-12 lg:p-16 text-center"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
               >
-                <div className="flex flex-col items-center gap-3 sm:gap-4">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-2xl lg:rounded-3xl bg-primary/10 flex items-center justify-center">
-                    <Upload className="w-7 h-7 sm:w-9 sm:h-9 lg:w-11 lg:h-11 text-primary" />
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <Upload className="w-7 h-7 sm:w-9 sm:h-9 text-primary" />
                   </div>
                   <div>
                     {itemId && linkedItemTitle ? (
@@ -748,30 +747,69 @@ export default function Vintography() {
                       </>
                     ) : (
                       <>
-                        <p className="font-display font-bold text-base sm:text-xl lg:text-2xl">Drop your photos here</p>
-                        <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">or tap to upload · JPG, PNG, WebP · Max 10MB</p>
+                        <p className="font-display font-bold text-xl sm:text-2xl lg:text-3xl">Transform your Vinted photos</p>
+                        <p className="text-sm sm:text-base text-muted-foreground mt-1">Professional listings get 3× more views.</p>
                       </>
                     )}
                   </div>
-                  <Button size="lg" className="h-12 lg:h-14 px-8 lg:px-10 text-sm lg:text-base active:scale-95 transition-transform">
-                    <Camera className="w-4 h-4 lg:w-5 lg:h-5 mr-2" /> Choose Photos
-                  </Button>
-                  {!itemId && (
-                    <div className="mt-1">
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <Button
+                      size="lg"
+                      className="h-12 px-8 text-sm active:scale-95 transition-transform"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Camera className="w-4 h-4 mr-2" /> Choose Photos
+                    </Button>
+                    {!itemId && (
                       <ItemPickerDialog onSelect={(picked) => {
                         navigate(`/vintography?itemId=${picked.id}`, { replace: true });
                       }}>
-                        <button className="text-sm text-primary hover:underline font-medium">
-                          or pick from your items
-                        </button>
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="h-12 px-8 text-sm active:scale-95 transition-transform"
+                        >
+                          <Package className="w-4 h-4 mr-2" /> From My Items
+                        </Button>
                       </ItemPickerDialog>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
                   onChange={(e) => { if (e.target.files?.length) handleFileSelect(e.target.files); }}
                 />
               </Card>
+
+              {/* Quick Presets preview strip */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Zap className="w-3 h-3" /> Popular presets — select one, then upload
+                </p>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {[
+                    { id: "enhance", label: "Marketplace Ready", desc: "Remove BG + Enhance", icon: Sparkles, tier: null },
+                    { id: "flatlay", label: "Flat-Lay Pro", desc: "Pro flat-lay shot", icon: Layers, tier: "Pro" },
+                    { id: "ai_model", label: "AI Model Shot", desc: "Virtual model wearing your item", icon: UserIcon, tier: "Business" },
+                  ].map((preset) => (
+                    <Card
+                      key={preset.id}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-3 cursor-pointer hover:border-primary/40 transition-all active:scale-[0.97] flex-shrink-0 w-[160px] text-left"
+                    >
+                      <div className="flex items-start justify-between mb-1.5">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <preset.icon className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        {preset.tier && (
+                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{preset.tier}</Badge>
+                        )}
+                      </div>
+                      <p className="font-semibold text-xs">{preset.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{preset.desc}</p>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             </motion.div>
           ) : (
             /* ─── Editor: Two-column on desktop ─── */
