@@ -13,6 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import MarketingLayout from "@/components/MarketingLayout";
+import BeforeAfterSlider from "@/components/marketing/BeforeAfterSlider";
 import { Check, ArrowRight, Shield, Zap, Star, Sparkles, Camera } from "lucide-react";
 import { STRIPE_TIERS, CREDIT_PACKS, TierKey } from "@/lib/constants";
 
@@ -157,77 +158,17 @@ export default function Pricing() {
             {/* Photo Studio Before/After Visual */}
             <motion.div
               variants={fadeUp}
-              className="max-w-3xl mx-auto mb-8 sm:mb-12"
+              className="max-w-sm mx-auto mb-8 sm:mb-12"
             >
-              <div className="relative rounded-2xl overflow-hidden border border-border bg-card shadow-2xl shadow-primary/10">
-                {/* Label strip */}
-                <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 border-b border-border bg-muted/40">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Camera className="w-3.5 h-3.5" />
-                    Before — phone snap
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                    <span className="text-xs font-semibold text-success">1 tap</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    After — Vintography AI
-                  </div>
-                </div>
-
-                {/* Main comparison */}
-                <div className="grid grid-cols-2 divide-x divide-border">
-                  {/* Before */}
-                  <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-                    <img
-                      src="/test-photos/nike-front.jpeg"
-                      alt="Before — raw phone photo"
-                      className="w-full h-full object-cover opacity-90"
-                    />
-                    {/* Overlay to simulate slightly imperfect shot */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black/60 to-transparent">
-                      <p className="text-white text-[10px] sm:text-xs font-medium">Raw phone photo · Mixed background</p>
-                    </div>
-                  </div>
-
-                  {/* After */}
-                  <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-                    {/* Simulated AI model shot using gradient + image */}
-                    <img
-                      src="/test-photos/nike-front.jpeg"
-                      alt="After — Vintography AI Model"
-                      className="w-full h-full object-cover brightness-110 contrast-105 saturate-110"
-                      style={{ filter: "brightness(1.08) contrast(1.06) saturate(1.12) drop-shadow(0 4px 24px rgba(0,0,0,0.18))" }}
-                    />
-                    {/* Clean white overlay to simulate bg removal */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-primary/5" />
-                    {/* Studio dot grid overlay */}
-                    <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(circle, hsl(var(--primary)/0.06) 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
-                    <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black/60 to-transparent">
-                      <p className="text-white text-[10px] sm:text-xs font-medium">AI Flat-Lay · Clean background</p>
-                    </div>
-                    {/* Sparkle badge */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary text-primary-foreground text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
-                      <Sparkles className="w-2.5 h-2.5" />
-                      AI
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mode strip */}
-                <div className="flex items-center justify-center gap-2 sm:gap-4 px-4 py-3 border-t border-border bg-muted/20">
-                  {["AI Model", "Mannequin", "Flat-Lay Pro"].map((mode, i) => (
-                    <div key={mode} className={`flex items-center gap-1.5 text-[10px] sm:text-xs font-medium px-2.5 py-1 rounded-full border ${i === 2 ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
-                      <Sparkles className="w-2.5 h-2.5" />
-                      {mode}
-                    </div>
-                  ))}
-                  <span className="text-[10px] sm:text-xs text-muted-foreground ml-1">· 16 backgrounds</span>
-                </div>
-              </div>
-              <p className="text-[11px] sm:text-xs text-muted-foreground text-center mt-2">
+              <BeforeAfterSlider
+                beforeSrc="/marketing/hoodie-before.png"
+                afterSrc="/marketing/hoodie-cleanBG-steam.png"
+                beforeLabel="Phone snap"
+                afterLabel="Studio shot"
+                badge="Clean BG + Steam & Press"
+                aspectRatio="4/5"
+              />
+              <p className="text-[11px] sm:text-xs text-muted-foreground text-center mt-3">
                 Included in every plan. Your first 3 credits are free — no card required.
               </p>
             </motion.div>

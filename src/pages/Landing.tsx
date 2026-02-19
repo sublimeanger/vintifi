@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight, Zap, TrendingUp, Sparkles, Camera, ChevronLeft, ChevronRight } from "lucide-react";
 import { STRIPE_TIERS, type TierKey } from "@/lib/constants";
+import BeforeAfterSlider from "@/components/marketing/BeforeAfterSlider";
 
 const PUBLIC_TIERS: TierKey[] = ["free", "pro", "business"];
 import MarketingLayout from "@/components/MarketingLayout";
@@ -280,65 +281,28 @@ export default function Landing() {
             </motion.div>
           </motion.div>
 
-          {/* Rotating feature showcase */}
+          {/* Photo Studio before/after hero */}
           <motion.div
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.8 }}
-            className="mt-10 sm:mt-16 max-w-2xl mx-auto"
+            className="mt-10 sm:mt-16 max-w-lg mx-auto"
           >
-            {/* Tab strip */}
-            <div className="flex gap-2 mb-4 justify-center flex-wrap">
-              {heroFeatures.map((f, i) => {
-                const Icon = f.icon;
-                return (
-                  <button
-                    key={f.id}
-                    onClick={() => setFeature(i)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                      activeFeature === i
-                        ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
-                        : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
-                    }`}
-                  >
-                    <Icon className="w-3 h-3" />
-                    {f.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Feature card */}
-            <div className="gradient-border p-[1.5px] rounded-2xl">
-              <div className="rounded-2xl bg-card p-4 sm:p-6 shadow-2xl shadow-primary/5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-accent/60" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-success/60" />
-                  <span className="ml-2 text-xs text-muted-foreground font-mono hidden sm:inline">
-                    vintifi.com — {heroFeatures[activeFeature].label}
-                  </span>
-                  <div className="ml-auto flex gap-1">
-                    <button onClick={() => setFeature((activeFeature - 1 + heroFeatures.length) % heroFeatures.length)} className="p-1 rounded hover:bg-muted transition-colors">
-                      <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                    <button onClick={() => setFeature((activeFeature + 1) % heroFeatures.length)} className="p-1 rounded hover:bg-muted transition-colors">
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                  </div>
-                </div>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeFeature}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    {heroFeatures[activeFeature].content}
-                  </motion.div>
-                </AnimatePresence>
-              </div>
+            <BeforeAfterSlider
+              beforeSrc="/marketing/hoodie-before.png"
+              afterSrc="/marketing/hoodie-cleanBG-steam.png"
+              beforeLabel="Phone snap"
+              afterLabel="Studio shot"
+              badge="Clean BG + Steam & Press"
+              aspectRatio="4/5"
+            />
+            {/* Mode badges */}
+            <div className="flex items-center justify-center gap-2 mt-4">
+              {["Clean BG", "AI Model", "Flat-Lay"].map((mode) => (
+                <span key={mode} className="text-[10px] sm:text-xs font-medium px-2.5 py-1 rounded-full border border-border text-muted-foreground">
+                  {mode}
+                </span>
+              ))}
             </div>
           </motion.div>
         </div>
@@ -499,36 +463,14 @@ export default function Landing() {
                 </Button>
               </div>
               <div className="flex-1 w-full max-w-md">
-                <div className="gradient-border p-[1.5px] rounded-2xl">
-                  <div className="rounded-2xl bg-card p-4 sm:p-5 shadow-xl">
-                    <div className="flex gap-1.5 mb-4">
-                      {["AI Model", "Mannequin", "Flat-Lay"].map((tab, i) => (
-                        <div key={tab} className={`flex-1 text-center py-1.5 rounded-lg text-xs font-medium ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{tab}</div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div className="rounded-xl bg-muted/50 border border-border p-3 text-center">
-                        <div className="w-full aspect-[3/4] rounded-lg bg-muted flex items-center justify-center mb-2">
-                          <span className="text-xs text-muted-foreground">📱 Phone snap</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground">Before</p>
-                      </div>
-                      <div className="rounded-xl bg-success/5 border border-success/30 p-3 text-center">
-                        <div className="w-full aspect-[3/4] rounded-lg bg-gradient-to-br from-success/10 to-primary/10 flex items-center justify-center mb-2">
-                          <div className="text-center">
-                            <span className="text-lg">✨</span>
-                            <p className="text-[10px] text-success font-medium mt-0.5">Studio shot</p>
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-success font-medium">After — 1 tap</p>
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-2.5 flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Shot style:</span>
-                      <span className="font-medium text-foreground">Natural Photo · Female model</span>
-                    </div>
-                  </div>
-                </div>
+                <BeforeAfterSlider
+                  beforeSrc="/marketing/hoodie-before.png"
+                  afterSrc="/marketing/hoodie-cleanBG-steam.png"
+                  beforeLabel="Phone snap"
+                  afterLabel="Studio shot"
+                  badge="Clean BG + Steam & Press"
+                  aspectRatio="4/5"
+                />
               </div>
             </div>
           </div>
