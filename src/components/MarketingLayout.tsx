@@ -187,7 +187,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <p className="font-display text-sm sm:text-base font-semibold text-muted-foreground max-w-2xl mx-auto">
             "Giving every Vinted seller the intelligence of a professional reselling operation."
           </p>
-          <p className="text-xs text-muted-foreground/60 mt-2">4 AI pillars · 15+ tools · 18 Vinted markets</p>
+          <p className="text-xs text-muted-foreground/60 mt-2">AI Photo Studio · Smart Pricing · Listing Optimisation · 18 Vinted markets</p>
         </div>
       </section>
 
