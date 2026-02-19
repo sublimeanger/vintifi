@@ -465,9 +465,15 @@ export default function Vintography() {
   };
 
   const handleDeleteJob = async (jobId: string) => {
-    const { error } = await supabase.from("vintography_jobs").delete().eq("id", jobId);
-    if (error) { toast.error("Failed to delete"); return; }
+    if (!user) return;
+    // Optimistically remove from UI
     setGallery((prev) => prev.filter((j) => j.id !== jobId));
+    const { error } = await supabase.from("vintography_jobs").delete().eq("id", jobId).eq("user_id", user.id);
+    if (error) {
+      toast.error("Failed to delete");
+      fetchGallery(); // revert on failure
+      return;
+    }
     toast.success("Deleted");
   };
 
