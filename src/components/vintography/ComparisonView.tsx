@@ -22,13 +22,6 @@ type Props = {
 
 type ViewMode = "overlay" | "side-by-side";
 
-const PROCESSING_STEPS: { key: ProcessingStep; label: string; icon: string }[] = [
-  { key: "uploading", label: "Uploading photo…", icon: "📤" },
-  { key: "analysing", label: "AI analysing garment…", icon: "🔍" },
-  { key: "generating", label: "Generating result…", icon: "✨" },
-  { key: "finalising", label: "Finalising…", icon: "🎨" },
-];
-
 const TIPS: Record<string, string[]> = {
   clean_bg: [
     "Clean Background works best with high-contrast photos",
@@ -329,7 +322,6 @@ export function ComparisonView({
     willChange: isZoomed ? "transform" as const : "auto" as const,
   };
 
-  const currentStepIndex = processingStep ? PROCESSING_STEPS.findIndex(s => s.key === processingStep) : -1;
   const tips = TIPS[operationId || "default"] || TIPS.default;
 
   return (
@@ -421,7 +413,7 @@ export function ComparisonView({
           </div>
         )}
 
-        {/* ── Shimmer Skeleton Processing Overlay ── */}
+        {/* ── Processing Overlay ── */}
         {processing && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center">
             {/* Dimmed original + shimmer sweep */}
@@ -434,7 +426,7 @@ export function ComparisonView({
             </div>
 
             {/* Content */}
-          <div className="relative z-10 flex flex-col items-center gap-4 lg:gap-5 px-6 max-w-xs lg:max-w-sm text-center">
+            <div className="relative z-10 flex flex-col items-center gap-4 lg:gap-5 px-6 max-w-xs lg:max-w-sm text-center">
               {/* Animated icon */}
               <motion.div
                 animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
@@ -444,37 +436,24 @@ export function ComparisonView({
                 <Sparkles className="w-7 h-7 lg:w-8 lg:h-8 text-primary" />
               </motion.div>
 
-              {/* Multi-step progress */}
-              <div className="w-full space-y-2 lg:space-y-3">
-                {PROCESSING_STEPS.map((step, i) => {
-                  const isActive = i === currentStepIndex;
-                  const isDone = i < currentStepIndex;
-                  return (
-                    <motion.div
-                      key={step.key}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: isDone || isActive ? 1 : 0.35, x: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className={`flex items-center gap-2 lg:gap-3 text-xs lg:text-sm transition-colors ${isActive ? "text-primary font-semibold" : isDone ? "text-muted-foreground" : "text-muted-foreground/50"}`}
-                    >
-                      <div className={`w-5 h-5 lg:w-6 lg:h-6 rounded-full flex items-center justify-center text-[10px] lg:text-xs shrink-0 transition-colors ${
-                        isDone ? "bg-primary/20 text-primary" : isActive ? "bg-primary text-primary-foreground" : "bg-muted"
-                      }`}>
-                        {isDone ? "✓" : isActive ? <Loader2 className="w-3 h-3 lg:w-3.5 lg:h-3.5 animate-spin" /> : step.icon}
-                      </div>
-                      <span>{step.label}</span>
-                    </motion.div>
-                  );
-                })}
+              {/* Simple status text */}
+              <div className="space-y-1">
+                <p className="text-sm lg:text-base font-semibold text-foreground">
+                  Transforming your photo…
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  This usually takes 10–20 seconds
+                </p>
               </div>
 
-              {/* Progress bar */}
+              {/* Indeterminate progress bar */}
               <div className="w-full h-1.5 lg:h-2 bg-muted rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-primary rounded-full"
-                  initial={{ width: "5%" }}
-                  animate={{ width: `${Math.max(10, ((currentStepIndex + 1) / PROCESSING_STEPS.length) * 100)}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  initial={{ x: "-100%" }}
+                  animate={{ x: "100%" }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  style={{ width: "40%" }}
                 />
               </div>
 
