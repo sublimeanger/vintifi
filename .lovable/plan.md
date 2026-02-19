@@ -1,102 +1,61 @@
 
 
-## Analysis: Pipeline Conflicts and Preset Saving
+# Marketing Upgrade — Phase B1 + C1/C4 Hero Swaps
 
-### Part 1: Illogical Operation Pairings
+## Overview
+Build the reusable `<BeforeAfterSlider />` component using the existing `clip-path: inset()` pattern from ComparisonView, then swap the fake mockup heroes on the Landing and Pricing pages with real before/after imagery.
 
-Currently the pipeline allows some combinations that don't make sense:
+## Step 1: Save the real assets
 
-| Combination | Why it's illogical |
-|---|---|
-| Flatlay + Mannequin | Both are full re-compositions -- a garment can't be both flat-laid AND on a mannequin |
-| Flatlay/Mannequin + Lifestyle BG | These operations already create a complete scene; adding a lifestyle background on top would conflict |
-| Lifestyle BG before Clean BG | Lifestyle adds a scene, then Clean BG strips it away -- wasted credits |
-| Clean BG before Flatlay/Mannequin | These ops generate their own background, so removing it first is pointless |
+Copy the two uploaded images into the project:
+- `user-uploads://ChatGPT_Image_Feb_19_2026_05_55_39_PM-2.png` to `public/marketing/hoodie-before.png` (the original phone snap)
+- `user-uploads://vintography-1771523921635-2.png` to `public/marketing/hoodie-cleanBG-steam.png` (the processed result)
 
-**Valid chains** (examples):
-- Clean BG then Lifestyle BG (remove, then replace -- logical)
-- Clean BG then Enhance
-- Steam and Press then Clean BG then Lifestyle BG
-- AI Model then Enhance
+## Step 2: Build `<BeforeAfterSlider />`
 
-### Part 2: "Save My Settings" -- Reusable Presets
+Create `src/components/marketing/BeforeAfterSlider.tsx` — a lightweight, reusable image comparison slider.
 
-Allow sellers to save their current pipeline configuration (operations + parameters like background choice) as a named personal preset, then apply it to any future photo with one tap.
+**Props:**
+- `beforeSrc` / `afterSrc` — image URLs
+- `beforeLabel` / `afterLabel` — optional labels (default "Before" / "After")
+- `aspectRatio` — CSS aspect-ratio string (default "4/5")
+- `badge` — optional mode badge text (e.g. "Clean BG + Steam & Press")
+- `className` — pass-through
 
----
+**Implementation details:**
+- Uses the same `clip-path: inset()` technique already proven in ComparisonView.tsx
+- Mouse drag on the handle + touch swipe support for mobile
+- "Drag me" bounce animation on first view using Framer Motion + useInView
+- Labels rendered as small semi-transparent badges in the corners
+- No zoom/pan — this is a marketing component, not a tool
+- Lazy-loaded images via `loading="lazy"`
+- Approximately 80-100 lines — much simpler than ComparisonView
 
-### Implementation Plan
+## Step 3: Landing Page hero swap
 
-**Step 1: Strengthen pipeline conflict rules** in `vintographyReducer.ts`
+In `src/pages/Landing.tsx`, replace the rotating feature showcase card (lines ~283-343) — the fake mockup with emoji rectangles — with:
 
-Update `getAvailableOpsToAdd()` and `canAddOperation()` with these new rules:
-- Flatlay and Mannequin are mutually exclusive (if one is in the pipeline, the other is hidden)
-- If Flatlay or Mannequin is present, Lifestyle BG is blocked (and vice versa)
-- If Lifestyle BG is present, Clean BG cannot come AFTER it (order-aware check)
-- If Flatlay or Mannequin is present, Clean BG is blocked (redundant step)
+- A single large `<BeforeAfterSlider />` using the hoodie before/after pair
+- Below: the existing tab strip remains but simplified to three small mode badges (Clean BG, AI Model, Flat-Lay) as visual indicators
+- The feature showcase card with its "Phone snap" / "Studio quality" emoji placeholders is removed entirely
 
-These changes ensure the "Add Effect" dropdown and Operation Bar never offer illogical options.
+The hero section keeps: headline, subtext, CTA buttons, impact stats strip, market flags. Only the visual showcase changes.
 
-**Step 2: Add a "Saved Presets" feature**
+## Step 4: Landing Photo Studio showcase swap
 
-- Create a new database table `user_presets` with columns:
-  - `id` (uuid, primary key)
-  - `user_id` (uuid, not null)
-  - `name` (text, not null) -- e.g. "My Studio Look"
-  - `pipeline` (jsonb, not null) -- stores the full pipeline array with operations and params
-  - `created_at` (timestamptz)
-  - RLS: users can only read/write their own presets
+Replace the fake before/after cards in the Photo Studio showcase section (lines ~501-531) — the "Phone snap" / "Studio shot" emoji rectangles — with a `<BeforeAfterSlider />` using the same real assets. Badge: "Clean BG + Steam & Press".
 
-- Add a "Save as Preset" button in the config area (near the Generate button) that captures the current pipeline state and prompts for a name.
+## Step 5: Pricing page hero swap
 
-- In the `QuickPresets` component, add a "My Presets" section that loads saved presets from the database and renders them alongside the built-in presets. Tapping one calls `REPLACE_PIPELINE` with the saved configuration.
+In `src/pages/marketing/Pricing.tsx`, replace the static side-by-side image comparison in the hero (which currently uses `nike-front.jpeg` with CSS filters on both sides to fake a before/after) with a `<BeforeAfterSlider />` using the real hoodie pair.
 
-- Add a delete option (swipe or long-press on mobile, hover X on desktop) to remove saved presets.
+## What this does NOT change
+- All copy, CTAs, pricing cards, FAQ, footer — untouched
+- The Listing Optimiser and Price Intelligence showcase cards in the hero rotation — kept as-is (they're illustrative UI mockups, not photo claims)
+- Page routing, MarketingLayout, animations — all preserved
 
-**Step 3: Wire up the UI**
-
-- After a successful generation, show a subtle "Save this setup" prompt if the pipeline has 2+ steps or custom params, encouraging users to save for reuse.
-- Saved presets appear at the top of the Quick Presets area with a "My Presets" label and a distinct visual style (e.g. a small star icon).
-
----
-
-### Technical Details
-
-**Conflict matrix** (added to `getAvailableOpsToAdd`):
-
-```text
-MUTUALLY_EXCLUSIVE groups:
-  Group A: flatlay, mannequin, lifestyle_bg
-  (only one "scene-setting" operation allowed per pipeline)
-
-REDUNDANCY rules:
-  If pipeline contains flatlay OR mannequin -> block clean_bg
-  If pipeline contains clean_bg -> block flatlay, mannequin
-```
-
-**Database migration SQL:**
-
-```text
-CREATE TABLE public.user_presets (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  name text NOT NULL,
-  pipeline jsonb NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE public.user_presets ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users manage own presets"
-  ON public.user_presets FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-```
-
-**Files to create/modify:**
-- `src/components/vintography/vintographyReducer.ts` -- updated conflict rules
-- `src/components/vintography/QuickPresets.tsx` -- add "My Presets" section
-- `src/components/vintography/ConfigContainer.tsx` -- add "Save as Preset" button
-- `src/pages/Vintography.tsx` -- wire save/load preset handlers
-- Database migration for `user_presets` table
+## Technical notes
+- The BeforeAfterSlider is intentionally separate from ComparisonView (which has zoom, pan, variations, processing overlays). The marketing slider is ~80 lines vs ComparisonView's 500+ lines.
+- Images served from `/public/marketing/` for simplicity — no bundling needed for marketing assets that may be swapped frequently.
+- As more before/after pairs are added later, they go into the same `/public/marketing/` directory and can be plugged into any page's slider.
 
