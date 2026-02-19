@@ -56,12 +56,12 @@ type Listing = {
 type StepStatus = "pending" | "loading" | "done" | "skipped";
 type EntryMethod = "url" | "photo" | "manual";
 
-// ─── 5 clean steps (ghost "Details" step removed) ───
+// ─── 5 clean steps — v3 order: Add → Photos → Optimise → Price → Pack ───
 const STEPS = [
   { id: 1, label: "Add Item",  shortLabel: "Add",      icon: Plus },
-  { id: 2, label: "Price",     shortLabel: "Price",     icon: Search },
+  { id: 2, label: "Photos",    shortLabel: "Photos",    icon: Camera },
   { id: 3, label: "Optimise",  shortLabel: "Optimise",  icon: Sparkles },
-  { id: 4, label: "Photos",    shortLabel: "Photos",    icon: Camera },
+  { id: 4, label: "Price",     shortLabel: "Price",     icon: Search },
   { id: 5, label: "Pack ✓",    shortLabel: "Pack",      icon: Rocket },
 ] as const;
 
@@ -227,30 +227,48 @@ export default function SellWizard() {
   const [optimiseLoading, setOptimiseLoading] = useState(false);
   const [optimiseSaved, setOptimiseSaved] = useState(false);
 
-  // Step 4 — Photos (was step 5)
+  // Step 2 — Photos (v3 reorder)
   const [photoPolling, setPhotoPolling] = useState(false);
   const [photoDone, setPhotoDone] = useState(false);
   const photoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPhotoEditRef = useRef<string | null>(null);
   // Tracks whether user has clicked "Open Photo Studio" — polling only starts after that
   const hasNavigatedToPhotoStudioRef = useRef(false);
+  // Quick inline remove-background state
+  const [quickBgProcessing, setQuickBgProcessing] = useState(false);
+  const [quickBgResult, setQuickBgResult] = useState<string | null>(null);
+  // Original image URL captured when entering Step 2 — used for before/after in Pack
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
 
-  // Step 5 — Pack (was step 6)
+  // Step 5 — Pack
   const [vintedUrlInput, setVintedUrlInput] = useState("");
   const [markingListed, setMarkingListed] = useState(false);
 
   // ─── Session restore: on mount, check if we were mid-wizard going to Photo Studio ───
-  // FIX 7: persist item id + step to sessionStorage before navigating away
+  // Persist item id + step to sessionStorage before navigating away
   useEffect(() => {
+    // Write version flag on every mount so analytics can identify v3 sessions
+    sessionStorage.setItem("sell_wizard_version", "v3");
+
     const savedItemId = sessionStorage.getItem("sell_wizard_item_id");
     const savedStep = sessionStorage.getItem("sell_wizard_step");
+    const savedVersion = sessionStorage.getItem("sell_wizard_version");
     if (!savedItemId || !savedStep || !user) return;
+
+    // Version guard: if restoring an old pre-v3 session that saved step "4" (old Photos step),
+    // clear it and start fresh to avoid landing on wrong content.
+    const parsedStep = parseInt(savedStep, 10);
+    if (parsedStep === 4 && savedVersion !== "v3") {
+      sessionStorage.removeItem("sell_wizard_item_id");
+      sessionStorage.removeItem("sell_wizard_step");
+      return;
+    }
 
     // Clear the session keys immediately so a hard refresh doesn't loop
     sessionStorage.removeItem("sell_wizard_item_id");
     sessionStorage.removeItem("sell_wizard_step");
 
-    // Re-fetch the item and restore wizard to step 4
+    // Re-fetch the item and restore wizard to Photos step (step 2 in v3)
     supabase
       .from("listings")
       .select("*")
@@ -264,11 +282,11 @@ export default function SellWizard() {
         lastPhotoEditRef.current = item.last_photo_edit_at;
         // User navigated away to Photo Studio, so polling should start on re-entry
         hasNavigatedToPhotoStudioRef.current = true;
-        setStepStatus((s) => ({ ...s, 1: "done", 2: "done", 3: "done" }));
-        setPriceAccepted(true);
+        // Only step 1 is confirmed done when returning from Photo Studio (step 2)
+        setStepStatus((s) => ({ ...s, 1: "done" }));
         setOptimiseSaved(!!item.last_optimised_at);
         setDirection(1);
-        setCurrentStep(parseInt(savedStep, 10) || 4);
+        setCurrentStep(parsedStep || 2);
         toast.info("Welcome back! Resuming where you left off.");
       });
   // Only run once on mount
@@ -303,9 +321,12 @@ export default function SellWizard() {
     setPhotoDone(false);
     lastPhotoEditRef.current = null;
     hasNavigatedToPhotoStudioRef.current = false;
+    setQuickBgProcessing(false);
+    setQuickBgResult(null);
+    setOriginalImageUrl(null);
     setVintedUrlInput("");
     setMarkingListed(false);
-    // FIX 7 + Gap 10: clear session storage when resetting
+    // Clear session storage when resetting
     sessionStorage.removeItem("sell_wizard_item_id");
     sessionStorage.removeItem("sell_wizard_step");
   };
@@ -313,19 +334,21 @@ export default function SellWizard() {
   // ─── Navigation ───
   // FIX 1: wrap canAdvance in useCallback to prevent stale closures in goNext and startPhotoPolling
   const canAdvance = useCallback((): boolean => {
-    // FIX 10: step 1 always manages its own button; never allow footer to advance from step 1
+    // Step 1 always manages its own button; never allow footer to advance from step 1
     if (currentStep === 1) return false;
-    if (currentStep === 2) return priceAccepted;
+    // v3 order: Step 2 = Photos, Step 3 = Optimise, Step 4 = Price
+    if (currentStep === 2) return photoDone || stepStatus[2] === "skipped";
     if (currentStep === 3) return optimiseSaved;
-    if (currentStep === 4) return photoDone || stepStatus[4] === "skipped";
+    if (currentStep === 4) return priceAccepted;
     return true;
   }, [currentStep, priceAccepted, optimiseSaved, photoDone, stepStatus]);
 
   const advanceBlockedReason = (): string => {
     if (currentStep === 1 && !entryMethod) return "Choose how to add your item";
-    if (currentStep === 2 && !priceAccepted) return "Accept a price to continue";
+    // v3 order: Step 2 = Photos, Step 3 = Optimise, Step 4 = Price
+    if (currentStep === 2 && !photoDone && stepStatus[2] !== "skipped" && !photoPolling) return "Enhance or skip photos";
     if (currentStep === 3 && !optimiseSaved) return "Save optimised listing to continue";
-    if (currentStep === 4 && !photoDone && stepStatus[4] !== "skipped" && !photoPolling) return "Enhance or skip photos";
+    if (currentStep === 4 && !priceAccepted) return "Accept a price to continue";
     return "";
   };
 
@@ -352,17 +375,24 @@ export default function SellWizard() {
     scrollToTop();
   };
 
-  // ─── Auto-fire price check on entering step 2 ───
+  // ─── Capture original image URL on entering Step 2 (Photos) — once only ───
   useEffect(() => {
-    if (currentStep === 2 && !priceResult && !priceLoading && createdItem) {
-      runPriceCheck();
+    if (currentStep === 2 && createdItem?.image_url && !originalImageUrl) {
+      setOriginalImageUrl(createdItem.image_url);
     }
-  }, [currentStep]);
+  }, [currentStep, createdItem?.image_url]);
 
   // ─── Auto-fire optimise on entering step 3 ───
   useEffect(() => {
     if (currentStep === 3 && !optimiseResult && !optimiseLoading && createdItem) {
       runOptimise();
+    }
+  }, [currentStep]);
+
+  // ─── Auto-fire price check on entering step 4 (v3: Price is step 4) ───
+  useEffect(() => {
+    if (currentStep === 4 && !priceResult && !priceLoading && createdItem) {
+      runPriceCheck();
     }
   }, [currentStep]);
 
@@ -396,9 +426,9 @@ export default function SellWizard() {
     };
   }, []);
 
-  // ─── Re-entry detection: when user returns to /sell at step 4 ───
+  // ─── Re-entry detection: when user returns to /sell at step 2 (Photos in v3) ───
   useEffect(() => {
-    if (currentStep !== 4 || !createdItem || photoDone) return;
+    if (currentStep !== 2 || !createdItem || photoDone) return;
 
     let cancelled = false;
 
@@ -416,7 +446,7 @@ export default function SellWizard() {
         clearInterval(photoIntervalRef.current!);
         setPhotoPolling(false);
         setPhotoDone(true);
-        setStepStatus((s) => ({ ...s, 4: "done" }));
+        setStepStatus((s) => ({ ...s, 2: "done" }));
         setCreatedItem((prev) =>
           prev
             ? { ...prev, last_photo_edit_at: data.last_photo_edit_at, image_url: data.image_url ?? prev.image_url }
@@ -425,13 +455,13 @@ export default function SellWizard() {
         toast.success("Photo enhancement detected — advancing!");
         setTimeout(() => {
           setDirection(1);
-          setCurrentStep(5);
+          setCurrentStep(3);
         }, 600);
       } else if (!photoPolling && hasNavigatedToPhotoStudioRef.current) {
         // No edit yet, but user has been to Photo Studio — (re)start polling
         startPhotoPolling();
       }
-      // If hasNavigatedToPhotoStudioRef.current is false, user just arrived at step 4
+      // If hasNavigatedToPhotoStudioRef.current is false, user just arrived at step 2
       // for the first time — show the "Open Photo Studio" button, don't auto-poll.
     };
 
@@ -594,8 +624,10 @@ export default function SellWizard() {
       if (error) throw error;
       setCreatedItem(inserted as unknown as Listing);
       lastPhotoEditRef.current = (inserted as any).last_photo_edit_at;
-      toast.success("Item created — let's set the price!");
-      // Advance to step 2 (price) directly
+      // v3: set wizard version flag when item is created
+      sessionStorage.setItem("sell_wizard_version", "v3");
+      toast.success("Item created — let's enhance your photos!");
+      // Advance to step 2 (Photos in v3)
       setStepStatus((s) => ({ ...s, 1: "done" }));
       setDirection(1);
       setCurrentStep(2);
@@ -713,8 +745,8 @@ export default function SellWizard() {
     toast.success("Optimised listing saved!");
   };
 
-  // ─── Step 4: Photo polling ───
-  // FIX 5: always clear any existing interval before starting a new one
+  // ─── Step 2 (Photos): Photo polling ───
+  // Always clear any existing interval before starting a new one
   const startPhotoPolling = useCallback(() => {
     if (!createdItem) return;
     // Kill any previous interval first (prevents ghost polls and double-starts)
@@ -722,13 +754,13 @@ export default function SellWizard() {
     setPhotoPolling(true);
     photoIntervalRef.current = setInterval(async () => {
       const { data } = await supabase
-        .from("listings").select("last_photo_edit_at").eq("id", createdItem.id).single();
+        .from("listings").select("last_photo_edit_at, image_url").eq("id", createdItem.id).single();
       if (data?.last_photo_edit_at && data.last_photo_edit_at !== lastPhotoEditRef.current) {
         clearInterval(photoIntervalRef.current!);
         setPhotoPolling(false);
         setPhotoDone(true);
-        setStepStatus((s) => ({ ...s, 4: "done" }));
-        setCreatedItem((prev) => prev ? { ...prev, last_photo_edit_at: data.last_photo_edit_at } : prev);
+        setStepStatus((s) => ({ ...s, 2: "done" }));
+        setCreatedItem((prev) => prev ? { ...prev, last_photo_edit_at: data.last_photo_edit_at, image_url: data.image_url ?? prev.image_url } : prev);
         toast.success("Photo enhancement detected!");
         setTimeout(() => goNext(), 800);
       }
@@ -738,10 +770,36 @@ export default function SellWizard() {
   const skipPhotos = () => {
     if (photoIntervalRef.current) clearInterval(photoIntervalRef.current);
     setPhotoPolling(false);
-    setStepStatus((s) => ({ ...s, 4: "skipped" }));
+    // v3: Photos is step 2, skip marks step 2 as skipped and goes to step 3
+    setStepStatus((s) => ({ ...s, 2: "skipped" }));
     setDirection(1);
-    setCurrentStep(5);
+    setCurrentStep(3);
     scrollToTop();
+  };
+
+  // ─── Quick inline Remove Background (Step 2) ───
+  const runQuickRemoveBg = async () => {
+    if (!createdItem?.image_url || quickBgProcessing) return;
+    setQuickBgProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("vintography", {
+        body: { operation: "clean_bg", imageUrl: createdItem.image_url, itemId: createdItem.id },
+      });
+      if (error) throw error;
+      const processedUrl = data?.processed_url || data?.url;
+      if (!processedUrl) throw new Error("No processed image returned");
+      setQuickBgResult(processedUrl);
+      // Update the createdItem image_url locally
+      setCreatedItem((prev) => prev ? { ...prev, image_url: processedUrl } : prev);
+      // Mark photo step as done
+      setPhotoDone(true);
+      setStepStatus((s) => ({ ...s, 2: "done" }));
+      toast.success("Background removed!");
+    } catch (err: any) {
+      toast.error(err.message || "Remove background failed — try again or open Photo Studio");
+    } finally {
+      setQuickBgProcessing(false);
+    }
   };
 
   // ─── Step 5: Mark as listed ───
@@ -1037,7 +1095,7 @@ export default function SellWizard() {
               scrollToTop();
             }}
           >
-            Continue to Price <ArrowRight className="w-4 h-4 ml-1.5" />
+            Continue to Photos <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
         </div>
       ) : (
@@ -1056,175 +1114,105 @@ export default function SellWizard() {
     </div>
   );
 
-  /* ═══ STEP 2: PRICE CHECK ═══ */
+  /* ═══ STEP 2: PHOTOS (v3) ═══ */
   const renderStep2 = () => (
     <div className="space-y-4">
-      {/* Free tier credit nudge — shown after price check used a credit */}
-      {isFreeUser && !isUnlimitedUser && priceAccepted && creditsRemaining <= 1 && (
-        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-warning/10 border border-warning/30">
-          <span className="text-base shrink-0">💡</span>
-          <p className="text-xs text-foreground leading-relaxed">
-            This used 1 of your 3 free credits.{" "}
-            <button
-              className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity text-primary"
-              onClick={() => navigate("/settings?tab=billing")}
-            >
-              Upgrade for unlimited checks.
-            </button>
-          </p>
-        </div>
-      )}
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          {priceLoading ? "Analysing market prices…" : priceResult ? "Market analysis complete" : "Ready to analyse"}
-        </p>
-        {/* Bug 6: proper ghost button with icon */}
-        {!priceLoading && priceResult && (
-          <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs" onClick={() => { setPriceResult(null); setPriceAccepted(false); runPriceCheck(); }}>
-            <RotateCcw className="w-3.5 h-3.5" /> Re-run
-          </Button>
-        )}
-      </div>
+      <p className="text-xs lg:text-sm text-muted-foreground">Enhance your photos with AI for better click-through rates.</p>
 
-      {/* Bug 5: skeleton loading instead of bare spinner */}
-      {priceLoading && (
-        <div className="space-y-3 animate-pulse">
-          <div className="rounded-xl border bg-muted/40 h-32 lg:h-44" />
-          <div className="rounded-lg border bg-muted/30 h-20 lg:h-24" />
-          <div className="rounded-lg border bg-muted/20 h-16 lg:h-20" />
-        </div>
-      )}
-
-
-      {priceResult && !priceLoading && (
+      {/* Full-width portrait image preview — motivates photo enhancement */}
+      {createdItem?.image_url ? (
         <div className="space-y-3">
-          {/* Recommended price hero */}
-          <div className="rounded-xl border border-success/30 bg-success/5 p-4 lg:p-8 text-center">
-            <p className="text-[10px] lg:text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1">Recommended Price</p>
-            <p className="text-4xl lg:text-6xl font-display font-bold text-success">
-              £{priceResult.recommended_price?.toFixed(2) ?? "—"}
-            </p>
-            {priceResult.confidence_score != null && (
-              <p className="text-xs lg:text-sm text-muted-foreground mt-1">{priceResult.confidence_score}% confidence</p>
-            )}
-          </div>
-
-          {/* Market range bar */}
-          {priceResult.price_range_low != null && priceResult.price_range_high != null && (
-            <div className="rounded-lg border border-border bg-muted/30 p-3 lg:p-5">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">Market Range</p>
-              <div className="flex items-center justify-between text-xs lg:text-sm font-bold mb-1.5">
-                <span>£{priceResult.price_range_low.toFixed(0)}</span>
-                <span className="text-muted-foreground">—</span>
-                <span>£{priceResult.price_range_high.toFixed(0)}</span>
-              </div>
-              <div className="relative h-2 lg:h-3 rounded-full bg-border">
-                {(() => {
-                  const low = priceResult.price_range_low!;
-                  const high = priceResult.price_range_high!;
-                  const rec = priceResult.recommended_price ?? (low + high) / 2;
-                  // Guard divide-by-zero when low === high (single comparable)
-                  const rawPct = high === low ? 50 : ((rec - low) / (high - low)) * 100;
-                  const pct = Math.max(5, Math.min(95, rawPct));
-                  return (
-                    <>
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-warning/60 via-success to-success/60" />
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 lg:w-5 lg:h-5 rounded-full bg-white border-2 border-success shadow-md z-10"
-                        style={{ left: `${pct}%`, transform: `translateX(-50%) translateY(-50%)` }}
-                      />
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* AI insight */}
-          {priceResult.ai_insights && (
-            <div className="rounded-lg border border-border bg-background p-3 lg:p-5 space-y-1.5">
-            <p className={`text-xs lg:text-sm text-muted-foreground leading-relaxed ${insightsExpanded ? "" : "line-clamp-3"}`}>
-                {priceResult.ai_insights}
-              </p>
-              {priceResult.ai_insights.length > 240 && (
-                <button
-                  onClick={() => setInsightsExpanded((v) => !v)}
-                  className="text-[10px] lg:text-xs font-medium text-primary hover:underline"
-                >
-                  {insightsExpanded ? "Show less" : "Read more"}
-                </button>
-              )}
-            </div>
-          )}
-
-          {!priceAccepted ? (
-            <div className="space-y-3">
-              <Button
-                className="w-full h-11 lg:h-12 font-semibold bg-success hover:bg-success/90 text-success-foreground active:scale-[0.98]"
-                onClick={() => acceptPrice()}
-                disabled={!priceResult.recommended_price}
-              >
-                <Check className="w-4 h-4 mr-2" />
-                Use £{priceResult.recommended_price?.toFixed(2)} — AI suggested
-              </Button>
-
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-[10px] text-muted-foreground font-medium">or set your own price</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                  <Input
-                    type="number"
-                    value={customPriceInput}
-                    onChange={(e) => setCustomPriceInput(e.target.value)}
-                    placeholder={form.currentPrice || "0.00"}
-                    className="pl-8 h-11 text-base"
-                    inputMode="decimal"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && customPriceInput) acceptPrice(parseFloat(customPriceInput));
-                    }}
-                  />
+          {/* Before/after inline view when Quick Remove BG has run */}
+          {quickBgResult && originalImageUrl ? (
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "Before", url: originalImageUrl },
+                { label: "After", url: quickBgResult },
+              ].map(({ label, url }) => (
+                <div key={label} className="space-y-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+                  <div className="relative aspect-[4/5] rounded-lg overflow-hidden bg-muted border border-border">
+                    <img src={url} alt={label} className="w-full h-full object-cover" />
+                  </div>
                 </div>
-                <Button
-                  variant="outline"
-                  className="h-11 px-4 font-semibold"
-                  disabled={!customPriceInput || parseFloat(customPriceInput) <= 0 || acceptingCustom}
-                  onClick={async () => {
-                    const v = parseFloat(customPriceInput);
-                    if (isNaN(v) || v <= 0) return;
-                    setAcceptingCustom(true);
-                    await acceptPrice(v);
-                    setAcceptingCustom(false);
-                  }}
-                >
-                  {acceptingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : "Use this"}
-                </Button>
-              </div>
+              ))}
             </div>
           ) : (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
-              <Check className="w-4 h-4 shrink-0" />
-              Price locked at £{createdItem?.current_price?.toFixed(2)} — ready to continue!
+            <div className="relative w-full max-w-[220px] lg:max-w-[320px] mx-auto aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border shadow-sm">
+              <img src={createdItem.image_url} alt="" className="w-full h-full object-cover" />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                <p className="text-white text-[10px] lg:text-xs font-medium truncate">{createdItem.title}</p>
+              </div>
             </div>
           )}
         </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+          No photo uploaded — Photo Studio works best with an item photo.
+        </div>
       )}
 
-      {/* Edit details escape hatch */}
-      {createdItem && (
-        <p className="text-center text-[10px] text-muted-foreground pt-1">
-          Need to fix a typo?{" "}
-          <button
-            className="underline hover:text-foreground transition-colors"
-            onClick={() => window.open(`/items/${createdItem.id}`, "_blank")}
+      {!photoDone && !photoPolling && (
+        <div className="space-y-2">
+          {/* Quick Remove Background — only when item has a photo and hasn't run yet */}
+          {createdItem?.image_url && !quickBgResult && (
+            <Button
+              variant="outline"
+              className="w-full h-11 lg:h-12 font-semibold gap-2 border-primary/30 text-primary hover:bg-primary/5"
+              disabled={quickBgProcessing}
+              onClick={runQuickRemoveBg}
+            >
+              {quickBgProcessing ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Removing background…</>
+              ) : (
+                <><Sparkles className="w-4 h-4" /> Quick Remove Background</>
+              )}
+            </Button>
+          )}
+          <Button
+            className="w-full h-11 lg:h-12 font-semibold"
+            onClick={() => {
+              if (createdItem) {
+                // Mark that user has intentionally gone to Photo Studio
+                // so the re-entry useEffect knows to start polling on return
+                hasNavigatedToPhotoStudioRef.current = true;
+                sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
+                sessionStorage.setItem("sell_wizard_step", "2");
+                navigate(`/vintography?itemId=${createdItem.id}&image_url=${encodeURIComponent(createdItem.image_url || "")}&returnTo=/sell`);
+              }
+            }}
           >
-            Edit item details
-          </button>
-        </p>
+            <ImageIcon className="w-4 h-4 mr-2" /> Open Photo Studio
+          </Button>
+          <Button variant="ghost" size="sm" className="w-full text-muted-foreground text-xs" onClick={skipPhotos}>
+            Skip for now
+          </Button>
+        </div>
+      )}
+
+      {photoPolling && (
+        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 flex items-center gap-3">
+          <Loader2 className="w-5 h-5 animate-spin text-primary shrink-0" />
+          <div>
+            <p className="text-xs font-semibold">Waiting for Photo Studio…</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Return here once you've saved an enhanced photo.</p>
+          </div>
+          <Button variant="ghost" size="sm" className="ml-auto text-xs shrink-0" onClick={() => { clearInterval(photoIntervalRef.current!); setPhotoPolling(false); }}>
+            Cancel
+          </Button>
+        </div>
+      )}
+
+      {photoPolling && (
+        <Button className="w-full h-11 font-semibold" onClick={skipPhotos}>
+          I'm done — Continue <ArrowRight className="w-4 h-4 ml-1.5" />
+        </Button>
+      )}
+
+      {photoDone && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
+          <Check className="w-4 h-4 shrink-0" /> Photo enhancement saved — great work!
+        </div>
       )}
     </div>
   );
@@ -1377,71 +1365,172 @@ export default function SellWizard() {
     </div>
   );
 
-  /* ═══ STEP 4: PHOTOS ═══ */
+  /* ═══ STEP 4: PRICE CHECK (v3) ═══ */
   const renderStep4 = () => (
     <div className="space-y-4">
-      <p className="text-xs lg:text-sm text-muted-foreground">Enhance your photos with AI for better click-through rates.</p>
-
-      {/* Full-width portrait image preview — motivates photo enhancement */}
-      {createdItem?.image_url ? (
-        <div className="relative w-full max-w-[220px] lg:max-w-[320px] mx-auto aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border shadow-sm">
-          <img src={createdItem.image_url} alt="" className="w-full h-full object-cover" />
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-            <p className="text-white text-[10px] lg:text-xs font-medium truncate">{createdItem.title}</p>
-          </div>
+      {/* Free tier credit nudge — shown after price check used a credit */}
+      {isFreeUser && !isUnlimitedUser && priceAccepted && creditsRemaining <= 1 && (
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-warning/10 border border-warning/30">
+          <span className="text-base shrink-0">💡</span>
+          <p className="text-xs text-foreground leading-relaxed">
+            This used 1 of your 3 free credits.{" "}
+            <button
+              className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity text-primary"
+              onClick={() => navigate("/settings?tab=billing")}
+            >
+              Upgrade for unlimited checks.
+            </button>
+          </p>
         </div>
-      ) : (
-        <div className="rounded-xl border border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-          No photo uploaded — Photo Studio works best with an item photo.
+      )}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {priceLoading ? "Analysing market prices…" : priceResult ? "Market analysis complete" : "Ready to analyse"}
+        </p>
+        {!priceLoading && priceResult && (
+          <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs" onClick={() => { setPriceResult(null); setPriceAccepted(false); runPriceCheck(); }}>
+            <RotateCcw className="w-3.5 h-3.5" /> Re-run
+          </Button>
+        )}
+      </div>
+
+      {/* Skeleton loading */}
+      {priceLoading && (
+        <div className="space-y-3 animate-pulse">
+          <div className="rounded-xl border bg-muted/40 h-32 lg:h-44" />
+          <div className="rounded-lg border bg-muted/30 h-20 lg:h-24" />
+          <div className="rounded-lg border bg-muted/20 h-16 lg:h-20" />
         </div>
       )}
 
-      {!photoDone && !photoPolling && (
-        <div className="space-y-2">
-          <Button
-            className="w-full h-11 lg:h-12 font-semibold"
-            onClick={() => {
-              if (createdItem) {
-                // Mark that user has intentionally gone to Photo Studio
-                // so the re-entry useEffect knows to start polling on return
-                hasNavigatedToPhotoStudioRef.current = true;
-                sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
-                sessionStorage.setItem("sell_wizard_step", "4");
-                navigate(`/vintography?itemId=${createdItem.id}&image_url=${encodeURIComponent(createdItem.image_url || "")}&returnTo=/sell`);
-              }
-            }}
+      {priceResult && !priceLoading && (
+        <div className="space-y-3">
+          {/* Recommended price hero */}
+          <div className="rounded-xl border border-success/30 bg-success/5 p-4 lg:p-8 text-center">
+            <p className="text-[10px] lg:text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1">Recommended Price</p>
+            <p className="text-4xl lg:text-6xl font-display font-bold text-success">
+              £{priceResult.recommended_price?.toFixed(2) ?? "—"}
+            </p>
+            {priceResult.confidence_score != null && (
+              <p className="text-xs lg:text-sm text-muted-foreground mt-1">{priceResult.confidence_score}% confidence</p>
+            )}
+          </div>
+
+          {/* Market range bar */}
+          {priceResult.price_range_low != null && priceResult.price_range_high != null && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3 lg:p-5">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">Market Range</p>
+              <div className="flex items-center justify-between text-xs lg:text-sm font-bold mb-1.5">
+                <span>£{priceResult.price_range_low.toFixed(0)}</span>
+                <span className="text-muted-foreground">—</span>
+                <span>£{priceResult.price_range_high.toFixed(0)}</span>
+              </div>
+              <div className="relative h-2 lg:h-3 rounded-full bg-border">
+                {(() => {
+                  const low = priceResult.price_range_low!;
+                  const high = priceResult.price_range_high!;
+                  const rec = priceResult.recommended_price ?? (low + high) / 2;
+                  const rawPct = high === low ? 50 : ((rec - low) / (high - low)) * 100;
+                  const pct = Math.max(5, Math.min(95, rawPct));
+                  return (
+                    <>
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-warning/60 via-success to-success/60" />
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 lg:w-5 lg:h-5 rounded-full bg-white border-2 border-success shadow-md z-10"
+                        style={{ left: `${pct}%`, transform: `translateX(-50%) translateY(-50%)` }}
+                      />
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* AI insight */}
+          {priceResult.ai_insights && (
+            <div className="rounded-lg border border-border bg-background p-3 lg:p-5 space-y-1.5">
+              <p className={`text-xs lg:text-sm text-muted-foreground leading-relaxed ${insightsExpanded ? "" : "line-clamp-3"}`}>
+                {priceResult.ai_insights}
+              </p>
+              {priceResult.ai_insights.length > 240 && (
+                <button
+                  onClick={() => setInsightsExpanded((v) => !v)}
+                  className="text-[10px] lg:text-xs font-medium text-primary hover:underline"
+                >
+                  {insightsExpanded ? "Show less" : "Read more"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {!priceAccepted ? (
+            <div className="space-y-3">
+              <Button
+                className="w-full h-11 lg:h-12 font-semibold bg-success hover:bg-success/90 text-success-foreground active:scale-[0.98]"
+                onClick={() => acceptPrice()}
+                disabled={!priceResult.recommended_price}
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Use £{priceResult.recommended_price?.toFixed(2)} — AI suggested
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[10px] text-muted-foreground font-medium">or set your own price</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    value={customPriceInput}
+                    onChange={(e) => setCustomPriceInput(e.target.value)}
+                    placeholder={form.currentPrice || "0.00"}
+                    className="pl-8 h-11 text-base"
+                    inputMode="decimal"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && customPriceInput) acceptPrice(parseFloat(customPriceInput));
+                    }}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-11 px-4 font-semibold"
+                  disabled={!customPriceInput || parseFloat(customPriceInput) <= 0 || acceptingCustom}
+                  onClick={async () => {
+                    const v = parseFloat(customPriceInput);
+                    if (isNaN(v) || v <= 0) return;
+                    setAcceptingCustom(true);
+                    await acceptPrice(v);
+                    setAcceptingCustom(false);
+                  }}
+                >
+                  {acceptingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : "Use this"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
+              <Check className="w-4 h-4 shrink-0" />
+              Price locked at £{createdItem?.current_price?.toFixed(2)} — ready to continue!
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit details escape hatch */}
+      {createdItem && (
+        <p className="text-center text-[10px] text-muted-foreground pt-1">
+          Need to fix a typo?{" "}
+          <button
+            className="underline hover:text-foreground transition-colors"
+            onClick={() => window.open(`/items/${createdItem.id}`, "_blank")}
           >
-            <ImageIcon className="w-4 h-4 mr-2" /> Open Photo Studio
-          </Button>
-          <Button variant="ghost" size="sm" className="w-full text-muted-foreground text-xs" onClick={skipPhotos}>
-            Skip for now
-          </Button>
-        </div>
-      )}
-
-      {photoPolling && (
-        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 flex items-center gap-3">
-          <Loader2 className="w-5 h-5 animate-spin text-primary shrink-0" />
-          <div>
-            <p className="text-xs font-semibold">Waiting for Photo Studio…</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Return here once you've saved an enhanced photo.</p>
-          </div>
-          <Button variant="ghost" size="sm" className="ml-auto text-xs shrink-0" onClick={() => { clearInterval(photoIntervalRef.current!); setPhotoPolling(false); }}>
-            Cancel
-          </Button>
-        </div>
-      )}
-
-      {photoPolling && (
-        <Button className="w-full h-11 font-semibold" onClick={skipPhotos}>
-          I'm done — Continue <ArrowRight className="w-4 h-4 ml-1.5" />
-        </Button>
-      )}
-
-      {photoDone && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
-          <Check className="w-4 h-4 shrink-0" /> Photo enhancement saved — great work!
-        </div>
+            Edit item details
+          </button>
+        </p>
       )}
     </div>
   );
@@ -1465,7 +1554,29 @@ export default function SellWizard() {
           <p className="text-xs lg:text-sm text-muted-foreground mt-1">Your Vinted-Ready Pack is complete. Copy the details below and list it now.</p>
         </motion.div>
 
-        {/* Bug 9: Profit Estimate card — only when both prices are known */}
+        {/* Before/After photo comparison — shown when user enhanced a photo in Step 2 */}
+        {createdItem?.last_photo_edit_at && originalImageUrl && createdItem.image_url !== originalImageUrl && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12, duration: 0.3 }}
+            className="rounded-xl border border-border bg-muted/20 p-3 lg:p-4 space-y-2"
+          >
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Photo Enhancement</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[{ label: "Before", url: originalImageUrl }, { label: "After", url: createdItem.image_url! }].map(({ label, url }) => (
+                <div key={label} className="space-y-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground">{label}</span>
+                  <div className="relative aspect-[4/5] rounded-lg overflow-hidden bg-muted border border-border">
+                    <img src={url} alt={label} className="w-full h-full object-cover" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Profit Estimate card — only when both prices are known */}
         {createdItem?.purchase_price && createdItem?.current_price && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -1520,7 +1631,7 @@ export default function SellWizard() {
             <VintedReadyPack
               item={createdItem as any}
               onOptimise={() => setCurrentStep(3)}
-              onPhotoStudio={() => setCurrentStep(4)}
+              onPhotoStudio={() => setCurrentStep(2)}
             />
           </motion.div>
         )}
@@ -1658,14 +1769,14 @@ export default function SellWizard() {
     }
   };
 
-  // Step title and subtitle for the header — Bug 1: update when inside a sub-flow
+  // Step title and subtitle for the header — v3 order
   const stepMeta: Record<number, { title: string; sub: string }> = {
     1: entryMethod
       ? { title: "Item details", sub: "Fill in the fields below — the AI uses these to price and optimise your listing." }
       : { title: "Add your item", sub: "Choose how to add the item — we'll guide you through the rest." },
-    2: { title: "Price it right", sub: "AI analyses live market data to find your ideal price." },
+    2: { title: "Enhance your photos", sub: "AI-enhanced photos get up to 3× more views." },
     3: { title: "Optimise your listing", sub: "AI writes an SEO-optimised title and description." },
-    4: { title: "Enhance your photos", sub: "AI-enhanced photos get up to 3× more views." },
+    4: { title: "Price it right", sub: "AI analyses live market data to find your ideal price." },
     5: { title: "Vinted-Ready Pack", sub: "Everything you need to list this item, right here." },
   };
 
@@ -1762,8 +1873,8 @@ export default function SellWizard() {
             )}
             <Button
               className="flex-1 h-12 lg:h-14 font-semibold lg:text-base"
-              disabled={!canAdvance() && !(currentStep === 4 && photoPolling)}
-              onClick={currentStep === 4 && photoPolling && !photoDone ? skipPhotos : goNext}
+              disabled={!canAdvance() && !(currentStep === 2 && photoPolling)}
+              onClick={currentStep === 2 && photoPolling && !photoDone ? skipPhotos : goNext}
             >
               Continue <ArrowRight className="w-4 h-4 ml-1.5" />
             </Button>
