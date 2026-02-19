@@ -156,8 +156,17 @@ function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepSta
 // ═══════════════════════════════════════
 export default function SellWizard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, credits, profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Derived credit state for nudge banners
+  const isUnlimitedUser = (credits?.credits_limit ?? 0) >= 999999;
+  const creditsRemaining = isUnlimitedUser
+    ? Infinity
+    : credits
+    ? Math.max(0, credits.credits_limit - (credits.price_checks_used + credits.optimizations_used + credits.vintography_used))
+    : Infinity;
+  const isFreeUser = (profile?.subscription_tier || "free") === "free";
 
   const [currentStep, setCurrentStep] = useState(1);
   const [direction, setDirection] = useState(1);
@@ -1050,6 +1059,21 @@ export default function SellWizard() {
   /* ═══ STEP 2: PRICE CHECK ═══ */
   const renderStep2 = () => (
     <div className="space-y-4">
+      {/* Free tier credit nudge — shown after price check used a credit */}
+      {isFreeUser && !isUnlimitedUser && priceAccepted && creditsRemaining <= 1 && (
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-warning/10 border border-warning/30">
+          <span className="text-base shrink-0">💡</span>
+          <p className="text-xs text-foreground leading-relaxed">
+            This used 1 of your 3 free credits.{" "}
+            <button
+              className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity text-primary"
+              onClick={() => navigate("/settings?tab=billing")}
+            >
+              Upgrade for unlimited checks.
+            </button>
+          </p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
           {priceLoading ? "Analysing market prices…" : priceResult ? "Market analysis complete" : "Ready to analyse"}
@@ -1313,6 +1337,25 @@ export default function SellWizard() {
                   ? "Saved — good listing, photos will boost it further."
                   : "Saved — enhance photos next to improve the score."}
               </div>
+              {/* Free user conversion banner — shown after optimise credit consumed */}
+              {isFreeUser && !isUnlimitedUser && creditsRemaining === 0 && (
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <span className="text-base shrink-0">🎯</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-foreground mb-0.5">You've completed your free item!</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed mb-2">
+                      Upgrade to Pro for 50 credits/month — sell more, earn more.
+                    </p>
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs font-semibold"
+                      onClick={() => navigate("/settings?tab=billing")}
+                    >
+                      Upgrade to Pro →
+                    </Button>
+                  </div>
+                </div>
+              )}
               {/* Disclosure confirmation */}
               {form.seller_notes.trim() && (
                 optimiseResult.seller_notes_disclosed === false ? (

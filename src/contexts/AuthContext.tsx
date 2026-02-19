@@ -16,6 +16,7 @@ type Profile = {
   timezone: string;
   tour_completed: boolean;
   milestones_shown: string[];
+  first_item_pass_used: boolean | null;
 };
 
 type UsageCredits = {
