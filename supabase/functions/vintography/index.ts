@@ -532,26 +532,41 @@ serve(async (req) => {
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: image_url } },
-            ],
-          },
-        ],
-        modalities: ["image", "text"],
-      }),
-    });
+    let aiResponse: Response;
+    try {
+      console.log(`Calling AI gateway with model ${model} for operation ${operation}`);
+      aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: image_url } },
+              ],
+            },
+          ],
+          modalities: ["image", "text"],
+        }),
+      });
+      console.log(`AI gateway responded with status ${aiResponse.status}`);
+    } catch (fetchErr) {
+      console.error("AI gateway fetch failed:", fetchErr);
+      await adminClient
+        .from("vintography_jobs")
+        .update({ status: "failed", error_message: `AI fetch error: ${fetchErr}` })
+        .eq("id", job.id);
+      return new Response(JSON.stringify({ error: "AI service unavailable. Please try again." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
@@ -577,9 +592,28 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    const imageResult = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    console.log("AI response keys:", JSON.stringify(Object.keys(aiData)));
+    console.log("AI choices[0].message keys:", JSON.stringify(aiData.choices?.[0]?.message ? Object.keys(aiData.choices[0].message) : "no message"));
+    
+    // Try multiple response formats
+    const imageResult = 
+      aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url ||
+      aiData.choices?.[0]?.message?.images?.[0]?.url ||
+      aiData.choices?.[0]?.message?.image?.url ||
+      (() => {
+        // Check if image is inline in content array
+        const content = aiData.choices?.[0]?.message?.content;
+        if (Array.isArray(content)) {
+          const imgPart = content.find((p: any) => p.type === "image_url" || p.type === "image");
+          return imgPart?.image_url?.url || imgPart?.url || null;
+        }
+        return null;
+      })();
+    
+    console.log("Image result found:", !!imageResult, imageResult ? `(length: ${imageResult.length})` : "(null)");
 
     if (!imageResult) {
+      console.error("Full AI response structure:", JSON.stringify(aiData).substring(0, 2000));
       await adminClient
         .from("vintography_jobs")
         .update({ status: "failed", error_message: "No image generated" })
