@@ -10,7 +10,7 @@ const corsHeaders = {
 // ── Hyper-optimised fashion-photography prompts ──────────────────────
 const QUALITY_MANDATE = `OUTPUT REQUIREMENTS: Deliver the highest possible resolution and quality. The result must be indistinguishable from work by a professional fashion photographer using a full-frame camera with a prime lens. Maintain pixel-level sharpness on fabric textures, stitching, and hardware.`;
 
-const NO_TEXT = `CRITICAL — NO ADDED TEXT OR LABELS: Do NOT add any text, labels, captions, titles, annotations, watermarks, signatures, stamps, banners, "Before"/"After" labels, operation names, or any form of written content to the output image. The output must contain ZERO added characters or symbols. If the original garment has printed text, logos, or brand labels on it, preserve those exactly as they are — but NEVER add new text that was not on the original garment. This is the #1 rule — violating it ruins the image.`;
+const NO_TEXT = `ABSOLUTE RULE #1 — ZERO ADDED TEXT: The output image must contain ABSOLUTELY NO added text, labels, captions, titles, words, letters, numbers, annotations, watermarks, signatures, stamps, banners, "Before"/"After" labels, operation names, mode names, or ANY form of written content whatsoever. NOT EVEN A SINGLE CHARACTER. If you are tempted to add ANY text overlay, label, or annotation — DO NOT. The image must be a pure photograph with zero text additions. The ONLY text that may appear is text that physically exists on the original garment itself (printed logos, brand labels, care labels). Adding any other text instantly ruins the image and fails the task.`;
 
 const GARMENT_PRESERVE = `GARMENT INTEGRITY (NON-NEGOTIABLE): Preserve every single detail of the garment with forensic accuracy — all logos, prints, embroidery, textures, stitching patterns, buttons, zippers, tags, brand markers, fabric weave, and colour must remain perfectly intact, unaltered, and unobscured. STRUCTURAL DETAILS ARE CRITICAL: all pockets (patch pockets, welt pockets, chest pockets, side pockets, pocket flaps), all visible seams (topstitching, flat-felled seams, French seams, princess seams, yoke seams, waist seams), darts, pleats, belt loops, rivets, grommets, and any other construction details MUST be preserved exactly as they appear in the original image. These are defining features of the garment — removing or smoothing over them fundamentally changes the product. Maintain accurate colour reproduction under the new lighting conditions. DO NOT change the garment type — if the input is a crewneck sweatshirt, it must remain a crewneck sweatshirt. DO NOT add a hood, DO NOT change the neckline, DO NOT alter the silhouette. The garment identity must be preserved exactly.`;
 
@@ -526,8 +526,9 @@ serve(async (req) => {
     if (garment_context && !["model_shot"].includes(operation)) {
       prompt += buildGarmentContext(garment_context);
     }
-    // Prepend the no-text rule so the model sees it FIRST — this is the strongest position for instruction following
-    prompt = `${NO_TEXT}\n\n${prompt}`;
+    // Sandwich the no-text rule: prepend AND append — models respond to both primacy and recency positions
+    const NO_TEXT_REMINDER = `\n\nFINAL REMINDER — ZERO TEXT: Do NOT add any text, labels, captions, or annotations to the output image. Pure photograph only.`;
+    prompt = `${NO_TEXT}\n\n${prompt}${NO_TEXT_REMINDER}`;
 
     console.log(`Processing ${operation} with model ${model} for user ${user.id}`);
 
