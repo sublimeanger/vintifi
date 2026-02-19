@@ -152,6 +152,42 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
           <p className="text-[10px] lg:text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
           </p>
+
+          {/* Mobile action row — visible only on touch devices */}
+          <div className="flex items-center gap-1 mt-1.5 pt-1.5 border-t border-border lg:hidden">
+            {job.processed_url && onUseAsInput && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 rounded-lg"
+                onClick={(e) => { e.stopPropagation(); onUseAsInput(job); }}
+                title="Edit again"
+              >
+                <Wand2 className="w-3 h-3" />
+              </Button>
+            )}
+            {job.processed_url && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 rounded-lg"
+                onClick={(e) => { e.stopPropagation(); onRestore(job); }}
+                title="View in editor"
+              >
+                <ImageIcon className="w-3 h-3" />
+              </Button>
+            )}
+            <div className="flex-1" />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={(e) => { e.stopPropagation(); onDelete(job.id); }}
+              title="Delete"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
         </div>
       </Card>
     </motion.div>
