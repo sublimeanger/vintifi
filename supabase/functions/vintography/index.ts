@@ -369,17 +369,17 @@ ${GARMENT_PRESERVE}
 ${QUALITY_MANDATE}`,
 };
 
-// Models per operation
+// Models per operation — use gemini-2.5-flash-image (Nano Banana) which reliably returns images via chat completions
 const MODEL_MAP: Record<string, string> = {
-  remove_bg: "google/gemini-3-pro-image-preview",
-  smart_bg: "google/gemini-3-pro-image-preview",
-  model_shot: "google/gemini-3-pro-image-preview",
-  mannequin_shot: "google/gemini-3-pro-image-preview",
-  ghost_mannequin: "google/gemini-3-pro-image-preview",
-  flatlay_style: "google/gemini-3-pro-image-preview",
-  selfie_shot: "google/gemini-3-pro-image-preview",
-  enhance: "google/gemini-3-pro-image-preview",
-  decrease: "google/gemini-3-pro-image-preview",
+  remove_bg: "google/gemini-2.5-flash-image",
+  smart_bg: "google/gemini-2.5-flash-image",
+  model_shot: "google/gemini-2.5-flash-image",
+  mannequin_shot: "google/gemini-2.5-flash-image",
+  ghost_mannequin: "google/gemini-2.5-flash-image",
+  flatlay_style: "google/gemini-2.5-flash-image",
+  selfie_shot: "google/gemini-2.5-flash-image",
+  enhance: "google/gemini-2.5-flash-image",
+  decrease: "google/gemini-2.5-flash-image",
 };
 
 // Operations allowed per tier
