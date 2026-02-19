@@ -53,6 +53,7 @@ import {
   PipelineStep,
 } from "@/components/vintography/vintographyReducer";
 import { useVintographyDraftSave, readDraft, clearDraft } from "@/hooks/useVintographyDraft";
+import { ensureDisplayableImage, ensureDisplayableImages } from "@/lib/convertHeic";
 
 export default function Vintography() {
   const { user, profile, credits, refreshCredits } = useAuth();
@@ -239,11 +240,12 @@ export default function Vintography() {
   // ─── File upload ───
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!user) return null;
-    if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return null; }
-    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return null; }
-    const ext = file.name.split(".").pop() || "jpg";
+    const converted = await ensureDisplayableImage(file);
+    if (!converted.type.startsWith("image/")) { toast.error("Please upload an image file"); return null; }
+    if (converted.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return null; }
+    const ext = converted.name.split(".").pop() || "jpg";
     const path = `${user.id}/vintography-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
-    const { error } = await supabase.storage.from("listing-photos").upload(path, file, { contentType: file.type, upsert: true });
+    const { error } = await supabase.storage.from("listing-photos").upload(path, converted, { contentType: converted.type, upsert: true });
     if (error) { toast.error("Failed to upload image"); return null; }
     const { data: pub } = supabase.storage.from("listing-photos").getPublicUrl(path);
     return pub.publicUrl;
@@ -746,7 +748,7 @@ export default function Vintography() {
                     <input
                       ref={addPhotoInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/*,.heic,.heif"
                       className="hidden"
                       onChange={(e) => handleAddPhoto(e.target.files)}
                     />
@@ -983,7 +985,7 @@ export default function Vintography() {
                       <input
                         ref={addPhotoInputRef}
                         type="file"
-                        accept="image/*"
+                        accept="image/*,.heic,.heif"
                         className="hidden"
                         onChange={(e) => handleAddPhoto(e.target.files)}
                       />

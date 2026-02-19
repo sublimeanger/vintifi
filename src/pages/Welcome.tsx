@@ -5,14 +5,16 @@ import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Camera, Link2, ArrowRight, Sparkles, Gift } from "lucide-react";
 import { toast } from "sonner";
+import { ensureDisplayableImage } from "@/lib/convertHeic";
 
 export default function Welcome() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
+    const file = await ensureDisplayableImage(rawFile);
     const objectUrl = URL.createObjectURL(file);
     // Store the photo URL temporarily so SellWizard can pick it up
     sessionStorage.setItem("welcome_photo_url", objectUrl);
@@ -85,7 +87,7 @@ export default function Welcome() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               className="hidden"
               onChange={handleFileSelect}
             />

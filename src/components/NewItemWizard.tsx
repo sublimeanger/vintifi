@@ -30,6 +30,7 @@ import {
   Link2, Camera, Pencil, ArrowRight, ArrowLeft, Loader2,
   Plus, Check, Sparkles, Package, Upload, X, Zap, Info, ImageIcon,
 } from "lucide-react";
+import { ensureDisplayableImages } from "@/lib/convertHeic";
 
 type EntryMethod = "url" | "photo" | "manual";
 
@@ -124,8 +125,9 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
   const uploadPhotos = async (files: File[]): Promise<string[]> => {
     if (!user) return [];
     setUploading(true);
+    const converted = await ensureDisplayableImages(files.slice(0, 5));
     const urls: string[] = [];
-    for (const file of files.slice(0, 5)) {
+    for (const file of converted) {
       if (!file.type.startsWith("image/")) continue;
       if (file.size > 10 * 1024 * 1024) continue;
       const ext = file.name.split(".").pop() || "jpg";
@@ -141,8 +143,9 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
   };
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).slice(0, 5 - data.photoUrls.length);
-    if (files.length === 0) return;
+    const rawFiles = Array.from(e.target.files || []).slice(0, 5 - data.photoUrls.length);
+    if (rawFiles.length === 0) return;
+    const files = await ensureDisplayableImages(rawFiles);
     const newFiles = [...data.photos, ...files];
     const newUrls = [...data.photoUrls, ...files.map(f => URL.createObjectURL(f))];
     update({ photos: newFiles, photoUrls: newUrls });
@@ -452,7 +455,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                    accept="image/*,.heic,.heif"
                       multiple
                       className="hidden"
                       onChange={handlePhotoSelect}
@@ -571,7 +574,7 @@ export function NewItemWizard({ open, onOpenChange, onCreated, listingCount, lis
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.heic,.heif"
                     multiple
                     className="hidden"
                     onChange={handlePhotoSelect}
