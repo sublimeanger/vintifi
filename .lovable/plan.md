@@ -1,113 +1,86 @@
 
-## Fix Pricing Page — Accurate Features, Clean 3-Tier Layout
+## Audit: FeatureGate Tier Alignment
 
-### What's Wrong Now
+### What the Correct Tier Structure Is
 
-The pricing page has multiple inaccuracies versus what actually exists in the product and what the repositioning doc specifies:
+Based on the pricing page and repositioning doc:
 
-**`src/lib/constants.ts` — STRIPE_TIERS features are wrong:**
-- **Free:** Lists "flat-lay" (gated to Pro+), "AI Price Check" (gated after first item), "top 5 trends" (should be top 3)
-- **Pro:** Lists "Relist Scheduler", "Dead Stock alerts", "Charity Sourcing Briefing", "Competitor tracking" — none of these are working features
-- **Business:** Lists "Arbitrage Scanner", "Clearance Radar", "Competitor tracking (15)", "Export reports to CSV" — none are working features. Missing AI Model Shots and translations.
+| Feature | Free | Pro | Business |
+|---|---|---|---|
+| Photo Studio (clean bg, lifestyle bg, enhance, steam & press) | ✓ | ✓ | ✓ |
+| Photo Studio — Flat-Lay Pro | — | ✓ | ✓ |
+| Photo Studio — Mannequin | — | ✓ | ✓ |
+| AI Model Shots | — | — | ✓ |
+| AI Listing Optimiser | First item free | ✓ | ✓ |
+| AI Price Check | First item free | ✓ | ✓ |
+| Full Trend Radar | — | ✓ | ✓ |
+| Niche Finder | — | ✓ | ✓ |
+| Multi-language listings | — | — | ✓ |
+| Bulk Optimiser | — | — | ✓ |
 
-**`src/pages/marketing/Pricing.tsx` — comparison table is wrong:**
-- References unbuilt features (Arbitrage Scanner, Clearance Radar, Relist Scheduler, Dead Stock, Charity Briefing, Competitor Tracking)
-- "Trend Radar" shows "Top 5" for Free (should be top 3)
-- "Items Tracked" shows "Unlimited" for Pro/Business (should be 200/1,000 per the tier enforcement)
-- Personas section describes features that don't exist
+### Problems Found
 
-**`src/components/MarketingLayout.tsx` footer:**
-- Says "5 free credits" — should be "3 free credits"
+**1. `useFeatureGate.ts` — Ghost feature keys and missing operation-level keys**
 
----
+The `FeatureKey` union and `FEATURE_CONFIG` contain keys for 9 features that have no working UI and are no longer on the pricing page: `arbitrage_scanner`, `competitor_tracker`, `dead_stock`, `clearance_radar`, `seasonal_calendar`, `relist_scheduler`, `cross_listings`, `portfolio_optimizer`, `charity_briefing`.
 
-### The Correct Feature Set (from user brief + repositioning doc)
+Additionally, there are no feature keys for the Vintography sub-operations that need gating: `flatlay`, `mannequin`, and `ai_model`. The entire Photo Studio page is gated as `vintography: minTier: "free"` — which allows every tier in — but the individual premium operations inside have no gate.
 
-**Free — £0**
-- Your first item is completely free — photos, listing, pricing
-- 3 credits/month after that
-- Photo Studio — background removal, smart backgrounds, enhance
-- Trend Radar — top 3 trends preview
-- Up to 10 items tracked
-- Import listings from Vinted URL
+**New keys needed:**
+- `vintography_flatlay` — minTier: `"pro"`, usesCredits: true
+- `vintography_mannequin` — minTier: `"pro"`, usesCredits: true
+- `vintography_ai_model` — minTier: `"business"`, usesCredits: true
 
-**Pro — £9.99/mo (or £7.99/mo billed annually) — Most Popular**
-- 7-day free trial included
-- 50 credits/month
-- Everything in Free
-- Full Photo Studio — flat-lay, mannequin, ghost mannequin
-- AI Listing Optimiser — titles, descriptions, health scores
-- AI Price Check with market comparables
-- Full Trend Radar + Niche Finder
-- Up to 200 items tracked
+**2. `Vintography.tsx` — No per-operation tier enforcement in the UI**
 
-**Business — £24.99/mo (or £19.99/mo billed annually)**
-- 7-day free trial included
-- 200 credits/month
-- Everything in Pro
-- AI Model Shots — virtual model wearing your garment
-- Multi-language listings (FR, DE, NL, ES)
-- Bulk Listing Optimiser
-- Up to 1,000 items tracked
-- Priority support
+The operation cards (lines 749–795) render all operations identically for all tiers. When a free user clicks Flat-Lay Pro or Mannequin, the card selects and the Generate button fires — the edge function is the only backstop. This is a bad UX: users hit a confusing backend error rather than a clear upgrade prompt.
+
+The AI Model section has a visual "Premium AI Feature" divider but no actual gate — a Pro user can click and attempt it, again failing only at the backend.
+
+**Fix needed:** Each locked operation card should render with:
+- A lock icon overlay and reduced opacity (but still visible/selectable to drive upgrade intent)
+- Clicking the card opens the UpgradeModal with the correct tier requirement
+- The Generate button should be disabled when a locked op is selected, replaced with an upgrade CTA
+
+**3. `useFeatureGate.ts` — `niche_finder` label inconsistency**
+
+`niche_finder` is still in FEATURE_CONFIG as `minTier: "pro"` but isn't used anywhere in the codebase via FeatureGate. The TrendRadar page only uses `trend_radar_full`. This is fine to keep as-is since it's correctly gated, but the ghost keys should be cleaned up.
 
 ---
 
 ### Files to Change
 
-**1. `src/lib/constants.ts`**
+**1. `src/hooks/useFeatureGate.ts`**
 
-Replace the `features` arrays for `free`, `pro`, and `business` with the correct, honest lists above. This is the single source of truth used by the pricing cards and potentially other parts of the app.
+- Remove ghost FeatureKey entries: `arbitrage_scanner`, `competitor_tracker`, `dead_stock`, `clearance_radar`, `seasonal_calendar`, `relist_scheduler`, `cross_listings`, `portfolio_optimizer`, `charity_briefing`
+- Add three new keys: `vintography_flatlay`, `vintography_mannequin`, `vintography_ai_model`
+- Set their configs:
+  - `vintography_flatlay: { minTier: "pro", usesCredits: true, creditType: "optimizations", label: "Flat-Lay Pro" }`
+  - `vintography_mannequin: { minTier: "pro", usesCredits: true, creditType: "optimizations", label: "Mannequin Shot" }`
+  - `vintography_ai_model: { minTier: "business", usesCredits: true, creditType: "optimizations", label: "AI Model Shot" }`
 
-Note: Annual prices need a check — the doc specifies £7.99/mo annually for Pro (= £95.88/yr, which matches `annual_price: 95.88`) and £19.99/mo annually for Business (= £239.88/yr, which matches `annual_price: 239.88`). These are already correct in Stripe — no Stripe changes needed.
+**2. `src/pages/Vintography.tsx`**
 
-**2. `src/pages/marketing/Pricing.tsx`**
+Add per-operation tier gating in the operation card grid. The approach:
 
-- **`comparisonFeatures` array:** Replace entirely with an accurate, lean table:
-  - Credits / month: `3` / `50` / `200`
-  - Photo Studio (remove bg, enhance): `✓` / `✓` / `✓`
-  - Photo Studio (flat-lay, mannequin): `—` / `✓` / `✓`
-  - AI Model Shots: `—` / `—` / `✓`
-  - AI Price Check: First item / `✓` / `✓`
-  - AI Listing Optimiser: First item / `✓` / `✓`
-  - Trend Radar: Top 3 / Full / Full
-  - Niche Finder: `—` / `✓` / `✓`
-  - Multi-language listings: `—` / `—` / `✓`
-  - Bulk Optimiser: `—` / `—` / `✓`
-  - Import from Vinted URL: `✓` / `✓` / `✓`
-  - Items tracked: `10` / `200` / `1,000`
-  - Support: Community / Email / Priority
+- Call `useFeatureGate("vintography_flatlay")`, `useFeatureGate("vintography_mannequin")`, `useFeatureGate("vintography_ai_model")` at the top of the component
+- In the 2×2 operation card grid (lines 749–795), for `flatlay` and `mannequin` cards:
+  - If the gate is not `allowed`: render with a `Lock` icon overlay in the top-right corner, a `Pro` badge instead of the credit badge, and `onClick` opens the upgrade modal instead of selecting the op
+  - If `allowed`: render as normal (current behavior)
+- For the AI Model Shot card (lines 863–924):
+  - If `vintography_ai_model.allowed` is false: show an `Upgrade to Business` button instead of just being selectable. The card becomes non-functional — click triggers `showUpgrade()` instead of `setSelectedOp("ai_model")`
+- Ensure the Generate button (lines 618–627) is disabled if the `selectedOp` is one a locked tier user somehow has selected (defensive)
+- Render the three UpgradeModals for the three gates (one modal suffices — reuse `upgradeOpen` from whichever gate fired)
 
-- **`personas` array:** Update descriptions to match real features and correct item limits (Pro = up to 200 items, not "20–100 items a month"; Business unlocked by AI Model Shots)
-
-- **Annual price display for Pro:** The toggle currently computes `annual_price / 12` = `95.88 / 12` = `£7.99`. This is correct, no change needed.
-
-- **Business annual:** `239.88 / 12` = `£19.99`. Also correct.
-
-- **FAQ answers:** Update any references to incorrect feature sets (e.g. "Vintography photo edit costs 1 credit — AI Model costs 4 credits", credit counts must say 3 not 5)
-
-**3. `src/components/MarketingLayout.tsx`**
-
-- Footer tagline: Change `"5 free credits"` → `"3 free credits"` (appears in the Get Started column)
+**Technical note on state management:** A single `upgradeModalOpen` state with a `requiredTier` string is cleaner than three separate modal states. We'll use a local `lockedOpGate` state that holds which gate fired, and render one `UpgradeModal` that reads from that gate's `tierRequired`.
 
 ---
 
-### What Is NOT Changing
-
-- Stripe price IDs and product IDs — already correct
-- Annual pricing math — already resolves to £7.99/mo and £19.99/mo correctly
-- The card layout, animations, trust badges, credit packs section, FAQ structure
-- Scale/Enterprise tiers remain hidden from the public page (already implemented)
-- The photo studio before/after comparison visual in the hero
-
----
-
-### Technical Summary
+### Summary Table
 
 | File | Change |
 |---|---|
-| `src/lib/constants.ts` | Replace `features[]` for free, pro, business with accurate 6-7 bullet lists |
-| `src/pages/marketing/Pricing.tsx` | Replace `comparisonFeatures`, `personas`, fix FAQ credit references |
-| `src/components/MarketingLayout.tsx` | Change "5 free credits" → "3 free credits" in footer |
+| `src/hooks/useFeatureGate.ts` | Remove 9 ghost keys, add 3 new Vintography sub-operation keys with correct minTier |
+| `src/pages/Vintography.tsx` | Add `useFeatureGate` calls for flatlay/mannequin/ai_model, lock cards visually and functionally for under-tier users, show UpgradeModal on click |
 
 No database changes, no edge function changes, no Stripe changes required.
