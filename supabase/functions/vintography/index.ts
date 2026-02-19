@@ -373,7 +373,7 @@ ${QUALITY_MANDATE}`,
 const MODEL_MAP: Record<string, string> = {
   remove_bg: "gemini-2.5-flash-image",
   smart_bg: "gemini-2.5-flash-image",
-  model_shot: "gemini-2.5-flash-image",
+  model_shot: "gemini-3-pro-image-preview",
   mannequin_shot: "gemini-2.5-flash-image",
   ghost_mannequin: "gemini-2.5-flash-image",
   flatlay_style: "gemini-2.5-flash-image",
