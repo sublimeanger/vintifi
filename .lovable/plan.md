@@ -1,49 +1,47 @@
 
 
-# Autosave Photo Studio Progress
+# Add HEIC Image Upload Support
 
-## What Gets Saved
+## Problem
+HEIC is the default photo format on iPhones. While `accept="image/*"` lets users select HEIC files, browsers cannot display them natively, so they'll fail to preview or render as broken images.
 
-When you're working in the Photo Studio and need to close your browser or step away, your session will be automatically saved and restored when you come back. This includes:
+## Solution
+Convert HEIC files to JPEG on the client side before uploading or previewing, using the `heic2any` library. This is transparent to the user -- they just pick their photos as normal.
 
-- Which photo you selected
-- Your chosen effects/operations and their settings (e.g., background style, model pose)
-- The result photo if one was already generated
+### Changes
 
-## How It Works
+**1. Install `heic2any` package**
+- A lightweight client-side library that converts HEIC/HEIF blobs to JPEG/PNG
 
-- Your progress saves automatically every time you make a change (select a photo, pick a preset, adjust settings)
-- When you reopen the Photo Studio, everything is restored exactly where you left off
-- A small toast notification confirms your session was restored
-- A "Start Fresh" button lets you clear the saved session if you want to begin from scratch
-- The save is per-user and stored locally on your device (no extra server calls)
+**2. Create `src/lib/convertHeic.ts` -- shared utility**
+- Export an `ensureDisplayableImage(file: File): Promise<File>` function
+- If the file is HEIC/HEIF (check by MIME type `image/heic`, `image/heif`, or `.heic`/`.heif` extension), convert to JPEG using `heic2any`
+- If it's already a supported format, return it unchanged
+- This keeps the conversion logic in one place for all upload points
 
-## Technical Details
+**3. Update all upload handlers to run files through the converter**
 
-### Storage Mechanism
-- Use `localStorage` with a key like `vintography_draft_{userId}` to persist state
-- Save a serializable snapshot: `{ originalPhotoUrl, resultPhotoUrl, pipeline, activePipelineIndex, garmentContext, timestamp }`
-- Debounce writes (500ms) so rapid changes don't thrash localStorage
+Apply `ensureDisplayableImage` before uploading in these files:
+- `src/pages/Vintography.tsx` -- `handleAddPhoto` and the EmptyState file handler
+- `src/components/PhotosTab.tsx` -- `handleUploadPhotos`
+- `src/components/NewItemWizard.tsx` -- photo upload handler
+- `src/pages/SellWizard.tsx` -- `handlePhotoSelect`
+- `src/pages/Welcome.tsx` -- `handleFileSelect`
 
-### Save Trigger (`src/pages/Vintography.tsx`)
-- Add a `useEffect` that watches `state.originalPhotoUrl`, `state.pipeline`, `state.activePipelineIndex`, and `state.resultPhotoUrl`
-- On change, debounce-write the snapshot to localStorage
-- Only save when there's an actual photo selected (don't save empty state)
+Each handler will map files through `ensureDisplayableImage` before creating object URLs or uploading to storage.
 
-### Restore on Mount (`src/pages/Vintography.tsx`)
-- On component mount, check localStorage for a saved draft
-- If found and less than 24 hours old, restore the state via dispatches:
-  - `SET_ORIGINAL_PHOTO` with the saved URL
-  - `REPLACE_PIPELINE` with the saved pipeline
-  - `SET_RESULT_PHOTO` if a result existed
-- Show a toast: "Session restored"
-- If older than 24 hours, discard it (photo URLs may have expired)
+**4. Update `accept` attributes**
 
-### Clear on Completion
-- After a successful "Save to Item" action, clear the localStorage draft
-- The `RESET_ALL` dispatch should also trigger clearing the draft
+Add explicit HEIC MIME types to ensure file pickers show HEIC files on all platforms:
+```
+accept="image/*,.heic,.heif"
+```
 
-### No New Dependencies
-- Uses existing `localStorage` API and `useEffect` / `useRef` for debouncing
-- No database changes needed — this is device-local persistence
+### Technical Details
+
+- `heic2any` runs entirely client-side (no server dependency)
+- Conversion produces a JPEG blob with 0.9 quality (good balance of size and quality)
+- The converted file keeps a `.jpg` extension for storage compatibility
+- A loading state or brief toast ("Converting photo...") can be shown during conversion since HEIC decoding takes 1-2 seconds per image
+- Files are processed in parallel using `Promise.all` for multi-file uploads
 
