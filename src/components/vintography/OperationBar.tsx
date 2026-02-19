@@ -76,7 +76,7 @@ export function OperationBar({
 
   return (
     <div className="w-full">
-      <div className="flex justify-end gap-1 mb-1.5">
+      <div className="flex justify-end gap-1 mb-1.5 lg:hidden">
         <button
           onClick={() => scroll("left")}
           className="w-6 h-6 rounded-md border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
