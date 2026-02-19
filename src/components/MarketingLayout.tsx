@@ -236,7 +236,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             {/* CTA */}
             <div>
               <h4 className="font-semibold text-xs uppercase tracking-wider mb-4 text-secondary-foreground/50">Get Started</h4>
-              <p className="text-sm text-secondary-foreground/70 mb-4">5 free credits. No card needed.</p>
+              <p className="text-sm text-secondary-foreground/70 mb-4">3 free credits. No card needed.</p>
               {user ? (
                 <Button size="sm" onClick={() => navigate("/dashboard")} className="font-semibold">
                   Go to Dashboard <ArrowRight className="ml-1.5 w-3.5 h-3.5" />
