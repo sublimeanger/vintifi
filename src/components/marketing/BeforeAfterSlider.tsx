@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from "react";
 import { motion, useInView } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface BeforeAfterSliderProps {
   beforeSrc: string;
@@ -35,13 +35,15 @@ export default function BeforeAfterSlider({
   }, []);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
     dragging.current = true;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     updatePosition(e.clientX);
   }, [updatePosition]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragging.current) return;
+    e.preventDefault();
     updatePosition(e.clientX);
   }, [updatePosition]);
 
@@ -53,10 +55,11 @@ export default function BeforeAfterSlider({
     <div
       ref={containerRef}
       className={cn("relative select-none overflow-hidden rounded-2xl border border-border shadow-xl cursor-col-resize", className)}
-      style={{ aspectRatio }}
+      style={{ aspectRatio, touchAction: "none" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       role="slider"
       aria-valuenow={Math.round(position)}
       aria-label="Before and after comparison"
@@ -95,7 +98,7 @@ export default function BeforeAfterSlider({
         style={{ left: `${position}%`, transform: "translateX(-50%)" }}
       >
         <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center gap-0"
           initial={false}
           animate={
             isInView && position === 50
@@ -103,7 +106,8 @@ export default function BeforeAfterSlider({
               : {}
           }
         >
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
+          <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground -mr-0.5" />
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground -ml-0.5" />
         </motion.div>
       </div>
     </div>
