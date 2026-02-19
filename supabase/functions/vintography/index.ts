@@ -371,15 +371,15 @@ ${QUALITY_MANDATE}`,
 
 // Models per operation
 const MODEL_MAP: Record<string, string> = {
-  remove_bg: "google/gemini-2.5-flash-image",
-  smart_bg: "google/gemini-2.5-flash-image",         // flash: background compositing, same quality 3x faster
-  model_shot: "google/gemini-3-pro-image-preview",   // pro: photorealistic human rendering — justified at 4 credits
-  mannequin_shot: "google/gemini-2.5-flash-image",   // flash: no human face/skin needed, same mannequin quality
-  ghost_mannequin: "google/gemini-2.5-flash-image",
-  flatlay_style: "google/gemini-2.5-flash-image",    // flash: compositional task, same quality 3x faster
-  selfie_shot: "google/gemini-2.5-flash-image",      // flash: switched from pro — ~93% cost saving
-  enhance: "google/gemini-2.5-flash-image",
-  decrease: "google/gemini-2.5-flash-image",         // flash: fabric smoothing, no complex scene-building needed
+  remove_bg: "google/gemini-3-pro-image-preview",
+  smart_bg: "google/gemini-3-pro-image-preview",
+  model_shot: "google/gemini-3-pro-image-preview",
+  mannequin_shot: "google/gemini-3-pro-image-preview",
+  ghost_mannequin: "google/gemini-3-pro-image-preview",
+  flatlay_style: "google/gemini-3-pro-image-preview",
+  selfie_shot: "google/gemini-3-pro-image-preview",
+  enhance: "google/gemini-3-pro-image-preview",
+  decrease: "google/gemini-3-pro-image-preview",
 };
 
 // Operations allowed per tier
