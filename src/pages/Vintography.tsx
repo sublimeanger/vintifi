@@ -117,6 +117,7 @@ export default function Vintography() {
       params: s.params || {},
     }));
     dispatch({ type: "REPLACE_PIPELINE", pipeline });
+    if (isMobile) dispatch({ type: "SET_DRAWER_OPEN", open: false });
   };
 
   // Credits
@@ -372,13 +373,12 @@ export default function Vintography() {
   const handleOpSelect = (op: Operation) => {
     const existingIndex = state.pipeline.findIndex((s) => s.operation === op);
     if (existingIndex >= 0) {
-      // Already in pipeline — jump to that step and open drawer
       dispatch({ type: "SET_ACTIVE_PIPELINE_INDEX", index: existingIndex });
     } else {
-      // Replace entire pipeline with just this op (single-op mode when tapping bar)
       dispatch({ type: "REPLACE_PIPELINE", pipeline: [{ operation: op, params: defaultParams(op) }] });
     }
-    dispatch({ type: "SET_DRAWER_OPEN", open: true });
+    // On mobile, don't auto-open drawer — user taps "Customize" explicitly
+    if (!isMobile) dispatch({ type: "SET_DRAWER_OPEN", open: true });
   };
 
   // ─── Quick Preset selection ───
@@ -388,6 +388,8 @@ export default function Vintography() {
       params: (s.parameters || {}) as Record<string, string>,
     }));
     dispatch({ type: "REPLACE_PIPELINE", pipeline: newPipeline });
+    // On mobile, don't auto-open drawer — keep Generate button visible inline
+    if (isMobile) dispatch({ type: "SET_DRAWER_OPEN", open: false });
   };
 
   // ─── Filmstrip select ───
@@ -781,9 +783,9 @@ export default function Vintography() {
                   />
                 )}
 
-                {/* Zone 3: Always-visible Generate + "Configure" toggle + bottom-sheet drawer */}
+                {/* Zone 3: Generate button always visible + optional config drawer */}
                 <div className="space-y-2">
-                  {!state.drawerOpen && <GenerateButton />}
+                  <GenerateButton />
                   {state.pipeline.length >= 2 && !state.isProcessing && (
                     <Button variant="ghost" size="sm" className="w-full text-xs" onClick={handleSavePreset}>
                       <Star className="w-3.5 h-3.5 mr-1.5" /> Save as Preset
@@ -793,11 +795,11 @@ export default function Vintography() {
 
                 {!state.isProcessing && (
                   <Button
-                    onClick={() => dispatch({ type: "SET_DRAWER_OPEN", open: !state.drawerOpen })}
+                    onClick={() => dispatch({ type: "SET_DRAWER_OPEN", open: true })}
                     variant="outline"
                     className="w-full h-9 text-sm"
                   >
-                    {state.drawerOpen ? "Close Options" : `Configure ${OP_LABEL[activeOp]}`}
+                    Customize {OP_LABEL[activeOp]}
                   </Button>
                 )}
 
