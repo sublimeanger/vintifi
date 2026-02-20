@@ -89,7 +89,30 @@ export function ComparisonView({
 }: Props) {
   const [sliderValue, setSliderValue] = useState([50]);
   const [viewMode, setViewMode] = useState<ViewMode>("overlay");
+  const hasRevealed = useRef(false);
   const [tipIndex, setTipIndex] = useState(0);
+
+  // Slider reveal animation
+  useEffect(() => {
+    if (processedUrl && !hasRevealed.current) {
+      hasRevealed.current = true;
+      setSliderValue([100]);
+      const start = Date.now();
+      const duration = 800;
+      const animateReveal = () => {
+        const elapsed = Date.now() - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const value = 100 - (50 * eased);
+        setSliderValue([value]);
+        if (progress < 1) requestAnimationFrame(animateReveal);
+      };
+      requestAnimationFrame(animateReveal);
+    }
+    if (!processedUrl) {
+      hasRevealed.current = false;
+    }
+  }, [processedUrl]);
 
   // Cycle tips during processing
   useEffect(() => {
