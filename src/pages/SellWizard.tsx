@@ -1488,7 +1488,7 @@ export default function SellWizard() {
             </div>
             {optimiseResult.health_score < 60 && (
               <p className="text-[10px] text-warning bg-warning/10 border border-warning/20 rounded px-2 py-1.5 leading-relaxed">
-                💡 Enhance your photos in Photo Studio (Step 2) to unlock full points — you can go back any time.
+                Photos haven't been enhanced yet. Go back to Step 2 to enhance them, or continue — you can always do it later.
               </p>
             )}
           </div>
@@ -1525,8 +1525,8 @@ export default function SellWizard() {
                 {optimiseResult.health_score >= 80
                   ? "Saved — your listing looks excellent!"
                   : optimiseResult.health_score >= 60
-                   ? "Saved — enhanced photos would boost this further."
-                   : "Saved — go back to Photo Studio to boost the score."}
+                   ? "Saved — looking good! Enhanced photos would boost the score even more."
+                   : "Saved — you can go back to enhance photos or continue to pricing."}
               </div>
               {/* Free user conversion banner — shown after optimise credit consumed */}
               {isFreeUser && !isUnlimitedUser && creditsRemaining === 0 && (
