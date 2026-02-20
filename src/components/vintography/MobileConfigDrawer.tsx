@@ -38,7 +38,7 @@ export function MobileConfigDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-black/40"
+            className="fixed inset-0 z-[60] bg-black/40"
             onClick={onClose}
           />
 
@@ -49,7 +49,7 @@ export function MobileConfigDrawer({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 400, damping: 34 }}
-            className="fixed inset-x-0 bottom-0 z-50 flex flex-col max-h-[85vh] rounded-t-2xl bg-card border-t border-border shadow-2xl"
+            className="fixed inset-x-0 bottom-0 z-[60] flex flex-col max-h-[85vh] rounded-t-2xl bg-card border-t border-border shadow-2xl"
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1">
@@ -94,7 +94,7 @@ export function MobileConfigDrawer({
             </div>
 
             {/* Process button — fixed at bottom of drawer */}
-            <div className="px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-border bg-card">
+            <div className="px-4 pt-3 pb-[calc(5rem+env(safe-area-inset-bottom))] border-t border-border bg-card">
               <Button
                 className="w-full h-14 text-base font-semibold rounded-2xl gap-2"
                 disabled={!canProcess || isProcessing}
