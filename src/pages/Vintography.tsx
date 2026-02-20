@@ -297,21 +297,10 @@ export default function Vintography() {
     // Auto-scroll to config panel on mobile for ops that have options
     const hasConfig = op === "put_on_model" || op === "virtual_tryon" || op === "swap_model" || op === "ai_background";
     if (hasConfig && window.innerWidth < 1024) {
-      // Wait for AnimatePresence to mount + framer-motion height animation to finish
+      // Single scroll after AnimatePresence mounts the config panel — no double-scroll
       setTimeout(() => {
-        configPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        configPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 450);
-
-      // After config renders, scroll back slightly so user sees both the photo and the config
-      setTimeout(() => {
-        const preview = document.querySelector("[data-photo-preview]");
-        if (preview && window.innerWidth < 1024) {
-          const rect = preview.getBoundingClientRect();
-          if (rect.top < -50) {
-            window.scrollBy({ top: rect.top - 20, behavior: "smooth" });
-          }
-        }
-      }, 800);
     }
   };
 
@@ -334,6 +323,12 @@ export default function Vintography() {
     setIsProcessing(true);
     setProcessingElapsed(0);
     processingTimerRef.current = setInterval(() => setProcessingElapsed((s) => s + 1), 1000);
+
+    // Scroll to photo preview so user sees the processing animation
+    if (window.innerWidth < 1024) {
+      const preview = document.querySelector("[data-photo-preview]");
+      preview?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
 
     try {
       const { data, error } = await supabase.functions.invoke("photo-studio", {
@@ -698,10 +693,20 @@ export default function Vintography() {
                             setResultPhoto(null);
                             setOpParams({});
                             clearSession();
-                            // Scroll to top first so user sees the photo
+                            // Step 1: Scroll to top so user sees their new input photo
                             window.scrollTo({ top: 0, behavior: "smooth" });
-                            // Use handleSelectOp so mobile auto-scrolls to config panel
-                            setTimeout(() => handleSelectOp(s.op), 100);
+                            // Step 2: Select op after scroll settles (decoupled from handleSelectOp to avoid nested scroll chains)
+                            const chainHasConfig = ["put_on_model", "virtual_tryon", "swap_model", "ai_background"].includes(s.op);
+                            setTimeout(() => {
+                              setSelectedOp(s.op as PhotoOperation);
+                              setOpParams({});
+                              // Step 3: Scroll to config ONLY if needed, after it renders
+                              if (chainHasConfig && window.innerWidth < 1024) {
+                                setTimeout(() => {
+                                  configPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                                }, 500);
+                              }
+                            }, 600);
                           }}
                         >
                           <div className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
