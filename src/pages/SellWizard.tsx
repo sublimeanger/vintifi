@@ -245,6 +245,7 @@ export default function SellWizard() {
   // Track which photos have been enhanced (maps original URL → enhanced URL)
   const [enhancedMap, setEnhancedMap] = useState<Record<string, string>>({});
   const [selectedForEnhance, setSelectedForEnhance] = useState<Set<string>>(new Set());
+  const [pendingEffect, setPendingEffect] = useState<{ op: string; label: string; creditsPer: number } | null>(null);
 
   const togglePhotoSelection = (url: string) => {
     setSelectedForEnhance((prev) => {
@@ -347,6 +348,7 @@ export default function SellWizard() {
     setBatchProgress({ done: 0, total: 0 });
     setEnhancedMap({});
     setSelectedForEnhance(new Set());
+    setPendingEffect(null);
     setVintedUrlInput("");
     setMarkingListed(false);
     // Clear session storage when resetting
@@ -1354,7 +1356,7 @@ export default function SellWizard() {
   /* ═══ STEP 2: PHOTOS (v3) ═══ */
   const renderStep2 = () => (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Choose how to enhance your photos. <strong className="text-foreground">Sell-Ready</strong> is our most popular — it removes the background, adds a studio shadow, and relights the image in one step.</p>
+      <p className="text-sm text-muted-foreground">Enhance your photos before listing. <strong className="text-foreground">Clean Background</strong> removes the background for a professional white backdrop.</p>
 
       {/* Photo grid with batch enhancement */}
       {(() => {
@@ -1482,46 +1484,49 @@ export default function SellWizard() {
                   </p>
                 )}
 
-                {/* ── Sell-Ready preset (RECOMMENDED) ── */}
+                {/* ── Clean Background (LIVE — Primary) ── */}
                 <button
                   className={`relative w-full overflow-hidden rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent p-4 text-left transition-all active:scale-[0.98] hover:border-primary/60 hover:shadow-lg hover:shadow-primary/10 group${selectedCount === 0 ? " opacity-40 pointer-events-none" : ""}`}
-                  onClick={() => runBatchEffect("sell_ready")}
+                  onClick={() => setPendingEffect({ op: "remove_bg", label: "Clean Background", creditsPer: 1 })}
                 >
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/40" />
                   <div className="flex items-center gap-3.5">
                     <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-                      <Sparkles className="w-6 h-6 text-primary" />
+                      <Eraser className="w-6 h-6 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-bold">Sell-Ready</span>
+                        <span className="text-sm font-bold">Clean Background</span>
                         <span className="inline-flex items-center rounded-full bg-primary/15 text-primary text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5">Recommended</span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground leading-snug">White background · studio shadow · auto-relight — all in one</p>
+                      <p className="text-[11px] text-muted-foreground leading-snug">Remove background · clean white backdrop</p>
                     </div>
                     <div className="text-right shrink-0 pl-2">
-                      <p className="text-sm font-extrabold text-primary">{selectedCount * 2}</p>
-                      <p className="text-[9px] text-muted-foreground -mt-0.5">{selectedCount} photo{selectedCount !== 1 ? "s" : ""}</p>
+                      <p className="text-sm font-extrabold text-primary">{selectedCount}</p>
+                      <p className="text-[9px] text-muted-foreground -mt-0.5">{selectedCount} credit{selectedCount !== 1 ? "s" : ""}</p>
                     </div>
                   </div>
                 </button>
 
-                {/* ── Clean Background preset ── */}
+                {/* ── Sell-Ready (COMING SOON) ── */}
                 <button
-                  className={`w-full rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-md group${selectedCount === 0 ? " opacity-40 pointer-events-none" : ""}`}
-                  onClick={() => runBatchEffect("remove_bg")}
+                  className="w-full rounded-2xl border border-border/60 bg-muted/10 p-4 text-left opacity-50 cursor-default"
+                  onClick={() => toast("Sell-Ready is coming soon!", { description: "White background + studio shadow + pro lighting — all in one step." })}
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center shrink-0 group-hover:bg-muted/80 transition-colors">
-                      <Eraser className="w-5 h-5 text-muted-foreground" />
+                    <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-5 h-5 text-muted-foreground/50" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-bold">Clean Background</span>
-                      <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">Remove background · white backdrop · auto-relight</p>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-bold text-muted-foreground">Sell-Ready</span>
+                        <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5">Coming Soon</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/60 leading-snug">White background · studio shadow · pro lighting — all in one</p>
                     </div>
                     <div className="text-right shrink-0 pl-2">
-                      <p className="text-sm font-extrabold">{selectedCount}</p>
-                      <p className="text-[9px] text-muted-foreground -mt-0.5">{selectedCount} photo{selectedCount !== 1 ? "s" : ""}</p>
+                      <p className="text-sm font-extrabold text-muted-foreground/40">2</p>
+                      <p className="text-[9px] text-muted-foreground/40 -mt-0.5">per photo</p>
                     </div>
                   </div>
                 </button>
@@ -1592,6 +1597,44 @@ export default function SellWizard() {
                     Skip for now
                   </Button>
                 </div>
+
+                {/* ── Confirmation overlay ── */}
+                {pendingEffect && !batchProcessing && (
+                  <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold">Ready to enhance {selectedCount} photo{selectedCount !== 1 ? "s" : ""}?</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {pendingEffect.label} · {selectedCount * pendingEffect.creditsPer} credit{selectedCount * pendingEffect.creditsPer !== 1 ? "s" : ""} will be used
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setPendingEffect(null)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 font-semibold"
+                        onClick={() => {
+                          const op = pendingEffect.op;
+                          setPendingEffect(null);
+                          runBatchEffect(op);
+                        }}
+                      >
+                        Enhance {selectedCount} photo{selectedCount !== 1 ? "s" : ""}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
               );
             })()}
@@ -1639,6 +1682,82 @@ export default function SellWizard() {
             <p className="text-sm font-bold text-success">Photos enhanced!</p>
             <p className="text-[11px] text-success/70">Your listing photos are ready. Continue to optimise your title and description.</p>
           </div>
+        </div>
+      )}
+
+      {photoDone && !batchProcessing && (
+        <div className="space-y-3 pt-2">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">What's next?</p>
+
+          {/* Continue to Step 3 */}
+          <button
+            className="w-full rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent p-4 text-left transition-all hover:border-primary/50 hover:shadow-sm active:scale-[0.98] flex items-center gap-3.5"
+            onClick={() => {
+              setDirection(1);
+              setCurrentStep(3);
+              scrollToTop();
+            }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <ArrowRight className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold">Continue to Optimise</p>
+              <p className="text-[11px] text-muted-foreground">AI will improve your title and description next</p>
+            </div>
+          </button>
+
+          {/* Chain to Put on Model */}
+          {!isFreeUser && createdItem && (() => {
+            const allPhotos: string[] = [];
+            if (Array.isArray((createdItem as any)?.images)) {
+              for (const img of (createdItem as any).images as any[]) {
+                const u = typeof img === "string" ? img : img?.url;
+                if (u && u.startsWith("http")) allPhotos.push(u);
+              }
+            }
+            if (allPhotos.length === 0 && createdItem.image_url) allPhotos.push(createdItem.image_url);
+
+            return (
+              <button
+                className="w-full rounded-2xl border border-border bg-card p-4 text-left transition-all hover:border-primary/30 hover:shadow-sm active:scale-[0.98] flex items-center gap-3.5"
+                onClick={() => {
+                  sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
+                  sessionStorage.setItem("sell_wizard_step", "2");
+                  hasNavigatedToPhotoStudioRef.current = true;
+                  navigate(`/vintography?op=put_on_model&itemId=${createdItem.id}&image_url=${encodeURIComponent(allPhotos[0])}&returnTo=/sell`);
+                }}
+              >
+                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">Put on Model</p>
+                  <p className="text-[11px] text-muted-foreground">Generate an AI model wearing your item · 3 credits per photo</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </button>
+            );
+          })()}
+
+          {isFreeUser && (
+            <button
+              className="w-full rounded-2xl border border-border bg-muted/10 p-4 text-left opacity-60 flex items-center gap-3.5"
+              onClick={() => toast("Model Shot requires the Starter plan", {
+                description: "Generate AI models wearing your items",
+                action: { label: "Upgrade", onClick: () => navigate("/settings?tab=billing") },
+              })}
+            >
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <User className="w-5 h-5 text-muted-foreground/50" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-muted-foreground">Put on Model</p>
+                <p className="text-[11px] text-muted-foreground/60">Generate an AI model wearing your item</p>
+              </div>
+              <Lock className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+            </button>
+          )}
         </div>
       )}
     </div>

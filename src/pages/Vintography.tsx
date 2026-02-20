@@ -598,12 +598,9 @@ export default function Vintography() {
                 const CHAIN_SUGGESTIONS: Record<string, { op: PhotoOperation; label: string; description: string }[]> = {
                   remove_bg: [
                     { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
-                    { op: "studio_shadow", label: "Add Shadow", description: "Add a studio drop shadow" },
-                    { op: "ai_background", label: "Scene Background", description: "Place in a lifestyle setting" },
                   ],
                   sell_ready: [
                     { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
-                    { op: "ai_background", label: "Scene Background", description: "Place in a lifestyle setting" },
                   ],
                   studio_shadow: [
                     { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
@@ -619,8 +616,8 @@ export default function Vintography() {
                 };
 
                 const suggestions = selectedOp ? (CHAIN_SUGGESTIONS[selectedOp] || []) : [];
-                const available = suggestions.filter((s) => isAtLeastTier(userTier, PHOTO_OPERATIONS[s.op].tier));
-                const locked = suggestions.filter((s) => !isAtLeastTier(userTier, PHOTO_OPERATIONS[s.op].tier));
+                const available = suggestions.filter((s) => isAtLeastTier(userTier, PHOTO_OPERATIONS[s.op].tier) && !(PHOTO_OPERATIONS[s.op] as any).comingSoon);
+                const locked = suggestions.filter((s) => !isAtLeastTier(userTier, PHOTO_OPERATIONS[s.op].tier) || !!(PHOTO_OPERATIONS[s.op] as any).comingSoon);
 
                 if (suggestions.length === 0) return null;
 
@@ -844,6 +841,7 @@ export default function Vintography() {
               {(Object.entries(PHOTO_OPERATIONS) as [PhotoOperation, typeof PHOTO_OPERATIONS[PhotoOperation]][]).map(([key, op]) => {
                 const Icon = ICON_MAP[op.icon] || Sparkles;
                 const isLocked = !isAtLeastTier(userTier, op.tier);
+                const isComingSoon = !!(op as any).comingSoon;
                 const isSelected = selectedOp === key;
                 const isDisabled = !selectedPhoto && !isLocked;
 
@@ -852,18 +850,26 @@ export default function Vintography() {
                     key={key}
                     role="radio"
                     aria-checked={isSelected}
-                    aria-label={`${op.label} — ${op.credits} credit${op.credits > 1 ? "s" : ""}${isLocked ? `, requires ${op.tier} plan` : ""}`}
+                    aria-label={`${op.label} — ${op.credits} credit${op.credits > 1 ? "s" : ""}${isLocked ? `, requires ${op.tier} plan` : ""}${isComingSoon ? ", coming soon" : ""}`}
                     tabIndex={isDisabled ? -1 : 0}
-                    onClick={() => !isDisabled && handleSelectOp(key)}
-                    onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isDisabled) { e.preventDefault(); handleSelectOp(key); } }}
+                    onClick={() => {
+                      if (isComingSoon) {
+                        toast(`${op.label} is coming soon!`, { description: op.description });
+                        return;
+                      }
+                      if (!isDisabled) handleSelectOp(key);
+                    }}
+                    onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isDisabled && !isComingSoon) { e.preventDefault(); handleSelectOp(key); } }}
                     className={`relative p-3.5 cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 overflow-hidden ${
                       isSelected
                         ? "border-primary bg-primary/[0.04] shadow-sm ring-1 ring-primary/20"
+                        : isComingSoon
+                        ? "opacity-40 cursor-default"
                         : isLocked
                         ? "opacity-60 hover:opacity-80"
                         : isDisabled
                         ? "opacity-40 cursor-not-allowed"
-                        : key === "sell_ready" ? "border-primary/20 hover:border-primary/40 hover:shadow-sm" : "hover:border-primary/30 hover:shadow-sm"
+                        : "hover:border-primary/30 hover:shadow-sm"
                     }`}
                   >
                     {isSelected && <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-accent to-primary" />}
@@ -871,7 +877,9 @@ export default function Vintography() {
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                         isSelected ? "bg-primary/15" : "bg-muted"
                       }`}>
-                        {isLocked ? (
+                        {isComingSoon ? (
+                          <Sparkles className="w-4 h-4 text-muted-foreground/40" />
+                        ) : isLocked ? (
                           <Lock className="w-4 h-4 text-muted-foreground" />
                         ) : (
                           <Icon className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
@@ -885,15 +893,19 @@ export default function Vintography() {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <p className={`text-sm font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}>
+                      <p className={`text-sm font-semibold ${isComingSoon ? "text-muted-foreground" : isSelected ? "text-primary" : "text-foreground"}`}>
                         {op.label}
                       </p>
-                      {key === "sell_ready" && (
-                        <span className="inline-flex items-center rounded-full bg-primary/15 text-primary text-[8px] font-extrabold uppercase tracking-wider px-1.5 py-0">Top Pick</span>
+                      {isComingSoon && (
+                        <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground text-[8px] font-extrabold uppercase tracking-wider px-1.5 py-0">Coming Soon</span>
                       )}
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-snug">{op.description}</p>
-                    {isLocked && (
+                    {isComingSoon ? (
+                      <Badge className="absolute top-2 right-2 text-[8px] py-0 px-1.5 bg-muted text-muted-foreground border-0">
+                        Soon
+                      </Badge>
+                    ) : isLocked && (
                       <Badge variant="outline" className="absolute top-2 right-2 text-[9px] py-0 border-muted-foreground/30">
                         {op.tier.charAt(0).toUpperCase() + op.tier.slice(1)}
                       </Badge>
