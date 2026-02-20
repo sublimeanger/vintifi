@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,9 @@ type Props = {
 
 export function SavePresetDialog({ open, onClose, onSave, defaultName }: Props) {
   const [name, setName] = useState(defaultName);
+  useEffect(() => {
+    if (open) setName(defaultName);
+  }, [open, defaultName]);
 
   const handleSave = () => {
     if (!name.trim()) return;
