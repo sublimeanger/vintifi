@@ -1,1306 +1,759 @@
-import { useReducer, useRef, useCallback, useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { FeatureGate } from "@/components/FeatureGate";
-import { useFeatureGate } from "@/hooks/useFeatureGate";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { UpgradeModal } from "@/components/UpgradeModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePageMeta } from "@/hooks/usePageMeta";
+import { PHOTO_OPERATIONS, type PhotoOperation, isAtLeastTier, type TierKey } from "@/lib/constants";
 import { PageShell } from "@/components/PageShell";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { motion } from "framer-motion";
-import {
-  Loader2, Wand2, Coins, Package, Star, ChevronDown, ChevronRight, Sparkles,
-} from "lucide-react";
-import {
-  Collapsible, CollapsibleTrigger, CollapsibleContent,
-} from "@/components/ui/collapsible";
-
-// Sub-components
 import { CreditBar } from "@/components/vintography/CreditBar";
 import { ComparisonView } from "@/components/vintography/ComparisonView";
 import { GalleryCard, type VintographyJob } from "@/components/vintography/GalleryCard";
-import { PhotoFilmstrip } from "@/components/vintography/PhotoFilmstrip";
-import { QuickPresets, type Preset, type SavedPreset } from "@/components/vintography/QuickPresets";
-import { OperationBar } from "@/components/vintography/OperationBar";
-import { PipelineStrip } from "@/components/vintography/PipelineStrip";
-import { ProcessingOverlay } from "@/components/vintography/ProcessingOverlay";
-import { ResultActions } from "@/components/vintography/ResultActions";
-import { EmptyState } from "@/components/vintography/EmptyState";
-import { SimpleOperationConfig } from "@/components/vintography/SimpleOperationConfig";
-import { SteamConfig } from "@/components/vintography/SteamConfig";
-import { FlatLayConfig } from "@/components/vintography/FlatLayConfig";
-import { LifestyleConfig } from "@/components/vintography/LifestyleConfig";
-import { MannequinConfig } from "@/components/vintography/MannequinConfig";
-import { ModelShotWizard } from "@/components/vintography/ModelShotWizard";
-import { SavePresetDialog } from "@/components/vintography/SavePresetDialog";
-
-// State / types
+import { PhotoFilmstrip, type PhotoEditState } from "@/components/vintography/PhotoFilmstrip";
+import { UpgradeModal } from "@/components/UpgradeModal";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  vintographyReducerWithHistory,
-  createInitialHistory,
-  initialState,
-  Operation,
-  OP_MAP,
-  OP_RESULT_LABEL,
-  OP_LABEL,
-  getOperationCreditCost,
-  buildApiParams,
-  defaultParams,
-  PipelineStep,
-  saveSession,
-  loadSession,
-} from "@/components/vintography/vintographyReducer";
+  Loader2, Upload, Eraser, Sun, Image as ImageIcon, User, Camera, RefreshCw,
+  Lock, Download, ArrowRight, Sparkles, X,
+} from "lucide-react";
+
+// ── Icon map ─────────────────────────────────────────────────────────
+const ICON_MAP: Record<string, React.ElementType> = {
+  Eraser, Sun, Image: ImageIcon, User, Camera, RefreshCw,
+};
+
+// ── Operation labels for gallery ─────────────────────────────────────
+const OP_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(PHOTO_OPERATIONS).map(([k, v]) => [k, v.label])
+);
 
 export default function Vintography() {
+  usePageMeta("Photo Studio — Vintifi", "AI-powered photo editing for resellers");
+
   const { user, profile, credits, refreshCredits } = useAuth();
-  const isMobile = useIsMobile();
-  const flatlayGate = useFeatureGate("vintography_flatlay");
-  const mannequinGate = useFeatureGate("vintography_mannequin");
-  const aiModelGate = useFeatureGate("vintography_ai_model");
-  const [activeLockedGate, setActiveLockedGate] = useState<"flatlay" | "mannequin" | "ai_model" | null>(null);
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const addPhotoInputRef = useRef<HTMLInputElement>(null);
-  const resultRef = useRef<HTMLDivElement>(null);
   const itemId = searchParams.get("itemId");
+  const preselectedOp = searchParams.get("op") as PhotoOperation | null;
 
-  const sessionData = useRef(loadSession());
-  const [history, rawDispatch] = useReducer(
-    vintographyReducerWithHistory,
-    sessionData.current.state,
-    createInitialHistory
-  );
-  const state = history.present;
-  const dispatch = useCallback((action: Parameters<typeof rawDispatch>[0]) => {
-    rawDispatch(action);
-  }, []);
-
-  // Non-pipeline UI state
-  const [garmentContext, setGarmentContext] = useState(sessionData.current.garmentContext || "");
-  const [linkedItemTitle, setLinkedItemTitle] = useState(sessionData.current.linkedItemTitle || "");
-  const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
+  // ── Core state ─────────────────────────────────────────────────────
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedOp, setSelectedOp] = useState<PhotoOperation | null>(preselectedOp && PHOTO_OPERATIONS[preselectedOp] ? preselectedOp : null);
+  const [opParams, setOpParams] = useState<Record<string, string>>({});
+  const [selfiePhoto, setSelfiePhoto] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [resultPhoto, setResultPhoto] = useState<string | null>(null);
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
-  const [galleryLimit, setGalleryLimit] = useState(20);
-  const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [autoProcessPending, setAutoProcessPending] = useState(false);
 
-  // Persist state to sessionStorage whenever it changes
+  // Item-linked state
+  const [itemPhotos, setItemPhotos] = useState<string[]>([]);
+  const [editStates, setEditStates] = useState<Record<string, PhotoEditState>>({});
+
+  // Upgrade modal
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<string | null>(null);
+  const [upgradeTier, setUpgradeTier] = useState<string | undefined>(undefined);
+
+  // File input refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Derived values ─────────────────────────────────────────────────
+  const userTier = (profile?.subscription_tier || "free") as TierKey;
+  const totalUsed = credits ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used : 0;
+  const creditsRemaining = credits ? credits.credits_limit - totalUsed : 0;
+  const unlimited = (credits?.credits_limit ?? 0) >= 999999;
+  const selectedOpConfig = selectedOp ? PHOTO_OPERATIONS[selectedOp] : null;
+
+  // ── Load item photos ───────────────────────────────────────────────
   useEffect(() => {
-    if (state.originalPhotoUrl) {
-      saveSession(state, { garmentContext, linkedItemTitle, itemId: itemId || undefined });
-    }
-  }, [state, garmentContext, linkedItemTitle, itemId]);
-
-  // ─── Fetch saved presets ───
-  const fetchSavedPresets = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("user_presets")
-      .select("id, name, pipeline")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    if (data) {
-      setSavedPresets(data.map((d: any) => ({ id: d.id, name: d.name, pipeline: d.pipeline })));
-    }
-  }, [user]);
-
-  useEffect(() => { fetchSavedPresets(); }, [fetchSavedPresets]);
-
-  const handleSavePreset = () => {
-    setShowSavePresetDialog(true);
-  };
-
-  const doSavePreset = async (name: string) => {
-    if (!user) return;
-    const { error } = await supabase.from("user_presets").insert({
-      user_id: user.id,
-      name,
-      pipeline: state.pipeline as any,
-    });
-    if (error) { toast.error("Failed to save preset"); return; }
-    toast.success("Preset saved!");
-    fetchSavedPresets();
-  };
-
-  const handleDeleteSavedPreset = async (id: string) => {
-    const { error } = await supabase.from("user_presets").delete().eq("id", id);
-    if (error) { toast.error("Failed to delete preset"); return; }
-    setSavedPresets((prev) => prev.filter((p) => p.id !== id));
-    toast.success("Preset deleted");
-  };
-
-  const handleSavedPresetSelect = (preset: SavedPreset) => {
-    const pipeline = preset.pipeline.map((s) => ({
-      operation: s.operation as Operation,
-      params: s.params || {},
-    }));
-    dispatch({ type: "REPLACE_PIPELINE", pipeline });
-  };
-
-  // Credits
-  const totalUsed = credits
-    ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used
-    : 0;
-  const creditsLimit = credits?.credits_limit ?? 5;
-  const isUnlimited = creditsLimit >= 999999;
-  const creditsRemaining = Math.max(0, creditsLimit - totalUsed);
-  const creditsLow = !isUnlimited && creditsRemaining <= 5;
-
-  // ─── Active step helpers ───
-  const activeStep = state.pipeline[state.activePipelineIndex];
-  const activeOp = activeStep?.operation ?? "clean_bg";
-
-  // Auto-process after pipeline update from suggestion card
-  useEffect(() => {
-    if (autoProcessPending && !state.isProcessing) {
-      setAutoProcessPending(false);
-      handleProcess();
-    }
-  }, [autoProcessPending, state.pipeline.length]);
-
-  const updateActiveParams = (params: Record<string, string>) => {
-    dispatch({ type: "UPDATE_STEP_PARAMS", index: state.activePipelineIndex, params });
-  };
-
-  // ─── Total pipeline credit cost ───
-  const totalCreditCost = state.pipeline.reduce(
-    (sum, step) => sum + getOperationCreditCost(step.operation),
-    0
-  );
-
-  // ─── Load item photos on mount / param change ───
-  useEffect(() => {
-    if (!user) return;
-    // Skip fetch if we already have photos loaded (restored from session)
-    if (state.originalPhotoUrl && state.itemPhotos.length > 0 && !searchParams.get("image_url")) {
-      return;
-    }
-    const imageUrl = searchParams.get("image_url");
-    const paramItemId = searchParams.get("itemId");
-
-    const fetchItemPhotos = async (id: string, pinUrl: string | null) => {
+    if (!itemId || !user) return;
+    (async () => {
       const { data } = await supabase
         .from("listings")
-        .select("image_url, images, last_optimised_at, title, brand, category, description, size, condition")
-        .eq("id", id)
+        .select("images, image_url")
+        .eq("id", itemId)
         .eq("user_id", user.id)
-        .maybeSingle();
-      if (!data) return;
-
-      setItemData({ last_optimised_at: data.last_optimised_at });
-      setLinkedItemTitle(data.title || "");
-      const parts = [data.brand, data.title, data.category, data.size ? `size ${data.size}` : null, data.condition].filter(Boolean);
-      if (parts.length > 0) setGarmentContext(parts.join(", "));
-
-      const urls: string[] = [];
-      if (data.image_url) urls.push(data.image_url);
-      if (Array.isArray(data.images)) {
-        for (const img of data.images) {
-          const u = typeof img === "string" ? img : (img as any)?.url;
-          if (u && !urls.includes(u)) urls.push(u);
-        }
+        .single();
+      if (data) {
+        const imgs = Array.isArray(data.images) ? (data.images as string[]) : [];
+        const all = data.image_url && !imgs.includes(data.image_url) ? [data.image_url, ...imgs] : imgs;
+        setItemPhotos(all.filter(Boolean));
+        if (all.length > 0 && !selectedPhoto) setSelectedPhoto(all[0]);
       }
-      dispatch({ type: "SET_ITEM_PHOTOS", urls });
-      if (urls.length === 0) {
-        dispatch({ type: "SET_ORIGINAL_PHOTO", url: null });
-        return;
-      }
-      const targetUrl = pinUrl && urls.includes(pinUrl) ? pinUrl : (pinUrl || urls[0]);
-      dispatch({ type: "SET_ORIGINAL_PHOTO", url: targetUrl });
-    };
+    })();
+  }, [itemId, user]);
 
-    if (imageUrl) {
-      dispatch({ type: "SET_ORIGINAL_PHOTO", url: imageUrl });
-      if (paramItemId) fetchItemPhotos(paramItemId, imageUrl);
-    } else if (paramItemId) {
-      fetchItemPhotos(paramItemId, null);
-    }
-  }, [searchParams, user]);
-
-  const fetchGallery = useCallback(async () => {
+  // ── Load gallery ───────────────────────────────────────────────────
+  useEffect(() => {
     if (!user) return;
-    try {
+    (async () => {
       setGalleryLoading(true);
       const { data } = await supabase
         .from("vintography_jobs")
-        .select("id, original_url, processed_url, operation, status, created_at")
+        .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(galleryLimit);
+        .limit(12);
       setGallery((data as VintographyJob[]) || []);
-    } catch {} finally { setGalleryLoading(false); }
-  }, [user, galleryLimit]);
+      setGalleryLoading(false);
+    })();
+  }, [user]);
 
-  useEffect(() => { fetchGallery(); }, [fetchGallery]);
-
-  // ─── File upload ───
-  const uploadFile = async (file: File): Promise<string | null> => {
-    if (!user) return null;
-    if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return null; }
-    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return null; }
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${user.id}/vintography-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
-    const { error } = await supabase.storage.from("listing-photos").upload(path, file, { contentType: file.type, upsert: true });
-    if (error) { toast.error("Failed to upload image"); return null; }
-    const { data: pub } = supabase.storage.from("listing-photos").getPublicUrl(path);
-    return pub.publicUrl;
-  };
-
-  const handleFileSelect = useCallback(async (files: FileList | File[]) => {
+  // ── Photo upload handler ───────────────────────────────────────────
+  const handleFileUpload = useCallback(async (file: File, isSelfie = false) => {
     if (!user) return;
-    setIsUploading(true);
-    try {
-      const fileArr = Array.from(files).slice(0, 10);
-      if (fileArr.length === 1) {
-        const url = await uploadFile(fileArr[0]);
-        if (url) {
-          dispatch({ type: "RESET_ALL" });
-          dispatch({ type: "SET_ORIGINAL_PHOTO", url });
-        }
-      } else {
-        const uploaded: string[] = [];
-        for (const f of fileArr) {
-          const url = await uploadFile(f);
-          if (url) uploaded.push(url);
-        }
-        if (uploaded.length > 0) {
-          dispatch({ type: "SET_ITEM_PHOTOS", urls: uploaded });
-          dispatch({ type: "SET_ORIGINAL_PHOTO", url: uploaded[0] });
-        }
+
+    // HEIC conversion
+    let processedFile = file;
+    if (file.name.toLowerCase().match(/\.hei[cf]$/)) {
+      toast.info("Converting HEIC photo...");
+      try {
+        const heic2any = (await import("heic2any" as string)).default;
+        const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+        processedFile = new File([blob as Blob], file.name.replace(/\.hei[cf]$/i, ".jpg"), { type: "image/jpeg" });
+      } catch {
+        toast.error("HEIC conversion failed, using original");
       }
-    } finally {
-      setIsUploading(false);
+    }
+
+    const ext = processedFile.name.split(".").pop() || "jpg";
+    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await supabase.storage.from("vintography").upload(path, processedFile, {
+      contentType: processedFile.type,
+      upsert: true,
+    });
+
+    if (error) {
+      toast.error("Upload failed");
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("vintography").getPublicUrl(path);
+    const url = urlData.publicUrl;
+
+    if (isSelfie) {
+      setSelfiePhoto(url);
+    } else {
+      setSelectedPhoto(url);
+      setResultPhoto(null);
     }
   }, [user]);
 
-  // ─── Add photo to listing ───
-  const appendListingPhoto = async (newUrl: string) => {
-    if (!itemId || !user) return;
-    const { data: listing } = await supabase
-      .from("listings").select("images, image_url").eq("id", itemId).eq("user_id", user.id).maybeSingle();
-    const existingImages = Array.isArray(listing?.images) ? (listing.images as string[]) : [];
-    await supabase.from("listings").update({
-      last_photo_edit_at: new Date().toISOString(),
-      images: [...existingImages, newUrl] as any,
-      image_url: existingImages.length === 0 ? newUrl : listing?.image_url,
-    }).eq("id", itemId).eq("user_id", user.id);
-  };
+  const handleFileDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file?.type.startsWith("image/") || file?.name.match(/\.hei[cf]$/i)) {
+      handleFileUpload(file);
+    }
+  }, [handleFileUpload]);
 
-  const handleAddPhoto = useCallback(async (files: FileList | null) => {
-    if (!files || !user || !itemId) return;
-    const url = await uploadFile(files[0]);
-    if (!url) return;
-    await appendListingPhoto(url);
-    dispatch({ type: "ADD_ITEM_PHOTO", url });
-    dispatch({ type: "SET_ORIGINAL_PHOTO", url });
-    toast.success("Photo added to listing");
-  }, [user, itemId]);
-
-  // ─── Replace photo in listing ───
-  const replaceListingPhoto = async (oldUrl: string, newUrl: string) => {
-    const { data } = await supabase
-      .from("listings").select("image_url, images").eq("id", itemId!).eq("user_id", user!.id).maybeSingle();
-    if (!data) return;
-    const isPrimary = data.image_url === oldUrl;
-    const rawImages = Array.isArray(data.images) ? (data.images as string[]) : [];
-    const newImages = rawImages.map((u) => (u === oldUrl ? newUrl : u));
-    await supabase.from("listings").update({
-      image_url: isPrimary ? newUrl : data.image_url,
-      images: newImages as any,
-      last_photo_edit_at: new Date().toISOString(),
-    }).eq("id", itemId!).eq("user_id", user!.id);
-  };
-
-  // ─── Save to item ───
-  const handleSaveToItem = async (mode: "replace" | "add") => {
-    if (!state.resultPhotoUrl || !itemId || !state.originalPhotoUrl) return;
-    dispatch({ type: "SET_SAVING_TO_ITEM", saving: true });
-    try {
-      if (mode === "replace") {
-        await replaceListingPhoto(state.originalPhotoUrl, state.resultPhotoUrl);
-        const newPhotos = state.itemPhotos.map((u) => u === state.originalPhotoUrl ? state.resultPhotoUrl! : u);
-        dispatch({ type: "SET_ITEM_PHOTOS", urls: newPhotos });
-        dispatch({ type: "SET_PHOTO_EDIT_STATE", url: state.originalPhotoUrl, state: { editedUrl: null, savedToItem: true, operationApplied: activeOp } });
-        dispatch({ type: "SET_ORIGINAL_PHOTO", url: state.resultPhotoUrl });
-        toast.success("Photo replaced in your listing", {
-          action: { label: "View Photos", onClick: () => navigate(`/items/${itemId}?tab=photos`) },
-          duration: 5000,
-        });
-      } else {
-        await appendListingPhoto(state.resultPhotoUrl);
-        dispatch({ type: "ADD_ITEM_PHOTO", url: state.resultPhotoUrl! });
-        dispatch({ type: "SET_PHOTO_EDIT_STATE", url: state.originalPhotoUrl, state: { editedUrl: state.resultPhotoUrl, savedToItem: true, operationApplied: activeOp } });
-        toast.success("Photo added to your listing", {
-          action: { label: "View Photos", onClick: () => navigate(`/items/${itemId}?tab=photos`) },
-          duration: 5000,
-        });
+  const handlePaste = useCallback((e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) handleFileUpload(file);
       }
-      await supabase.from("item_activity").insert({
-        user_id: user!.id,
-        listing_id: itemId,
-        type: "photo_edited",
-        payload: { operation: activeOp, processed_url: state.resultPhotoUrl, mode },
-      });
-    } catch (err) {
-      toast.error("Failed to save photo");
-    } finally {
-      dispatch({ type: "SET_SAVING_TO_ITEM", saving: false });
     }
+  }, [handleFileUpload]);
+
+  useEffect(() => {
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [handlePaste]);
+
+  // ── Operation selection ────────────────────────────────────────────
+  const handleSelectOp = (op: PhotoOperation) => {
+    const config = PHOTO_OPERATIONS[op];
+    if (!isAtLeastTier(userTier, config.tier)) {
+      setUpgradeReason(`${config.label} requires the ${config.tier.charAt(0).toUpperCase() + config.tier.slice(1)} plan.`);
+      setUpgradeTier(config.tier);
+      setUpgradeOpen(true);
+      return;
+    }
+    setSelectedOp(op);
+    setOpParams({});
+    setResultPhoto(null);
   };
 
-  // ─── Process image (single call) ───
-  const processImage = async (imageUrl: string, operation: string, params: Record<string, string>): Promise<string | null> => {
-    const { data, error } = await supabase.functions.invoke("vintography", {
-      body: { image_url: imageUrl, operation, parameters: params, garment_context: garmentContext || undefined, sell_wizard: fromWizard || undefined },
-    });
-    if (error) throw error;
-    if (data?.error) {
-      const error = new Error(data.error);
-      (error as any).context = data;
-      throw error;
-    }
-    const deducted = data?.credits_deducted ?? 1;
-    toast.success(isUnlimited ? "Step done!" : `Step done! −${deducted} credit${deducted !== 1 ? "s" : ""}`);
-    refreshCredits();
-    return data.processed_url;
-  };
-
-  // ─── Main pipeline processor ───
+  // ── Process ────────────────────────────────────────────────────────
   const handleProcess = async () => {
-    if (!state.originalPhotoUrl) return;
-    dispatch({ type: "PROCESSING_START" });
+    if (!selectedPhoto || !selectedOp || !user) return;
+
+    if (selectedOp === "virtual_tryon" && !selfiePhoto) {
+      toast.error("Please upload a selfie first");
+      return;
+    }
+
+    const cost = PHOTO_OPERATIONS[selectedOp].credits;
+    if (!unlimited && creditsRemaining < cost) {
+      setUpgradeReason(`This operation costs ${cost} credit${cost > 1 ? "s" : ""}. You have ${creditsRemaining} remaining.`);
+      setUpgradeOpen(true);
+      return;
+    }
+
+    setIsProcessing(true);
     try {
-      let currentUrl = state.originalPhotoUrl;
-      for (let i = 0; i < state.pipeline.length; i++) {
-        const step = state.pipeline[i];
-        dispatch({ type: "PROCESSING_STEP_START", stepIndex: i });
-        if (i > 0) {
-          toast.info(`Step ${i + 1}/${state.pipeline.length}: ${OP_LABEL[step.operation as Operation]}`, { duration: 2000 });
-        }
-        const result = await processImage(currentUrl, OP_MAP[step.operation], buildApiParams(step));
-        if (!result) {
-          dispatch({ type: "PROCESSING_FAILED" });
-          return;
-        }
-        currentUrl = result;
-      }
-      dispatch({ type: "PROCESSING_COMPLETE", resultUrl: currentUrl });
+      const { data, error } = await supabase.functions.invoke("photo-studio", {
+        body: {
+          image_url: selectedPhoto,
+          operation: selectedOp,
+          parameters: opParams,
+          selfie_url: selfiePhoto,
+          sell_wizard: !!itemId,
+        },
+      });
 
-      // Store per-photo edit state
-      if (state.originalPhotoUrl) {
-        dispatch({
-          type: "SET_PHOTO_EDIT_STATE",
-          url: state.originalPhotoUrl,
-          state: { editedUrl: currentUrl, savedToItem: false, operationApplied: activeOp },
-        });
+      if (error) throw error;
+      if (data?.error) {
+        if (data.upgrade_required) {
+          setUpgradeReason(data.error);
+          setUpgradeOpen(true);
+        } else {
+          toast.error(data.error);
+        }
+        return;
       }
 
-      fetchGallery();
-      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 200);
-      setTimeout(() => dispatch({ type: "RESULT_READY_FLASH" }), 3000);
+      if (data?.processed_url) {
+        setResultPhoto(data.processed_url);
+        refreshCredits();
+        // Add to gallery
+        setGallery((prev) => [{
+          id: data.job_id,
+          original_url: selectedPhoto,
+          processed_url: data.processed_url,
+          operation: selectedOp,
+          status: "completed",
+          created_at: new Date().toISOString(),
+        }, ...prev].slice(0, 12));
+
+        // Update edit state for item-linked
+        if (itemId) {
+          setEditStates((prev) => ({
+            ...prev,
+            [selectedPhoto!]: {
+              editedUrl: data.processed_url,
+              savedToItem: false,
+              operationApplied: selectedOp,
+            },
+          }));
+        }
+      }
     } catch (err: any) {
-      dispatch({ type: "PROCESSING_FAILED" });
-      const msg = err?.message?.toLowerCase() || "";
-      const data = err?.context || err?.data || {};
-
-      if (msg.includes("safety") || msg.includes("blocked") || data.finishReason === "SAFETY") {
-        toast.error("This image was flagged by our safety system. Try a different photo or angle.", { duration: 6000 });
-      } else if (msg.includes("credit") || msg.includes("quota") || msg.includes("insufficient")) {
-        toast.error("You've run out of credits.", {
-          duration: 8000,
-          action: { label: "Top Up", onClick: () => navigate("/settings?tab=billing") },
-        });
-      } else if (msg.includes("timeout") || msg.includes("network") || msg.includes("fetch")) {
-        toast.error("Connection failed. Check your internet and try again.", {
-          duration: 6000,
-          action: { label: "Retry", onClick: handleProcess },
-        });
-      } else if (msg.includes("rate") || msg.includes("429") || msg.includes("too many")) {
-        toast.error("Too many requests — please wait a moment and try again.", { duration: 6000 });
-      } else {
-        toast.error(err.message || "Something went wrong. Please try again.", { duration: 5000 });
-      }
+      const msg = err?.message || "Processing failed";
+      toast.error(msg);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  // ─── Operation Bar selection ───
-  const handleOpSelect = (op: Operation) => {
-    const existingIndex = state.pipeline.findIndex((s) => s.operation === op);
-    if (existingIndex >= 0) {
-      dispatch({ type: "SET_ACTIVE_PIPELINE_INDEX", index: existingIndex });
-    } else {
-      dispatch({ type: "REPLACE_PIPELINE", pipeline: [{ operation: op, params: defaultParams(op) }] });
-    }
-    // On mobile, don't auto-open drawer — user taps "Customize" explicitly
-    if (!isMobile) dispatch({ type: "SET_DRAWER_OPEN", open: true });
-  };
-
-  // ─── Quick Preset selection ───
-  const handlePresetSelect = (preset: Preset) => {
-    const newPipeline: PipelineStep[] = preset.steps.map((s) => ({
-      operation: (Object.entries(OP_MAP).find(([, v]) => v === s.operation)?.[0] || s.operation) as Operation,
-      params: (s.parameters || {}) as Record<string, string>,
-    }));
-    dispatch({ type: "REPLACE_PIPELINE", pipeline: newPipeline });
-  };
-
-  // ─── Filmstrip select ───
-  const handleFilmstripSelect = (url: string) => {
-    dispatch({ type: "SET_ORIGINAL_PHOTO", url });
-    const editState = state.photoEditStates[url];
-    if (editState?.editedUrl) dispatch({ type: "SET_RESULT_PHOTO", url: editState.editedUrl });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // ─── Download ───
+  // ── Download ───────────────────────────────────────────────────────
   const handleDownload = async () => {
-    if (!state.resultPhotoUrl) return;
+    if (!resultPhoto) return;
     try {
-      const res = await fetch(state.resultPhotoUrl);
+      const res = await fetch(resultPhoto);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `vintography-${Date.now()}.png`; a.click();
+      a.href = url;
+      a.download = `vintifi-${selectedOp}-${Date.now()}.png`;
+      a.click();
       URL.revokeObjectURL(url);
-    } catch { toast.error("Download failed"); }
+    } catch {
+      toast.error("Download failed");
+    }
   };
 
-  // ─── Use current result as new starting point ───
-  const handleUseResultAsStart = () => {
-    if (!state.resultPhotoUrl) return;
-    const resultUrl = state.resultPhotoUrl;
-    dispatch({ type: "RESET_ALL" });
-    dispatch({ type: "SET_ORIGINAL_PHOTO", url: resultUrl });
+  // ── Save to item ───────────────────────────────────────────────────
+  const handleSaveToItem = async () => {
+    if (!resultPhoto || !itemId || !user) return;
+    const { data: listing } = await supabase
+      .from("listings")
+      .select("images")
+      .eq("id", itemId)
+      .single();
+    const existing = Array.isArray(listing?.images) ? (listing.images as string[]) : [];
+    await supabase
+      .from("listings")
+      .update({ images: [...existing, resultPhoto], last_photo_edit_at: new Date().toISOString() })
+      .eq("id", itemId);
+    toast.success("Photo saved to listing");
+    if (selectedPhoto) {
+      setEditStates((prev) => ({
+        ...prev,
+        [selectedPhoto]: { ...prev[selectedPhoto], savedToItem: true },
+      }));
+    }
+  };
+
+  // ── Gallery actions ────────────────────────────────────────────────
+  const handleGalleryRestore = (job: VintographyJob) => {
+    if (job.original_url) setSelectedPhoto(job.original_url);
+    if (job.processed_url) setResultPhoto(job.processed_url);
+    if (job.operation && PHOTO_OPERATIONS[job.operation as PhotoOperation]) {
+      setSelectedOp(job.operation as PhotoOperation);
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
-    toast.success("Result set as starting point — choose your next effect", { duration: 3000 });
   };
 
-  // ─── Gallery restore ───
-  const handleUseAsInput = (job: VintographyJob) => {
-    const url = job.processed_url || job.original_url;
-    dispatch({ type: "RESET_ALL" });
-    dispatch({ type: "SET_ORIGINAL_PHOTO", url });
+  const handleGalleryUseAsInput = (job: VintographyJob) => {
+    setSelectedPhoto(job.processed_url || job.original_url);
+    setResultPhoto(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDeleteJob = async (jobId: string) => {
-    const { error } = await supabase.from("vintography_jobs").delete().eq("id", jobId);
-    if (error) { toast.error("Failed to delete"); return; }
-    setGallery((prev) => prev.filter((j) => j.id !== jobId));
+  const handleGalleryDelete = async (id: string) => {
+    await supabase.from("vintography_jobs").delete().eq("id", id);
+    setGallery((prev) => prev.filter((j) => j.id !== id));
     toast.success("Deleted");
   };
 
-  // ─── Next photo in filmstrip ───
-  const handleNextPhoto = () => {
-    if (!state.originalPhotoUrl) return;
-    const idx = state.itemPhotos.indexOf(state.originalPhotoUrl);
-    if (idx >= 0 && idx < state.itemPhotos.length - 1) {
-      handleFilmstripSelect(state.itemPhotos[idx + 1]);
-    }
+  // ── Edit again ─────────────────────────────────────────────────────
+  const handleEditAgain = () => {
+    setResultPhoto(null);
   };
 
-  const handleReset = () => {
-    if (state.resultPhotoUrl && !activePhotoSaved) {
-      const confirmed = window.confirm("You have an unsaved edit. Are you sure you want to start over?");
-      if (!confirmed) return;
-    }
-    dispatch({ type: "RESET_ALL" });
-  };
+  // ── Render config panel ────────────────────────────────────────────
+  const renderConfig = () => {
+    if (!selectedOp) return null;
 
-  // Keyboard shortcuts (desktop only)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    switch (selectedOp) {
+      case "remove_bg":
+      case "studio_shadow":
+        return null; // No config needed
 
-      const meta = e.metaKey || e.ctrlKey;
-
-      if (e.key === "Enter" && !state.isProcessing && state.originalPhotoUrl) {
-        e.preventDefault();
-        handleProcess();
-        return;
-      }
-
-      // Cmd+Z → Undo
-      if (meta && e.key === "z" && !e.shiftKey && history.canUndo) {
-        e.preventDefault();
-        rawDispatch({ type: "UNDO" });
-        return;
-      }
-
-      // Cmd+Shift+Z → Redo
-      if (meta && e.key === "z" && e.shiftKey && history.canRedo) {
-        e.preventDefault();
-        rawDispatch({ type: "REDO" });
-        return;
-      }
-
-      if (meta && e.key === "s" && state.resultPhotoUrl && itemId) {
-        e.preventDefault();
-        handleSaveToItem("replace");
-        return;
-      }
-
-      if (meta && e.key === "d" && state.resultPhotoUrl) {
-        e.preventDefault();
-        handleDownload();
-        return;
-      }
-
-      if (e.key === "Escape") {
-        e.preventDefault();
-        return;
-      }
-
-      if (!meta && !e.shiftKey && !e.altKey) {
-        const ops: Operation[] = ["clean_bg", "enhance", "decrease", "lifestyle_bg", "flatlay", "mannequin", "ai_model"];
-        const num = parseInt(e.key);
-        if (num >= 1 && num <= 7) {
-          e.preventDefault();
-          handleOpSelect(ops[num - 1]);
-          return;
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [state.isProcessing, state.originalPhotoUrl, state.resultPhotoUrl, itemId, history.canUndo, history.canRedo]);
-
-  const opLabel = (op: string) => {
-    const opKey = Object.entries(OP_MAP).find(([, v]) => v === op)?.[0];
-    return opKey ? OP_LABEL[opKey as Operation] : op;
-  };
-
-  const getAutoSuggestion = (): { op: Operation; label: string; reason: string } | null => {
-    if (!state.resultPhotoUrl || state.pipeline.length >= 4) return null;
-    const ops = state.pipeline.map(s => s.operation);
-    if (ops.includes("clean_bg") && !ops.includes("enhance")) {
-      return { op: "enhance", label: "Add Enhance", reason: "Most sellers add Enhance after Clean Background for professional colour correction" };
-    }
-    if (ops.includes("lifestyle_bg") && !ops.includes("enhance")) {
-      return { op: "enhance", label: "Add Enhance", reason: "Enhance perfects the lighting to match your scene" };
-    }
-    if (ops.includes("decrease") && !ops.includes("clean_bg") && !ops.includes("lifestyle_bg")) {
-      return { op: "clean_bg", label: "Add Clean Background", reason: "A clean background after steaming creates a perfect listing photo" };
-    }
-    return null;
-  };
-
-  const returnTo = searchParams.get("returnTo");
-  const fromWizard = returnTo === "/sell";
-  const hasFilmstrip = itemId && state.itemPhotos.length > 0;
-  const editedCount = Object.values(state.photoEditStates).filter((s) => s.editedUrl !== null).length;
-  const savedCount = Object.values(state.photoEditStates).filter((s) => s.savedToItem).length;
-  const activePhotoSaved = state.originalPhotoUrl
-    ? state.photoEditStates[state.originalPhotoUrl]?.savedToItem === true
-    : false;
-
-  // ─── Active step config renderer ───
-  const renderActiveConfig = () => {
-    if (!activeStep) return null;
-    const params = activeStep.params;
-
-    switch (activeOp) {
-      case "clean_bg":
-        return <SimpleOperationConfig operation="clean_bg" />;
-      case "enhance":
-        return <SimpleOperationConfig operation="enhance" />;
-      case "decrease":
+      case "ai_background":
         return (
-          <SteamConfig
-            intensity={(params as any).intensity || "standard"}
-            onChange={(v) => updateActiveParams({ intensity: v })}
-          />
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Background Scene</Label>
+            <Input
+              placeholder="e.g. marble countertop with soft morning light"
+              value={opParams.bg_prompt || ""}
+              onChange={(e) => setOpParams({ ...opParams, bg_prompt: e.target.value })}
+              className="text-sm"
+            />
+            <p className="text-xs text-muted-foreground">Describe the scene you want behind your product</p>
+          </div>
         );
-      case "lifestyle_bg":
+
+      case "put_on_model":
         return (
-          <LifestyleConfig
-            bgStyle={(params as any).bg_style || "studio_white"}
-            onChange={(v) => updateActiveParams({ bg_style: v })}
-          />
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Model Gender</Label>
+            <div className="flex gap-2">
+              {["female", "male"].map((g) => (
+                <Button
+                  key={g}
+                  size="sm"
+                  variant={(opParams.gender || "female") === g ? "default" : "outline"}
+                  onClick={() => setOpParams({ ...opParams, gender: g })}
+                  className="flex-1 capitalize"
+                >
+                  {g}
+                </Button>
+              ))}
+            </div>
+          </div>
         );
-      case "flatlay":
+
+      case "virtual_tryon":
         return (
-          <FlatLayConfig
-            style={(params as any).flatlay_style || "minimal_white"}
-            onChange={(v) => updateActiveParams({ flatlay_style: v })}
-          />
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Your Selfie</Label>
+            {selfiePhoto ? (
+              <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-border">
+                <img src={selfiePhoto} alt="Selfie" className="w-full h-full object-cover" />
+                <button
+                  onClick={() => setSelfiePhoto(null)}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-background/80 flex items-center justify-center"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => selfieInputRef.current?.click()}
+                  className="w-full"
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Upload Selfie
+                </Button>
+                <input
+                  ref={selfieInputRef}
+                  type="file"
+                  accept="image/*,.heic,.heif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFileUpload(f, true);
+                    e.target.value = "";
+                  }}
+                />
+              </>
+            )}
+            <p className="text-xs text-muted-foreground">Front-facing photo, clear lighting, standing pose works best</p>
+          </div>
         );
-      case "mannequin":
+
+      case "swap_model":
         return (
-          <MannequinConfig
-            mannequinType={(params as any).mannequin_type || "headless"}
-            lighting={(params as any).lighting_style || "soft_studio"}
-            bg={(params as any).model_bg || "studio"}
-            onTypeChange={(v) => updateActiveParams({ mannequin_type: v })}
-            onLightingChange={(v) => updateActiveParams({ lighting_style: v })}
-            onBgChange={(v) => updateActiveParams({ model_bg: v })}
-          />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Gender</Label>
+              <div className="flex gap-2">
+                {["female", "male"].map((g) => (
+                  <Button
+                    key={g}
+                    size="sm"
+                    variant={(opParams.gender || "female") === g ? "default" : "outline"}
+                    onClick={() => setOpParams({ ...opParams, gender: g })}
+                    className="flex-1 capitalize"
+                  >
+                    {g}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Ethnicity</Label>
+              <div className="flex flex-wrap gap-2">
+                {["default", "asian", "black", "hispanic", "middle-eastern"].map((e) => (
+                  <Button
+                    key={e}
+                    size="sm"
+                    variant={(opParams.ethnicity || "default") === e ? "default" : "outline"}
+                    onClick={() => setOpParams({ ...opParams, ethnicity: e })}
+                    className="capitalize text-xs"
+                  >
+                    {e === "default" ? "Any" : e.replace("-", " ")}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
         );
-      case "ai_model":
-        return (
-          <ModelShotWizard
-            params={{
-              gender: (params as any).gender || "female",
-              look: (params as any).model_look || "classic",
-              pose: (params as any).pose || "standing_front",
-              bg: (params as any).model_bg || "studio",
-              shot_style: (params as any).shot_style || "editorial",
-              full_body: (params as any).full_body !== "false",
-            }}
-            onChange={(p) => {
-              const mapped: Record<string, string> = {};
-              if (p.gender !== undefined) mapped.gender = p.gender;
-              if (p.look !== undefined) mapped.model_look = p.look;
-              if (p.pose !== undefined) mapped.pose = p.pose;
-              if (p.bg !== undefined) mapped.model_bg = p.bg;
-              if (p.shot_style !== undefined) mapped.shot_style = p.shot_style;
-              if (p.full_body !== undefined) mapped.full_body = p.full_body ? "true" : "false";
-              updateActiveParams(mapped);
-            }}
-          />
-        );
+
       default:
         return null;
     }
   };
 
-  // ─── Generate Button ───
-  const GenerateButton = () => {
-    const isLockedOp =
-      (activeOp === "flatlay" && !flatlayGate.allowed) ||
-      (activeOp === "mannequin" && !mannequinGate.allowed) ||
-      (activeOp === "ai_model" && !aiModelGate.allowed);
-    const label = state.pipeline.length > 1
-      ? `Apply ${state.pipeline.length} Effects · ${totalCreditCost} credit${totalCreditCost !== 1 ? "s" : ""}`
-      : activeOp === "ai_model"
-        ? "Generate · 4 credits"
-        : `Apply ${OP_LABEL[activeOp]}`;
-    return (
-      <Button
-        onClick={handleProcess}
-        disabled={state.isProcessing || !state.originalPhotoUrl || isLockedOp}
-        className="w-full h-12 font-semibold text-sm active:scale-95 transition-transform"
-      >
-        {state.isProcessing
-          ? <Loader2 className="w-4 h-4 animate-spin mr-2" />
-          : <Wand2 className="w-4 h-4 mr-2" />}
-        {state.isProcessing ? "Processing…" : label}
-        <kbd className="hidden lg:inline-flex ml-2 px-1.5 py-0.5 text-[9px] font-mono bg-primary-foreground/20 rounded">↵</kbd>
-      </Button>
-    );
-  };
+  const canProcess = selectedPhoto && selectedOp && !isProcessing &&
+    (selectedOp !== "virtual_tryon" || selfiePhoto);
 
-  // ─── Pipeline strip (rendered inline, not in drawer) ───
-  const PipelineStripInline = () => (
-    <PipelineStrip
-      pipeline={state.pipeline}
-      activePipelineIndex={state.activePipelineIndex}
-      onSelectStep={(i) => dispatch({ type: "SET_ACTIVE_PIPELINE_INDEX", index: i })}
-      onRemoveStep={(i) => dispatch({ type: "REMOVE_PIPELINE_STEP", index: i })}
-      onAddStep={(op) => dispatch({ type: "ADD_PIPELINE_STEP", step: { operation: op, params: defaultParams(op) } })}
-      flatlayLocked={!flatlayGate.allowed}
-      mannequinLocked={!mannequinGate.allowed}
-      aiModelLocked={!aiModelGate.allowed}
-    />
-  );
-
-  // ─── Config drawer content for mobile / desktop wrapper ───
-  const configContent = (
-    <>
-      {renderActiveConfig()}
-      {/* Garment context for relevant ops */}
-      {(activeOp === "ai_model" || activeOp === "mannequin" || activeOp === "lifestyle_bg") && (
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Describe your item {itemId ? "(auto-filled)" : "(optional)"}
-          </label>
-          <input
-            type="text"
-            value={garmentContext}
-            onChange={(e) => setGarmentContext(e.target.value)}
-            placeholder="e.g. Black Nike crewneck sweatshirt, size M"
-            className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-1 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        </div>
-      )}
-    </>
-  );
-
-  // ─── Derived helpers ───
-  const activePhotoUrl = state.originalPhotoUrl;
+  const processButtonText = selectedOpConfig
+    ? `${selectedOpConfig.label} — ${selectedOpConfig.credits} Credit${selectedOpConfig.credits > 1 ? "s" : ""}`
+    : "Select an Operation";
 
   return (
-    <PageShell
-      title="Photo Studio"
-      subtitle={itemId && linkedItemTitle ? `Editing: ${linkedItemTitle}` : "AI-powered photo editing"}
-      maxWidth="max-w-6xl"
-      actions={
-        <div className="hidden lg:flex items-center gap-2">
-          {!isUnlimited && creditsRemaining <= 2 && creditsRemaining >= 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs font-semibold border-warning/40 text-warning hover:bg-warning/10"
-              onClick={() => navigate("/settings?tab=billing")}
-            >
-              {creditsRemaining <= 0 ? "No credits" : `${creditsRemaining} left`} · Top Up
-            </Button>
-          )}
-          {!isUnlimited && creditsRemaining > 2 && (
-            <Badge variant="secondary" className="text-xs font-semibold px-2.5 py-1">
-              {creditsRemaining} credits
-            </Badge>
-          )}
-          {isUnlimited && (
-            <Badge variant="secondary" className="text-xs font-semibold px-2.5 py-1">
-              ∞ Unlimited
-            </Badge>
-          )}
-        </div>
-      }
-    >
-      {/* Back nav */}
-      {fromWizard ? (
-        <div className="mb-3 -mt-1">
-          <button
-            onClick={() => navigate("/sell")}
-            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/15 transition-colors"
+    <PageShell title="Photo Studio" maxWidth="3xl">
+      {/* Credit bar */}
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border -mx-4 px-4 py-2.5 lg:-mx-6 lg:px-6">
+        <div className="flex items-center justify-between">
+          <CreditBar used={totalUsed} limit={credits?.credits_limit ?? 5} unlimited={unlimited} />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs text-primary h-7"
+            onClick={() => { setUpgradeReason(null); setUpgradeOpen(true); }}
           >
-            ← Back to Sell Wizard
-          </button>
+            Top up
+          </Button>
         </div>
-      ) : itemId && linkedItemTitle ? (
-        <div className="mb-3 -mt-1">
-          <button
-            onClick={() => navigate(`/items/${itemId}?tab=photos`)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ← Back to {linkedItemTitle}
-          </button>
-        </div>
-      ) : null}
+      </div>
 
-      <FeatureGate feature="vintography">
-        <div className="space-y-3 sm:space-y-4">
-          <div className="lg:hidden">
-            <CreditBar used={totalUsed} limit={creditsLimit} unlimited={isUnlimited} />
-          </div>
+      <div className="space-y-6 pt-4 pb-32 lg:pb-8">
+        {/* Item photo filmstrip */}
+        {itemId && itemPhotos.length > 0 && (
+          <PhotoFilmstrip
+            photos={itemPhotos}
+            activeUrl={selectedPhoto}
+            editStates={editStates}
+            itemId={itemId}
+            onSelect={(url) => { setSelectedPhoto(url); setResultPhoto(null); }}
+          />
+        )}
 
-          {/* Low-credit banner */}
-          {!isUnlimited && creditsRemaining <= 2 && creditsRemaining >= 0 && (
+        {/* Result area */}
+        <AnimatePresence>
+          {resultPhoto && selectedPhoto && (
             <motion.div
-              initial={{ opacity: 0, y: -4 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="lg:hidden flex items-center gap-3 rounded-xl bg-warning/10 border border-warning/25 p-3"
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
             >
-              <Coins className="w-4 h-4 text-warning shrink-0" />
-              <p className="text-xs text-foreground flex-1">
-                <span className="font-semibold">
-                  {creditsRemaining <= 0 ? "No credits left." : `${creditsRemaining} credit${creditsRemaining === 1 ? "" : "s"} remaining.`}
-                </span>{" "}
-                Top up 10 for £2.99 →
-              </p>
-              <Button
-                size="sm"
-                className="shrink-0 h-8 text-xs font-semibold bg-warning text-warning-foreground hover:bg-warning/90"
-                onClick={() => navigate("/settings?tab=billing")}
-              >
-                Top Up
-              </Button>
-            </motion.div>
-          )}
-
-
-          {/* ─── No photo: Empty state ─── */}
-          {!state.originalPhotoUrl ? (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <EmptyState
-                itemId={itemId}
-                linkedItemTitle={linkedItemTitle}
-                onFilesSelected={handleFileSelect}
-                isUploading={isUploading}
+              <ComparisonView
+                originalUrl={selectedPhoto}
+                processedUrl={resultPhoto}
+                processing={false}
+                operationId={selectedOp || undefined}
+                resultLabel={selectedOpConfig?.label}
+                variations={[resultPhoto]}
+                currentVariation={0}
+                onVariationChange={() => {}}
               />
-            </motion.div>
-          ) : (
-            /* ─── Editor: three-zone layout ─── */
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                if (e.dataTransfer.files.length > 0) handleFileSelect(e.dataTransfer.files);
-              }}
-              className="relative"
-            >
-              {isDragging && (
-                <div className="absolute inset-0 z-50 bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary rounded-xl flex items-center justify-center pointer-events-none">
-                  <div className="text-center">
-                    <p className="text-lg font-semibold text-primary">Drop photo here</p>
-                    <p className="text-sm text-muted-foreground">Replace current image</p>
-                  </div>
-                </div>
-              )}
-              {/* ════ MOBILE layout (< lg) ════ */}
-              <div className="lg:hidden space-y-3 pb-36">
-                {/* Zone 1: Canvas — always visible at top */}
-                {hasFilmstrip && (
-                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
-                    <Card className="p-3">
-                      <PhotoFilmstrip
-                        photos={state.itemPhotos}
-                        activeUrl={state.originalPhotoUrl}
-                        editStates={state.photoEditStates}
-                        itemId={itemId}
-                        onSelect={handleFilmstripSelect}
-                        onAddPhoto={() => addPhotoInputRef.current?.click()}
-                      />
-                      {editedCount > 0 && (
-                        <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t border-border">
-                          {savedCount > 0
-                            ? `${savedCount} of ${editedCount} edits saved to listing`
-                            : `${editedCount} photo${editedCount > 1 ? "s" : ""} edited — tap Save to apply`}
-                        </p>
-                      )}
-                    </Card>
-                    <input
-                      ref={addPhotoInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleAddPhoto(e.target.files)}
-                    />
-                  </motion.div>
-                )}
-
-                {!itemId && state.itemPhotos.length > 1 && (
-                  <Card className="p-3">
-                    <PhotoFilmstrip
-                      photos={state.itemPhotos}
-                      activeUrl={state.originalPhotoUrl}
-                      editStates={state.photoEditStates}
-                      itemId={null}
-                      onSelect={handleFilmstripSelect}
-                    />
-                  </Card>
-                )}
-
-                <div
-                  ref={resultRef}
-                  className={`rounded-xl transition-all duration-700 ${state.resultReady ? "ring-2 ring-success ring-offset-2 shadow-lg shadow-success/20" : ""}`}
-                >
-                  <ComparisonView
-                    originalUrl={state.originalPhotoUrl!}
-                    processedUrl={state.resultPhotoUrl}
-                    processing={state.isProcessing}
-                    processingStep={null}
-                    operationId={activeOp}
-                    resultLabel={state.pipeline.map(s => OP_RESULT_LABEL[s.operation]).join(" + ")}
-                    variations={[]}
-                    currentVariation={0}
-                    onVariationChange={() => {}}
-                  />
-                </div>
-
-                {/* Action picker — single compact section */}
-                <div className="space-y-2">
-                  <OperationBar
-                    pipeline={state.pipeline}
-                    activePipelineIndex={state.activePipelineIndex}
-                    flatlayLocked={!flatlayGate.allowed}
-                    mannequinLocked={!mannequinGate.allowed}
-                    aiModelLocked={!aiModelGate.allowed}
-                    onSelect={handleOpSelect}
-                    onLockedTap={(gate) => setActiveLockedGate(gate)}
-                  />
-                  <PipelineStripInline />
-                </div>
-
-                {/* Processing strip on mobile */}
-                {state.isProcessing && (
-                  <ProcessingOverlay
-                    isProcessing={state.isProcessing}
-                    pipeline={state.pipeline}
-                    processingStepIndex={state.processingStepIndex}
-                    isMobile={true}
-                  />
-                )}
-
-                {/* Zone 3: Inline config (collapsible) + Generate button always visible */}
-                {!state.isProcessing && activeStep && (
-                  <Collapsible
-                    defaultOpen={false}
-                    key={activeOp}
-                  >
-                    <CollapsibleTrigger className="flex items-center justify-between w-full rounded-xl border border-border bg-card px-3 py-2.5 active:scale-[0.98] transition-transform">
-                      <span className="text-xs font-semibold">{OP_LABEL[activeOp]} Settings</span>
-                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="rounded-xl border border-border border-t-0 rounded-t-none bg-card px-3 py-3 space-y-3">
-                      {configContent}
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-
-
-                {/* Result actions */}
-                <ResultActions
-                  processedUrl={state.resultPhotoUrl}
-                  itemId={itemId}
-                  activePhotoSaved={activePhotoSaved}
-                  savingToItem={state.savingToItem}
-                  processing={state.isProcessing}
-                  itemPhotos={state.itemPhotos}
-                  activePhotoUrl={activePhotoUrl}
-                  creditsLow={creditsLow}
-                  onReprocess={handleProcess}
-                  onDownload={handleDownload}
-                  onReset={handleReset}
-                  onSaveReplace={() => handleSaveToItem("replace")}
-                  onSaveAdd={() => handleSaveToItem("add")}
-                  onUseAsStartingPoint={handleUseResultAsStart}
-                  onNextPhoto={handleNextPhoto}
-                  onTopUp={() => navigate("/settings?tab=billing")}
-                  onSavePreset={handleSavePreset}
-                  showSavePreset={state.pipeline.length >= 2 && !state.isProcessing}
-                />
-
-                {(() => {
-                  const suggestion = getAutoSuggestion();
-                  if (!suggestion || state.isProcessing) return null;
-                  const cost = getOperationCreditCost(suggestion.op);
-                  return (
-                    <Card
-                      onClick={() => {
-                        dispatch({ type: "ADD_PIPELINE_STEP", step: { operation: suggestion.op, params: defaultParams(suggestion.op) } });
-                        setAutoProcessPending(true);
-                      }}
-                      className="p-3 cursor-pointer border-accent/20 bg-accent/[0.04] hover:bg-accent/[0.08] hover:border-accent/30 transition-all active:scale-[0.98]"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                          <Sparkles className="w-4 h-4 text-accent" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold">{suggestion.label} · {cost} credit{cost !== 1 ? "s" : ""}</p>
-                          <p className="text-[10px] text-muted-foreground">{suggestion.reason}</p>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                      </div>
-                    </Card>
-                  );
-                })()}
-
-                {state.resultPhotoUrl && itemId && (
-                  <Card className="p-3 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Next Steps</p>
-                    {hasFilmstrip && editedCount > 0 ? (
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold">{state.itemPhotos.length} photos · {editedCount} enhanced</p>
-                          <p className="text-xs text-muted-foreground">
-                            {savedCount < editedCount ? `Save ${editedCount - savedCount} remaining edit${editedCount - savedCount > 1 ? "s" : ""} above` : "All edits saved"}
-                          </p>
-                        </div>
-                        <Button size="sm" onClick={() => navigate(`/items/${itemId}?tab=photos`)}>View Photos</Button>
-                      </div>
-                    ) : (
-                      <Button size="sm" className="w-full" onClick={() => navigate(`/items/${itemId}`)}>
-                        View Listing <Package className="w-3.5 h-3.5 ml-1.5" />
-                      </Button>
-                    )}
-                  </Card>
-                )}
-
-                {/* Sticky Generate footer */}
-                {state.originalPhotoUrl && !state.isProcessing && (
-                  <div className="fixed left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border px-4 py-2.5 lg:hidden" style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}>
-                    <GenerateButton />
-                  </div>
-                )}
-              </div>
-
-              {/* ════ DESKTOP layout (≥ lg): two-column ════ */}
-              <div className="hidden lg:grid lg:grid-cols-[1fr_380px] lg:gap-6 lg:items-start">
-
-                {/* ── LEFT PANEL: Canvas ── */}
-                <div className="space-y-3">
-                  {hasFilmstrip && (
-                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
-                      <Card className="p-3">
-                        <PhotoFilmstrip
-                          photos={state.itemPhotos}
-                          activeUrl={state.originalPhotoUrl}
-                          editStates={state.photoEditStates}
-                          itemId={itemId}
-                          onSelect={handleFilmstripSelect}
-                          onAddPhoto={() => addPhotoInputRef.current?.click()}
-                        />
-                        {editedCount > 0 && (
-                          <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t border-border">
-                            {savedCount > 0
-                              ? `${savedCount} of ${editedCount} edits saved to listing`
-                              : `${editedCount} photo${editedCount > 1 ? "s" : ""} edited — tap Save to apply`}
-                          </p>
-                        )}
-                      </Card>
-                      <input
-                        ref={addPhotoInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleAddPhoto(e.target.files)}
-                      />
-                    </motion.div>
-                  )}
-
-                  {!itemId && state.itemPhotos.length > 1 && (
-                    <Card className="p-3">
-                      <PhotoFilmstrip
-                        photos={state.itemPhotos}
-                        activeUrl={state.originalPhotoUrl}
-                        editStates={state.photoEditStates}
-                        itemId={null}
-                        onSelect={handleFilmstripSelect}
-                      />
-                    </Card>
-                  )}
-
-                  {/* Image canvas */}
-                  <div
-                    ref={resultRef}
-                    className={`rounded-xl transition-all duration-700 ${state.resultReady ? "ring-2 ring-success ring-offset-2 shadow-lg shadow-success/20" : ""}`}
-                  >
-                    <ComparisonView
-                      originalUrl={state.originalPhotoUrl!}
-                      processedUrl={state.resultPhotoUrl}
-                      processing={state.isProcessing}
-                      processingStep={null}
-                      operationId={activeOp}
-                      resultLabel={state.pipeline.map(s => OP_RESULT_LABEL[s.operation]).join(" + ")}
-                      variations={[]}
-                      currentVariation={0}
-                      onVariationChange={() => {}}
-                    />
-                  </div>
-
-                  {/* Result actions */}
-                  <ResultActions
-                    processedUrl={state.resultPhotoUrl}
-                    itemId={itemId}
-                    activePhotoSaved={activePhotoSaved}
-                    savingToItem={state.savingToItem}
-                    processing={state.isProcessing}
-                    itemPhotos={state.itemPhotos}
-                    activePhotoUrl={activePhotoUrl}
-                    creditsLow={creditsLow}
-                    onReprocess={handleProcess}
-                    onDownload={handleDownload}
-                    onReset={handleReset}
-                    onSaveReplace={() => handleSaveToItem("replace")}
-                    onSaveAdd={() => handleSaveToItem("add")}
-                    onUseAsStartingPoint={handleUseResultAsStart}
-                    onNextPhoto={handleNextPhoto}
-                    onTopUp={() => navigate("/settings?tab=billing")}
-                    onSavePreset={handleSavePreset}
-                    showSavePreset={state.pipeline.length >= 2 && !state.isProcessing}
-                   />
-
-                  {(() => {
-                    const suggestion = getAutoSuggestion();
-                    if (!suggestion || state.isProcessing) return null;
-                    const cost = getOperationCreditCost(suggestion.op);
-                    return (
-                      <Card
-                        onClick={() => {
-                          dispatch({ type: "ADD_PIPELINE_STEP", step: { operation: suggestion.op, params: defaultParams(suggestion.op) } });
-                          setAutoProcessPending(true);
-                        }}
-                        className="p-3 cursor-pointer border-accent/20 bg-accent/[0.04] hover:bg-accent/[0.08] hover:border-accent/30 transition-all active:scale-[0.98]"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                            <Sparkles className="w-4 h-4 text-accent" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold">{suggestion.label} · {cost} credit{cost !== 1 ? "s" : ""}</p>
-                            <p className="text-[10px] text-muted-foreground">{suggestion.reason}</p>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                        </div>
-                      </Card>
-                    );
-                  })()}
-
-                  {/* Next steps card for linked items */}
-                  {state.resultPhotoUrl && itemId && (
-                    <Card className="p-3 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Next Steps</p>
-                      {hasFilmstrip && editedCount > 0 ? (
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold">{state.itemPhotos.length} photos · {editedCount} enhanced</p>
-                            <p className="text-xs text-muted-foreground">
-                              {savedCount < editedCount ? `Save ${editedCount - savedCount} remaining edit${editedCount - savedCount > 1 ? "s" : ""} above` : "All edits saved"}
-                            </p>
-                          </div>
-                          <Button size="sm" onClick={() => navigate(`/items/${itemId}?tab=photos`)}>View Photos</Button>
-                        </div>
-                      ) : (
-                        <Button size="sm" className="w-full" onClick={() => navigate(`/items/${itemId}`)}>
-                          View Listing <Package className="w-3.5 h-3.5 ml-1.5" />
-                        </Button>
-                      )}
-                    </Card>
-                  )}
-                </div>
-
-                {/* ── RIGHT PANEL: Controls sidebar ── */}
-                <div className="lg:sticky lg:top-6 flex flex-col" style={{ maxHeight: "calc(100vh - 48px)" }}>
-                  {/* Scrollable controls area */}
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-hide overscroll-contain">
-
-                    {/* Quick Presets — compact pill row */}
-                    <QuickPresets
-                      onSelect={handlePresetSelect}
-                      onLockedTap={(tier) => {
-                        if (tier === "business") setActiveLockedGate("ai_model");
-                        else if (tier === "pro") setActiveLockedGate("flatlay");
-                      }}
-                      disabled={state.isProcessing}
-                      userTier={(profile as any)?.subscription_tier || "free"}
-                      savedPresets={savedPresets}
-                      onSavedPresetSelect={handleSavedPresetSelect}
-                      onDeleteSavedPreset={handleDeleteSavedPreset}
-                    />
-
-                    {/* Operation picker */}
-                    <div>
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Effects</p>
-                      <OperationBar
-                        pipeline={state.pipeline}
-                        activePipelineIndex={state.activePipelineIndex}
-                        flatlayLocked={!flatlayGate.allowed}
-                        mannequinLocked={!mannequinGate.allowed}
-                        aiModelLocked={!aiModelGate.allowed}
-                        onSelect={handleOpSelect}
-                        onLockedTap={(gate) => setActiveLockedGate(gate)}
-                      />
-                    </div>
-
-                    {/* Pipeline strip */}
-                    <PipelineStripInline />
-
-                    {/* Operation config */}
-                    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-                      {state.isProcessing ? (
-                        <ProcessingOverlay
-                          isProcessing={state.isProcessing}
-                          pipeline={state.pipeline}
-                          processingStepIndex={state.processingStepIndex}
-                          isMobile={false}
-                        />
-                      ) : (
-                        configContent
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Pinned Generate footer */}
-                  <div className="flex-shrink-0 pt-3 mt-3 border-t border-border">
-                    <GenerateButton />
-                    {state.pipeline.length >= 2 && !state.isProcessing && (
-                      <Button variant="ghost" size="sm" className="w-full text-xs mt-1.5" onClick={handleSavePreset}>
-                        <Star className="w-3.5 h-3.5 mr-1.5" /> Save as Preset
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            </motion.div>
-          )}
-
-          {/* ─── Gallery ─── */}
-          <div className="mt-6 space-y-3">
-            <h2 className="font-display font-bold text-sm lg:text-base">Previous Edits</h2>
-            {galleryLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {[...Array(4)].map((_, i) => (
-                  <Skeleton key={i} className="aspect-[4/5] rounded-xl" />
-                ))}
-              </div>
-            ) : gallery.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No edits yet. Upload a photo and transform it above.</p>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {gallery.map((job) => (
-                    <GalleryCard
-                      key={job.id}
-                      job={job}
-                      opLabel={opLabel(job.operation)}
-                      onRestore={(j) => {
-                        dispatch({ type: "SET_ORIGINAL_PHOTO", url: j.original_url });
-                        dispatch({ type: "SET_RESULT_PHOTO", url: j.processed_url || j.original_url });
-                      }}
-                      onDelete={handleDeleteJob}
-                      onUseAsInput={handleUseAsInput}
-                    />
-                  ))}
-                </div>
-                {gallery.length >= galleryLimit && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => setGalleryLimit(prev => prev + 20)}
-                    className="w-full text-sm text-muted-foreground"
-                  >
-                    Load more edits
+              <div className="flex gap-2 mt-3">
+                <Button size="sm" variant="outline" onClick={handleDownload} className="flex-1">
+                  <Download className="w-4 h-4 mr-1.5" /> Download
+                </Button>
+                {itemId && (
+                  <Button size="sm" onClick={handleSaveToItem} className="flex-1">
+                    Save to Listing
                   </Button>
                 )}
-              </>
+                <Button size="sm" variant="ghost" onClick={handleEditAgain}>
+                  <RefreshCw className="w-4 h-4 mr-1.5" /> Edit Again
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Photo upload zone */}
+        {!resultPhoto && (
+          <div
+            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("border-primary"); }}
+            onDragLeave={(e) => e.currentTarget.classList.remove("border-primary")}
+            onDrop={(e) => { e.currentTarget.classList.remove("border-primary"); handleFileDrop(e); }}
+          >
+            {selectedPhoto ? (
+              <div className="relative rounded-2xl overflow-hidden border border-border bg-muted/30">
+                {isProcessing && (
+                  <div className="absolute inset-0 z-10 bg-background/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    <p className="text-sm font-medium text-foreground">Processing...</p>
+                    <p className="text-xs text-muted-foreground">This usually takes 5–15 seconds</p>
+                  </div>
+                )}
+                <img
+                  src={selectedPhoto}
+                  alt="Selected photo"
+                  className="w-full max-h-[300px] lg:max-h-[400px] object-contain"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="absolute bottom-3 right-3 text-xs shadow-md"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Change Photo
+                </Button>
+              </div>
+            ) : (
+              <label
+                className="flex flex-col items-center justify-center gap-3 p-8 lg:p-12 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-primary/[0.02] cursor-pointer transition-colors text-center"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Upload className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Drop a photo here, or tap to upload</p>
+                  <p className="text-xs text-muted-foreground mt-1">JPEG, PNG, HEIC • You can also paste from clipboard</p>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,.heic,.heif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFileUpload(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+            {/* Hidden file input for "Change Photo" button */}
+            {selectedPhoto && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.heic,.heif"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFileUpload(f);
+                  e.target.value = "";
+                }}
+              />
             )}
           </div>
-        </div>
-      </FeatureGate>
+        )}
 
-      {/* Upgrade modals */}
+        {/* Operation grid */}
+        {!resultPhoto && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Choose Effect</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {(Object.entries(PHOTO_OPERATIONS) as [PhotoOperation, typeof PHOTO_OPERATIONS[PhotoOperation]][]).map(([key, op]) => {
+                const Icon = ICON_MAP[op.icon] || Sparkles;
+                const isLocked = !isAtLeastTier(userTier, op.tier);
+                const isSelected = selectedOp === key;
+                const isDisabled = !selectedPhoto && !isLocked;
+
+                return (
+                  <Card
+                    key={key}
+                    onClick={() => !isDisabled && handleSelectOp(key)}
+                    className={`relative p-3.5 cursor-pointer transition-all duration-200 ${
+                      isSelected
+                        ? "border-primary bg-primary/[0.04] shadow-sm ring-1 ring-primary/20"
+                        : isLocked
+                        ? "opacity-60 hover:opacity-80"
+                        : isDisabled
+                        ? "opacity-40 cursor-not-allowed"
+                        : "hover:border-primary/30 hover:shadow-sm"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                        isSelected ? "bg-primary/15" : "bg-muted"
+                      }`}>
+                        {isLocked ? (
+                          <Lock className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <Icon className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                        )}
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className={`text-[10px] px-1.5 py-0 ${isSelected ? "bg-primary/10 text-primary" : ""}`}
+                      >
+                        {op.credits} cr
+                      </Badge>
+                    </div>
+                    <p className={`text-sm font-semibold mb-0.5 ${isSelected ? "text-primary" : "text-foreground"}`}>
+                      {op.label}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground leading-snug">{op.description}</p>
+                    {isLocked && (
+                      <Badge variant="outline" className="absolute top-2 right-2 text-[9px] py-0 border-muted-foreground/30">
+                        {op.tier.charAt(0).toUpperCase() + op.tier.slice(1)}
+                      </Badge>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Config panel */}
+        {!resultPhoto && (
+          <AnimatePresence mode="wait">
+            {selectedOp && selectedPhoto && (
+              <motion.div
+                key={selectedOp}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="overflow-hidden"
+              >
+                <Card className="p-4">
+                  {renderConfig()}
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+
+        {/* Process button — desktop inline */}
+        {!resultPhoto && selectedOp && selectedPhoto && (
+          <div className="hidden lg:block">
+            <Button
+              size="lg"
+              className="w-full h-12 text-sm font-semibold"
+              disabled={!canProcess}
+              onClick={handleProcess}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...
+                </>
+              ) : (
+                <>
+                  <ArrowRight className="w-4 h-4 mr-2" /> {processButtonText}
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Gallery */}
+        <div className="space-y-3 pt-4">
+          <h3 className="text-sm font-semibold text-foreground">Recent Edits</h3>
+          {galleryLoading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-[4/5] rounded-xl" />
+              ))}
+            </div>
+          ) : gallery.length === 0 ? (
+            <Card className="p-8 text-center">
+              <ImageIcon className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
+              <p className="text-sm text-muted-foreground">Your edited photos will appear here</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {gallery.map((job) => (
+                <GalleryCard
+                  key={job.id}
+                  job={job}
+                  opLabel={OP_LABELS[job.operation] || job.operation}
+                  onRestore={handleGalleryRestore}
+                  onDelete={handleGalleryDelete}
+                  onUseAsInput={handleGalleryUseAsInput}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile sticky process button */}
+      {!resultPhoto && selectedOp && selectedPhoto && (
+        <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 p-3 bg-background/95 backdrop-blur-sm border-t border-border lg:hidden">
+          <Button
+            size="lg"
+            className="w-full h-12 text-sm font-semibold"
+            disabled={!canProcess}
+            onClick={handleProcess}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...
+              </>
+            ) : (
+              <>
+                <ArrowRight className="w-4 h-4 mr-2" /> {processButtonText}
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
       <UpgradeModal
-        open={activeLockedGate !== null}
-        onClose={() => setActiveLockedGate(null)}
-        tierRequired={activeLockedGate === "ai_model" ? "business" : "starter"}
-        reason={
-          activeLockedGate === "ai_model"
-            ? aiModelGate.reason
-            : activeLockedGate === "flatlay"
-            ? flatlayGate.reason
-            : mannequinGate.reason
-        }
-      />
-      <SavePresetDialog
-        open={showSavePresetDialog}
-        onClose={() => setShowSavePresetDialog(false)}
-        onSave={doSavePreset}
-        defaultName={state.pipeline.map(s => OP_LABEL[s.operation]).join(" + ")}
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+        tierRequired={upgradeTier}
+        showCredits
       />
     </PageShell>
   );
 }
-
