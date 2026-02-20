@@ -167,7 +167,7 @@ export default function Pricing() {
                 afterSrc="/marketing/denim-dress-after.png"
                 beforeLabel="Phone snap"
                 afterLabel="Studio shot"
-                badge="AI Model + Deep Steam"
+                badge="Studio Shot"
                 aspectRatio="4/5"
               />
               <p className="text-[11px] sm:text-xs text-muted-foreground text-center mt-3">

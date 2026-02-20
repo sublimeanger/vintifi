@@ -58,13 +58,13 @@ const steps = [
     num: "02",
     icon: Camera,
     title: "Enhance your photos",
-    desc: "This is where buyers decide to click. Upload your phone snap and choose a mode: AI Model places your garment on a photorealistic male or female model (Editorial, Natural Photo, or Street Style). Mannequin gives you a headless ghost effect. Flat-Lay Pro creates clean overhead compositions in 5 styles. One tap — your bedroom floor becomes a studio shot. No kit, no experience, no studio.",
+    desc: "This is where buyers decide to click. Upload your phone snap and choose a tool: Remove Background strips the backdrop in 3 seconds. Studio Shadow adds a professional drop shadow. AI Background places your garment in a styled scene. Virtual Try-On lets you see it on yourself with just a selfie. One tap — your bedroom floor becomes a studio shot. No kit, no experience, no studio.",
     callout: "Phone snap to studio quality — one tap",
     badge: "Start here",
     mock: (
       <div className="rounded-xl bg-card border border-border p-4 sm:p-5 space-y-3">
         <div className="flex gap-1.5">
-          {["AI Model", "Flat-Lay Pro", "Mannequin"].map((tab, i) => (
+          {["Remove BG", "AI Background", "Try On"].map((tab, i) => (
             <div key={tab} className={`flex-1 text-center py-1.5 rounded-md text-[10px] font-medium ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{tab}</div>
           ))}
         </div>
@@ -163,7 +163,7 @@ const beforeAfter = {
     { icon: Heart, label: "Listing quality", value: "Dependent on writing skill" },
   ],
   after: [
-    { icon: Package, label: "Photos", value: "AI Model / Mannequin / Flat-Lay Pro — one tap" },
+    { icon: Package, label: "Photos", value: "Remove BG / AI Background / Try On — one tap" },
     { icon: Clock, label: "Time per item", value: "Under 30 seconds — AI-backed" },
     { icon: TrendingUp, label: "Pricing accuracy", value: "Confidence-scored — market-verified" },
     { icon: Eye, label: "Market visibility", value: "Live comparable data across Vinted" },

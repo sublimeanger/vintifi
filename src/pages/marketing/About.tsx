@@ -45,7 +45,7 @@ const painPoints = [
 ];
 
 const solutionSteps = [
-  { icon: Sparkles, label: "AI Photo Studio", desc: "One tap turns your phone snap into a studio-quality product shot. AI Model, Mannequin, or Flat-Lay — buyers click on professional photos." },
+  { icon: Sparkles, label: "AI Photo Studio", desc: "One tap turns your phone snap into a studio-quality product shot. Remove Background, Studio Shadow, AI Backgrounds — buyers click on professional photos." },
   { icon: Globe, label: "Market Pricing", desc: "We analyse thousands of comparable listings across Vinted to give you a confidence-scored price recommendation in under 30 seconds." },
   { icon: BarChart3, label: "Listing Intelligence", desc: "AI writes your title, description, and hashtags — tuned for Vinted search. A Health Score tells you exactly how discoverable you are." },
 ];
@@ -58,7 +58,7 @@ const values = [
 
 const stats = [
   { end: 18, suffix: "", label: "Vinted Markets Supported" },
-  { end: 3, suffix: "", label: "Photo Studio Modes" },
+  { end: 6, suffix: "", label: "Photo Studio Tools" },
   { end: 8, suffix: "s", label: "Average Analysis Time" },
   { end: 16, suffix: "", label: "Background Scenes" },
 ];

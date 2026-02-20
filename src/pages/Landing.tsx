@@ -21,7 +21,7 @@ const fadeUp = {
 const heroFeatures = [
   {
     id: "photo",
-    label: "Vintography Photo Studio",
+    label: "Photo Studio",
     icon: Camera,
     color: "text-success",
     bg: "bg-success/10",
@@ -134,7 +134,7 @@ const heroFeatures = [
 const pillars = [
   {
     icon: Camera,
-    title: "Vintography Photo Studio",
+    title: "Photo Studio",
     desc: "Your phone snap is already good enough — Vintifi turns it into a studio shot. Remove Background gives you a clean cutout in seconds. Put on Model transforms your flat-lay into a photorealistic on-model photo. Studio Shadow and AI Backgrounds make every listing look professional.",
     outcome: "Remove BG · Put on Model · AI Backgrounds",
     badge: "Start here",
@@ -435,7 +435,7 @@ export default function Landing() {
             <div className="flex flex-col lg:flex-row gap-8 sm:gap-12 lg:gap-16 items-center">
               <div className="flex-1 text-center lg:text-left">
                 <Badge variant="outline" className="mb-3 sm:mb-4 border-success/30 text-success bg-success/5 text-xs">
-                  <Camera className="w-3 h-3 mr-1.5" /> Vintography Photo Studio
+                  <Camera className="w-3 h-3 mr-1.5" /> Photo Studio
                 </Badge>
                 <h2 className="font-display text-xl sm:text-3xl md:text-5xl font-extrabold tracking-tight leading-tight mb-3 sm:mb-5">
                   Turn any phone snap
@@ -443,14 +443,14 @@ export default function Landing() {
                   <span className="text-gradient">into a studio shot.</span>
                 </h2>
                 <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-4 sm:mb-6 max-w-lg">
-                  Buyers decide in under 2 seconds. A professional photo is the difference between a click and a scroll-past. Vintography does it in one tap — no studio, no kit, no experience.
+                  Buyers decide in under 2 seconds. A professional photo is the difference between a click and a scroll-past. Photo Studio does it in one tap — no studio, no kit, no experience.
                 </p>
                 <div className="space-y-2 mb-6 sm:mb-8 text-left max-w-xs mx-auto lg:mx-0">
                   {[
-                    "AI Model — male & female · Editorial, Natural Photo, Street Style",
-                    "Mannequin Ghost — headless, dress form, half-body shots",
-                    "Flat-Lay Pro — clean overhead · 5 styling presets",
-                    "16 background scenes · Batch processing · Gallery included",
+                    "Remove Background — clean white cutout in 3 seconds",
+                    "Put on Model — flat-lay to on-model photo (coming soon)",
+                    "Virtual Try-On — see how it looks on you with a selfie",
+                    "Studio Shadow · AI Backgrounds · 8 scene presets included",
                   ].map((item) => (
                     <div key={item} className="flex items-center gap-2 text-xs sm:text-sm">
                       <Check className="w-4 h-4 text-success shrink-0" />
