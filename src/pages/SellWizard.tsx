@@ -1117,7 +1117,7 @@ export default function SellWizard() {
           >
             {creating || uploading
               ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating item…</>
-              : <>Create Item & Set Price <ArrowRight className="w-4 h-4 ml-1.5" /></>}
+              : <>Create Item <ArrowRight className="w-4 h-4 ml-1.5" /></>}
           </Button>
         </div>
       )}
@@ -1338,7 +1338,7 @@ export default function SellWizard() {
             </div>
             {optimiseResult.health_score < 60 && (
               <p className="text-[10px] text-warning bg-warning/10 border border-warning/20 rounded px-2 py-1.5 leading-relaxed">
-                💡 Score is low because photos haven't been enhanced yet. Complete Photo Studio in the next step to unlock full points.
+                💡 Enhance your photos in Photo Studio (Step 2) to unlock full points — you can go back any time.
               </p>
             )}
           </div>
@@ -1375,8 +1375,8 @@ export default function SellWizard() {
                 {optimiseResult.health_score >= 80
                   ? "Saved — your listing looks excellent!"
                   : optimiseResult.health_score >= 60
-                  ? "Saved — good listing, photos will boost it further."
-                  : "Saved — enhance photos next to improve the score."}
+                   ? "Saved — enhanced photos would boost this further."
+                   : "Saved — go back to Photo Studio to boost the score."}
               </div>
               {/* Free user conversion banner — shown after optimise credit consumed */}
               {isFreeUser && !isUnlimitedUser && creditsRemaining === 0 && (
