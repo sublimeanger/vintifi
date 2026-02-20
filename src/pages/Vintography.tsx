@@ -724,7 +724,7 @@ export default function Vintography() {
             /* ─── Editor: three-zone layout ─── */
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               {/* ════ MOBILE layout (< lg) ════ */}
-              <div className="lg:hidden space-y-3 pb-20">
+              <div className="lg:hidden space-y-3 pb-36">
                 {/* Zone 1: Canvas — always visible at top */}
                 {hasFilmstrip && (
                   <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
@@ -872,7 +872,7 @@ export default function Vintography() {
 
                 {/* Sticky Generate footer */}
                 {state.originalPhotoUrl && !state.isProcessing && (
-                  <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
+                  <div className="fixed left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border px-4 py-2.5 lg:hidden" style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}>
                     <GenerateButton />
                   </div>
                 )}
