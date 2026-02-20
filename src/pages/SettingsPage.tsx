@@ -204,20 +204,33 @@ export default function SettingsPage() {
         {/* ─── Profile ─── */}
         <Section icon={User} title="Profile">
           <div className="space-y-3 sm:space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/20 ring-2 ring-primary/20 flex items-center justify-center shrink-0">
+                <User className="w-5 h-5 sm:w-7 sm:h-7 text-primary" />
+              </div>
+              <div>
+                <p className="font-display font-bold text-sm sm:text-lg">{profile?.display_name || "Vintifi Seller"}</p>
+                <Badge variant="outline" className={`text-[10px] capitalize mt-0.5 ${
+                  currentTier === "free" ? "border-border text-muted-foreground" :
+                  currentTier === "pro" ? "border-primary/30 text-primary bg-primary/5" :
+                  "border-accent/30 text-accent bg-accent/5"
+                }`}>{STRIPE_TIERS[currentTier].name} Plan</Badge>
+              </div>
+            </div>
             <div>
               <Label className="text-[11px] sm:text-sm mb-1 block">Display Name</Label>
-              <Input className="h-11 sm:h-10 text-base sm:text-sm" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+              <Input className="h-11 sm:h-10 text-base sm:text-sm rounded-xl border-border/60 focus:border-primary/50" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
             </div>
             <div>
               <Label className="text-[11px] sm:text-sm mb-1 block">Email</Label>
-              <Input className="h-11 sm:h-10 text-base sm:text-sm" value={user?.email || ""} disabled />
+              <Input className="h-11 sm:h-10 text-base sm:text-sm rounded-xl border-border/60" value={user?.email || ""} disabled />
             </div>
             <div>
               <Label className="flex items-center gap-1.5 text-[11px] sm:text-sm mb-1">
                 <Globe className="w-3.5 h-3.5" /> Timezone
               </Label>
               <Select value={selectedTimezone} onValueChange={handleTimezoneChange} disabled={timezoneSaving}>
-                <SelectTrigger className="h-11 sm:h-10 text-base sm:text-sm">
+                <SelectTrigger className="h-11 sm:h-10 text-base sm:text-sm rounded-xl border-border/60">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -299,10 +312,10 @@ export default function SettingsPage() {
                 : `£${tier.price}`;
               return (
                 <motion.div key={key} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                  <Card className={`p-4 h-full flex flex-col ${isCurrent ? "border-primary ring-1 ring-primary" : ""}`}>
-                    <h3 className="font-display font-bold text-sm">{tier.name}</h3>
-                    <p className="font-display text-2xl font-bold mt-1">
-                      {displayPrice}<span className="text-xs sm:text-sm font-normal text-muted-foreground">/mo</span>
+                  <Card className={`p-4 h-full flex flex-col rounded-2xl border-border/60 ${isCurrent ? "border-primary/40 bg-primary/[0.03] ring-1 ring-primary/20" : ""}`}>
+                    <h3 className="font-display font-bold text-lg">{tier.name}</h3>
+                    <p className="font-display text-3xl font-extrabold mt-1">
+                      {displayPrice}<span className="text-base font-normal text-muted-foreground">/mo</span>
                     </p>
                     {billingAnnual && (
                       <p className="text-[10px] sm:text-xs text-muted-foreground line-through">£{tier.price}/mo</p>
@@ -316,9 +329,8 @@ export default function SettingsPage() {
                       ))}
                     </ul>
                     <Button
-                      className="w-full mt-4 h-10 active:scale-95 transition-transform"
+                      className={`w-full mt-4 h-11 rounded-xl font-bold active:scale-[0.97] transition-transform ${!isCurrent ? "shadow-coral" : ""}`}
                       variant={isCurrent ? "outline" : "default"}
-                      size="sm"
                       disabled={isCurrent || checkoutLoading === key}
                       onClick={() => handleCheckout(key)}
                     >
