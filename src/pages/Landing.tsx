@@ -28,7 +28,7 @@ const heroFeatures = [
     content: (
       <div className="space-y-3">
         <div className="flex gap-1.5 mb-2">
-          {["AI Model", "Mannequin", "Flat-Lay"].map((tab, i) => (
+          {["Remove BG", "Put on Model", "Try On"].map((tab, i) => (
             <div key={tab} className={`flex-1 text-center py-1.5 rounded-md text-[10px] font-medium transition-colors ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{tab}</div>
           ))}
         </div>
@@ -135,8 +135,8 @@ const pillars = [
   {
     icon: Camera,
     title: "Vintography Photo Studio",
-    desc: "Your phone snap is already good enough — Vintifi turns it into a studio shot. AI Model puts your clothes on a photorealistic model. Mannequin and Flat-Lay give you clean product shots. Buyers click on professional photos. It's as simple as that.",
-    outcome: "AI Model · Mannequin · Flat-Lay Pro",
+    desc: "Your phone snap is already good enough — Vintifi turns it into a studio shot. Remove Background gives you a clean cutout in seconds. Put on Model transforms your flat-lay into a photorealistic on-model photo. Studio Shadow and AI Backgrounds make every listing look professional.",
+    outcome: "Remove BG · Put on Model · AI Backgrounds",
     badge: "Start here",
     badgeColor: "bg-success/10 text-success border-success/20",
   },
@@ -168,12 +168,12 @@ const pillars = [
 
 const howSteps = [
   { num: "01", label: "Add your item", desc: "Paste a Vinted URL or upload photos. Brand, size, condition — all set in seconds. No form-filling." },
-  { num: "02", label: "Enhance your photos", desc: "One tap. AI Model, Mannequin, or Flat-Lay. Your phone snap becomes a studio shot." },
+  { num: "02", label: "Enhance your photos", desc: "One tap. Remove Background, Put on Model, or AI Background. Your phone snap becomes a studio shot." },
   { num: "03", label: "Price & optimise", desc: "AI prices it to sell fast. AI-written title and description. Ready to post." },
 ];
 
 const impactStats = [
-  { value: "3 modes", label: "AI Model, Mannequin, Flat-Lay" },
+  { value: "6 tools", label: "BG Removal, Shadow, AI BG, Model, Try-On, Swap" },
   { value: "1-tap", label: "Phone snap to studio shot" },
   { value: "18", label: "Vinted markets supported" },
   { value: "40×", label: "Faster than manual research" },
@@ -181,7 +181,7 @@ const impactStats = [
 
 const resultsItems = [
   { icon: "📸", claim: "The photo is the first thing buyers see — and the only thing that makes them click", sub: "Buyers decide in under two seconds. Studio-quality images are the single highest-impact upgrade a seller can make." },
-  { icon: "✨", claim: "One tap from phone snap to studio shot — no setup, no equipment, no experience", sub: "AI Model, Mannequin, or Flat-Lay. Your bedroom floor becomes a professional product shot." },
+  { icon: "✨", claim: "One tap from phone snap to studio shot — no setup, no equipment, no experience", sub: "Remove Background, Studio Shadow, or Put on Model. Your bedroom floor becomes a professional product shot." },
   { icon: "⚡", claim: "Price any item in under 30 seconds — AI analyses hundreds of comparables", sub: "Not the first page you happen to browse. Hundreds of real sold listings, confidence-scored." },
   { icon: "🎯", claim: "Stop leaving money on the table — AI pricing means you're never 20% under market", sub: "AI pricing means you're never 20% under market. Never overpriced collecting dust either." },
 ];
@@ -228,7 +228,7 @@ export default function Landing() {
           >
             <motion.div variants={fadeUp} custom={0} className="mb-4 sm:mb-5">
               <Badge variant="outline" className="border-success/30 text-success bg-success/5 text-xs font-medium px-3 py-1">
-                <Camera className="w-3 h-3 mr-1.5" /> Vintography Photo Studio — AI Model, Mannequin & Flat-Lay
+                <Camera className="w-3 h-3 mr-1.5" /> Photo Studio — Remove BG, Put on Model, AI Backgrounds & more
               </Badge>
             </motion.div>
             <motion.h1
@@ -293,12 +293,12 @@ export default function Landing() {
               afterSrc="/marketing/denim-dress-after.png"
               beforeLabel="Phone snap"
               afterLabel="Studio shot"
-              badge="AI Model + Deep Steam"
+              badge="Studio Shot"
               aspectRatio="4/5"
             />
             {/* Mode badges */}
             <div className="flex items-center justify-center gap-2 mt-4">
-              {["Clean BG", "AI Model", "Flat-Lay"].map((mode) => (
+              {["Remove BG", "Put on Model", "AI Background"].map((mode) => (
                 <span key={mode} className="text-[10px] sm:text-xs font-medium px-2.5 py-1 rounded-full border border-border text-muted-foreground">
                   {mode}
                 </span>
