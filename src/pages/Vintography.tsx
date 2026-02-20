@@ -287,9 +287,10 @@ export default function Vintography() {
     // Auto-scroll to config panel on mobile for ops that have options
     const hasConfig = op === "put_on_model" || op === "virtual_tryon" || op === "swap_model" || op === "remove_bg" || op === "ai_background";
     if (hasConfig && window.innerWidth < 1024) {
+      // Wait for AnimatePresence to mount + framer-motion height animation to finish
       setTimeout(() => {
-        configPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 300);
+        configPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 450);
     }
   };
 
@@ -935,23 +936,24 @@ export default function Vintography() {
         {!resultPhoto && (() => {
           const configContent = renderConfig();
           return (
-            <AnimatePresence mode="wait">
-              {selectedOp && selectedPhoto && configContent && (
-              <motion.div
-                ref={configPanelRef}
-                  key={selectedOp}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="overflow-hidden"
-                >
-                  <Card className="p-4">
-                    {configContent}
-                  </Card>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <div ref={configPanelRef}>
+              <AnimatePresence mode="wait">
+                {selectedOp && selectedPhoto && configContent && (
+                  <motion.div
+                    key={selectedOp}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="overflow-hidden"
+                  >
+                    <Card className="p-4">
+                      {configContent}
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           );
         })()}
 
