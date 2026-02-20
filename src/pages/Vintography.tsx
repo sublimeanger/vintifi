@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Upload, Eraser, Sun, Image as ImageIcon, User, Camera, RefreshCw,
   Lock, Download, ArrowRight, Sparkles, X, ArrowLeft, Link2, ZoomIn, Check,
+  AlertTriangle, RotateCcw,
 } from "lucide-react";
 
 // ── Icon map ─────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ export default function Vintography() {
   const [opParams, setOpParams] = useState<Record<string, string>>({});
   const [selfiePhoto, setSelfiePhoto] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingFailed, setProcessingFailed] = useState(false);
   const [processingElapsed, setProcessingElapsed] = useState(0);
   const processingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [resultPhoto, setResultPhoto] = useState<string | null>(null);
@@ -340,6 +342,7 @@ export default function Vintography() {
     // Close the config drawer on mobile — this returns focus to the photo
     setConfigDrawerOpen(false);
 
+    setProcessingFailed(false);
     setIsProcessing(true);
     setProcessingElapsed(0);
     processingTimerRef.current = setInterval(() => setProcessingElapsed((s) => s + 1), 1000);
@@ -391,6 +394,7 @@ export default function Vintography() {
 
       if (data?.processed_url) {
         setResultPhoto(data.processed_url);
+        setProcessingFailed(false);
         toast.success(`${selectedOpConfig?.label || "Edit"} complete!`, { duration: 2000 });
         try { navigator?.vibrate?.([10, 30, 15]); } catch {}
         refreshCredits();
@@ -429,6 +433,7 @@ export default function Vintography() {
       } else {
         toast.error("Something went wrong. Credits not charged. Please try again.");
       }
+      setProcessingFailed(true);
     } finally {
       setIsProcessing(false);
       setProcessingElapsed(0);
@@ -856,6 +861,26 @@ export default function Vintography() {
                         transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                         style={{ width: "40%" }}
                       />
+                    </div>
+                  </div>
+                )}
+                {processingFailed && !isProcessing && !resultPhoto && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                    <div className="text-center space-y-3">
+                      <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
+                      <h3 className="text-base font-semibold text-foreground">Processing failed</h3>
+                      <p className="text-sm text-muted-foreground">Your credits were not charged.</p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setProcessingFailed(false);
+                          handleProcess();
+                        }}
+                      >
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Retry
+                      </Button>
                     </div>
                   </div>
                 )}
