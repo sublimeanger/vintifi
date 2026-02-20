@@ -266,6 +266,18 @@ Item details provided by seller:
 - Current description: ${currentDescription || "None"}
 - Number of photos: ${finalPhotoUrls.length}
 
+${finalPhotoUrls.length > 0
+  ? `Photos have been provided for vision analysis. RULES FOR VISUAL DESCRIPTIONS:
+- Describe ONLY what you can clearly and confidently see in the photos
+- Be conservative with visual details — say "Nike branding" not "small Nike tick on the chest"
+- If a logo or detail is visible, describe its general presence WITHOUT guessing its exact size, position, or prominence unless it is unambiguously obvious
+- For logos: say "Nike swoosh" or "Nike branding" — NEVER "small/large/subtle/prominent" unless 100% clear from the photo
+- For patterns: say "striped" or "checked" — NEVER guess exact spacing or arrangement
+- For design elements: describe what you see factually. "Front logo" not "small embroidered logo on the left chest"
+- If you cannot clearly verify a visual detail from the photos, DO NOT mention it at all`
+  : `NO PHOTOS PROVIDED — you have NOT seen this item. DO NOT describe any visual details whatsoever. Write the description using ONLY the metadata fields above (brand, category, size, condition, colour, material). Do NOT guess, imagine, or infer what the item looks like. Stick strictly to the factual attributes provided. Never mention logos, patterns, textures, design details, or any visual elements you cannot verify.`
+}
+
 ═══════════════════════════════════════════
 COLOUR RULE — CRITICAL — READ THIS FIRST
 ═══════════════════════════════════════════
@@ -375,8 +387,10 @@ Write like a real person selling their own clothes. Use casual British English. 
 STRUCTURE — flowing paragraphs, NOT bullet points:
 
 ${colour && colour.trim()
-  ? `Opening (1-2 sentences): Describe the item naturally. What is it, what colour (use "${colour.trim()}"), what brand. Example: "Really nice Nike crewneck sweatshirt in ${colour.trim()}, size M."`
-  : `Opening (1-2 sentences): Describe the item naturally — what it is and what brand. DO NOT mention any colour since it was not provided. Example: "Really nice Nike crewneck sweatshirt, size M."`
+  ? `Opening (1-2 sentences): Describe the item naturally. What is it, what colour (use "${colour.trim()}"), what brand. Example: "Really nice Nike crewneck sweatshirt in ${colour.trim()}, size M."
+CRITICAL: Your opening must describe the item using ONLY verified information. If photos are provided, describe what you actually see. If no photos are provided, describe using metadata only — never add visual details you're guessing at.`
+  : `Opening (1-2 sentences): Describe the item naturally — what it is and what brand. DO NOT mention any colour since it was not provided. Example: "Really nice Nike crewneck sweatshirt, size M."
+CRITICAL: Your opening must describe the item using ONLY verified information. If photos are provided, describe what you actually see. If no photos are provided, describe using metadata only — never add visual details you're guessing at.`
 }
 
 Feel & fit (1-2 sentences): Describe what it's actually like to wear. How does the fabric feel? How does it fit? Example: "The cotton blend makes it properly warm without being too heavy — perfect for layering or wearing on its own. Fits true to size with a relaxed but not baggy cut."
