@@ -34,14 +34,14 @@ const features = [
     icon: Camera,
     badge: "Photo Studio",
     id: "photo-studio",
-    title: "Vintography Photo Studio",
+    title: "Photo Studio",
     headline: "Your phone snap. Studio quality. One tap.",
-    desc1: "Buyers scroll through hundreds of listings in minutes. The photo is the first thing they see — and the only thing that makes them click. Vintography takes your phone snap and produces the kind of shot you'd expect from a professional product photographer.",
+    desc1: "Buyers scroll through hundreds of listings in minutes. The photo is the first thing they see — and the only thing that makes them click. Photo Studio takes your phone snap and produces the kind of shot you'd expect from a professional product photographer.",
     desc2: "Six tools built for Vinted sellers. Remove Background gives you a clean cutout on white. Studio Shadow adds a professional drop shadow. AI Background places your garment in styled scenes. Put on Model transforms flat-lays into on-model shots. Virtual Try-On lets buyers see it on themselves. Swap Model changes demographics and pose.",
     callout: "You don't need a studio or any experience. You need Vintifi and five seconds. Upload a photo — your bedroom floor becomes a professional product shot.",
     stat: "1 tap",
     statLabel: "from phone snap to studio-quality product shot",
-    mockTitle: "Vintography Photo Studio",
+    mockTitle: "Photo Studio",
     mockContent: (
       <div className="space-y-3">
         <div className="flex gap-1.5">
@@ -307,7 +307,7 @@ export default function Features() {
               <span className="text-gradient">Your phone is all you need.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8">
-              Vintography turns your phone snap into a studio shot in one tap. AI pricing and listing optimisation do the rest. Everything in one place, built exclusively for Vinted.
+              Photo Studio turns your phone snap into a studio shot in one tap. AI pricing and listing optimisation do the rest. Everything in one place, built exclusively for Vinted.
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
