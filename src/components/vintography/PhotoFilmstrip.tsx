@@ -54,110 +54,113 @@ export function PhotoFilmstrip({ photos, activeUrl, editStates, itemId, onSelect
         <p className="text-[10px] text-muted-foreground">Tap to edit</p>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide"
-        style={{ scrollbarWidth: "none" }}
-      >
-        {photos.map((url, idx) => {
-          const isActive = url === activeUrl;
-          const editState = editStates[url];
-          const isEdited = editState?.editedUrl !== null && editState?.editedUrl !== undefined;
-          const isSaved = editState?.savedToItem === true;
-          const displayUrl = isEdited ? editState.editedUrl! : url;
-          const opShort = editState?.operationApplied ? OP_SHORT[editState.operationApplied] || editState.operationApplied : null;
+      <div className="relative">
+        <div
+          ref={scrollRef}
+          className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {photos.map((url, idx) => {
+            const isActive = url === activeUrl;
+            const editState = editStates[url];
+            const isEdited = editState?.editedUrl !== null && editState?.editedUrl !== undefined;
+            const isSaved = editState?.savedToItem === true;
+            const displayUrl = isEdited ? editState.editedUrl! : url;
+            const opShort = editState?.operationApplied ? OP_SHORT[editState.operationApplied] || editState.operationApplied : null;
 
-          return (
-            <button
-              key={url}
-              onClick={() => onSelect(url)}
-              className={`relative shrink-0 w-[72px] h-[72px] lg:w-20 lg:h-20 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
-                isActive
-                  ? "border-primary ring-2 ring-primary/25 shadow-md"
-                  : isEdited
-                  ? "border-success/60 hover:border-success"
-                  : "border-border hover:border-primary/40"
-              }`}
-            >
-              {/* Photo thumbnail — show edited version if available */}
-              <img
-                src={displayUrl}
-                alt={`Photo ${idx + 1}`}
-                className="w-full h-full object-cover"
-              />
+            return (
+              <button
+                key={url}
+                onClick={() => onSelect(url)}
+                className={`relative shrink-0 w-[76px] h-[76px] lg:w-20 lg:h-20 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
+                  isActive
+                    ? "border-primary ring-2 ring-primary/25 shadow-md"
+                    : isEdited
+                    ? "border-success/60 hover:border-success"
+                    : "border-border hover:border-primary/40"
+                }`}
+              >
+                {/* Photo thumbnail — show edited version if available */}
+                <img
+                  src={displayUrl}
+                  alt={`Photo ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
 
-              {/* Split diagonal overlay: show original hint if edited and active */}
-              {isActive && isEdited && (
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: `linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.25) 45%, transparent 45%)`,
-                  }}
-                >
-                  <img
-                    src={url}
-                    alt="Original"
-                    className="absolute inset-0 w-full h-full object-cover"
-                    style={{ clipPath: "polygon(0 0, 45% 0, 0 55%)" }}
-                  />
-                </div>
-              )}
-
-              {/* Index badge (top-left) */}
-              <div className="absolute top-1 left-1">
-                {idx === 0 ? (
-                  <Badge className="text-[7px] lg:text-[8px] px-1 py-0 h-4 bg-primary/90 backdrop-blur-sm leading-none">
-                    Primary
-                  </Badge>
-                ) : (
-                  <span className="w-4 h-4 rounded-full bg-background/70 backdrop-blur-sm text-[8px] font-bold flex items-center justify-center text-foreground">
-                    {idx + 1}
-                  </span>
+                {/* Split diagonal overlay: show original hint if edited and active */}
+                {isActive && isEdited && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background: `linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.25) 45%, transparent 45%)`,
+                    }}
+                  >
+                    <img
+                      src={url}
+                      alt="Original"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      style={{ clipPath: "polygon(0 0, 45% 0, 0 55%)" }}
+                    />
+                  </div>
                 )}
-              </div>
 
-              {/* Edit status — bottom right */}
-              {isEdited && (
-                <div className="absolute bottom-1 right-1 flex items-center gap-0.5">
-                  {isSaved ? (
-                    <div className="w-4 h-4 rounded-full bg-success flex items-center justify-center shadow">
-                      <Check className="w-2.5 h-2.5 text-success-foreground" />
-                    </div>
+                {/* Index badge (top-left) */}
+                <div className="absolute top-1 left-1">
+                  {idx === 0 ? (
+                    <Badge className="text-[8px] lg:text-[8px] px-1 py-0 h-4 bg-primary/90 backdrop-blur-sm leading-none">
+                      Primary
+                    </Badge>
                   ) : (
-                    <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shadow">
-                      <Wand2 className="w-2.5 h-2.5 text-primary-foreground" />
-                    </div>
+                    <span className="w-5 h-5 rounded-full bg-background/70 backdrop-blur-sm text-[9px] font-bold flex items-center justify-center text-foreground">
+                      {idx + 1}
+                    </span>
                   )}
                 </div>
-              )}
 
-              {/* Op label pill (bottom-left, only if edited and not active) */}
-              {isEdited && opShort && !isActive && (
-                <div className="absolute bottom-1 left-1">
-                  <span className="text-[7px] font-semibold bg-background/80 backdrop-blur-sm text-foreground rounded px-1 py-0.5 leading-none">
-                    {opShort}
-                  </span>
-                </div>
-              )}
+                {/* Edit status — bottom right */}
+                {isEdited && (
+                  <div className="absolute bottom-1 right-1 flex items-center gap-0.5">
+                    {isSaved ? (
+                      <div className="w-5 h-5 sm:w-4 sm:h-4 rounded-full bg-success flex items-center justify-center shadow">
+                        <Check className="w-3 h-3 sm:w-2.5 sm:h-2.5 text-success-foreground" />
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 sm:w-4 sm:h-4 rounded-full bg-primary flex items-center justify-center shadow">
+                        <Wand2 className="w-3 h-3 sm:w-2.5 sm:h-2.5 text-primary-foreground" />
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Active indicator — animated ring glow */}
-              {isActive && (
-                <div className="absolute inset-0 rounded-xl ring-2 ring-inset ring-primary/40 pointer-events-none" />
-              )}
+                {/* Op label pill (bottom-left, only if edited and not active) */}
+                {isEdited && opShort && !isActive && (
+                  <div className="absolute bottom-1 left-1">
+                    <span className="text-[8px] font-semibold bg-background/80 backdrop-blur-sm text-foreground rounded px-1 py-0.5 leading-none">
+                      {opShort}
+                    </span>
+                  </div>
+                )}
+
+                {/* Active indicator — animated ring glow */}
+                {isActive && (
+                  <div className="absolute inset-0 rounded-xl ring-2 ring-inset ring-primary/50 pointer-events-none" />
+                )}
+              </button>
+            );
+          })}
+
+          {/* + Add Photo button — only shown when linked to an item */}
+          {itemId && onAddPhoto && (
+            <button
+              onClick={onAddPhoto}
+              className="shrink-0 w-[76px] h-[76px] lg:w-20 lg:h-20 rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1 transition-colors bg-muted/30 hover:bg-primary/[0.04]"
+            >
+              <Plus className="w-4 h-4 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground font-medium">Add</span>
             </button>
-          );
-        })}
-
-        {/* + Add Photo button — only shown when linked to an item */}
-        {itemId && onAddPhoto && (
-          <button
-            onClick={onAddPhoto}
-            className="shrink-0 w-[72px] h-[72px] lg:w-20 lg:h-20 rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1 transition-colors bg-muted/30 hover:bg-primary/[0.04]"
-          >
-            <Plus className="w-4 h-4 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground font-medium">Add</span>
-          </button>
-        )}
+          )}
+        </div>
+        <div className="pointer-events-none absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-background to-transparent z-10" />
       </div>
     </div>
   );
