@@ -131,7 +131,7 @@ function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepSta
                 }`}>
                   {isDone ? <Check className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> : step.id}
                 </div>
-                <span className={`text-[8px] sm:text-[9px] lg:text-xs font-medium hidden sm:block truncate max-w-[44px] lg:max-w-[60px] text-center ${
+                <span className={`text-[8px] sm:text-[10px] lg:text-xs font-medium hidden sm:block truncate max-w-[44px] sm:max-w-[48px] lg:max-w-[60px] text-center ${
                   isCurrent ? "text-primary" : isDone ? "text-success" : "text-muted-foreground"
                 }`}>
                   {step.shortLabel}
@@ -490,6 +490,9 @@ export default function SellWizard() {
   // ─── Set milestone flags when Pack step is reached ───
   useEffect(() => {
     if (currentStep === 5 && createdItem && user) {
+      // Celebration haptic — double-buzz pattern
+      try { navigator?.vibrate?.([15, 50, 25]); } catch {}
+
       // FIX 8 (Bug 8): Only set first-listing flag once using a sentinel key
       if (!localStorage.getItem("vintifi_first_listing_seen")) {
         localStorage.setItem("vintifi_first_listing_complete", "1");
@@ -1406,8 +1409,17 @@ export default function SellWizard() {
         <div className={`sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2 transition-all ${keyboardVisible ? "translate-y-full opacity-0 pointer-events-none" : ""}`}>
           <Button
             className="w-full h-11 lg:h-12 font-semibold lg:text-base"
-            disabled={!form.title || !form.condition || creating}
+            disabled={creating}
             onClick={async () => {
+              if (!form.title.trim()) {
+                toast.error("Please add a title for your item");
+                scrollIntoWizardView("[data-form-fields] input:first-of-type", 100, "center");
+                setTimeout(() => {
+                  const el = document.querySelector("[data-form-fields] input:first-of-type") as HTMLInputElement;
+                  el?.focus();
+                }, 400);
+                return;
+              }
               setCreating(true);
               try {
                 await supabase.from("listings").update({
@@ -1448,8 +1460,19 @@ export default function SellWizard() {
         <div className={`sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2 transition-all ${keyboardVisible ? "translate-y-full opacity-0 pointer-events-none" : ""}`}>
           <Button
             className="w-full h-11 lg:h-12 font-semibold lg:text-base"
-            disabled={!form.title || !form.condition || creating || uploading}
-            onClick={createItem}
+            disabled={creating || uploading}
+            onClick={() => {
+              if (!form.title.trim()) {
+                toast.error("Please add a title for your item");
+                scrollIntoWizardView("[data-form-fields] input:first-of-type", 100, "center");
+                setTimeout(() => {
+                  const el = document.querySelector("[data-form-fields] input:first-of-type") as HTMLInputElement;
+                  el?.focus();
+                }, 400);
+                return;
+              }
+              createItem();
+            }}
           >
             {creating || uploading
               ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating item…</>
@@ -2272,7 +2295,10 @@ export default function SellWizard() {
             className="rounded-xl border border-border bg-muted/20 p-3 lg:p-4 space-y-2"
           >
             <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Photo Enhancement</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div
+              className="grid grid-cols-2 gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+              onClick={() => openLightbox([originalImageUrl!, createdItem.image_url!], 1, ["Before", "After"])}
+            >
               {[{ label: "Before", url: originalImageUrl }, { label: "After", url: createdItem.image_url! }].map(({ label, url }) => (
                 <div key={label} className="space-y-1">
                   <span className="text-[10px] font-semibold text-muted-foreground">{label}</span>
