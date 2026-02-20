@@ -242,8 +242,6 @@ export default function Vintography() {
     if (fileArr.length === 1) {
       const url = await uploadFile(fileArr[0]);
       if (url) {
-        dispatch({ type: "SET_ORIGINAL_PHOTO", url });
-        dispatch({ type: "SET_ITEM_PHOTOS", urls: [] });
         dispatch({ type: "RESET_ALL" });
         dispatch({ type: "SET_ORIGINAL_PHOTO", url });
       }
@@ -278,10 +276,10 @@ export default function Vintography() {
     const url = await uploadFile(files[0]);
     if (!url) return;
     await appendListingPhoto(url);
-    dispatch({ type: "SET_ITEM_PHOTOS", urls: [...state.itemPhotos, url] });
+    dispatch({ type: "ADD_ITEM_PHOTO", url });
     dispatch({ type: "SET_ORIGINAL_PHOTO", url });
     toast.success("Photo added to listing");
-  }, [user, itemId, state.itemPhotos]);
+  }, [user, itemId]);
 
   // ─── Replace photo in listing ───
   const replaceListingPhoto = async (oldUrl: string, newUrl: string) => {
@@ -692,24 +690,6 @@ export default function Vintography() {
             </motion.div>
           )}
 
-          {!isMobile && !localStorage.getItem("vintography_guidance_dismissed") && (
-            <motion.div
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="lg:hidden flex items-start gap-2.5 rounded-xl bg-primary/[0.04] border border-primary/10 p-3"
-            >
-              <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground flex-1 leading-relaxed">
-                <span className="font-semibold text-foreground">Best results</span> with a full, flat-lay or hanger shot showing the entire garment.
-              </p>
-              <button
-                onClick={() => localStorage.setItem("vintography_guidance_dismissed", "1")}
-                className="shrink-0 text-muted-foreground hover:text-foreground p-0.5"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </motion.div>
-          )}
 
           {/* ─── No photo: Empty state ─── */}
           {!state.originalPhotoUrl ? (
