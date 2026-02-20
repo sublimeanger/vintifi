@@ -1005,7 +1005,7 @@ export default function Vintography() {
         <div className="fixed bottom-20 left-3 right-3 z-40 lg:hidden">
           <Button
             size="lg"
-            className={`w-full h-13 rounded-2xl font-bold text-sm shadow-coral active:scale-[0.97] transition-all ${canProcess && !resultPhoto ? "animate-[glow-pulse_2s_ease-in-out_infinite]" : ""}`}
+            className={`w-full h-14 rounded-2xl font-bold text-base shadow-coral active:scale-[0.97] transition-all ${canProcess && !resultPhoto ? "animate-[glow-pulse_2s_ease-in-out_infinite]" : ""}`}
             disabled={!canProcess}
             onClick={handleProcess}
             aria-busy={isProcessing}
