@@ -1726,14 +1726,47 @@ export default function SellWizard() {
       )}
 
       {photoDone && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-success/10 to-success/5 border border-success/25">
-          <div className="w-8 h-8 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
-            <Check className="w-4 h-4 text-success" />
+        <div data-photo-success className="space-y-3">
+          {/* Success banner with bounce animation */}
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-success/10 to-success/5 border border-success/25">
+            <div className="w-8 h-8 rounded-xl bg-success/15 flex items-center justify-center shrink-0 success-bounce">
+              <Check className="w-4 h-4 text-success" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-success">Photos enhanced!</p>
+              <p className="text-[11px] text-success/70">Your listing photos are ready. Continue to optimise your title and description.</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-bold text-success">Photos enhanced!</p>
-            <p className="text-[11px] text-success/70">Your listing photos are ready. Continue to optimise your title and description.</p>
-          </div>
+
+          {/* Inline before/after comparison */}
+          {Object.keys(enhancedMap).length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Before → After</p>
+              <div className="space-y-2">
+                {Object.entries(enhancedMap).slice(0, 3).map(([original, enhanced]) => (
+                  <button
+                    key={original}
+                    className="w-full grid grid-cols-2 gap-1.5 rounded-xl overflow-hidden border border-border/60 active:scale-[0.98] transition-transform"
+                    onClick={() => openLightbox([original, enhanced], 1, ["Before", "After"])}
+                  >
+                    <div className="relative aspect-[4/3] bg-muted">
+                      <img src={original} alt="Before" className="w-full h-full object-cover" />
+                      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[9px] font-bold text-muted-foreground">Before</span>
+                    </div>
+                    <div className="relative aspect-[4/3] bg-muted">
+                      <img src={enhanced} alt="After" className="w-full h-full object-cover reveal-wipe" />
+                      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-success/90 text-[9px] font-bold text-white">After</span>
+                    </div>
+                  </button>
+                ))}
+                {Object.keys(enhancedMap).length > 3 && (
+                  <p className="text-center text-[10px] text-muted-foreground">
+                    +{Object.keys(enhancedMap).length - 3} more · Tap any photo above to preview
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
