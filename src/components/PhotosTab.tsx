@@ -2,12 +2,16 @@ import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { PHOTO_OPERATIONS, type PhotoOperation, isAtLeastTier, type TierKey } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
-import { ImageIcon, GripVertical, Save, Loader2, Plus, Upload, X, Wand2 } from "lucide-react";
+import {
+  ImageIcon, GripVertical, Save, Loader2, Plus, Upload, X, Wand2,
+  Eraser, Sun, Image, User, Camera, RefreshCw, Lock,
+} from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -123,8 +127,12 @@ function SortableThumbnail({
   );
 }
 
+const OP_ICON_MAP: Record<string, React.ElementType> = {
+  Eraser, Sun, Image, User, Camera, RefreshCw,
+};
+
 export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -329,7 +337,40 @@ export function PhotosTab({ item, onEditPhotos, onItemUpdate }: Props) {
         </div>
       </div>
 
-      {/* Large preview */}
+      {/* Operation chips */}
+      {(() => {
+        const userTier = (profile?.subscription_tier || "free") as TierKey;
+        return (
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
+            {(Object.entries(PHOTO_OPERATIONS) as [PhotoOperation, typeof PHOTO_OPERATIONS[PhotoOperation]][]).map(([key, op]) => {
+              const Icon = OP_ICON_MAP[op.icon] || Wand2;
+              const locked = !isAtLeastTier(userTier, op.tier);
+              return (
+                <button
+                  key={key}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all active:scale-95 ${
+                    locked
+                      ? "border-border bg-muted/40 text-muted-foreground"
+                      : "border-primary/25 bg-primary/[0.05] text-foreground hover:bg-primary/[0.1]"
+                  }`}
+                  onClick={() => {
+                    if (locked) {
+                      toast.info(`${op.label} requires the Starter plan`);
+                      return;
+                    }
+                    navigate(`/vintography?op=${key}&itemId=${item.id}`);
+                  }}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${locked ? "text-muted-foreground" : "text-primary"}`} />
+                  <span>{op.label}</span>
+                  <span className="text-[9px] text-muted-foreground">· {op.credits}</span>
+                  {locked && <Lock className="w-3 h-3 text-muted-foreground" />}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
       <Card className="overflow-hidden">
         <motion.div
           key={photos[safeIdx]}
