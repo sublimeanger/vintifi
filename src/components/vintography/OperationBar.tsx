@@ -95,7 +95,7 @@ export function OperationBar({
               ref={(el) => { buttonRefs.current[op.id] = el; }}
               whileTap={{ scale: 0.93 }}
               onClick={handleClick}
-              className={`relative flex-shrink-0 lg:flex-shrink flex flex-col items-center gap-0.5 rounded-lg px-2.5 py-2 border transition-all min-w-[64px] lg:min-w-0 lg:flex-1 lg:basis-[calc(25%-6px)] ${
+              className={`relative flex-shrink-0 lg:flex-shrink flex flex-col items-center gap-0.5 rounded-lg px-2.5 py-2 border transition-all min-w-[64px] lg:min-w-0 lg:flex-1 lg:basis-[calc(33.333%-6px)] ${
                 op.locked
                   ? "border-border/50 opacity-60 bg-muted/30"
                   : isActive

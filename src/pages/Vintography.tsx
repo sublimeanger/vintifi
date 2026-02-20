@@ -598,8 +598,32 @@ export default function Vintography() {
   return (
     <PageShell
       title="Photo Studio"
-      subtitle={itemId && linkedItemTitle ? `Editing photos for: ${linkedItemTitle}` : "AI-powered photo editing for your listings"}
-      maxWidth="max-w-5xl"
+      subtitle={itemId && linkedItemTitle ? `Editing: ${linkedItemTitle}` : "AI-powered photo editing"}
+      maxWidth="max-w-6xl"
+      actions={
+        <div className="hidden lg:flex items-center gap-2">
+          {!isUnlimited && creditsRemaining <= 2 && creditsRemaining >= 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs font-semibold border-warning/40 text-warning hover:bg-warning/10"
+              onClick={() => navigate("/settings?tab=billing")}
+            >
+              {creditsRemaining <= 0 ? "No credits" : `${creditsRemaining} left`} · Top Up
+            </Button>
+          )}
+          {!isUnlimited && creditsRemaining > 2 && (
+            <Badge variant="secondary" className="text-xs font-semibold px-2.5 py-1">
+              {creditsRemaining} credits
+            </Badge>
+          )}
+          {isUnlimited && (
+            <Badge variant="secondary" className="text-xs font-semibold px-2.5 py-1">
+              ∞ Unlimited
+            </Badge>
+          )}
+        </div>
+      }
     >
       {/* Back nav */}
       {fromWizard ? (
@@ -624,14 +648,16 @@ export default function Vintography() {
 
       <FeatureGate feature="vintography">
         <div className="space-y-3 sm:space-y-4">
-          <CreditBar used={totalUsed} limit={creditsLimit} unlimited={isUnlimited} />
+          <div className="lg:hidden">
+            <CreditBar used={totalUsed} limit={creditsLimit} unlimited={isUnlimited} />
+          </div>
 
           {/* Low-credit banner */}
           {!isUnlimited && creditsRemaining <= 2 && creditsRemaining >= 0 && (
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 rounded-xl bg-warning/10 border border-warning/25 p-3"
+              className="lg:hidden flex items-center gap-3 rounded-xl bg-warning/10 border border-warning/25 p-3"
             >
               <Coins className="w-4 h-4 text-warning shrink-0" />
               <p className="text-xs text-foreground flex-1">
@@ -654,7 +680,7 @@ export default function Vintography() {
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-2.5 rounded-xl bg-primary/[0.04] border border-primary/10 p-3"
+              className="lg:hidden flex items-start gap-2.5 rounded-xl bg-primary/[0.04] border border-primary/10 p-3"
             >
               <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground flex-1 leading-relaxed">
@@ -837,73 +863,10 @@ export default function Vintography() {
               </div>
 
               {/* ════ DESKTOP layout (≥ lg): two-column ════ */}
-              <div className="hidden lg:grid lg:grid-cols-[420px_1fr] lg:gap-6 lg:items-start">
+              <div className="hidden lg:grid lg:grid-cols-[1fr_380px] lg:gap-6 lg:items-start">
 
-                {/* ── LEFT PANEL ── */}
-                <div className="min-w-0 space-y-4" style={{ maxWidth: '420px' }}>
-                  <QuickPresets
-                    onSelect={handlePresetSelect}
-                    onLockedTap={(tier) => {
-                      if (tier === "business") setActiveLockedGate("ai_model");
-                      else if (tier === "pro") setActiveLockedGate("flatlay");
-                    }}
-                    disabled={state.isProcessing}
-                    userTier={(profile as any)?.subscription_tier || "free"}
-                    savedPresets={savedPresets}
-                    onSavedPresetSelect={handleSavedPresetSelect}
-                    onDeleteSavedPreset={handleDeleteSavedPreset}
-                  />
-
-                  <div>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Choose Effect</p>
-                    <p className="text-[10px] text-muted-foreground mb-2">Tap an effect to configure it. Chain up to 4 effects.</p>
-                    <OperationBar
-                      pipeline={state.pipeline}
-                      activePipelineIndex={state.activePipelineIndex}
-                      flatlayLocked={!flatlayGate.allowed}
-                      mannequinLocked={!mannequinGate.allowed}
-                      aiModelLocked={!aiModelGate.allowed}
-                      onSelect={handleOpSelect}
-                      onLockedTap={(gate) => setActiveLockedGate(gate)}
-                    />
-                  </div>
-
-                  {/* Pipeline strip — always visible between bar and config */}
-                  <PipelineStripInline />
-
-                  {/* Config zone — scroll-constrained with pinned Generate */}
-                  {!isMobile && (
-                    <ConfigContainer
-                      open={true}
-                      onClose={() => {}}
-                      drawerTitle={OP_LABEL[activeOp]}
-                      footer={
-                        <div className="space-y-2">
-                          <GenerateButton />
-                          {state.pipeline.length >= 2 && !state.isProcessing && (
-                            <Button variant="ghost" size="sm" className="w-full text-xs" onClick={handleSavePreset}>
-                              <Star className="w-3.5 h-3.5 mr-1.5" /> Save as Preset
-                            </Button>
-                          )}
-                        </div>
-                      }
-                    >
-                      {state.isProcessing ? (
-                        <ProcessingOverlay
-                          isProcessing={state.isProcessing}
-                          pipeline={state.pipeline}
-                          processingStepIndex={state.processingStepIndex}
-                          isMobile={false}
-                        />
-                      ) : (
-                        configContent
-                      )}
-                    </ConfigContainer>
-                  )}
-                </div>
-
-                {/* ── RIGHT PANEL ── */}
-                <div className="lg:sticky lg:top-6 space-y-3">
+                {/* ── LEFT PANEL: Canvas ── */}
+                <div className="space-y-3">
                   {hasFilmstrip && (
                     <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
                       <Card className="p-3">
@@ -945,6 +908,7 @@ export default function Vintography() {
                     </Card>
                   )}
 
+                  {/* Image canvas */}
                   <div
                     ref={resultRef}
                     className={`rounded-xl transition-all duration-700 ${state.resultReady ? "ring-2 ring-success ring-offset-2 shadow-lg shadow-success/20" : ""}`}
@@ -962,6 +926,7 @@ export default function Vintography() {
                     />
                   </div>
 
+                  {/* Result actions */}
                   <ResultActions
                     processedUrl={state.resultPhotoUrl}
                     itemId={itemId}
@@ -974,19 +939,14 @@ export default function Vintography() {
                     onReprocess={handleProcess}
                     onDownload={handleDownload}
                     onReset={() => dispatch({ type: "RESET_ALL" })}
-                  onSaveReplace={() => handleSaveToItem("replace")}
-                  onSaveAdd={() => handleSaveToItem("add")}
-                  onUseAsStartingPoint={handleUseResultAsStart}
-                  onNextPhoto={handleNextPhoto}
-                  onTopUp={() => navigate("/settings?tab=billing")}
-                />
+                    onSaveReplace={() => handleSaveToItem("replace")}
+                    onSaveAdd={() => handleSaveToItem("add")}
+                    onUseAsStartingPoint={handleUseResultAsStart}
+                    onNextPhoto={handleNextPhoto}
+                    onTopUp={() => navigate("/settings?tab=billing")}
+                  />
 
-                  {!state.resultPhotoUrl && (
-                    <Button variant="ghost" onClick={() => dispatch({ type: "RESET_ALL" })} className="w-full h-10 text-sm active:scale-95">
-                      <RotateCcw className="w-4 h-4 mr-1.5" /> New Photo
-                    </Button>
-                  )}
-
+                  {/* Next steps card for linked items */}
                   {state.resultPhotoUrl && itemId && (
                     <Card className="p-3 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Next Steps</p>
@@ -1008,6 +968,69 @@ export default function Vintography() {
                     </Card>
                   )}
                 </div>
+
+                {/* ── RIGHT PANEL: Controls sidebar ── */}
+                <div className="lg:sticky lg:top-6 flex flex-col" style={{ maxHeight: "calc(100vh - 48px)" }}>
+                  {/* Scrollable controls area */}
+                  <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-hide overscroll-contain">
+
+                    {/* Quick Presets — compact pill row */}
+                    <QuickPresets
+                      onSelect={handlePresetSelect}
+                      onLockedTap={(tier) => {
+                        if (tier === "business") setActiveLockedGate("ai_model");
+                        else if (tier === "pro") setActiveLockedGate("flatlay");
+                      }}
+                      disabled={state.isProcessing}
+                      userTier={(profile as any)?.subscription_tier || "free"}
+                      savedPresets={savedPresets}
+                      onSavedPresetSelect={handleSavedPresetSelect}
+                      onDeleteSavedPreset={handleDeleteSavedPreset}
+                    />
+
+                    {/* Operation picker */}
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Effects</p>
+                      <OperationBar
+                        pipeline={state.pipeline}
+                        activePipelineIndex={state.activePipelineIndex}
+                        flatlayLocked={!flatlayGate.allowed}
+                        mannequinLocked={!mannequinGate.allowed}
+                        aiModelLocked={!aiModelGate.allowed}
+                        onSelect={handleOpSelect}
+                        onLockedTap={(gate) => setActiveLockedGate(gate)}
+                      />
+                    </div>
+
+                    {/* Pipeline strip */}
+                    <PipelineStripInline />
+
+                    {/* Operation config */}
+                    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                      {state.isProcessing ? (
+                        <ProcessingOverlay
+                          isProcessing={state.isProcessing}
+                          pipeline={state.pipeline}
+                          processingStepIndex={state.processingStepIndex}
+                          isMobile={false}
+                        />
+                      ) : (
+                        configContent
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Pinned Generate footer */}
+                  <div className="flex-shrink-0 pt-3 mt-3 border-t border-border">
+                    <GenerateButton />
+                    {state.pipeline.length >= 2 && !state.isProcessing && (
+                      <Button variant="ghost" size="sm" className="w-full text-xs mt-1.5" onClick={handleSavePreset}>
+                        <Star className="w-3.5 h-3.5 mr-1.5" /> Save as Preset
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
               </div>
             </motion.div>
           )}
