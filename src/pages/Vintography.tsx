@@ -853,7 +853,10 @@ export default function Vintography() {
         {/* Operation grid */}
         {!resultPhoto && (
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Choose Effect</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Choose Effect</h3>
+              {selectedPhoto && <p className="text-[10px] text-muted-foreground">Tap to select</p>}
+            </div>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3" role="radiogroup" aria-label="Photo effects">
               {(Object.entries(PHOTO_OPERATIONS) as [PhotoOperation, typeof PHOTO_OPERATIONS[PhotoOperation]][]).map(([key, op]) => {
                 const Icon = ICON_MAP[op.icon] || Sparkles;
@@ -877,7 +880,7 @@ export default function Vintography() {
                       if (!isDisabled) handleSelectOp(key);
                     }}
                     onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isDisabled && !isComingSoon) { e.preventDefault(); handleSelectOp(key); } }}
-                    className={`relative p-3.5 cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 overflow-hidden ${
+                    className={`relative p-3 sm:p-3.5 cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 overflow-hidden active:scale-[0.97] ${
                       isSelected
                         ? "border-primary bg-primary/[0.04] shadow-sm ring-1 ring-primary/20"
                         : isComingSoon
@@ -889,9 +892,9 @@ export default function Vintography() {
                         : "hover:border-primary/30 hover:shadow-sm"
                     }`}
                   >
-                    {isSelected && <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-accent to-primary" />}
+                    {isSelected && <div className="absolute top-0 left-0 right-0 h-[3px] sm:h-0.5 rounded-b-full bg-gradient-to-r from-primary via-accent to-primary" />}
                     <div className="flex items-start justify-between mb-2">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${
                         isSelected ? "bg-primary/15" : "bg-muted"
                       }`}>
                         {isComingSoon ? (
@@ -904,20 +907,20 @@ export default function Vintography() {
                       </div>
                       <Badge
                         variant="secondary"
-                        className={`text-[10px] px-1.5 py-0 ${isSelected ? "bg-primary/10 text-primary" : ""}`}
+                        className={`text-[9px] sm:text-[10px] px-1.5 py-0 ${isSelected ? "bg-primary/10 text-primary" : ""}`}
                       >
                         {op.credits} cr
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <p className={`text-sm font-semibold ${isComingSoon ? "text-muted-foreground" : isSelected ? "text-primary" : "text-foreground"}`}>
+                      <p className={`text-[13px] sm:text-sm font-semibold ${isComingSoon ? "text-muted-foreground" : isSelected ? "text-primary" : "text-foreground"}`}>
                         {op.label}
                       </p>
                       {isComingSoon && (
                         <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground text-[8px] font-extrabold uppercase tracking-wider px-1.5 py-0">Coming Soon</span>
                       )}
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-snug">{op.description}</p>
+                    <p className="text-[10px] sm:text-[11px] text-muted-foreground leading-snug line-clamp-2">{op.description}</p>
                     {isComingSoon ? (
                       <Badge className="absolute top-2 right-2 text-[8px] py-0 px-1.5 bg-muted text-muted-foreground border-0">
                         Soon
