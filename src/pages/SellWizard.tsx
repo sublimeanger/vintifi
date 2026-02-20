@@ -1498,8 +1498,14 @@ export default function SellWizard() {
       )}
 
       {photoDone && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
-          <Check className="w-4 h-4 shrink-0" /> Photo enhancement saved — great work!
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-success/10 to-success/5 border border-success/25">
+          <div className="w-8 h-8 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
+            <Check className="w-4 h-4 text-success" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-success">Photos enhanced!</p>
+            <p className="text-[11px] text-success/70">Your listing photos are ready. Continue to optimise your title and description.</p>
+          </div>
         </div>
       )}
     </div>
