@@ -359,6 +359,23 @@ export default function Dashboard() {
           </motion.div>
         </div>
 
+        {/* Quick Photo Studio CTA */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+          <button
+            onClick={() => navigate("/vintography")}
+            className="w-full rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/[0.04] to-primary/[0.08] p-4 flex items-center gap-3 transition-all active:scale-[0.98] hover:border-primary/40 group"
+          >
+            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+              <Camera className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-bold text-foreground">Photo Studio</p>
+              <p className="text-[11px] text-muted-foreground">Transform any photo → listing-ready</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-primary/60 group-hover:text-primary transition-colors shrink-0" />
+          </button>
+        </motion.div>
+
         {/* Recent Items */}
         <Card className="p-2.5 sm:p-6 rounded-xl">
           <div className="flex items-center justify-between mb-2 sm:mb-4">
