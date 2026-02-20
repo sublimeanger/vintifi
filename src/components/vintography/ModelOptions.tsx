@@ -73,14 +73,14 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
     <div className="space-y-3">
       {/* GENDER — always shown */}
       <div>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Gender</p>
+        <p className="text-[11px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Gender</p>
         <div className="flex gap-2">
           {(["Female", "Male"] as const).map((g) => (
             <button
               key={g}
               type="button"
               onClick={() => set({ gender: g })}
-              className={`flex-1 rounded-xl border-2 px-3 min-h-[44px] text-xs font-semibold transition-all active:scale-[0.97] ${
+              className={`flex-1 rounded-xl sm:rounded-lg border-2 px-3 min-h-[44px] text-sm sm:text-xs font-semibold transition-all active:scale-[0.97] ${
                 gender === g.toLowerCase()
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border text-muted-foreground hover:border-primary/30"
@@ -95,14 +95,14 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
       {/* POSE — put_on_model only */}
       {operation === "put_on_model" && (
         <div>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Pose</p>
+          <p className="text-[11px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Pose</p>
           <div className="grid grid-cols-3 gap-1.5">
             {POSES.map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => set({ pose: p })}
-                className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition-all active:scale-[0.97] ${
+                className={`rounded-lg border px-2 py-2.5 sm:py-2 text-xs sm:text-[11px] font-semibold transition-all active:scale-[0.97] ${
                   pose === p.toLowerCase()
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:border-primary/30"
@@ -118,14 +118,14 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
       {/* ETHNICITY — swap_model only */}
       {operation === "swap_model" && (
         <div>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model Appearance</p>
+          <p className="text-[11px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model Appearance</p>
           <div className="flex flex-wrap gap-1.5">
             {ETHNICITIES.map((eth) => (
               <button
                 key={eth}
                 type="button"
                 onClick={() => set({ ethnicity: eth })}
-                className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-all active:scale-95 ${
+                className={`rounded-full border px-3.5 sm:px-3 py-1.5 sm:py-1 text-xs sm:text-[11px] font-semibold transition-all active:scale-95 ${
                   ethnicity === eth.toLowerCase()
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:border-primary/30"
@@ -141,7 +141,7 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
       {/* SELFIE UPLOAD — virtual_tryon only */}
       {operation === "virtual_tryon" && onSelfieUpload && (
         <div>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Your Photo</p>
+          <p className="text-[11px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Your Photo</p>
           <input
             ref={fileRef}
             type="file"
@@ -155,7 +155,7 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
               <img
                 src={selfieUrl}
                 alt="Your selfie"
-                className="w-12 h-12 rounded-lg object-cover shrink-0 border border-border"
+                className="w-14 h-14 sm:w-12 sm:h-12 rounded-lg object-cover shrink-0 border border-border"
               />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground truncate">Photo uploaded</p>
@@ -164,7 +164,7 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
               <Button
                 size="sm"
                 variant="ghost"
-                className="shrink-0 h-7 text-[11px] gap-1"
+                className="shrink-0 h-8 sm:h-7 text-xs sm:text-[11px] gap-1"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
               >
