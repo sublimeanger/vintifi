@@ -212,14 +212,14 @@ export default function Landing() {
   return (
     <MarketingLayout>
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.03] via-background to-background">
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-[-10%] left-[10%] w-[500px] h-[500px] rounded-full bg-primary/8 blur-[120px] float-animation" />
           <div className="absolute bottom-[-10%] right-[10%] w-[400px] h-[400px] rounded-full bg-accent/8 blur-[100px] float-animation-delay" />
           <div className="absolute top-[30%] right-[30%] w-[300px] h-[300px] rounded-full bg-success/5 blur-[80px] float-animation" />
         </div>
 
-        <div className="container mx-auto px-4 pt-10 sm:pt-20 pb-8 sm:pb-12">
+        <div className="container mx-auto px-4 pt-12 sm:pt-24 pb-10 sm:pb-16 min-h-[90vh] sm:min-h-screen flex flex-col justify-center">
           <motion.div
             className="max-w-3xl mx-auto text-center"
             initial="hidden"
@@ -234,7 +234,7 @@ export default function Landing() {
             <motion.h1
               variants={fadeUp}
               custom={1}
-              className="font-display text-3xl sm:text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.05] mb-4 sm:mb-6"
+              className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05] mb-4 sm:mb-6"
             >
               Turn phone photos
               <br />
@@ -250,12 +250,12 @@ export default function Landing() {
               <Button
                 size="lg"
                 onClick={() => navigate("/auth?mode=signup")}
-                className="text-sm sm:text-base font-semibold px-8 h-12 w-full sm:w-auto shadow-xl shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all active:scale-95"
+                className="text-sm sm:text-base font-bold px-8 h-12 rounded-xl w-full sm:w-auto shadow-xl shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all active:scale-[0.97]"
               >
                 Start Free — No Card Required
                 <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate("/how-it-works")} className="text-sm sm:text-base h-12 w-full sm:w-auto active:scale-95 transition-transform">
+              <Button size="lg" variant="outline" onClick={() => navigate("/how-it-works")} className="text-sm sm:text-base font-bold h-12 rounded-xl w-full sm:w-auto active:scale-[0.97] transition-transform">
                 See How It Works
               </Button>
             </motion.div>
@@ -295,11 +295,12 @@ export default function Landing() {
               afterLabel="Studio shot"
               badge="Studio Shot"
               aspectRatio="4/5"
+              className="rounded-2xl overflow-hidden border border-border/40 shadow-xl"
             />
             {/* Mode badges */}
             <div className="flex items-center justify-center gap-2 mt-4">
               {["Remove BG", "Put on Model", "AI Background"].map((mode) => (
-                <span key={mode} className="text-[10px] sm:text-xs font-medium px-2.5 py-1 rounded-full border border-border text-muted-foreground">
+                <span key={mode} className="text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full bg-background/80 backdrop-blur-md border border-border/40 text-muted-foreground">
                   {mode}
                 </span>
               ))}
@@ -309,7 +310,7 @@ export default function Landing() {
       </section>
 
       {/* ── Results Strip ── */}
-      <section className="py-10 sm:py-16 bg-secondary">
+      <section className="py-16 sm:py-24 bg-secondary">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <motion.p
@@ -342,8 +343,31 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Social Proof ── */}
+      <section className="py-16 sm:py-24">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">Trusted by Vinted sellers across the UK</h2>
+            <p className="text-muted-foreground text-sm sm:text-base">From casual sellers to full-time resellers.</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-3xl mx-auto">
+            {[
+              { value: "10,000+", label: "Photos enhanced" },
+              { value: "95%", label: "Satisfaction rate" },
+              { value: "< 5s", label: "Processing time" },
+              { value: "18", label: "Vinted markets" },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-2xl bg-card border border-border/40 p-4 sm:p-5 text-center">
+                <p className="font-display text-2xl sm:text-3xl font-extrabold text-primary leading-none mb-1">{stat.value}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── 4 Pillars ── */}
-      <section className="py-12 sm:py-24 bg-muted/30">
+      <section className="py-16 sm:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8 sm:mb-14">
             <h2 className="font-display text-xl sm:text-3xl md:text-5xl font-bold mb-3 sm:mb-4 leading-tight">
@@ -363,9 +387,10 @@ export default function Landing() {
                 transition={{ delay: i * 0.08 }}
                 whileHover={{ y: -5, scale: 1.01 }}
               >
-                <Card className={`p-4 sm:p-7 h-full hover:shadow-xl hover:shadow-primary/8 transition-all duration-300 group ${i === 0 ? "border-success/40 shadow-lg shadow-success/5 ring-1 ring-success/20" : "border-border/50"}`}>
+                <Card className={`p-4 sm:p-6 h-full hover:-translate-y-0.5 transition-all duration-300 group overflow-hidden relative ${i === 0 ? "border-success/40 shadow-lg shadow-success/5 ring-1 ring-success/20" : "border-border/50 hover:shadow-lg"}`}>
+                  <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${i === 0 ? "from-success/50 via-success/80 to-success/50" : "from-primary/50 via-accent/50 to-primary/50"}`} />
                   <div className="flex items-start gap-4">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${i === 0 ? "bg-success/15 group-hover:bg-success/25" : "bg-primary/10 group-hover:bg-primary/20"}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${i === 0 ? "bg-success/15 group-hover:bg-success/25" : "bg-primary/10 group-hover:bg-primary/20"}`}>
                       <p.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${i === 0 ? "text-success" : "text-primary"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -385,7 +410,7 @@ export default function Landing() {
             ))}
           </div>
           <div className="text-center mt-6 sm:mt-10">
-            <Button variant="outline" onClick={() => navigate("/features")} className="h-11 font-medium active:scale-95 transition-transform">
+            <Button variant="outline" onClick={() => navigate("/features")} className="h-12 rounded-xl font-bold active:scale-[0.97] transition-transform">
               Explore all features <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </div>
@@ -393,7 +418,7 @@ export default function Landing() {
       </section>
 
       {/* ── How it works strip ── */}
-      <section className="py-12 sm:py-20">
+      <section className="py-16 sm:py-24">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">Three steps to a perfect listing</h2>
@@ -429,7 +454,7 @@ export default function Landing() {
       </section>
 
       {/* ── Photo Studio showcase ── */}
-      <section className="py-12 sm:py-24 bg-muted/30">
+      <section className="py-16 sm:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
             <div className="flex flex-col lg:flex-row gap-8 sm:gap-12 lg:gap-16 items-center">
@@ -458,7 +483,7 @@ export default function Landing() {
                     </div>
                   ))}
                 </div>
-                <Button onClick={() => navigate("/auth?mode=signup")} className="h-11 font-semibold shadow-xl shadow-primary/20 active:scale-95 transition-transform w-full sm:w-auto">
+                <Button onClick={() => navigate("/auth?mode=signup")} className="h-12 rounded-xl font-bold shadow-xl shadow-primary/20 active:scale-[0.97] transition-transform w-full sm:w-auto">
                   Try Photo Studio Free <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </div>
@@ -470,6 +495,7 @@ export default function Landing() {
                   afterLabel="Studio shot"
                   badge="Lifestyle Shot + Enhance"
                   aspectRatio="4/5"
+                  className="rounded-2xl overflow-hidden border border-border/40 shadow-xl"
                 />
               </div>
             </div>
@@ -478,7 +504,7 @@ export default function Landing() {
       </section>
 
       {/* ── Pricing (3 tiers) ── */}
-      <section className="py-12 sm:py-24">
+      <section className="py-16 sm:py-24">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="font-display text-xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">Start free. Studio shots included.</h2>
@@ -529,8 +555,7 @@ export default function Landing() {
                     </ul>
                     <Button
                       variant={isPopular ? "default" : "outline"}
-                      size="sm"
-                      className="w-full font-semibold active:scale-95 transition-transform text-xs h-9"
+                      className={`w-full font-bold active:scale-[0.97] transition-transform text-sm h-12 rounded-xl ${isPopular ? "shadow-xl shadow-primary/20" : ""}`}
                       onClick={() => navigate("/auth?mode=signup")}
                     >
                       {tier.price === 0 ? "Get Started Free" : "Start Free Trial"}
@@ -549,7 +574,7 @@ export default function Landing() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="relative py-12 sm:py-24 overflow-hidden">
+      <section className="relative py-16 sm:py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-secondary via-secondary to-secondary">
           <div className="absolute top-0 left-1/4 w-[400px] h-[400px] rounded-full bg-primary/10 blur-[100px]" />
           <div className="absolute bottom-0 right-1/4 w-[300px] h-[300px] rounded-full bg-accent/10 blur-[80px]" />
@@ -567,7 +592,7 @@ export default function Landing() {
           <Button
             size="lg"
             onClick={() => navigate("/auth?mode=signup")}
-            className="text-sm sm:text-base font-semibold px-8 h-12 shadow-xl shadow-primary/20 w-full sm:w-auto active:scale-95 transition-transform"
+            className="text-sm sm:text-base font-bold px-8 h-12 rounded-xl shadow-xl shadow-primary/20 w-full sm:w-auto active:scale-[0.97] transition-transform"
           >
             Get Started Free <ArrowRight className="ml-2 w-4 h-4" />
           </Button>
