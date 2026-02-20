@@ -54,7 +54,8 @@ export default function SettingsPage() {
   const [referralCredits, setReferralCredits] = useState(0);
   const [billingAnnual, setBillingAnnual] = useState(false);
 
-  const currentTier = (profile?.subscription_tier || "free") as TierKey;
+  const rawTier = (profile?.subscription_tier || "free") as string;
+  const currentTier: TierKey = rawTier in STRIPE_TIERS ? (rawTier as TierKey) : "free";
 
   useEffect(() => {
     if (!user) return;
