@@ -409,7 +409,8 @@ export default function Vintography() {
     }
   };
 
-  const canProcess = selectedPhoto && selectedOp && !isProcessing &&
+  const isComingSoonOp = selectedOp && 'comingSoon' in PHOTO_OPERATIONS[selectedOp] && (PHOTO_OPERATIONS[selectedOp] as any).comingSoon;
+  const canProcess = selectedPhoto && selectedOp && !isProcessing && !isComingSoonOp &&
     (selectedOp !== "virtual_tryon" || selfiePhoto);
 
   const processButtonText = selectedOpConfig
@@ -593,6 +594,7 @@ export default function Vintography() {
               {(Object.entries(PHOTO_OPERATIONS) as [PhotoOperation, typeof PHOTO_OPERATIONS[PhotoOperation]][]).map(([key, op]) => {
                 const Icon = ICON_MAP[op.icon] || Sparkles;
                 const isLocked = !isAtLeastTier(userTier, op.tier);
+                const isComingSoon = 'comingSoon' in op && (op as any).comingSoon === true;
                 const isSelected = selectedOp === key;
                 const isDisabled = !selectedPhoto && !isLocked;
 
@@ -601,13 +603,15 @@ export default function Vintography() {
                     key={key}
                     role="radio"
                     aria-checked={isSelected}
-                    aria-label={`${op.label} — ${op.credits} credit${op.credits > 1 ? "s" : ""}${isLocked ? `, requires ${op.tier} plan` : ""}`}
-                    tabIndex={isDisabled ? -1 : 0}
-                    onClick={() => !isDisabled && handleSelectOp(key)}
-                    onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isDisabled) { e.preventDefault(); handleSelectOp(key); } }}
+                    aria-label={`${op.label} — ${op.credits} credit${op.credits > 1 ? "s" : ""}${isLocked ? `, requires ${op.tier} plan` : ""}${isComingSoon ? ", coming soon" : ""}`}
+                    tabIndex={isDisabled || isComingSoon ? -1 : 0}
+                    onClick={() => !isDisabled && !isComingSoon && handleSelectOp(key)}
+                    onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isDisabled && !isComingSoon) { e.preventDefault(); handleSelectOp(key); } }}
                     className={`relative p-3.5 cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                       isSelected
                         ? "border-primary bg-primary/[0.04] shadow-sm ring-1 ring-primary/20"
+                        : isComingSoon
+                        ? "opacity-60 cursor-not-allowed"
                         : isLocked
                         ? "opacity-60 hover:opacity-80"
                         : isDisabled
@@ -636,7 +640,12 @@ export default function Vintography() {
                       {op.label}
                     </p>
                     <p className="text-[11px] text-muted-foreground leading-snug">{op.description}</p>
-                    {isLocked && (
+                    {isComingSoon && (
+                      <Badge variant="outline" className="absolute top-2 right-2 text-[9px] py-0 border-primary/30 text-primary">
+                        Coming Soon
+                      </Badge>
+                    )}
+                    {isLocked && !isComingSoon && (
                       <Badge variant="outline" className="absolute top-2 right-2 text-[9px] py-0 border-muted-foreground/30">
                         {op.tier.charAt(0).toUpperCase() + op.tier.slice(1)}
                       </Badge>
