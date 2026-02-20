@@ -864,7 +864,7 @@ export default function SellWizard() {
   };
 
   // ─── Batch Remove Background (Step 2) ───
-  const runBatchRemoveBg = async () => {
+  const runBatchEffect = async (effectOp: string = "remove_bg") => {
     if (!createdItem || batchProcessing) return;
     
     const allPhotos: string[] = [];
@@ -888,7 +888,7 @@ export default function SellWizard() {
     for (let i = 0; i < allPhotos.length; i++) {
       try {
         const { data, error } = await supabase.functions.invoke("photo-studio", {
-          body: { operation: "remove_bg", image_url: allPhotos[i], sell_wizard: true },
+          body: { operation: effectOp, image_url: allPhotos[i], sell_wizard: true },
         });
         if (error) throw error;
         const processedUrl = data?.processed_url;
@@ -1282,7 +1282,7 @@ export default function SellWizard() {
   /* ═══ STEP 2: PHOTOS (v3) ═══ */
   const renderStep2 = () => (
     <div className="space-y-4">
-      <p className="text-xs lg:text-sm text-muted-foreground">Enhance your photos with AI for better click-through rates.</p>
+      <p className="text-sm text-muted-foreground">Choose how to enhance your photos. <strong className="text-foreground">Sell-Ready</strong> is our most popular — it removes the background, adds a studio shadow, and relights the image in one step.</p>
 
       {/* Photo grid with batch enhancement */}
       {(() => {
@@ -1308,22 +1308,22 @@ export default function SellWizard() {
         return (
           <div className="space-y-3">
             {/* Photo grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {allPhotos.map((url, i) => {
                 const isEnhanced = !!enhancedMap[url] || Object.values(enhancedMap).includes(url);
                 return (
-                  <div key={url + i} className="relative aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border group">
+                  <div key={url + i} className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-muted/50 border border-border shadow-sm hover:shadow-md transition-shadow group">
                     <img src={enhancedMap[url] || url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
                     <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       isEnhanced
-                        ? "bg-success/90 text-white"
+                        ? "bg-success text-white shadow-sm shadow-success/30"
                         : "bg-background/80 backdrop-blur-sm text-muted-foreground border border-border/60"
                     }`}>
                       {isEnhanced ? "✓ Enhanced" : "Original"}
                     </div>
                     {!isEnhanced && !batchProcessing && (
                       <button
-                        className="absolute bottom-2 left-2 right-2 h-8 rounded-lg bg-background/90 backdrop-blur-sm border border-border/60 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100"
+                        className="absolute bottom-2 left-2 right-2 h-8 rounded-lg bg-background/90 backdrop-blur-sm border border-border/60 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                         onClick={() => {
                           if (createdItem) {
                             sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
@@ -1347,39 +1347,124 @@ export default function SellWizard() {
             </div>
             
             {!photoDone && !batchProcessing && allPhotos.length > 0 && (
-              <div className="space-y-2">
-                <Button
-                  className="w-full h-12 font-semibold text-sm gap-2"
-                  onClick={runBatchRemoveBg}
+              <div className="space-y-3 pt-1">
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Choose an effect</p>
+
+                {/* ── Sell-Ready preset (RECOMMENDED) ── */}
+                <button
+                  className="relative w-full overflow-hidden rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent p-4 text-left transition-all active:scale-[0.98] hover:border-primary/60 hover:shadow-lg hover:shadow-primary/10 group"
+                  onClick={() => runBatchEffect("sell_ready")}
                 >
-                  <Eraser className="w-4 h-4" />
-                  Remove Background — All {allPhotos.length} Photo{allPhotos.length > 1 ? "s" : ""}
-                  <Badge variant="secondary" className="text-[10px] ml-1">{allPhotos.length} credit{allPhotos.length > 1 ? "s" : ""}</Badge>
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  className="w-full h-11 font-semibold text-sm"
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/40" />
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                      <Sparkles className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-bold">Sell-Ready</span>
+                        <span className="inline-flex items-center rounded-full bg-primary/15 text-primary text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5">Recommended</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-snug">White background · studio shadow · auto-relight — all in one</p>
+                    </div>
+                    <div className="text-right shrink-0 pl-2">
+                      <p className="text-sm font-extrabold text-primary">{allPhotos.length * 2}</p>
+                      <p className="text-[9px] text-muted-foreground -mt-0.5">credits</p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* ── Clean Background preset ── */}
+                <button
+                  className="w-full rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-md group"
+                  onClick={() => runBatchEffect("remove_bg")}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center shrink-0 group-hover:bg-muted/80 transition-colors">
+                      <Eraser className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-bold">Clean Background</span>
+                      <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">Remove background · white backdrop · auto-relight</p>
+                    </div>
+                    <div className="text-right shrink-0 pl-2">
+                      <p className="text-sm font-extrabold">{allPhotos.length}</p>
+                      <p className="text-[9px] text-muted-foreground -mt-0.5">credits</p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* ── Model Shot preset ── */}
+                <button
+                  className={`w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.98] group ${
+                    isFreeUser
+                      ? "border-border bg-muted/20 cursor-default"
+                      : "border-border bg-card hover:border-primary/30 hover:shadow-md"
+                  }`}
                   onClick={() => {
+                    if (isFreeUser) {
+                      toast("Model Shot requires the Starter plan", {
+                        description: "Generate AI models wearing your items",
+                        action: { label: "Upgrade", onClick: () => navigate("/settings?tab=billing") },
+                      });
+                      return;
+                    }
                     if (createdItem) {
-                      hasNavigatedToPhotoStudioRef.current = true;
                       sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
                       sessionStorage.setItem("sell_wizard_step", "2");
-                      navigate(`/vintography?itemId=${createdItem.id}&returnTo=/sell`);
+                      hasNavigatedToPhotoStudioRef.current = true;
+                      navigate(`/vintography?op=put_on_model&itemId=${createdItem.id}&image_url=${encodeURIComponent(allPhotos[0])}&returnTo=/sell`);
                     }
                   }}
                 >
-                  <ImageIcon className="w-4 h-4 mr-2" /> Open Full Photo Studio
-                </Button>
-                
-                <Button variant="ghost" size="sm" className="w-full text-muted-foreground text-xs" onClick={skipPhotos}>
-                  Skip for now
-                </Button>
+                  <div className="flex items-center gap-3.5">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isFreeUser ? "bg-muted" : "bg-muted group-hover:bg-muted/80 transition-colors"}`}>
+                      <User className={`w-5 h-5 ${isFreeUser ? "text-muted-foreground/50" : "text-muted-foreground"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-bold ${isFreeUser ? "text-muted-foreground" : ""}`}>Model Shot</span>
+                        {isFreeUser && (
+                          <span className="inline-flex items-center rounded-full border border-border text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 text-muted-foreground">
+                            <Lock className="w-2.5 h-2.5 mr-0.5" /> Starter
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-[11px] leading-snug mt-0.5 ${isFreeUser ? "text-muted-foreground/60" : "text-muted-foreground"}`}>Generate an AI model wearing your item</p>
+                    </div>
+                    <div className="text-right shrink-0 pl-2">
+                      <p className={`text-sm font-extrabold ${isFreeUser ? "text-muted-foreground/50" : ""}`}>3</p>
+                      <p className="text-[9px] text-muted-foreground -mt-0.5">per photo</p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* ── Advanced link ── */}
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 text-xs text-muted-foreground hover:text-foreground gap-1.5 h-9"
+                    onClick={() => {
+                      if (createdItem) {
+                        hasNavigatedToPhotoStudioRef.current = true;
+                        sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
+                        sessionStorage.setItem("sell_wizard_step", "2");
+                        navigate(`/vintography?itemId=${createdItem.id}&returnTo=/sell`);
+                      }
+                    }}
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" /> Full Photo Studio
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-9" onClick={skipPhotos}>
+                    Skip for now
+                  </Button>
+                </div>
               </div>
             )}
             
             {batchProcessing && (
-              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-2">
+              <div className="p-5 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] space-y-3">
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-5 h-5 animate-spin text-primary shrink-0" />
                   <div className="flex-1">
@@ -1387,9 +1472,9 @@ export default function SellWizard() {
                     <p className="text-[11px] text-muted-foreground">{batchProgress.done} of {batchProgress.total} complete</p>
                   </div>
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-border overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-border/60 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-700 ease-out"
                     style={{ width: `${batchProgress.total > 0 ? (batchProgress.done / batchProgress.total) * 100 : 0}%` }}
                   />
                 </div>
