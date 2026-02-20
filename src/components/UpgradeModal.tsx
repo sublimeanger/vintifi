@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { STRIPE_TIERS, CREDIT_PACKS, type TierKey } from "@/lib/constants";
+import { STRIPE_TIERS, CREDIT_PACKS, type TierKey, TIER_ORDER } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Zap, Crown, Sparkles, CreditCard, Shield, Coffee } from "lucide-react";
+import { Loader2, Zap, Crown, Sparkles, CreditCard, Coffee } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,
@@ -31,13 +31,12 @@ type UpgradeModalProps = {
 };
 
 const TIER_ICONS: Record<string, typeof Crown> = {
-  pro: Sparkles,
-  business: Zap,
-  scale: Crown,
-  enterprise: Shield,
+  starter: Sparkles,
+  pro: Zap,
+  business: Crown,
 };
 
-const UPGRADE_TIERS: TierKey[] = ["pro", "business"];
+const UPGRADE_TIERS: TierKey[] = ["starter", "pro", "business"];
 
 export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits }: UpgradeModalProps) {
   const isMobile = useIsMobile();
@@ -51,9 +50,9 @@ export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits 
   const creditsRemaining = credits ? credits.credits_limit - totalUsed : null;
   const isZeroCredits = creditsRemaining !== null && creditsRemaining <= 0 && (credits?.credits_limit ?? 0) < 999999;
 
-  // The smallest credit pack (10 credits / £2.99)
+  // The smallest credit pack
   const smallPack = CREDIT_PACKS[0];
-  const proPlan = STRIPE_TIERS.pro;
+  const starterPlan = STRIPE_TIERS.starter;
 
   const handleBuySmallPack = async () => {
     setLoadingCredit(smallPack.price_id);
@@ -126,19 +125,19 @@ export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits 
                 {loadingCredit === smallPack.price_id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Buy Now"}
               </Button>
             </Card>
-            {/* Upgrade to Pro */}
+            {/* Upgrade to Starter */}
             <Card className="p-3 text-center border-primary/30 bg-primary/[0.04]">
-              <p className="font-display font-bold text-base text-primary">{proPlan.credits}</p>
+              <p className="font-display font-bold text-base text-primary">{starterPlan.credits}</p>
               <p className="text-[10px] text-muted-foreground mb-0.5">credits/mo</p>
-              <p className="font-display font-bold text-sm mb-2">£{proPlan.price}/mo</p>
+              <p className="font-display font-bold text-sm mb-2">£{starterPlan.price}/mo</p>
               <Button
                 size="sm"
                 variant="default"
                 className="w-full h-8 text-xs font-semibold"
-                onClick={() => handleUpgrade("pro")}
-                disabled={loadingTier === "pro"}
+                onClick={() => handleUpgrade("starter")}
+                disabled={loadingTier === "starter"}
               >
-                {loadingTier === "pro" ? <Loader2 className="w-3 h-3 animate-spin" /> : "Upgrade"}
+                {loadingTier === "starter" ? <Loader2 className="w-3 h-3 animate-spin" /> : "Upgrade"}
               </Button>
             </Card>
           </div>
@@ -162,6 +161,9 @@ export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits 
           const Icon = TIER_ICONS[tier] || Sparkles;
           const isCurrent = userTier === tier;
           const isHighlighted = tierRequired === tier;
+          const userLevel = TIER_ORDER[userTier] ?? 0;
+          const tierLevel = TIER_ORDER[tier] ?? 0;
+          const isDowngrade = tierLevel <= userLevel;
 
           return (
             <Card
@@ -193,7 +195,7 @@ export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits 
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="font-display font-bold text-sm">£{t.price}</span>
                   <span className="text-[10px] text-muted-foreground">/mo</span>
-                  {!isCurrent && (
+                  {!isCurrent && !isDowngrade && (
                     <Button
                       size="sm"
                       className="h-8 text-xs font-semibold active:scale-95 transition-transform"
@@ -222,10 +224,10 @@ export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits 
             <CreditCard className="w-3.5 h-3.5" />
             Or Buy Credit Packs
           </h4>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {CREDIT_PACKS.map((pack) => (
               <Card
-                key={pack.price_id}
+                key={pack.price_id || pack.label}
                 className={`p-3 text-center cursor-pointer hover:border-primary/40 active:scale-[0.98] transition-all ${
                   pack.popular ? "border-primary/30 bg-primary/[0.02]" : ""
                 }`}

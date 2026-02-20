@@ -25,7 +25,7 @@ serve(async (req) => {
     const { data: profile } = await supabase
       .from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle();
     const tier = profile?.subscription_tier || "free";
-    const tierLevel: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+    const tierLevel: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3 };
     if ((tierLevel[tier] ?? 0) < 2) {
       return new Response(
         JSON.stringify({ error: "This feature requires a Business plan. Upgrade to continue." }),

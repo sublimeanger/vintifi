@@ -38,37 +38,41 @@ const personas = [
     tier: "Free",
     emoji: "👋",
     headline: "Testing the waters",
-    desc: "Your first complete sell is on us — photos, listing, and pricing. 3 credits a month after that. No card required.",
+    desc: "5 credits a month to try background removal and a price check. No card required.",
+  },
+  {
+    tier: "Starter",
+    emoji: "💪",
+    headline: "Side hustlers",
+    desc: "50 credits, all 6 Photo Studio tools, AI pricing and listing optimiser. Pays for itself the first time you avoid underpricing.",
+    highlight: true,
   },
   {
     tier: "Pro",
-    emoji: "💪",
-    headline: "Side hustlers",
-    desc: "Selling up to 200 items and want professional-looking listings without the effort. Pro pays for itself the first time you avoid underpricing.",
-    highlight: true,
+    emoji: "⚡",
+    headline: "Growing resellers",
+    desc: "200 credits, multi-language listings, bulk processing, and Niche Finder to spot trends before the competition.",
   },
   {
     tier: "Business",
     emoji: "🚀",
     headline: "Full-time resellers",
-    desc: "Up to 1,000 items tracked, AI Model Shots for standout listings, and multi-language support to sell across 18 Vinted markets.",
+    desc: "600 credits, unlimited items, all languages, competitor tracking, and bulk processing at scale.",
   },
 ];
 
 const comparisonFeatures = [
-  { name: "Credits / month", free: "3", pro: "50", business: "200" },
-  { name: "Photo Studio (bg removal, enhance)", free: "✓", pro: "✓", business: "✓" },
-  { name: "Photo Studio (flat-lay, mannequin)", free: "—", pro: "✓", business: "✓" },
-  { name: "AI Model Shots", free: "—", pro: "—", business: "✓" },
-  { name: "AI Price Check", free: "First item", pro: "✓", business: "✓" },
-  { name: "AI Listing Optimiser", free: "First item", pro: "✓", business: "✓" },
-  { name: "Trend Radar", free: "Top 3", pro: "Full", business: "Full" },
-  { name: "Niche Finder", free: "—", pro: "✓", business: "✓" },
-  { name: "Multi-language listings", free: "—", pro: "—", business: "✓ (FR, DE, NL, ES)" },
-  { name: "Bulk Listing Optimiser", free: "—", pro: "—", business: "✓" },
-  { name: "Import from Vinted URL", free: "✓", pro: "✓", business: "✓" },
-  { name: "Items tracked", free: "10", pro: "200", business: "1,000" },
-  { name: "Support", free: "Community", pro: "Email", business: "Priority" },
+  { name: "Credits / month", free: "5", starter: "50", pro: "200", business: "600" },
+  { name: "Remove Background", free: "✓", starter: "✓", pro: "✓", business: "✓" },
+  { name: "Full Photo Studio (all 6 tools)", free: "—", starter: "✓", pro: "✓", business: "✓" },
+  { name: "AI Price Check", free: "1/mo", starter: "✓", pro: "✓", business: "✓" },
+  { name: "AI Listing Optimiser", free: "—", starter: "✓", pro: "✓", business: "✓" },
+  { name: "Trend Radar", free: "Preview", starter: "Full", pro: "Full + Niche Finder", business: "Full + Niche Finder" },
+  { name: "Multi-language listings", free: "—", starter: "—", pro: "✓ (5 languages)", business: "✓ (All)" },
+  { name: "Bulk processing", free: "—", starter: "—", pro: "10 at once", business: "50 at once" },
+  { name: "Competitor tracking", free: "—", starter: "—", pro: "—", business: "✓ (20 sellers)" },
+  { name: "Items tracked", free: "10", starter: "100", pro: "500", business: "Unlimited" },
+  { name: "Support", free: "Community", starter: "Community", pro: "Email", business: "Priority" },
 ];
 
 const faqs = [
@@ -126,9 +130,9 @@ export default function Pricing() {
   const navigate = useNavigate();
   const [annual, setAnnual] = useState(false);
 
-  usePageMeta("Pricing — Vintifi", "Start free with 3 credits. Studio photos without a studio. AI pricing in 30 seconds. Pro from £9.99/month. 14-day money-back guarantee.");
+  usePageMeta("Pricing — Vintifi", "Start free with 5 credits. Studio photos without a studio. AI pricing in 30 seconds. Starter from £5.99/month. 14-day money-back guarantee.");
 
-  const PUBLIC_TIERS: TierKey[] = ["free", "pro", "business"];
+  const PUBLIC_TIERS: TierKey[] = ["free", "starter", "pro", "business"];
   const tiers = (Object.entries(STRIPE_TIERS) as [TierKey, (typeof STRIPE_TIERS)[TierKey]][]).filter(
     ([key]) => PUBLIC_TIERS.includes(key)
   );
@@ -234,9 +238,9 @@ export default function Pricing() {
       {/* Pricing cards */}
       <section className="pb-10 sm:pb-20">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 max-w-6xl mx-auto">
             {tiers.map(([key, tier], i) => {
-              const isPopular = key === "pro";
+              const isPopular = key === "starter";
               const price = annual && tier.price > 0 && 'annual_price' in tier
                 ? ((tier as any).annual_price / 12).toFixed(2)
                 : tier.price;
@@ -316,7 +320,7 @@ export default function Pricing() {
           >
             Different sellers, different needs. Here's where most people land.
           </motion.p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto">
             {personas.map((p, i) => (
               <motion.div
                 key={p.tier}
@@ -346,7 +350,7 @@ export default function Pricing() {
             <h2 className="font-display text-lg sm:text-2xl md:text-3xl font-extrabold mb-2">Need a top-up?</h2>
             <p className="text-muted-foreground text-sm sm:text-base">One-time credit packs — no subscription required. Never expire.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-3xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
             {CREDIT_PACKS.map((pack, i) => (
               <motion.div
                 key={pack.label}
@@ -396,10 +400,10 @@ export default function Pricing() {
           {/* Desktop table */}
           <div className="hidden lg:block max-w-4xl mx-auto">
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
-              <div className="grid grid-cols-4 bg-muted/50 border-b border-border sticky top-0 z-10">
+              <div className="grid grid-cols-5 bg-muted/50 border-b border-border sticky top-0 z-10">
                 <div className="p-4 font-semibold text-sm">Feature</div>
                 {tiers.map(([key, tier]) => (
-                  <div key={key} className={`p-4 text-center font-semibold text-sm ${key === "pro" ? "bg-primary/5 text-primary" : ""}`}>
+                  <div key={key} className={`p-4 text-center font-semibold text-sm ${key === "starter" ? "bg-primary/5 text-primary" : ""}`}>
                     {tier.name}
                   </div>
                 ))}
@@ -407,11 +411,12 @@ export default function Pricing() {
               {comparisonFeatures.map((feature, i) => (
                 <div
                   key={feature.name}
-                  className={`grid grid-cols-4 border-b border-border last:border-0 ${i % 2 === 0 ? "" : "bg-muted/20"}`}
+                  className={`grid grid-cols-5 border-b border-border last:border-0 ${i % 2 === 0 ? "" : "bg-muted/20"}`}
                 >
                   <div className="p-4 text-sm text-foreground">{feature.name}</div>
                   <div className="p-4 text-center text-sm text-muted-foreground">{feature.free}</div>
-                  <div className={`p-4 text-center text-sm bg-primary/5 ${feature.pro === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.pro}</div>
+                  <div className={`p-4 text-center text-sm bg-primary/5 ${feature.starter === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.starter}</div>
+                  <div className={`p-4 text-center text-sm ${feature.pro === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.pro}</div>
                   <div className={`p-4 text-center text-sm ${feature.business === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.business}</div>
                 </div>
               ))}
@@ -421,7 +426,7 @@ export default function Pricing() {
           {/* Mobile stacked cards */}
           <div className="lg:hidden space-y-3 max-w-md mx-auto">
             {tiers.map(([key, tier]) => (
-              <Card key={key} className={`p-3.5 ${key === "pro" ? "border-primary ring-1 ring-primary" : ""}`}>
+              <Card key={key} className={`p-3.5 ${key === "starter" ? "border-primary ring-1 ring-primary" : ""}`}>
                 <h3 className="font-display font-bold text-base mb-2">{tier.name}</h3>
                 <ul className="space-y-1.5">
                   {comparisonFeatures.map((f) => {

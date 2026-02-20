@@ -253,7 +253,7 @@ export default function SettingsPage() {
             <p className="text-[11px] sm:text-sm text-muted-foreground">Current plan</p>
             <p className="font-display font-bold text-lg sm:text-2xl capitalize">{STRIPE_TIERS[currentTier].name}</p>
             {credits && (() => {
-              const isUnlimited = currentTier === "scale" || credits.credits_limit >= 999;
+              const isUnlimited = credits.credits_limit >= 999999;
               const totalUsed = credits.price_checks_used + credits.optimizations_used + credits.vintography_used;
               return isUnlimited ? (
                 <Badge className="mt-2 bg-primary/10 text-primary border-primary/20">Unlimited credits</Badge>
