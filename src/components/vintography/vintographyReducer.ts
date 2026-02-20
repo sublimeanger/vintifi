@@ -46,6 +46,14 @@ export interface VintographyState {
   savingToItem: boolean;
 }
 
+export interface VintographyHistory {
+  past: VintographyState[];
+  present: VintographyState;
+  canUndo: boolean;
+  canRedo: boolean;
+  future: VintographyState[];
+}
+
 // ─── Reducer actions ───
 export type VintographyAction =
   | { type: "SET_ORIGINAL_PHOTO"; url: string | null }
@@ -65,7 +73,9 @@ export type VintographyAction =
   | { type: "SET_SAVING_TO_ITEM"; saving: boolean }
   | { type: "RESULT_READY_FLASH" }
   | { type: "ADD_ITEM_PHOTO"; url: string }
-  | { type: "RESET_ALL" };
+  | { type: "RESET_ALL" }
+  | { type: "UNDO" }
+  | { type: "REDO" };
 
 export const initialState: VintographyState = {
   originalPhotoUrl: null,
@@ -270,4 +280,83 @@ export function loadSession(): { state: VintographyState; garmentContext?: strin
 
 function clearSession(): void {
   try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+}
+
+// ─── Undo/Redo history wrapper ───
+const MAX_HISTORY = 15;
+
+const UNDOABLE_ACTIONS = new Set([
+  "SET_ORIGINAL_PHOTO",
+  "SET_RESULT_PHOTO",
+  "REPLACE_PIPELINE",
+  "ADD_PIPELINE_STEP",
+  "REMOVE_PIPELINE_STEP",
+  "PROCESSING_COMPLETE",
+]);
+
+export function vintographyReducerWithHistory(
+  history: VintographyHistory,
+  action: VintographyAction
+): VintographyHistory {
+  if (action.type === "UNDO") {
+    if (history.past.length === 0) return history;
+    const previous = history.past[history.past.length - 1];
+    return {
+      past: history.past.slice(0, -1),
+      present: previous,
+      future: [history.present, ...history.future].slice(0, MAX_HISTORY),
+      canUndo: history.past.length > 1,
+      canRedo: true,
+    };
+  }
+
+  if (action.type === "REDO") {
+    if (history.future.length === 0) return history;
+    const next = history.future[0];
+    return {
+      past: [...history.past, history.present].slice(-MAX_HISTORY),
+      present: next,
+      future: history.future.slice(1),
+      canUndo: true,
+      canRedo: history.future.length > 1,
+    };
+  }
+
+  if (action.type === "RESET_ALL") {
+    clearSession();
+    return {
+      past: [],
+      present: { ...initialState },
+      future: [],
+      canUndo: false,
+      canRedo: false,
+    };
+  }
+
+  const newPresent = vintographyReducer(history.present, action);
+
+  if (UNDOABLE_ACTIONS.has(action.type) && newPresent !== history.present) {
+    return {
+      past: [...history.past, history.present].slice(-MAX_HISTORY),
+      present: newPresent,
+      future: [],
+      canUndo: true,
+      canRedo: false,
+    };
+  }
+
+  return {
+    ...history,
+    present: newPresent,
+  };
+}
+
+export function createInitialHistory(state: VintographyState): VintographyHistory {
+  return {
+    past: [],
+    present: state,
+    future: [],
+    canUndo: false,
+    canRedo: false,
+  };
 }
