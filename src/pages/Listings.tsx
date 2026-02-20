@@ -627,7 +627,7 @@ export default function Listings() {
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
             {activeFilterCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[9px] text-primary-foreground flex items-center justify-center font-bold">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center font-bold">
                 {activeFilterCount}
               </span>
             )}
