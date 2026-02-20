@@ -33,7 +33,7 @@ const TIPS: Record<string, string[]> = {
     "Try different backgrounds — each creates a unique mood for your listing",
     "Great for social media posts and Instagram-style product shots",
   ],
-  virtual_model: [
+  ai_model: [
     "AI Model Concept creates an interpretation — exact logos and prints may vary",
     "Add a garment description for better accuracy (e.g., 'Nike crewneck sweatshirt')",
     "For pixel-perfect results, try Clean Background or Enhance instead",
@@ -524,7 +524,7 @@ export function ComparisonView({
       )}
 
       {/* Post-result suggestion for AI Model Concept */}
-      {processedUrl && operationId === "virtual_model" && (
+      {processedUrl && operationId === "ai_model" && (
         <div className="px-4 py-3 border-t border-border bg-warning/10">
           <p className="text-[11px] text-muted-foreground">
             💡 Not quite right? <strong>Clean Background</strong> and <strong>Enhance</strong> preserve your garment pixel-perfectly — ideal for accurate listings.

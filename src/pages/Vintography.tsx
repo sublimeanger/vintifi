@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  Loader2, Wand2, RotateCcw, Info, X, Coins, Package, Star, ChevronDown, ChevronRight, Sparkles,
+  Loader2, Wand2, Coins, Package, Star, ChevronDown, ChevronRight, Sparkles,
 } from "lucide-react";
 import {
   Collapsible, CollapsibleTrigger, CollapsibleContent,
@@ -24,7 +24,7 @@ import {
 import { CreditBar } from "@/components/vintography/CreditBar";
 import { ComparisonView } from "@/components/vintography/ComparisonView";
 import { GalleryCard, type VintographyJob } from "@/components/vintography/GalleryCard";
-import { PhotoFilmstrip, type PhotoEditState } from "@/components/vintography/PhotoFilmstrip";
+import { PhotoFilmstrip } from "@/components/vintography/PhotoFilmstrip";
 import { QuickPresets, type Preset, type SavedPreset } from "@/components/vintography/QuickPresets";
 import { OperationBar } from "@/components/vintography/OperationBar";
 import { PipelineStrip } from "@/components/vintography/PipelineStrip";
@@ -36,7 +36,7 @@ import { SteamConfig } from "@/components/vintography/SteamConfig";
 import { FlatLayConfig } from "@/components/vintography/FlatLayConfig";
 import { LifestyleConfig } from "@/components/vintography/LifestyleConfig";
 import { MannequinConfig } from "@/components/vintography/MannequinConfig";
-import { ModelShotWizard, type ModelParams } from "@/components/vintography/ModelShotWizard";
+import { ModelShotWizard } from "@/components/vintography/ModelShotWizard";
 import { SavePresetDialog } from "@/components/vintography/SavePresetDialog";
 
 // State / types
@@ -93,6 +93,7 @@ export default function Vintography() {
   const [isUploading, setIsUploading] = useState(false);
   const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [autoProcessPending, setAutoProcessPending] = useState(false);
 
   // Persist state to sessionStorage whenever it changes
   useEffect(() => {
@@ -159,7 +160,14 @@ export default function Vintography() {
   // ─── Active step helpers ───
   const activeStep = state.pipeline[state.activePipelineIndex];
   const activeOp = activeStep?.operation ?? "clean_bg";
-  const activeParams = activeStep?.params ?? {};
+
+  // Auto-process after pipeline update from suggestion card
+  useEffect(() => {
+    if (autoProcessPending && !state.isProcessing) {
+      setAutoProcessPending(false);
+      handleProcess();
+    }
+  }, [autoProcessPending, state.pipeline.length]);
 
   const updateActiveParams = (params: Record<string, string>) => {
     dispatch({ type: "UPDATE_STEP_PARAMS", index: state.activePipelineIndex, params });
@@ -331,7 +339,7 @@ export default function Vintography() {
         });
       } else {
         await appendListingPhoto(state.resultPhotoUrl);
-        dispatch({ type: "SET_ITEM_PHOTOS", urls: [...state.itemPhotos, state.resultPhotoUrl] });
+        dispatch({ type: "ADD_ITEM_PHOTO", url: state.resultPhotoUrl! });
         dispatch({ type: "SET_PHOTO_EDIT_STATE", url: state.originalPhotoUrl, state: { editedUrl: state.resultPhotoUrl, savedToItem: true, operationApplied: activeOp } });
         toast.success("Photo added to your listing", {
           action: { label: "View Photos", onClick: () => navigate(`/items/${itemId}?tab=photos`) },
@@ -982,7 +990,7 @@ export default function Vintography() {
                     <Card
                       onClick={() => {
                         dispatch({ type: "ADD_PIPELINE_STEP", step: { operation: suggestion.op, params: defaultParams(suggestion.op) } });
-                        handleProcess();
+                        setAutoProcessPending(true);
                       }}
                       className="p-3 cursor-pointer border-accent/20 bg-accent/[0.04] hover:bg-accent/[0.08] hover:border-accent/30 transition-all active:scale-[0.98]"
                     >
@@ -1123,7 +1131,7 @@ export default function Vintography() {
                       <Card
                         onClick={() => {
                           dispatch({ type: "ADD_PIPELINE_STEP", step: { operation: suggestion.op, params: defaultParams(suggestion.op) } });
-                          handleProcess();
+                          setAutoProcessPending(true);
                         }}
                         className="p-3 cursor-pointer border-accent/20 bg-accent/[0.04] hover:bg-accent/[0.08] hover:border-accent/30 transition-all active:scale-[0.98]"
                       >
@@ -1236,7 +1244,7 @@ export default function Vintography() {
             {galleryLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {[...Array(4)].map((_, i) => (
-                  <Skeleton key={i} className="aspect-square rounded-xl" />
+                  <Skeleton key={i} className="aspect-[4/5] rounded-xl" />
                 ))}
               </div>
             ) : gallery.length === 0 ? (
