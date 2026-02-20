@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -9,6 +9,8 @@ import { CreditBar } from "@/components/vintography/CreditBar";
 import { ComparisonView } from "@/components/vintography/ComparisonView";
 import { GalleryCard, type VintographyJob } from "@/components/vintography/GalleryCard";
 import { PhotoFilmstrip, type PhotoEditState } from "@/components/vintography/PhotoFilmstrip";
+import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
+import { ModelOptions } from "@/components/vintography/ModelOptions";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,7 +22,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Upload, Eraser, Sun, Image as ImageIcon, User, Camera, RefreshCw,
-  Lock, Download, ArrowRight, Sparkles, X,
+  Lock, Download, ArrowRight, Sparkles, X, ArrowLeft,
 } from "lucide-react";
 
 // ── Icon map ─────────────────────────────────────────────────────────
@@ -29,20 +31,33 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 // ── Operation labels for gallery ─────────────────────────────────────
-const OP_LABELS: Record<string, string> = Object.fromEntries(
-  Object.entries(PHOTO_OPERATIONS).map(([k, v]) => [k, v.label])
-);
+const OP_LABELS: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(PHOTO_OPERATIONS).map(([k, v]) => [k, v.label])),
+  // Legacy operation names from old Gemini-based system
+  clean_bg: "Clean Background",
+  ai_model: "AI Model",
+  lifestyle_bg: "Lifestyle Background",
+  enhance: "Enhance",
+  mannequin: "Mannequin",
+  ghost_mannequin: "Ghost Mannequin",
+  flatlay: "Flat-Lay",
+  selfie_shot: "Selfie Shot",
+  steam: "Steam/Press",
+};
 
 export default function Vintography() {
   usePageMeta("Photo Studio — Vintifi", "AI-powered photo editing for resellers");
 
   const { user, profile, credits, refreshCredits } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const itemId = searchParams.get("itemId");
   const preselectedOp = searchParams.get("op") as PhotoOperation | null;
+  const imageUrlParam = searchParams.get("image_url");
+  const returnTo = searchParams.get("returnTo");
 
   // ── Core state ─────────────────────────────────────────────────────
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(imageUrlParam || null);
   const [selectedOp, setSelectedOp] = useState<PhotoOperation | null>(preselectedOp && PHOTO_OPERATIONS[preselectedOp] ? preselectedOp : null);
   const [opParams, setOpParams] = useState<Record<string, string>>({});
   const [selfiePhoto, setSelfiePhoto] = useState<string | null>(null);
@@ -354,120 +369,39 @@ export default function Vintography() {
     switch (selectedOp) {
       case "remove_bg":
       case "studio_shadow":
-        return null; // No config needed
+        return null;
 
       case "ai_background":
         return (
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Background Scene</Label>
-            <Input
-              placeholder="e.g. marble countertop with soft morning light"
-              value={opParams.bg_prompt || ""}
-              onChange={(e) => setOpParams({ ...opParams, bg_prompt: e.target.value })}
-              className="text-sm"
-            />
-            <p className="text-xs text-muted-foreground">Describe the scene you want behind your product</p>
-          </div>
+          <BackgroundPicker
+            value={opParams.bg_prompt || ""}
+            onChange={(prompt) => setOpParams({ ...opParams, bg_prompt: prompt })}
+          />
         );
 
       case "put_on_model":
+      case "swap_model":
         return (
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Model Gender</Label>
-            <div className="flex gap-2">
-              {["female", "male"].map((g) => (
-                <Button
-                  key={g}
-                  size="sm"
-                  variant={(opParams.gender || "female") === g ? "default" : "outline"}
-                  onClick={() => setOpParams({ ...opParams, gender: g })}
-                  className="flex-1 capitalize"
-                >
-                  {g}
-                </Button>
-              ))}
-            </div>
-          </div>
+          <ModelOptions
+            operation={selectedOp}
+            value={{
+              gender: opParams.gender || "female",
+              pose: opParams.pose,
+              ethnicity: opParams.ethnicity,
+            }}
+            onChange={(params) => setOpParams({ ...opParams, ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, (v || "").toLowerCase()])) })}
+          />
         );
 
       case "virtual_tryon":
         return (
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Your Selfie</Label>
-            {selfiePhoto ? (
-              <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-border">
-                <img src={selfiePhoto} alt="Selfie" className="w-full h-full object-cover" />
-                <button
-                  onClick={() => setSelfiePhoto(null)}
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-background/80 flex items-center justify-center"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => selfieInputRef.current?.click()}
-                  className="w-full"
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  Upload Selfie
-                </Button>
-                <input
-                  ref={selfieInputRef}
-                  type="file"
-                  accept="image/*,.heic,.heif"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleFileUpload(f, true);
-                    e.target.value = "";
-                  }}
-                />
-              </>
-            )}
-            <p className="text-xs text-muted-foreground">Front-facing photo, clear lighting, standing pose works best</p>
-          </div>
-        );
-
-      case "swap_model":
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Gender</Label>
-              <div className="flex gap-2">
-                {["female", "male"].map((g) => (
-                  <Button
-                    key={g}
-                    size="sm"
-                    variant={(opParams.gender || "female") === g ? "default" : "outline"}
-                    onClick={() => setOpParams({ ...opParams, gender: g })}
-                    className="flex-1 capitalize"
-                  >
-                    {g}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Ethnicity</Label>
-              <div className="flex flex-wrap gap-2">
-                {["default", "asian", "black", "hispanic", "middle-eastern"].map((e) => (
-                  <Button
-                    key={e}
-                    size="sm"
-                    variant={(opParams.ethnicity || "default") === e ? "default" : "outline"}
-                    onClick={() => setOpParams({ ...opParams, ethnicity: e })}
-                    className="capitalize text-xs"
-                  >
-                    {e === "default" ? "Any" : e.replace("-", " ")}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <ModelOptions
+            operation="virtual_tryon"
+            value={{ gender: opParams.gender || "female" }}
+            onChange={(params) => setOpParams({ ...opParams, ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, (v || "").toLowerCase()])) })}
+            selfieUrl={selfiePhoto || undefined}
+            onSelfieUpload={(url) => setSelfiePhoto(url)}
+          />
         );
 
       default:
@@ -498,6 +432,12 @@ export default function Vintography() {
           </Button>
         </div>
       </div>
+
+      {returnTo && (
+        <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground mt-2" onClick={() => navigate(returnTo)}>
+          <ArrowLeft className="w-4 h-4" /> Back
+        </Button>
+      )}
 
       <div className="space-y-6 pt-4 pb-32 lg:pb-8">
         {/* Item photo filmstrip */}
@@ -709,24 +649,27 @@ export default function Vintography() {
         )}
 
         {/* Config panel */}
-        {!resultPhoto && (
-          <AnimatePresence mode="wait">
-            {selectedOp && selectedPhoto && (
-              <motion.div
-                key={selectedOp}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <Card className="p-4">
-                  {renderConfig()}
-                </Card>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
+        {!resultPhoto && (() => {
+          const configContent = renderConfig();
+          return (
+            <AnimatePresence mode="wait">
+              {selectedOp && selectedPhoto && configContent && (
+                <motion.div
+                  key={selectedOp}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="overflow-hidden"
+                >
+                  <Card className="p-4">
+                    {configContent}
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          );
+        })()}
 
         {/* Process button — desktop inline */}
         {!resultPhoto && selectedOp && selectedPhoto && (
