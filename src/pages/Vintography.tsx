@@ -795,9 +795,7 @@ export default function Vintography() {
                     onSelect={handleOpSelect}
                     onLockedTap={(gate) => setActiveLockedGate(gate)}
                   />
-                  {state.pipeline.length > 1 && (
-                    <PipelineStripInline />
-                  )}
+                  <PipelineStripInline />
                 </div>
 
                 {/* Processing strip on mobile */}
