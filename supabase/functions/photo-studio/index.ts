@@ -101,38 +101,54 @@ async function callFashn(
   apiKey: string,
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
   const gender = parameters?.gender || "female";
-  const ethnicity = parameters?.ethnicity || "default";
+  const ethnicity = parameters?.ethnicity || "";
+  const pose = parameters?.pose || "";
+
+  // Build appearance prompt from user selections
+  const buildPrompt = (): string => {
+    const parts: string[] = [];
+    if (gender) parts.push(`${gender} model`);
+    if (ethnicity && ethnicity !== "default") parts.push(ethnicity);
+    if (pose && pose !== "default") parts.push(`${pose} pose`);
+    parts.push("professional studio background, fashion photography, high quality");
+    return parts.join(", ");
+  };
 
   let body: Record<string, unknown>;
 
   if (operation === "put_on_model") {
+    // Product-to-Model: takes a flat-lay/product photo and generates a model wearing it
+    // When model_image is omitted, Fashn generates a NEW person from the prompt
     body = {
-      model_image: `https://api.fashn.ai/v1/models/stock/${gender}-front-1`,
-      garment_image: imageUrl,
-      garment_photo_type: "flat-lay",
-      category: "auto",
-      mode: "quality",
       model_name: "product-to-model",
+      inputs: {
+        product_image: imageUrl,
+        prompt: buildPrompt(),
+        aspect_ratio: "3:4",
+        output_format: "png",
+      },
     };
   } else if (operation === "virtual_tryon") {
+    // Virtual Try-On: user's selfie + garment image
     if (!selfieUrl) throw new Error("selfie_url is required for virtual try-on");
     body = {
-      model_image: selfieUrl,
-      garment_image: imageUrl,
-      garment_photo_type: "auto",
-      category: "auto",
-      mode: "quality",
       model_name: "tryon-v1.6",
+      inputs: {
+        model_image: selfieUrl,
+        garment_image: imageUrl,
+        category: "auto",
+        mode: "quality",
+      },
     };
   } else {
-    // swap_model
+    // Model Swap: changes the model identity in an existing on-model photo
+    // model_image = the existing on-model photo, prompt = the new model description
     body = {
-      model_image: `https://api.fashn.ai/v1/models/stock/${gender}-${ethnicity}-front-1`,
-      garment_image: imageUrl,
-      garment_photo_type: "on-model",
-      category: "auto",
-      mode: "quality",
       model_name: "model-swap",
+      inputs: {
+        model_image: imageUrl,
+        prompt: buildPrompt(),
+      },
     };
   }
 
@@ -188,7 +204,7 @@ async function callFashn(
     }
 
     if (statusData.status === "failed") {
-      const errMsg = statusData.error || "Processing failed";
+      const errMsg = statusData.error?.message || statusData.error || "Processing failed";
       throw new Error(`Fashn processing failed: ${errMsg}`);
     }
   }
