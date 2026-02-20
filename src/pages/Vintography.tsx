@@ -27,7 +27,6 @@ import { GalleryCard, type VintographyJob } from "@/components/vintography/Galle
 import { PhotoFilmstrip, type PhotoEditState } from "@/components/vintography/PhotoFilmstrip";
 import { QuickPresets, type Preset, type SavedPreset } from "@/components/vintography/QuickPresets";
 import { OperationBar } from "@/components/vintography/OperationBar";
-import { ConfigContainer } from "@/components/vintography/ConfigContainer";
 import { PipelineStrip } from "@/components/vintography/PipelineStrip";
 import { ProcessingOverlay } from "@/components/vintography/ProcessingOverlay";
 import { ResultActions } from "@/components/vintography/ResultActions";
@@ -950,6 +949,8 @@ export default function Vintography() {
                     onUseAsStartingPoint={handleUseResultAsStart}
                     onNextPhoto={handleNextPhoto}
                     onTopUp={() => navigate("/settings?tab=billing")}
+                    onSavePreset={handleSavePreset}
+                    showSavePreset={state.pipeline.length >= 2 && !state.isProcessing}
                   />
 
                   {/* Next steps card for linked items */}
