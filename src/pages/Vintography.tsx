@@ -87,6 +87,7 @@ export default function Vintography() {
   // File input refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
+  const configPanelRef = useRef<HTMLDivElement>(null);
 
   // ── Derived values ─────────────────────────────────────────────────
   const effectiveItemId = itemId || importedItemId;
@@ -282,6 +283,14 @@ export default function Vintography() {
     setSelectedOp(op);
     setOpParams({});
     setResultPhoto(null);
+
+    // Auto-scroll to config panel on mobile for ops that have options
+    const hasConfig = op === "put_on_model" || op === "virtual_tryon" || op === "swap_model" || op === "remove_bg" || op === "ai_background";
+    if (hasConfig && window.innerWidth < 1024) {
+      setTimeout(() => {
+        configPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    }
   };
 
   // ── Process ────────────────────────────────────────────────────────
@@ -928,7 +937,8 @@ export default function Vintography() {
           return (
             <AnimatePresence mode="wait">
               {selectedOp && selectedPhoto && configContent && (
-                <motion.div
+              <motion.div
+                ref={configPanelRef}
                   key={selectedOp}
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
