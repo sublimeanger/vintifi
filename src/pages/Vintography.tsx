@@ -38,6 +38,7 @@ import { FlatLayConfig } from "@/components/vintography/FlatLayConfig";
 import { LifestyleConfig } from "@/components/vintography/LifestyleConfig";
 import { MannequinConfig } from "@/components/vintography/MannequinConfig";
 import { ModelShotWizard, type ModelParams } from "@/components/vintography/ModelShotWizard";
+import { SavePresetDialog } from "@/components/vintography/SavePresetDialog";
 
 // State / types
 import {
@@ -84,6 +85,7 @@ export default function Vintography() {
   const [galleryLoading, setGalleryLoading] = useState(true);
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
 
   // Persist state to sessionStorage whenever it changes
   useEffect(() => {
@@ -107,13 +109,15 @@ export default function Vintography() {
 
   useEffect(() => { fetchSavedPresets(); }, [fetchSavedPresets]);
 
-  const handleSavePreset = async () => {
+  const handleSavePreset = () => {
+    setShowSavePresetDialog(true);
+  };
+
+  const doSavePreset = async (name: string) => {
     if (!user) return;
-    const name = prompt("Name your preset:");
-    if (!name?.trim()) return;
     const { error } = await supabase.from("user_presets").insert({
       user_id: user.id,
-      name: name.trim(),
+      name,
       pipeline: state.pipeline as any,
     });
     if (error) { toast.error("Failed to save preset"); return; }
@@ -1081,6 +1085,12 @@ export default function Vintography() {
             ? flatlayGate.reason
             : mannequinGate.reason
         }
+      />
+      <SavePresetDialog
+        open={showSavePresetDialog}
+        onClose={() => setShowSavePresetDialog(false)}
+        onSave={doSavePreset}
+        defaultName={state.pipeline.map(s => OP_LABEL[s.operation]).join(" + ")}
       />
     </PageShell>
   );
