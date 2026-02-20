@@ -74,13 +74,13 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
       {/* GENDER — always shown */}
       <div>
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Gender</p>
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           {(["Female", "Male"] as const).map((g) => (
             <button
               key={g}
               type="button"
               onClick={() => set({ gender: g })}
-              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition-all active:scale-[0.97] ${
+              className={`flex-1 rounded-xl border-2 px-3 min-h-[44px] text-xs font-semibold transition-all active:scale-[0.97] ${
                 gender === g
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border text-muted-foreground hover:border-primary/30"
@@ -176,7 +176,7 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="w-full rounded-lg border-2 border-dashed border-border hover:border-primary/40 bg-muted/10 hover:bg-primary/[0.03] transition-all p-3 text-center active:scale-[0.98]"
+              className="w-full rounded-xl border-2 border-dashed border-primary/30 hover:border-primary/50 bg-muted/10 hover:bg-primary/[0.03] transition-all p-5 text-center active:scale-[0.98]"
             >
               {uploading ? (
                 <div className="flex items-center justify-center gap-2">
@@ -185,11 +185,9 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-center gap-1.5 mb-1">
-                    <Camera className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-foreground">Upload Your Photo</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">Front-facing photo works best</p>
+                  <Camera className="w-6 h-6 text-primary mx-auto mb-1.5" />
+                  <p className="text-xs font-semibold text-foreground">Upload your selfie</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Front-facing photo works best</p>
                 </>
               )}
             </button>
