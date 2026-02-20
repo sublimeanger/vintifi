@@ -853,6 +853,21 @@ export default function Vintography() {
                     {processingElapsed >= 30 && (
                       <p className="text-xs text-muted-foreground/80 animate-fade-in">Still working on this one…</p>
                     )}
+                    {processingElapsed >= 10 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-muted-foreground hover:text-foreground mt-2"
+                        onClick={() => {
+                          setIsProcessing(false);
+                          if (processingTimerRef.current) clearInterval(processingTimerRef.current);
+                          setProcessingElapsed(0);
+                          toast.info("Cancelled — credits not charged if processing hadn't completed.");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    )}
                     <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
                       <motion.div
                         className="h-full bg-primary rounded-full"
