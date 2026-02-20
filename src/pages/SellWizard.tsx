@@ -239,6 +239,11 @@ export default function SellWizard() {
   const [quickBgResult, setQuickBgResult] = useState<string | null>(null);
   // Original image URL captured when entering Step 2 — used for before/after in Pack
   const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
+  // Batch processing
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
+  // Track which photos have been enhanced (maps original URL → enhanced URL)
+  const [enhancedMap, setEnhancedMap] = useState<Record<string, string>>({});
 
   // Step 5 — Pack
   const [vintedUrlInput, setVintedUrlInput] = useState("");
@@ -328,6 +333,9 @@ export default function SellWizard() {
     setQuickBgProcessing(false);
     setQuickBgResult(null);
     setOriginalImageUrl(null);
+    setBatchProcessing(false);
+    setBatchProgress({ done: 0, total: 0 });
+    setEnhancedMap({});
     setVintedUrlInput("");
     setMarkingListed(false);
     // Clear session storage when resetting
@@ -341,11 +349,11 @@ export default function SellWizard() {
     // Step 1 always manages its own button; never allow footer to advance from step 1
     if (currentStep === 1) return false;
     // v3 order: Step 2 = Photos, Step 3 = Optimise, Step 4 = Price
-    if (currentStep === 2) return photoDone || stepStatus[2] === "skipped";
+    if (currentStep === 2) return photoDone || Object.keys(enhancedMap).length > 0 || stepStatus[2] === "skipped";
     if (currentStep === 3) return optimiseSaved;
     if (currentStep === 4) return priceAccepted;
     return true;
-  }, [currentStep, priceAccepted, optimiseSaved, photoDone, stepStatus]);
+  }, [currentStep, priceAccepted, optimiseSaved, photoDone, stepStatus, enhancedMap]);
 
   const advanceBlockedReason = (): string => {
     if (currentStep === 1 && !entryMethod) return "Choose how to add your item";
@@ -855,6 +863,63 @@ export default function SellWizard() {
     }
   };
 
+  // ─── Batch Remove Background (Step 2) ───
+  const runBatchRemoveBg = async () => {
+    if (!createdItem || batchProcessing) return;
+    
+    const allPhotos: string[] = [];
+    if (Array.isArray((createdItem as any)?.images)) {
+      for (const img of (createdItem as any).images as any[]) {
+        const u = typeof img === "string" ? img : img?.url;
+        if (u && u.startsWith("http")) allPhotos.push(u);
+      }
+    }
+    if (allPhotos.length === 0 && createdItem.image_url) {
+      allPhotos.push(createdItem.image_url);
+    }
+    if (allPhotos.length === 0) return;
+    
+    setBatchProcessing(true);
+    setBatchProgress({ done: 0, total: allPhotos.length });
+    
+    const newEnhanced: Record<string, string> = { ...enhancedMap };
+    const updatedImages = [...allPhotos];
+    
+    for (let i = 0; i < allPhotos.length; i++) {
+      try {
+        const { data, error } = await supabase.functions.invoke("photo-studio", {
+          body: { operation: "remove_bg", image_url: allPhotos[i], sell_wizard: true },
+        });
+        if (error) throw error;
+        const processedUrl = data?.processed_url;
+        if (processedUrl) {
+          newEnhanced[allPhotos[i]] = processedUrl;
+          updatedImages[i] = processedUrl;
+        }
+      } catch (err: any) {
+        console.error(`Batch remove bg failed for photo ${i + 1}:`, err);
+        toast.error(`Photo ${i + 1} failed — skipping`);
+      }
+      setBatchProgress({ done: i + 1, total: allPhotos.length });
+    }
+    
+    const updateData: Record<string, unknown> = {
+      images: updatedImages,
+      image_url: updatedImages[0],
+      last_photo_edit_at: new Date().toISOString(),
+    };
+    await supabase.from("listings").update(updateData).eq("id", createdItem.id);
+    
+    setEnhancedMap(newEnhanced);
+    setCreatedItem((prev) => prev ? { ...prev, images: updatedImages as any, image_url: updatedImages[0] } : prev);
+    setBatchProcessing(false);
+    setPhotoDone(true);
+    setStepStatus((s) => ({ ...s, 2: "done" }));
+    
+    const successCount = Object.keys(newEnhanced).length;
+    toast.success(`${successCount} of ${allPhotos.length} photos enhanced!`);
+  };
+
   // ─── Step 5: Mark as listed — also marks first_item_pass as used ───
   const markAsListed = async () => {
     if (!vintedUrlInput.trim() || !createdItem) return;
@@ -1219,138 +1284,120 @@ export default function SellWizard() {
     <div className="space-y-4">
       <p className="text-xs lg:text-sm text-muted-foreground">Enhance your photos with AI for better click-through rates.</p>
 
-      {/* Full-width portrait image preview — motivates photo enhancement */}
-      {createdItem?.image_url ? (
-        <div className="space-y-3">
-          {/* Before/after inline view when Quick Remove BG has run */}
-          {quickBgResult && originalImageUrl ? (
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: "Before", url: originalImageUrl },
-                { label: "After", url: quickBgResult },
-              ].map(({ label, url }) => (
-                <div key={label} className="space-y-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-                  <div className="relative aspect-[4/5] rounded-lg overflow-hidden bg-muted border border-border">
-                    <img src={url} alt={label} className="w-full h-full object-cover" />
-                  </div>
-                </div>
-              ))}
+      {/* Photo grid with batch enhancement */}
+      {(() => {
+        const allPhotos: string[] = [];
+        if (Array.isArray((createdItem as any)?.images)) {
+          for (const img of (createdItem as any).images as any[]) {
+            const u = typeof img === "string" ? img : img?.url;
+            if (u && u.startsWith("http")) allPhotos.push(u);
+          }
+        }
+        if (allPhotos.length === 0 && createdItem?.image_url) {
+          allPhotos.push(createdItem.image_url);
+        }
+        
+        if (allPhotos.length === 0) {
+          return (
+            <div className="rounded-xl border border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+              No photos uploaded — Photo Studio works best with item photos.
             </div>
-          ) : (() => {
-            const allImgs = Array.isArray((createdItem as any)?.images)
-              ? ((createdItem as any).images as any[]).map((img: any) => typeof img === "string" ? img : img?.url).filter((u: string) => typeof u === "string" && u.startsWith("http"))
-              : [];
-            const images = allImgs.length > 1 ? allImgs : createdItem?.image_url ? [createdItem.image_url] : [];
-            if (images.length <= 1) {
-              return (
-                <div className="relative w-full max-w-[220px] lg:max-w-[320px] mx-auto aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border shadow-sm">
-                  <img src={createdItem.image_url} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                    <p className="text-white text-[10px] lg:text-xs font-medium truncate">{createdItem.title}</p>
+          );
+        }
+        
+        return (
+          <div className="space-y-3">
+            {/* Photo grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+              {allPhotos.map((url, i) => {
+                const isEnhanced = !!enhancedMap[url] || Object.values(enhancedMap).includes(url);
+                return (
+                  <div key={url + i} className="relative aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border group">
+                    <img src={enhancedMap[url] || url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                    <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      isEnhanced
+                        ? "bg-success/90 text-white"
+                        : "bg-background/80 backdrop-blur-sm text-muted-foreground border border-border/60"
+                    }`}>
+                      {isEnhanced ? "✓ Enhanced" : "Original"}
+                    </div>
+                    {!isEnhanced && !batchProcessing && (
+                      <button
+                        className="absolute bottom-2 left-2 right-2 h-8 rounded-lg bg-background/90 backdrop-blur-sm border border-border/60 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100"
+                        onClick={() => {
+                          if (createdItem) {
+                            sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
+                            sessionStorage.setItem("sell_wizard_step", "2");
+                            hasNavigatedToPhotoStudioRef.current = true;
+                            navigate(`/vintography?op=remove_bg&itemId=${createdItem.id}&image_url=${encodeURIComponent(url)}&returnTo=/sell`);
+                          }
+                        }}
+                      >
+                        <Eraser className="w-3.5 h-3.5" /> Enhance
+                      </button>
+                    )}
+                    {batchProcessing && !isEnhanced && batchProgress.done < i + 1 && (
+                      <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
-            }
-            return (
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
-                {images.map((url: string, i: number) => (
-                  <div key={i} className={`shrink-0 w-28 lg:w-36 aspect-[4/5] rounded-xl overflow-hidden bg-muted border ${i === 0 ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}>
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
-      ) : (
-        <div className="rounded-xl border border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-          No photo uploaded — Photo Studio works best with an item photo.
-        </div>
-      )}
-
-      {!photoDone && !photoPolling && (
-        <div className="space-y-2">
-          {/* Quick operation shortcuts */}
-          {createdItem && (
-            <div className="space-y-1.5">
-              <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Effects</p>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { op: "remove_bg", label: "Remove BG", icon: Eraser, credits: 1, locked: false },
-                  { op: "studio_shadow", label: "Studio Shadow", icon: Sun, credits: 2, locked: isFreeUser },
-                  { op: "put_on_model", label: "Put on Model", icon: User, credits: 3, locked: isFreeUser },
-                ] as const).map(({ op, label, icon: Icon, credits: cost, locked }) => (
-                  <button
-                    key={op}
-                    className={`relative rounded-xl border p-2.5 text-left transition-all active:scale-[0.97] ${
-                      locked
-                        ? "border-border bg-muted/30 opacity-70"
-                        : "border-primary/25 bg-primary/[0.04] hover:bg-primary/[0.08]"
-                    }`}
-                    onClick={() => {
-                      if (locked) {
-                        toast(`${label} requires Starter plan`, {
-                          description: "Upgrade to unlock all Photo Studio effects",
-                          action: {
-                            label: "Upgrade",
-                            onClick: () => navigate("/settings?tab=billing"),
-                          },
-                          duration: 5000,
-                        });
-                        return;
-                      }
-                      if (op === "remove_bg") {
-                        runQuickRemoveBg();
-                        return;
-                      }
+                );
+              })}
+            </div>
+            
+            {!photoDone && !batchProcessing && allPhotos.length > 0 && (
+              <div className="space-y-2">
+                <Button
+                  className="w-full h-12 font-semibold text-sm gap-2"
+                  onClick={runBatchRemoveBg}
+                >
+                  <Eraser className="w-4 h-4" />
+                  Remove Background — All {allPhotos.length} Photo{allPhotos.length > 1 ? "s" : ""}
+                  <Badge variant="secondary" className="text-[10px] ml-1">{allPhotos.length} credit{allPhotos.length > 1 ? "s" : ""}</Badge>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="w-full h-11 font-semibold text-sm"
+                  onClick={() => {
+                    if (createdItem) {
+                      hasNavigatedToPhotoStudioRef.current = true;
                       sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
                       sessionStorage.setItem("sell_wizard_step", "2");
-                      hasNavigatedToPhotoStudioRef.current = true;
-                      navigate(`/vintography?op=${op}&itemId=${createdItem.id}&returnTo=/sell`);
-                    }}
-                  >
-                    <div className="flex items-center gap-1.5 mb-1">
-                      {op === "remove_bg" && quickBgProcessing ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                      ) : (
-                        <Icon className={`w-4 h-4 ${locked ? "text-muted-foreground" : "text-primary"}`} />
-                      )}
-                      {locked && <Lock className="w-3 h-3 text-muted-foreground" />}
-                    </div>
-                    <p className={`text-[11px] font-semibold leading-tight ${locked ? "text-muted-foreground" : "text-foreground"}`}>{label}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[9px] text-muted-foreground">{cost} credit{cost > 1 ? "s" : ""}</span>
-                      {locked && (
-                        <Badge variant="outline" className="text-[8px] py-0 px-1 h-3.5 font-bold">Starter</Badge>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                      navigate(`/vintography?itemId=${createdItem.id}&returnTo=/sell`);
+                    }
+                  }}
+                >
+                  <ImageIcon className="w-4 h-4 mr-2" /> Open Full Photo Studio
+                </Button>
+                
+                <Button variant="ghost" size="sm" className="w-full text-muted-foreground text-xs" onClick={skipPhotos}>
+                  Skip for now
+                </Button>
               </div>
-            </div>
-          )}
-
-
-
-          <Button
-            className="w-full h-11 lg:h-12 font-semibold"
-            onClick={() => {
-              if (createdItem) {
-                hasNavigatedToPhotoStudioRef.current = true;
-                sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
-                sessionStorage.setItem("sell_wizard_step", "2");
-                navigate(`/vintography?itemId=${createdItem.id}&image_url=${encodeURIComponent(createdItem.image_url || "")}&returnTo=/sell`);
-              }
-            }}
-          >
-            <ImageIcon className="w-4 h-4 mr-2" /> Open Full Photo Studio
-          </Button>
-          <Button variant="ghost" size="sm" className="w-full text-muted-foreground text-xs" onClick={skipPhotos}>
-            Skip for now
-          </Button>
-        </div>
-      )}
+            )}
+            
+            {batchProcessing && (
+              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-2">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">Processing photos…</p>
+                    <p className="text-[11px] text-muted-foreground">{batchProgress.done} of {batchProgress.total} complete</p>
+                  </div>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-border overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${batchProgress.total > 0 ? (batchProgress.done / batchProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {photoPolling && (
         <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 flex items-center gap-3">
@@ -1364,9 +1411,6 @@ export default function SellWizard() {
           </Button>
         </div>
       )}
-
-
-
 
       {photoDone && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
