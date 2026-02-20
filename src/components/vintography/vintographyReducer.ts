@@ -132,6 +132,7 @@ export function vintographyReducer(
     case "RESULT_READY_FLASH":
       return { ...state, resultReady: false };
     case "RESET_ALL":
+      clearSession();
       return { ...initialState };
     default:
       return state;
@@ -220,4 +221,44 @@ export function getAvailableOpsToAdd(pipeline: PipelineStep[]): Operation[] {
     if (hasAiModel && op !== "enhance" && op !== "decrease") return false;
     return true;
   });
+}
+
+// ─── Session persistence ───
+const STORAGE_KEY = "vintography_session";
+
+export function saveSession(state: VintographyState): void {
+  try {
+    const toSave = {
+      originalPhotoUrl: state.originalPhotoUrl,
+      resultPhotoUrl: state.resultPhotoUrl,
+      pipeline: state.pipeline,
+      activePipelineIndex: state.activePipelineIndex,
+      itemPhotos: state.itemPhotos,
+      photoEditStates: state.photoEditStates,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  } catch { /* ignore */ }
+}
+
+export function loadSession(): VintographyState {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return initialState;
+    const saved = JSON.parse(raw);
+    return {
+      ...initialState,
+      originalPhotoUrl: saved.originalPhotoUrl ?? null,
+      resultPhotoUrl: saved.resultPhotoUrl ?? null,
+      pipeline: saved.pipeline ?? initialState.pipeline,
+      activePipelineIndex: saved.activePipelineIndex ?? 0,
+      itemPhotos: saved.itemPhotos ?? [],
+      photoEditStates: saved.photoEditStates ?? {},
+    };
+  } catch {
+    return initialState;
+  }
+}
+
+function clearSession(): void {
+  try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
 }

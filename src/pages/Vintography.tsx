@@ -51,6 +51,8 @@ import {
   buildApiParams,
   defaultParams,
   PipelineStep,
+  saveSession,
+  loadSession,
 } from "@/components/vintography/vintographyReducer";
 
 export default function Vintography() {
@@ -68,7 +70,17 @@ export default function Vintography() {
   const resultRef = useRef<HTMLDivElement>(null);
   const itemId = searchParams.get("itemId");
 
-  const [state, dispatch] = useReducer(vintographyReducer, initialState);
+  const [state, rawDispatch] = useReducer(vintographyReducer, undefined, loadSession);
+  const dispatch = useCallback((action: Parameters<typeof rawDispatch>[0]) => {
+    rawDispatch(action);
+  }, []);
+
+  // Persist state to sessionStorage whenever it changes
+  useEffect(() => {
+    if (state.originalPhotoUrl) {
+      saveSession(state);
+    }
+  }, [state]);
 
   // Non-pipeline UI state
   const [garmentContext, setGarmentContext] = useState("");
@@ -149,6 +161,10 @@ export default function Vintography() {
   // ─── Load item photos on mount / param change ───
   useEffect(() => {
     if (!user) return;
+    // Skip fetch if we already have photos loaded (restored from session)
+    if (state.originalPhotoUrl && state.itemPhotos.length > 0 && !searchParams.get("image_url")) {
+      return;
+    }
     const imageUrl = searchParams.get("image_url");
     const paramItemId = searchParams.get("itemId");
 
