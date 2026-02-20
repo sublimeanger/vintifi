@@ -1133,13 +1133,21 @@ export default function SellWizard() {
             <div className="grid grid-cols-3 gap-2">
               {photoUrls.map((url, i) => (
                 <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={url}
+                    alt=""
+                    className="w-full h-full object-cover cursor-pointer active:scale-[0.97] transition-transform"
+                    onClick={() => openLightbox(photoUrls, i)}
+                  />
                   <button
                     onClick={() => removePhoto(i)}
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-background/80 flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                    className="absolute top-1 right-1 w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-background/90 backdrop-blur-sm shadow-sm flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   </button>
+                  <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] font-bold text-muted-foreground border border-border/60">
+                    {i + 1}
+                  </div>
                 </div>
               ))}
               {photoUrls.length < 5 && (
@@ -1154,10 +1162,12 @@ export default function SellWizard() {
           ) : (
             <Card
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-primary/20 hover:border-primary/40 cursor-pointer p-8 text-center transition-colors"
+              className="border-2 border-dashed border-primary/20 hover:border-primary/40 cursor-pointer p-8 text-center transition-colors active:scale-[0.97]"
             >
-              <Upload className="w-8 h-8 text-primary/50 mx-auto mb-2" />
-              <p className="text-sm font-medium">Tap to upload photos</p>
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Camera className="w-7 h-7 text-primary/60" />
+              </div>
+              <p className="text-sm font-semibold">Tap to upload photos</p>
               <p className="text-xs text-muted-foreground mt-1">JPG, PNG · Max 10MB · Up to 5</p>
             </Card>
           )}
