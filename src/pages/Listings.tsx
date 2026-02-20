@@ -607,33 +607,35 @@ export default function Listings() {
       )}
 
       {/* Search & Filter Bar */}
-      <div className="flex gap-1.5 sm:gap-3 mb-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search..."
-            className="pl-8 h-10 text-sm rounded-xl"
-          />
+      <div className="sticky top-[52px] lg:top-0 z-20 bg-background/95 backdrop-blur-xl -mx-3 sm:-mx-4 lg:-mx-6 px-3 sm:px-4 lg:px-6 py-2 mb-3 border-b border-border/40">
+        <div className="flex gap-1.5 sm:gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search..."
+              className="pl-8 h-10 text-sm rounded-xl"
+            />
+          </div>
+          <Button
+            variant={showFilters || activeFilterCount > 0 ? "default" : "outline"}
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-xl relative"
+            onClick={() => setShowFilters((v) => !v)}
+            title="Filter and sort"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[9px] text-primary-foreground flex items-center justify-center font-bold">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          <Button variant="outline" size="icon" onClick={fetchListings} className="h-10 w-10 shrink-0 rounded-xl">
+            <RefreshCw className="w-3.5 h-3.5" />
+          </Button>
         </div>
-        <Button
-          variant={showFilters || activeFilterCount > 0 ? "default" : "outline"}
-          size="icon"
-          className="h-10 w-10 shrink-0 rounded-xl relative"
-          onClick={() => setShowFilters((v) => !v)}
-          title="Filter and sort"
-        >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-          {activeFilterCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[9px] text-primary-foreground flex items-center justify-center font-bold">
-              {activeFilterCount}
-            </span>
-          )}
-        </Button>
-        <Button variant="outline" size="icon" onClick={fetchListings} className="h-10 w-10 shrink-0 rounded-xl">
-          <RefreshCw className="w-3.5 h-3.5" />
-        </Button>
       </div>
 
       {/* Filter Panel */}
@@ -799,20 +801,20 @@ export default function Listings() {
       {loading ? (
         <ListingCardSkeleton count={5} />
       ) : filteredListings.length === 0 ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-10 sm:py-16">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-3">
-            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground/40" />
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12 sm:py-20">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-primary/10 via-accent/5 to-muted/30 flex items-center justify-center mx-auto mb-4">
+            <Package className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/40" />
           </div>
-          <h3 className="font-display font-bold text-sm sm:text-lg mb-1">
+          <h3 className="font-display font-bold text-xl sm:text-2xl mb-1.5">
             {listings.length === 0 ? "No listings yet" : "No matching listings"}
           </h3>
-          <p className="text-xs text-muted-foreground mb-5">
+          <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
             {listings.length === 0
-              ? "Add your first listing to start tracking"
+              ? "Start selling in under 2 minutes"
               : "Try adjusting your search or filters"}
           </p>
           {listings.length === 0 && (
-            <Button onClick={() => setAddDialogOpen(true)} className="font-semibold h-11 sm:h-10 rounded-xl active:scale-95 transition-transform">
+            <Button onClick={() => setAddDialogOpen(true)} className="font-bold h-12 rounded-xl shadow-coral active:scale-[0.97] transition-transform">
               <Plus className="w-4 h-4 mr-2" /> Add Your First Listing
             </Button>
           )}
@@ -862,9 +864,9 @@ export default function Listings() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ delay: i * 0.03 }}
                 >
-                  <Card className={`overflow-hidden transition-all rounded-xl ${
+                  <Card className={`overflow-hidden transition-all duration-200 rounded-xl ${
                     isSold ? "border-primary/20 bg-primary/[0.01]" : isDeadStock ? "border-destructive/30 bg-destructive/[0.01]" : ""
-                  } hover:shadow-md`}>
+                  } hover:shadow-md hover:scale-[1.005]`}>
                     <div
                       className="p-2 sm:p-4 cursor-pointer active:bg-muted/20 transition-colors touch-card"
                       onClick={(e) => {
@@ -883,9 +885,9 @@ export default function Listings() {
                           />
                         </div>
                         {/* Image */}
-                        <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
                           {listing.image_url ? (
-                            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
+                            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-xl" />
                           ) : (
                             <Package className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground/40" />
                           )}
