@@ -147,7 +147,7 @@ export default function PriceCheck() {
       toast.error("Enter at least a brand or category"); return;
     }
 
-    const isUnlimited = (profile as any)?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+    const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
     if (!isUnlimited && credits) {
       const totalUsed = credits.price_checks_used + credits.optimizations_used + credits.vintography_used;
       if (totalUsed >= credits.credits_limit) {
@@ -210,7 +210,7 @@ export default function PriceCheck() {
       }
 
       toast.success("Price analysis complete!");
-      const isUnlimitedAfter = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+      const isUnlimitedAfter = (credits?.credits_limit ?? 0) >= 999999;
       if (!isUnlimitedAfter) toast("−1 credit used", { duration: 2000 });
 
       // Milestone: first price check ever
@@ -296,7 +296,7 @@ export default function PriceCheck() {
   return (
     <PageShell
       title="Price Intelligence"
-      subtitle={credits ? (((profile as any)?.subscription_tier === "scale" || credits.credits_limit >= 999) ? "Unlimited checks" : `${credits.credits_limit - (credits.price_checks_used + credits.optimizations_used + credits.vintography_used)} credits remaining`) : ""}
+      subtitle={credits ? ((credits.credits_limit >= 999999) ? "Unlimited checks" : `${Math.max(0, credits.credits_limit - (credits.price_checks_used + credits.optimizations_used + credits.vintography_used))} credits remaining`) : ""}
       maxWidth="max-w-4xl"
     >
 
