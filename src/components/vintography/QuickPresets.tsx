@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Zap, ShoppingBag, Crown, Palmtree, Ghost, Layers, ChevronLeft, ChevronRight, Star, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Operation, OP_LABEL, OP_MAP } from "./vintographyReducer";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -165,7 +166,10 @@ export function QuickPresets({ onSelect, onLockedTap, disabled, userTier, savedP
                 </div>
                 <p className="font-semibold text-xs truncate">{sp.name}</p>
                 <p className="text-[10px] text-muted-foreground truncate">
-                  {sp.pipeline.map((s) => s.operation).join(" → ")}
+                  {sp.pipeline.map((s) => {
+                    const internalKey = Object.entries(OP_MAP).find(([, v]) => v === s.operation)?.[0] as Operation | undefined;
+                    return internalKey ? OP_LABEL[internalKey] : (OP_LABEL[s.operation as Operation] || s.operation);
+                  }).join(" → ")}
                 </p>
               </Card>
             ))}

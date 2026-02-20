@@ -82,6 +82,7 @@ export default function Vintography() {
   const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
+  const [galleryLimit, setGalleryLimit] = useState(20);
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
@@ -221,10 +222,10 @@ export default function Vintography() {
         .select("id, original_url, processed_url, operation, status, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(galleryLimit);
       setGallery((data as VintographyJob[]) || []);
     } catch {} finally { setGalleryLoading(false); }
-  }, [user]);
+  }, [user, galleryLimit]);
 
   useEffect(() => { fetchGallery(); }, [fetchGallery]);
 
@@ -1085,21 +1086,32 @@ export default function Vintography() {
             ) : gallery.length === 0 ? (
               <p className="text-sm text-muted-foreground">No edits yet. Upload a photo and transform it above.</p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {gallery.map((job) => (
-                  <GalleryCard
-                    key={job.id}
-                    job={job}
-                    opLabel={opLabel(job.operation)}
-                    onRestore={(j) => {
-                      dispatch({ type: "SET_ORIGINAL_PHOTO", url: j.original_url });
-                      dispatch({ type: "SET_RESULT_PHOTO", url: j.processed_url || j.original_url });
-                    }}
-                    onDelete={handleDeleteJob}
-                    onUseAsInput={handleUseAsInput}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {gallery.map((job) => (
+                    <GalleryCard
+                      key={job.id}
+                      job={job}
+                      opLabel={opLabel(job.operation)}
+                      onRestore={(j) => {
+                        dispatch({ type: "SET_ORIGINAL_PHOTO", url: j.original_url });
+                        dispatch({ type: "SET_RESULT_PHOTO", url: j.processed_url || j.original_url });
+                      }}
+                      onDelete={handleDeleteJob}
+                      onUseAsInput={handleUseAsInput}
+                    />
+                  ))}
+                </div>
+                {gallery.length >= galleryLimit && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setGalleryLimit(prev => prev + 20)}
+                    className="w-full text-sm text-muted-foreground"
+                  >
+                    Load more edits
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>

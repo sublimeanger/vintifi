@@ -59,7 +59,7 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
     >
       <Card className="overflow-hidden">
         <div
-          className="relative aspect-square bg-muted/30"
+          className="relative aspect-[4/5] bg-muted/30"
           onMouseEnter={() => hasBeforeAfter && setShowProcessed(false)}
           onMouseLeave={() => setShowProcessed(true)}
           onClick={handleTap}
