@@ -414,10 +414,10 @@ export function ComparisonView({
           </div>
         ) : (
           <div style={{ ...transformStyle, width: "100%", height: "100%" }}>
-            <img src={originalUrl} alt="Original" className="absolute inset-0 w-full h-full object-contain bg-muted/30" draggable={false} />
+            <img src={processedUrl || originalUrl} alt={resultLabel || "Enhanced"} className="absolute inset-0 w-full h-full object-contain bg-background" draggable={false} />
             {processedUrl && (
               <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - clipPercent}% 0 0)` }}>
-                <img src={processedUrl} alt="Processed" className="w-full h-full object-contain bg-background" draggable={false} />
+                <img src={originalUrl} alt="Original" className="w-full h-full object-contain bg-muted/30" draggable={false} />
               </div>
             )}
             {processedUrl && (
@@ -447,14 +447,14 @@ export function ComparisonView({
                 </div>
               </div>
             )}
-            <div className="absolute top-3 left-3 z-10">
-              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-black/70 text-white backdrop-blur-sm border-0">Original</Badge>
-            </div>
             {processedUrl && (
-              <div className="absolute top-3 right-3 z-10">
+              <div className="absolute top-3 left-3 z-10">
                 <Badge className="text-[10px] px-2 py-0.5 bg-primary/90 backdrop-blur-sm">{resultLabel || "Enhanced"}</Badge>
               </div>
             )}
+            <div className="absolute top-3 right-3 z-10">
+              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-black/70 text-white backdrop-blur-sm border-0">Original</Badge>
+            </div>
           </div>
         )}
 
