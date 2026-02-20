@@ -431,7 +431,7 @@ export default function Vintography() {
   return (
     <PageShell title="Photo Studio" maxWidth="3xl">
       {/* Credit bar */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border -mx-4 px-4 py-2.5 lg:-mx-6 lg:px-6">
+      <div className="sticky top-[52px] lg:top-0 z-30 bg-background/90 backdrop-blur-xl border-b border-border/40 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2.5 lg:-mx-6 lg:px-6">
         <div className="flex items-center justify-between">
           <CreditBar used={totalUsed} limit={credits?.credits_limit ?? 5} unlimited={unlimited} loading={!credits} />
           <Button
@@ -512,17 +512,28 @@ export default function Vintography() {
                 {isProcessing && (
                   <div className="absolute inset-0 z-10 bg-background/70 backdrop-blur-[6px] flex flex-col items-center justify-center gap-3">
                     <motion.div
+                      className="absolute inset-0 rounded-2xl ring-2 ring-primary/40 pointer-events-none"
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <motion.div
                       animate={{ scale: [1, 1.08, 1], rotate: [0, 4, -4, 0] }}
                       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                     >
                       <Sparkles className="w-8 h-8 text-primary" />
                     </motion.div>
-                    <p className="text-sm font-semibold text-foreground">Transforming your photo…</p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedOp === "remove_bg" || selectedOp === "studio_shadow"
-                        ? "~3 seconds"
-                        : "~10–15 seconds"}
-                    </p>
+                    <AnimatePresence mode="wait">
+                      <motion.p
+                        key={processingElapsed < 5 ? "analysing" : processingElapsed < 12 ? "generating" : "finalising"}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="text-sm font-semibold text-foreground"
+                      >
+                        {processingElapsed < 5 ? "Analysing…" : processingElapsed < 12 ? "Generating…" : "Finalising…"}
+                      </motion.p>
+                    </AnimatePresence>
+                    <p className="text-xs text-muted-foreground tabular-nums">{processingElapsed}s</p>
                     {processingElapsed >= 30 && (
                       <p className="text-xs text-muted-foreground/80 animate-fade-in">Still working on this one…</p>
                     )}
@@ -554,18 +565,18 @@ export default function Vintography() {
               </div>
             ) : (
               <label
-                className="flex flex-col items-center justify-center gap-4 p-8 lg:p-12 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-primary/[0.02] cursor-pointer transition-colors text-center"
+                className="flex flex-col items-center justify-center gap-4 p-8 lg:p-12 rounded-2xl border-2 border-dashed border-primary/30 hover:border-primary/60 bg-muted/10 hover:bg-primary/[0.03] cursor-pointer transition-all text-center min-h-[200px] lg:min-h-[260px]"
                 role="button"
                 tabIndex={0}
                 aria-label="Upload a photo"
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
               >
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Camera className="w-7 h-7 text-primary" />
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center float-animation">
+                  <Upload className="w-7 h-7 text-primary" />
                 </div>
                 <div>
-                  <p className="text-base font-bold text-foreground">Upload a photo to get started</p>
-                  <p className="text-xs text-muted-foreground mt-1">Drag & drop, paste, or tap to upload</p>
+                  <p className="text-base font-bold text-foreground">Drop your photo here</p>
+                  <p className="text-xs text-muted-foreground mt-1">or tap to upload · paste from clipboard</p>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -601,7 +612,7 @@ export default function Vintography() {
         {!resultPhoto && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Choose Effect</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5" role="radiogroup" aria-label="Photo effects">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3" role="radiogroup" aria-label="Photo effects">
               {(Object.entries(PHOTO_OPERATIONS) as [PhotoOperation, typeof PHOTO_OPERATIONS[PhotoOperation]][]).map(([key, op]) => {
                 const Icon = ICON_MAP[op.icon] || Sparkles;
                 const isLocked = !isAtLeastTier(userTier, op.tier);
@@ -617,7 +628,7 @@ export default function Vintography() {
                     tabIndex={isDisabled ? -1 : 0}
                     onClick={() => !isDisabled && handleSelectOp(key)}
                     onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isDisabled) { e.preventDefault(); handleSelectOp(key); } }}
-                    className={`relative p-3.5 cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                    className={`relative p-3.5 cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 overflow-hidden ${
                       isSelected
                         ? "border-primary bg-primary/[0.04] shadow-sm ring-1 ring-primary/20"
                         : isLocked
@@ -627,8 +638,9 @@ export default function Vintography() {
                         : "hover:border-primary/30 hover:shadow-sm"
                     }`}
                   >
+                    {isSelected && <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-accent to-primary" />}
                     <div className="flex items-start justify-between mb-2">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                         isSelected ? "bg-primary/15" : "bg-muted"
                       }`}>
                         {isLocked ? (
@@ -740,10 +752,10 @@ export default function Vintography() {
 
       {/* Mobile sticky process button */}
       {!resultPhoto && selectedOp && selectedPhoto && (
-        <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 p-3 bg-background/95 backdrop-blur-sm border-t border-border lg:hidden">
+        <div className="fixed bottom-20 left-3 right-3 z-40 lg:hidden">
           <Button
             size="lg"
-            className="w-full h-12 text-sm font-semibold"
+            className={`w-full h-13 rounded-2xl font-bold text-sm shadow-coral active:scale-[0.97] transition-all ${canProcess && !resultPhoto ? "animate-[glow-pulse_2s_ease-in-out_infinite]" : ""}`}
             disabled={!canProcess}
             onClick={handleProcess}
             aria-busy={isProcessing}
