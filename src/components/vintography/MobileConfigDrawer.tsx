@@ -21,10 +21,24 @@ export function MobileConfigDrawer({
   children, canProcess, isProcessing, onProcess,
 }: MobileConfigDrawerProps) {
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
-    }
+    if (!open) return;
+
+    // Prevent body scroll and iOS rubber-banding
+    const scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.overflow = "";
+      window.scrollTo(0, scrollY);
+    };
   }, [open]);
 
   return (
@@ -89,7 +103,7 @@ export function MobileConfigDrawer({
             <div className="h-px bg-border mx-4" />
 
             {/* Config content (children) */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 overscroll-contain">
+            <div className="flex-1 overflow-y-auto px-4 py-4 overscroll-contain touch-pan-y">
               {children}
             </div>
 
