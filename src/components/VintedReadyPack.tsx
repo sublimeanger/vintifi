@@ -49,15 +49,17 @@ function extractHashtags(description: string): { cleanDescription: string; hasht
 }
 
 function getAllImages(item: Listing): string[] {
-  const all: string[] = [];
-  if (item.image_url) all.push(item.image_url);
+  const fromArray: string[] = [];
   if (Array.isArray(item.images)) {
     for (const img of item.images as any[]) {
       const u = typeof img === "string" ? img : img?.url;
-      if (u && !all.includes(u)) all.push(u);
+      if (u && u.startsWith("http") && !fromArray.includes(u)) fromArray.push(u);
     }
   }
-  return all;
+  if (fromArray.length === 0 && item.image_url) {
+    return [item.image_url];
+  }
+  return fromArray;
 }
 
 const stagger = {
