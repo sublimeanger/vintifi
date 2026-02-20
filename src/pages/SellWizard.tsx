@@ -1731,11 +1731,11 @@ export default function SellWizard() {
                 {pendingEffect && !batchProcessing && (
                   <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                         <Sparkles className="w-5 h-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold">Ready to enhance {selectedCount} photo{selectedCount !== 1 ? "s" : ""}?</p>
+                        <p className="text-[15px] font-bold">Ready to enhance {selectedCount} photo{selectedCount !== 1 ? "s" : ""}?</p>
                         <p className="text-[11px] text-muted-foreground">
                           {pendingEffect.label} · {selectedCount * pendingEffect.creditsPer} credit{selectedCount * pendingEffect.creditsPer !== 1 ? "s" : ""} will be used
                         </p>
@@ -1744,19 +1744,18 @@ export default function SellWizard() {
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="flex-1"
+                        className="flex-1 h-12 font-semibold text-[15px]"
                         onClick={() => setPendingEffect(null)}
                       >
                         Cancel
                       </Button>
                       <Button
-                        size="sm"
-                        className="flex-1 font-semibold"
+                        className="flex-1 h-12 font-bold text-[15px]"
                         onClick={() => {
                           const op = pendingEffect.op;
                           setPendingEffect(null);
                           runBatchEffect(op);
+                          setTimeout(() => scrollToTop(), 300);
                         }}
                       >
                         Enhance {selectedCount} photo{selectedCount !== 1 ? "s" : ""}
@@ -1854,19 +1853,20 @@ export default function SellWizard() {
           {/* Continue to Step 3 */}
           <button
             data-continue-to-optimise
-            className="w-full rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent p-4 text-left transition-all hover:border-primary/50 hover:shadow-sm active:scale-[0.98] flex items-center gap-3.5"
+            className="w-full rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent p-4 text-left transition-all hover:border-primary/50 hover:shadow-sm active:scale-[0.98] flex items-center gap-3.5 cta-breathe"
             onClick={() => {
+              setStepStatus((s) => ({ ...s, 2: "done" }));
               setDirection(1);
               setCurrentStep(3);
               scrollToTop();
             }}
           >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <ArrowRight className="w-5 h-5 text-primary" />
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <ArrowRight className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-bold">Continue to Optimise</p>
-              <p className="text-[11px] text-muted-foreground">AI will improve your title and description next</p>
+              <p className="text-[15px] font-bold">Continue to Optimise</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">AI will improve your title and description next</p>
             </div>
           </button>
 
