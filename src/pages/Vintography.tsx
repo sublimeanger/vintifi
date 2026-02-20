@@ -692,12 +692,16 @@ export default function Vintography() {
                           key={s.op}
                           className="w-full rounded-xl border border-border bg-card p-3.5 sm:p-3 min-h-[52px] text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-sm flex items-center gap-3"
                           onClick={() => {
+                            // Set the result as the new input photo
+                            setPhotoLoading(true);
                             setSelectedPhoto(resultPhoto);
                             setResultPhoto(null);
-                            setSelectedOp(s.op);
                             setOpParams({});
                             clearSession();
+                            // Scroll to top first so user sees the photo
                             window.scrollTo({ top: 0, behavior: "smooth" });
+                            // Use handleSelectOp so mobile auto-scrolls to config panel
+                            setTimeout(() => handleSelectOp(s.op), 100);
                           }}
                         >
                           <div className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">

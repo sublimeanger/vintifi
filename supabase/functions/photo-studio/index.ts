@@ -97,6 +97,85 @@ async function callPhotoroom(
   return { bytes, contentType };
 }
 
+// ── Image compression for Fashn (max 25MB) ──────────────────────────
+const FASHN_MAX_BYTES = 25 * 1024 * 1024; // 25MB
+
+async function ensureImageUnderLimit(
+  imageUrl: string,
+  userId: string,
+  admin: ReturnType<typeof createClient>,
+): Promise<string> {
+  // Check image size via HEAD request
+  try {
+    const headRes = await fetch(imageUrl, { method: "HEAD" });
+    const contentLength = parseInt(headRes.headers.get("content-length") || "0", 10);
+    if (contentLength > 0 && contentLength < FASHN_MAX_BYTES) {
+      return imageUrl; // Already under limit
+    }
+  } catch {
+    // If HEAD fails, proceed with download + compress anyway
+  }
+
+  // Download and re-encode as JPEG to reduce size
+  const imgRes = await fetch(imageUrl);
+  if (!imgRes.ok) throw new Error("Failed to fetch image for compression");
+  const originalBytes = new Uint8Array(await imgRes.arrayBuffer());
+  
+  if (originalBytes.length < FASHN_MAX_BYTES) {
+    return imageUrl; // Under limit after all
+  }
+
+  console.log(`[photo-studio] Image too large for Fashn (${(originalBytes.length / 1024 / 1024).toFixed(1)}MB), re-encoding as JPEG`);
+
+  // Use Photoroom's segment endpoint to get a compressed version
+  // Or simply re-upload as-is but with JPEG conversion via canvas isn't available in Deno
+  // Best approach: re-upload the image bytes as JPEG with reduced quality
+  // Since we can't do canvas in Deno, upload the original and let Fashn deal with it
+  // Actually, we need to convert PNG to JPEG — use a simple approach: 
+  // re-upload as the same format but store a compressed reference
+  
+  // For PNGs from Photoroom, the simplest fix is to fetch, convert to JPEG via an external service
+  // or just pass the original pre-removal image. But the best UX is to compress.
+  // In Deno we can use the image as-is but need to make it smaller.
+  
+  // Approach: Re-upload the bytes as-is with upsert — Fashn will need a smaller image
+  // Since we can't do image processing in Deno easily, the pragmatic fix is:
+  // Use Photoroom to re-process and get a JPEG output
+  const photoroomKey = Deno.env.get("PHOTOROOM_API_KEY");
+  if (photoroomKey) {
+    const form = new FormData();
+    form.append("image_file", new Blob([originalBytes]), "image.png");
+    form.append("format", "jpg");
+    form.append("quality", "85");
+    
+    const prRes = await fetch("https://sdk.photoroom.com/v1/segment", {
+      method: "POST",
+      headers: { "x-api-key": photoroomKey },
+      body: form,
+    });
+
+    if (prRes.ok) {
+      const compressedBytes = new Uint8Array(await prRes.arrayBuffer());
+      console.log(`[photo-studio] Compressed to ${(compressedBytes.length / 1024 / 1024).toFixed(1)}MB`);
+      
+      // Upload compressed version
+      const compressedPath = `${userId}/compressed_${Date.now()}.jpg`;
+      const { error: upErr } = await admin.storage.from("vintography").upload(compressedPath, compressedBytes, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+      
+      if (!upErr) {
+        const { data: pubData } = admin.storage.from("vintography").getPublicUrl(compressedPath);
+        return pubData.publicUrl;
+      }
+    }
+  }
+  
+  // Fallback: return original URL and let Fashn error naturally
+  return imageUrl;
+}
+
 // ── Fashn calls ──────────────────────────────────────────────────────
 async function callFashn(
   operation: string,
@@ -104,7 +183,13 @@ async function callFashn(
   selfieUrl: string | undefined,
   parameters: Record<string, string>,
   apiKey: string,
+  userId: string,
+  admin: ReturnType<typeof createClient>,
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
+  // Ensure image is under Fashn's size limit
+  const safeImageUrl = await ensureImageUnderLimit(imageUrl, userId, admin);
+  const safeSelfieUrl = selfieUrl ? await ensureImageUnderLimit(selfieUrl, userId, admin) : undefined;
+
   const gender = parameters?.gender || "female";
   const ethnicity = parameters?.ethnicity || "";
   const pose = parameters?.pose || "";
@@ -127,7 +212,7 @@ async function callFashn(
     body = {
       model_name: "product-to-model",
       inputs: {
-        product_image: imageUrl,
+        product_image: safeImageUrl,
         prompt: buildPrompt(),
         aspect_ratio: "3:4",
         output_format: "png",
@@ -135,12 +220,12 @@ async function callFashn(
     };
   } else if (operation === "virtual_tryon") {
     // Virtual Try-On: user's selfie + garment image
-    if (!selfieUrl) throw new Error("selfie_url is required for virtual try-on");
+    if (!safeSelfieUrl) throw new Error("selfie_url is required for virtual try-on");
     body = {
       model_name: "tryon-v1.6",
       inputs: {
-        model_image: selfieUrl,
-        garment_image: imageUrl,
+        model_image: safeSelfieUrl,
+        garment_image: safeImageUrl,
         category: "auto",
         mode: "quality",
       },
@@ -151,7 +236,7 @@ async function callFashn(
     body = {
       model_name: "model-swap",
       inputs: {
-        model_image: imageUrl,
+        model_image: safeImageUrl,
         prompt: buildPrompt(),
       },
     };
@@ -344,7 +429,7 @@ serve(async (req) => {
         resultBytes = result.bytes;
         resultContentType = result.contentType;
       } else {
-        const result = await callFashn(operation, image_url, selfie_url, parameters, fashnKey!);
+        const result = await callFashn(operation, image_url, selfie_url, parameters, fashnKey!, user.id, admin);
         resultBytes = result.bytes;
         resultContentType = result.contentType;
       }
