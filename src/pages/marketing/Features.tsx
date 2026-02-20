@@ -218,7 +218,7 @@ const features = [
     id: "arbitrage",
     title: "Arbitrage Scanner",
     headline: "Buy low elsewhere, sell high on Vinted",
-    desc1: "Our cross-platform scanner identifies items listed significantly below their Vinted market value on eBay and other platforms. Every opportunity includes estimated profit after fees, shipping, and time costs. Available on Business and Scale plans.",
+    desc1: "Our cross-platform scanner identifies items listed significantly below their Vinted market value on eBay and other platforms. Every opportunity includes estimated profit after fees, shipping, and time costs. Available on Business plans.",
     desc2: "The Retail Clearance Radar monitors major outlet sites and cross-references sale prices against Vinted resale values. When margins exceed your threshold, you get sourcing alerts with everything you need to act fast.",
     callout: "A single profitable arbitrage find can pay for months of Vintifi. The scanner runs automatically — you just act on the alerts.",
     stat: "Cross-platform",
@@ -243,7 +243,7 @@ const features = [
             </div>
           </div>
         </div>
-        <div className="text-[10px] text-muted-foreground text-center">Business & Scale plans · Runs automatically</div>
+        <div className="text-[10px] text-muted-foreground text-center">Business plan · Runs automatically</div>
       </div>
     ),
   },

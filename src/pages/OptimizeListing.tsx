@@ -144,7 +144,7 @@ export default function OptimizeListing() {
       setResult(data as OptimiseResult);
       refreshCredits();
       toast.success("Listing optimised!");
-      const isUnlimited = profile?.subscription_tier === "scale" || (credits?.credits_limit ?? 0) >= 999;
+      const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
       if (!isUnlimited) toast("−1 credit used", { duration: 2000 });
 
       // Milestone: first AI optimisation ever

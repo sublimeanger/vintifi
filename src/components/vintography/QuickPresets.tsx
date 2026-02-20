@@ -44,7 +44,7 @@ export const presets: Preset[] = [
       { operation: "smart_bg", parameters: { bg_style: "wooden_floor" } },
       { operation: "enhance" },
     ],
-    tier: "Pro",
+    tier: "Starter",
   },
   {
     id: "premium_listing",
@@ -66,7 +66,7 @@ export const presets: Preset[] = [
       { operation: "mannequin_shot", parameters: { mannequin_type: "ghost", lighting_style: "soft_studio", model_bg: "studio" } },
       { operation: "remove_bg" },
     ],
-    tier: "Pro",
+    tier: "Starter",
   },
   {
     id: "full_studio",
@@ -78,7 +78,7 @@ export const presets: Preset[] = [
       { operation: "smart_bg", parameters: { bg_style: "studio" } },
       { operation: "enhance" },
     ],
-    tier: "Business",
+    tier: "Starter",
   },
 ];
 
@@ -96,7 +96,7 @@ export function QuickPresets({ onSelect, onLockedTap, disabled, userTier, savedP
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedScrollRef = useRef<HTMLDivElement>(null);
 
-  const TIER_ORDER: Record<string, number> = { free: 0, pro: 1, business: 2, scale: 3 };
+  const TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3 };
   const userLevel = TIER_ORDER[userTier] ?? 0;
   const isLocked = (preset: Preset): boolean => {
     const requiredLevel = TIER_ORDER[preset.tier.toLowerCase()] ?? 0;

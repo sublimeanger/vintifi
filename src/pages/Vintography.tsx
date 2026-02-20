@@ -153,7 +153,7 @@ export default function Vintography() {
     ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used
     : 0;
   const creditsLimit = credits?.credits_limit ?? 5;
-  const isUnlimited = (profile as any)?.subscription_tier === "scale" || creditsLimit >= 999;
+  const isUnlimited = creditsLimit >= 999999;
   const creditsRemaining = Math.max(0, creditsLimit - totalUsed);
   const creditsLow = !isUnlimited && creditsRemaining <= 5;
 
@@ -1285,7 +1285,7 @@ export default function Vintography() {
       <UpgradeModal
         open={activeLockedGate !== null}
         onClose={() => setActiveLockedGate(null)}
-        tierRequired={activeLockedGate === "ai_model" ? "business" : "pro"}
+        tierRequired={activeLockedGate === "ai_model" ? "business" : "starter"}
         reason={
           activeLockedGate === "ai_model"
             ? aiModelGate.reason
