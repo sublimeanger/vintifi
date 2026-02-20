@@ -591,16 +591,16 @@ export default function Vintography() {
                 currentVariation={0}
                 onVariationChange={() => {}}
               />
-              <div className="flex gap-2 mt-3">
-                <Button size="sm" variant="outline" onClick={handleDownload} className="flex-1">
+              <div className="flex flex-wrap gap-2 mt-3">
+                <Button variant="outline" onClick={handleDownload} className="flex-1 h-11 sm:h-9 text-sm font-semibold rounded-xl active:scale-[0.97] transition-transform">
                   <Download className="w-4 h-4 mr-1.5" /> Download
                 </Button>
                 {effectiveItemId && (
-                  <Button size="sm" onClick={handleSaveToItem} className="flex-1">
+                  <Button onClick={handleSaveToItem} className="flex-1 h-11 sm:h-9 text-sm font-bold rounded-xl active:scale-[0.97] transition-transform">
                     Save to Listing
                   </Button>
                 )}
-                <Button size="sm" variant="ghost" onClick={handleEditAgain}>
+                <Button variant="ghost" onClick={handleEditAgain} className="h-11 sm:h-9 text-sm rounded-xl active:scale-[0.97] transition-transform">
                   <RefreshCw className="w-4 h-4 mr-1.5" /> Edit Again
                 </Button>
               </div>
@@ -645,7 +645,7 @@ export default function Vintography() {
                       {available.map((s) => (
                         <button
                           key={s.op}
-                          className="w-full rounded-xl border border-border bg-card p-3 text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-sm flex items-center gap-3"
+                          className="w-full rounded-xl border border-border bg-card p-3.5 sm:p-3 min-h-[52px] text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-sm flex items-center gap-3"
                           onClick={() => {
                             setSelectedPhoto(resultPhoto);
                             setResultPhoto(null);
@@ -655,8 +655,8 @@ export default function Vintography() {
                             window.scrollTo({ top: 0, behavior: "smooth" });
                           }}
                         >
-                          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                            <ArrowRight className="w-4 h-4 text-primary" />
+                          <div className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-primary" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold">{s.label}</p>
@@ -670,15 +670,15 @@ export default function Vintography() {
                       {locked.map((s) => (
                         <button
                           key={s.op}
-                          className="w-full rounded-xl border border-border bg-muted/20 p-3 text-left opacity-60 flex items-center gap-3"
+                          className="w-full rounded-xl border border-border bg-muted/20 p-3.5 sm:p-3 min-h-[52px] text-left opacity-60 flex items-center gap-3"
                           onClick={() => {
                             setUpgradeReason(`${s.label} requires the ${PHOTO_OPERATIONS[s.op].tier} plan.`);
                             setUpgradeTier(PHOTO_OPERATIONS[s.op].tier);
                             setUpgradeOpen(true);
                           }}
                         >
-                          <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                            <Lock className="w-4 h-4 text-muted-foreground" />
+                          <div className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                            <Lock className="w-5 h-5 sm:w-4 sm:h-4 text-muted-foreground" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-muted-foreground">{s.label}</p>
