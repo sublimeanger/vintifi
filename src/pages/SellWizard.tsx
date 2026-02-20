@@ -459,19 +459,6 @@ export default function SellWizard() {
     }
   }, [currentStep, createdItem?.image_url]);
 
-  // ─── Step 2 mount nudge: briefly scroll to show effects section then scroll back ───
-  useEffect(() => {
-    if (currentStep !== 2 || !createdItem || photoDone) return;
-    const scrollEl = document.getElementById("sell-wizard-scroll");
-    if (!scrollEl) return;
-    const timer = setTimeout(() => {
-      scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: "smooth" });
-      setTimeout(() => {
-        scrollEl.scrollTo({ top: Math.max(0, scrollEl.scrollTop - 100), behavior: "smooth" });
-      }, 800);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [currentStep, createdItem, photoDone]);
 
   // ─── Auto-fire optimise on entering step 3 ───
   useEffect(() => {
