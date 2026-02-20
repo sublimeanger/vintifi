@@ -295,7 +295,7 @@ export default function Vintography() {
     setResultPhoto(null);
 
     // Auto-scroll to config panel on mobile for ops that have options
-    const hasConfig = op === "put_on_model" || op === "virtual_tryon" || op === "swap_model" || op === "remove_bg" || op === "ai_background";
+    const hasConfig = op === "put_on_model" || op === "virtual_tryon" || op === "swap_model" || op === "ai_background";
     if (hasConfig && window.innerWidth < 1024) {
       // Wait for AnimatePresence to mount + framer-motion height animation to finish
       setTimeout(() => {
