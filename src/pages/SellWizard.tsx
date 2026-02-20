@@ -1161,14 +1161,31 @@ export default function SellWizard() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="relative w-full max-w-[220px] lg:max-w-[320px] mx-auto aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border shadow-sm">
-              <img src={createdItem.image_url} alt="" className="w-full h-full object-cover" />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                <p className="text-white text-[10px] lg:text-xs font-medium truncate">{createdItem.title}</p>
+          ) : (() => {
+            const allImgs = Array.isArray((createdItem as any)?.images)
+              ? ((createdItem as any).images as any[]).map((img: any) => typeof img === "string" ? img : img?.url).filter((u: string) => typeof u === "string" && u.startsWith("http"))
+              : [];
+            const images = allImgs.length > 1 ? allImgs : createdItem?.image_url ? [createdItem.image_url] : [];
+            if (images.length <= 1) {
+              return (
+                <div className="relative w-full max-w-[220px] lg:max-w-[320px] mx-auto aspect-[4/5] rounded-xl overflow-hidden bg-muted border border-border shadow-sm">
+                  <img src={createdItem.image_url} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                    <p className="text-white text-[10px] lg:text-xs font-medium truncate">{createdItem.title}</p>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
+                {images.map((url: string, i: number) => (
+                  <div key={i} className={`shrink-0 w-28 lg:w-36 aspect-[4/5] rounded-xl overflow-hidden bg-muted border ${i === 0 ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}>
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ))}
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
@@ -1200,6 +1217,10 @@ export default function SellWizard() {
                         toast.info(`${label} requires the Starter plan`);
                         return;
                       }
+                      if (op === "remove_bg") {
+                        runQuickRemoveBg();
+                        return;
+                      }
                       sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
                       sessionStorage.setItem("sell_wizard_step", "2");
                       hasNavigatedToPhotoStudioRef.current = true;
@@ -1207,7 +1228,11 @@ export default function SellWizard() {
                     }}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Icon className={`w-4 h-4 ${locked ? "text-muted-foreground" : "text-primary"}`} />
+                      {op === "remove_bg" && quickBgProcessing ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      ) : (
+                        <Icon className={`w-4 h-4 ${locked ? "text-muted-foreground" : "text-primary"}`} />
+                      )}
                       {locked && <Lock className="w-3 h-3 text-muted-foreground" />}
                     </div>
                     <p className={`text-[11px] font-semibold leading-tight ${locked ? "text-muted-foreground" : "text-foreground"}`}>{label}</p>
@@ -1223,21 +1248,8 @@ export default function SellWizard() {
             </div>
           )}
 
-          {/* Quick Remove Background — only when item has a photo and hasn't run yet */}
-          {createdItem?.image_url && !quickBgResult && (
-            <Button
-              variant="outline"
-              className="w-full h-11 lg:h-12 font-semibold gap-2 border-primary/30 text-primary hover:bg-primary/5"
-              disabled={quickBgProcessing}
-              onClick={runQuickRemoveBg}
-            >
-              {quickBgProcessing ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Removing background…</>
-              ) : (
-                <><Eraser className="w-4 h-4" /> Quick Remove Background</>
-              )}
-            </Button>
-          )}
+
+
           <Button
             className="w-full h-11 lg:h-12 font-semibold"
             onClick={() => {
@@ -1270,11 +1282,8 @@ export default function SellWizard() {
         </div>
       )}
 
-      {photoPolling && (
-        <Button className="w-full h-11 font-semibold" onClick={skipPhotos}>
-          I'm done — Continue <ArrowRight className="w-4 h-4 ml-1.5" />
-        </Button>
-      )}
+
+
 
       {photoDone && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/25 text-success text-sm font-semibold">
@@ -1971,7 +1980,7 @@ export default function SellWizard() {
               disabled={!canAdvance() && !(currentStep === 2 && photoPolling)}
               onClick={currentStep === 2 && photoPolling && !photoDone ? skipPhotos : goNext}
             >
-              Continue <ArrowRight className="w-4 h-4 ml-1.5" />
+              {currentStep === 2 && photoPolling && !photoDone ? "Skip Photos & Continue" : "Continue"} <ArrowRight className="w-4 h-4 ml-1.5" />
             </Button>
           </div>
           {/* Blocked reason shown as helper below button — never inside button */}
