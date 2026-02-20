@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.generate-hashtags]
 verify_jwt = false
+
+[functions.photo-studio]
+verify_jwt = false
