@@ -609,10 +609,15 @@ export default function Vintography() {
                     { op: "put_on_model", label: "Put on Model", description: "Now try it on a model" },
                   ],
                   put_on_model: [
+                    { op: "remove_bg", label: "Remove Background", description: "Clean up the background on this result" },
                     { op: "swap_model", label: "Swap Model", description: "Try a different model look" },
                   ],
-                  swap_model: [],
-                  virtual_tryon: [],
+                  swap_model: [
+                    { op: "remove_bg", label: "Remove Background", description: "Clean up the background on this result" },
+                  ],
+                  virtual_tryon: [
+                    { op: "remove_bg", label: "Remove Background", description: "Clean up the background on this result" },
+                  ],
                 };
 
                 const suggestions = selectedOp ? (CHAIN_SUGGESTIONS[selectedOp] || []) : [];
