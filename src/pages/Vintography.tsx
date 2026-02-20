@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -88,6 +89,7 @@ export default function Vintography() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
   const configPanelRef = useRef<HTMLDivElement>(null);
+  const keyboardVisible = useKeyboardVisible();
 
   // ── Derived values ─────────────────────────────────────────────────
   const effectiveItemId = itemId || importedItemId;
@@ -1014,7 +1016,7 @@ export default function Vintography() {
 
       {/* Mobile sticky process button */}
       {!resultPhoto && selectedOp && selectedPhoto && (
-        <div className="fixed bottom-20 left-3 right-3 z-40 lg:hidden">
+        <div className={`fixed bottom-20 left-3 right-3 z-40 lg:hidden transition-all duration-200 ${keyboardVisible ? "translate-y-[200%] opacity-0 pointer-events-none" : ""}`}>
           <Button
             size="lg"
             className={`w-full h-14 rounded-2xl font-bold text-base shadow-coral active:scale-[0.97] transition-all ${canProcess && !resultPhoto ? "animate-[glow-pulse_2s_ease-in-out_infinite]" : ""}`}
