@@ -68,6 +68,7 @@ export default function Vintography() {
   const [processingElapsed, setProcessingElapsed] = useState(0);
   const processingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [resultPhoto, setResultPhoto] = useState<string | null>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
@@ -476,7 +477,7 @@ export default function Vintography() {
 
   // ── Gallery actions ────────────────────────────────────────────────
   const handleGalleryRestore = (job: VintographyJob) => {
-    if (job.original_url) setSelectedPhoto(job.original_url);
+    if (job.original_url) { setPhotoLoading(true); setSelectedPhoto(job.original_url); }
     if (job.processed_url) setResultPhoto(job.processed_url);
     if (job.operation && PHOTO_OPERATIONS[job.operation as PhotoOperation]) {
       setSelectedOp(job.operation as PhotoOperation);
@@ -485,6 +486,7 @@ export default function Vintography() {
   };
 
   const handleGalleryUseAsInput = (job: VintographyJob) => {
+    setPhotoLoading(true);
     setSelectedPhoto(job.processed_url || job.original_url);
     setResultPhoto(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -589,7 +591,7 @@ export default function Vintography() {
               activeUrl={selectedPhoto}
               editStates={editStates}
               itemId={effectiveItemId}
-              onSelect={(url) => { setSelectedPhoto(url); setResultPhoto(null); }}
+              onSelect={(url) => { setPhotoLoading(true); setSelectedPhoto(url); setResultPhoto(null); }}
             />
             {importedItemId && !itemId && (
               <p className="text-[10px] text-muted-foreground text-center">
@@ -776,11 +778,17 @@ export default function Vintography() {
                     </div>
                   </div>
                 )}
+                {photoLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted/30 z-[5]">
+                    <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                  </div>
+                )}
                 <img
                   src={selectedPhoto}
                   alt="Selected photo"
-                  className="w-full max-h-[300px] lg:max-h-[400px] object-contain cursor-pointer"
+                  className={`w-full max-h-[300px] lg:max-h-[400px] object-contain cursor-pointer transition-opacity duration-200 ${photoLoading ? "opacity-0" : "opacity-100"}`}
                   onClick={() => { if (!isProcessing) setLightboxOpen(true); }}
+                  onLoad={() => setPhotoLoading(false)}
                 />
                 {!isProcessing && (
                   <button
