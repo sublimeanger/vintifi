@@ -405,7 +405,7 @@ export function ComparisonView({
           <div className="flex h-full gap-1" style={transformStyle}>
             <div className="flex-1 relative">
               <img src={originalUrl} alt="Original" className="w-full h-full object-contain bg-muted/30" draggable={false} />
-              <Badge variant="secondary" className="absolute top-2 left-2 text-[10px] px-2 py-0.5 bg-background/80 backdrop-blur-sm">Original</Badge>
+              <Badge variant="secondary" className="absolute top-2 left-2 text-[10px] px-2 py-0.5 bg-black/70 text-white backdrop-blur-sm border-0">Original</Badge>
             </div>
             <div className="flex-1 relative">
               <img src={processedUrl} alt={resultLabel || "Enhanced"} className="w-full h-full object-contain bg-background" draggable={false} />
@@ -448,7 +448,7 @@ export function ComparisonView({
               </div>
             )}
             <div className="absolute top-3 left-3 z-10">
-              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-background/80 backdrop-blur-sm">Original</Badge>
+              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-black/70 text-white backdrop-blur-sm border-0">Original</Badge>
             </div>
             {processedUrl && (
               <div className="absolute top-3 right-3 z-10">
