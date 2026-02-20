@@ -16,7 +16,7 @@ const json = (body: unknown, status = 200) =>
 // ── Operation config ─────────────────────────────────────────────────
 const OPERATIONS: Record<string, { credits: number; api: "photoroom" | "fashn"; tier: string }> = {
   remove_bg:     { credits: 1, api: "photoroom", tier: "free" },
-  sell_ready:    { credits: 2, api: "photoroom", tier: "free" },
+  sell_ready:    { credits: 1, api: "photoroom", tier: "free" },
   studio_shadow: { credits: 2, api: "photoroom", tier: "starter" },
   ai_background: { credits: 2, api: "photoroom", tier: "starter" },
   put_on_model:  { credits: 3, api: "fashn",     tier: "starter" },
@@ -54,22 +54,16 @@ async function callPhotoroom(
 
   let url: string;
 
-  if (operation === "remove_bg") {
-    // v1/segment — Basic plan, proven working (uses "image_file")
+  if (operation === "remove_bg" || operation === "sell_ready") {
+    // v1/segment — Basic plan, proven working
     url = "https://sdk.photoroom.com/v1/segment";
     form.append("image_file", new Blob([imageBytes]), "image.jpg");
   } else {
-    // v1/edit — handles shadow, lighting, backgrounds, and sell_ready combo
+    // v1/edit — handles shadow, lighting, backgrounds (requires Plus plan)
     url = "https://sdk.photoroom.com/v1/edit";
     form.append("image_file", new Blob([imageBytes]), "image.jpg");
 
-    if (operation === "sell_ready") {
-      form.append("background.color", "#FFFFFF");
-      form.append("shadow.mode", "ai.soft");
-      form.append("lighting.mode", "ai.balanced");
-      form.append("padding", "0.1");
-      form.append("outputSize", "hd");
-    } else if (operation === "studio_shadow") {
+    if (operation === "studio_shadow") {
       const shadowMode = parameters?.shadow_mode || "ai.soft";
       form.append("background.color", "#FFFFFF");
       form.append("shadow.mode", shadowMode);
