@@ -47,7 +47,7 @@ function SegmentPicker<T extends { value: string; label: string; desc: string; i
   return (
     <div>
       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
-      <div className={`grid gap-2 ${options.length <= 3 ? `grid-cols-${options.length}` : "grid-cols-2"}`}>
+      <div className={`grid gap-2 ${options.length === 2 ? "grid-cols-2" : options.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
         {options.map((opt) => {
           const selected = value === opt.value;
           const Icon = (opt as any).icon;

@@ -64,6 +64,7 @@ export type VintographyAction =
   | { type: "SET_PHOTO_EDIT_STATE"; url: string; state: PhotoEditState }
   | { type: "SET_SAVING_TO_ITEM"; saving: boolean }
   | { type: "RESULT_READY_FLASH" }
+  | { type: "ADD_ITEM_PHOTO"; url: string }
   | { type: "RESET_ALL" };
 
 export const initialState: VintographyState = {
@@ -129,6 +130,8 @@ export function vintographyReducer(
       return { ...state, photoEditStates: { ...state.photoEditStates, [action.url]: action.state } };
     case "SET_SAVING_TO_ITEM":
       return { ...state, savingToItem: action.saving };
+    case "ADD_ITEM_PHOTO":
+      return { ...state, itemPhotos: [...state.itemPhotos, action.url] };
     case "RESULT_READY_FLASH":
       return { ...state, resultReady: false };
     case "RESET_ALL":
