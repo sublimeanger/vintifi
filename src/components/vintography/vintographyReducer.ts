@@ -229,7 +229,7 @@ export function getAvailableOpsToAdd(pipeline: PipelineStep[]): Operation[] {
 // ─── Session persistence ───
 const STORAGE_KEY = "vintography_session";
 
-export function saveSession(state: VintographyState): void {
+export function saveSession(state: VintographyState, extra?: { garmentContext?: string; linkedItemTitle?: string; itemId?: string }): void {
   try {
     const toSave = {
       originalPhotoUrl: state.originalPhotoUrl,
@@ -238,27 +238,33 @@ export function saveSession(state: VintographyState): void {
       activePipelineIndex: state.activePipelineIndex,
       itemPhotos: state.itemPhotos,
       photoEditStates: state.photoEditStates,
+      ...(extra || {}),
     };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   } catch { /* ignore */ }
 }
 
-export function loadSession(): VintographyState {
+export function loadSession(): { state: VintographyState; garmentContext?: string; linkedItemTitle?: string; itemId?: string } {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return initialState;
+    if (!raw) return { state: initialState };
     const saved = JSON.parse(raw);
     return {
-      ...initialState,
-      originalPhotoUrl: saved.originalPhotoUrl ?? null,
-      resultPhotoUrl: saved.resultPhotoUrl ?? null,
-      pipeline: saved.pipeline ?? initialState.pipeline,
-      activePipelineIndex: saved.activePipelineIndex ?? 0,
-      itemPhotos: saved.itemPhotos ?? [],
-      photoEditStates: saved.photoEditStates ?? {},
+      state: {
+        ...initialState,
+        originalPhotoUrl: saved.originalPhotoUrl ?? null,
+        resultPhotoUrl: saved.resultPhotoUrl ?? null,
+        pipeline: saved.pipeline ?? initialState.pipeline,
+        activePipelineIndex: saved.activePipelineIndex ?? 0,
+        itemPhotos: saved.itemPhotos ?? [],
+        photoEditStates: saved.photoEditStates ?? {},
+      },
+      garmentContext: saved.garmentContext,
+      linkedItemTitle: saved.linkedItemTitle,
+      itemId: saved.itemId,
     };
   } catch {
-    return initialState;
+    return { state: initialState };
   }
 }
 

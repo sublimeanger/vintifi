@@ -70,25 +70,26 @@ export default function Vintography() {
   const resultRef = useRef<HTMLDivElement>(null);
   const itemId = searchParams.get("itemId");
 
-  const [state, rawDispatch] = useReducer(vintographyReducer, undefined, loadSession);
+  const sessionData = useRef(loadSession());
+  const [state, rawDispatch] = useReducer(vintographyReducer, sessionData.current.state);
   const dispatch = useCallback((action: Parameters<typeof rawDispatch>[0]) => {
     rawDispatch(action);
   }, []);
 
-  // Persist state to sessionStorage whenever it changes
-  useEffect(() => {
-    if (state.originalPhotoUrl) {
-      saveSession(state);
-    }
-  }, [state]);
-
   // Non-pipeline UI state
-  const [garmentContext, setGarmentContext] = useState("");
-  const [linkedItemTitle, setLinkedItemTitle] = useState("");
+  const [garmentContext, setGarmentContext] = useState(sessionData.current.garmentContext || "");
+  const [linkedItemTitle, setLinkedItemTitle] = useState(sessionData.current.linkedItemTitle || "");
   const [itemData, setItemData] = useState<{ last_optimised_at: string | null } | null>(null);
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
+
+  // Persist state to sessionStorage whenever it changes
+  useEffect(() => {
+    if (state.originalPhotoUrl) {
+      saveSession(state, { garmentContext, linkedItemTitle, itemId: itemId || undefined });
+    }
+  }, [state, garmentContext, linkedItemTitle, itemId]);
 
   // ─── Fetch saved presets ───
   const fetchSavedPresets = useCallback(async () => {
