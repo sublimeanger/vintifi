@@ -355,11 +355,11 @@ export function ComparisonView({
       {processedUrl && (
         <div className="flex items-center justify-between px-3 py-2 border-b border-border gap-2">
           <div className="flex items-center gap-1">
-            <Button size="sm" variant={viewMode === "overlay" ? "default" : "ghost"} className="h-7 lg:h-9 px-2 lg:px-3 text-xs lg:text-sm"
+            <Button size="sm" variant={viewMode === "overlay" ? "default" : "ghost"} className="h-8 lg:h-9 px-2.5 lg:px-3 text-[11px] lg:text-sm"
               onClick={() => setViewMode("overlay")}>
               <Layers className="w-3.5 h-3.5 mr-1" /> Overlay
             </Button>
-            <Button size="sm" variant={viewMode === "side-by-side" ? "default" : "ghost"} className="h-7 lg:h-9 px-2 lg:px-3 text-xs lg:text-sm"
+            <Button size="sm" variant={viewMode === "side-by-side" ? "default" : "ghost"} className="h-8 lg:h-9 px-2.5 lg:px-3 text-[11px] lg:text-sm"
               onClick={() => setViewMode("side-by-side")}>
               <Columns2 className="w-3.5 h-3.5 mr-1" /> Side by Side
             </Button>
@@ -373,14 +373,14 @@ export function ComparisonView({
                 ))}
               </div>
             )}
-            <Button size="icon" variant="ghost" className="h-7 w-7 lg:h-9 lg:w-9" onClick={() => setTargetZoom(targetZoom.current + ZOOM_STEP_BUTTON)}>
+            <Button size="icon" variant="ghost" className="h-8 w-8 lg:h-9 lg:w-9" onClick={() => setTargetZoom(targetZoom.current + ZOOM_STEP_BUTTON)}>
               <ZoomIn className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
             </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 lg:h-9 lg:w-9" onClick={() => setTargetZoom(targetZoom.current - ZOOM_STEP_BUTTON)}>
+            <Button size="icon" variant="ghost" className="h-8 w-8 lg:h-9 lg:w-9" onClick={() => setTargetZoom(targetZoom.current - ZOOM_STEP_BUTTON)}>
               <ZoomOut className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
             </Button>
             {isZoomed && (
-              <Button size="icon" variant="ghost" className="h-7 w-7 lg:h-9 lg:w-9" onClick={resetZoom}>
+              <Button size="icon" variant="ghost" className="h-8 w-8 lg:h-9 lg:w-9" onClick={resetZoom}>
                 <RotateCcw className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
               </Button>
             )}
@@ -405,11 +405,11 @@ export function ComparisonView({
           <div className="flex h-full gap-1" style={transformStyle}>
             <div className="flex-1 relative">
               <img src={originalUrl} alt="Original" className="w-full h-full object-contain bg-muted/30" draggable={false} />
-              <Badge variant="secondary" className="absolute top-2 left-2 text-[10px] bg-background/80 backdrop-blur-sm">Original</Badge>
+              <Badge variant="secondary" className="absolute top-2 left-2 text-[10px] px-2 py-0.5 bg-background/80 backdrop-blur-sm">Original</Badge>
             </div>
             <div className="flex-1 relative">
               <img src={processedUrl} alt={resultLabel || "Enhanced"} className="w-full h-full object-contain bg-background" draggable={false} />
-              <Badge className="absolute top-2 right-2 text-[10px] bg-primary/90 backdrop-blur-sm">{resultLabel || "Enhanced"}</Badge>
+              <Badge className="absolute top-2 right-2 text-[10px] px-2 py-0.5 bg-primary/90 backdrop-blur-sm">{resultLabel || "Enhanced"}</Badge>
             </div>
           </div>
         ) : (
@@ -423,7 +423,7 @@ export function ComparisonView({
             {processedUrl && (
               <div className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none" style={{ left: `${clipPercent}%` }}>
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-primary flex items-center justify-center shadow-lg border-2 border-primary-foreground/20 cursor-ew-resize pointer-events-auto"
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-primary flex items-center justify-center shadow-lg border-2 border-primary-foreground/20 cursor-ew-resize pointer-events-auto"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -448,11 +448,11 @@ export function ComparisonView({
               </div>
             )}
             <div className="absolute top-3 left-3 z-10">
-              <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur-sm">Original</Badge>
+              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-background/80 backdrop-blur-sm">Original</Badge>
             </div>
             {processedUrl && (
               <div className="absolute top-3 right-3 z-10">
-                <Badge className="text-[10px] bg-primary/90 backdrop-blur-sm">{resultLabel || "Enhanced"}</Badge>
+                <Badge className="text-[10px] px-2 py-0.5 bg-primary/90 backdrop-blur-sm">{resultLabel || "Enhanced"}</Badge>
               </div>
             )}
           </div>
@@ -523,13 +523,16 @@ export function ComparisonView({
       {processedUrl && viewMode === "overlay" && (
         <div className="px-4 py-3 border-t border-border">
           <Slider value={sliderValue} onValueChange={setSliderValue} min={0} max={100} step={1} />
+          <p className="text-center text-[10px] text-muted-foreground/60 mt-1 sm:hidden">
+            Drag slider to compare · Pinch to zoom
+          </p>
         </div>
       )}
 
       {/* Post-result suggestion for Put on Model */}
       {processedUrl && operationId === "put_on_model" && (
         <div className="px-4 py-3 border-t border-border bg-warning/10">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs sm:text-[11px] text-muted-foreground">
             💡 Not quite right? <strong>Remove Background</strong> preserves your garment pixel-perfectly — ideal for accurate listings.
           </p>
         </div>
