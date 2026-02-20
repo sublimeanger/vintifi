@@ -51,36 +51,38 @@ async function callPhotoroom(
   apiKey: string,
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
   const form = new FormData();
-  form.append("imageFile", new Blob([imageBytes]), "image.jpg");
+  form.append("image_file", new Blob([imageBytes]), "image.jpg");
 
-  // Use v2 Edit API for ALL operations — combines bg removal + shadow + lighting in one call
-  const url = "https://image-api.photoroom.com/v2/edit";
+  let url: string;
 
   if (operation === "remove_bg") {
-    form.append("background.color", "FFFFFF");
-    form.append("lighting.mode", "ai.auto");
-    form.append("padding", "0.05");
-    form.append("outputSize", "hd");
-  } else if (operation === "sell_ready") {
-    // THE COMBO: remove bg + soft shadow + auto lighting + white bg — all in ONE API call
-    form.append("background.color", "FFFFFF");
-    form.append("shadow.mode", "ai.soft");
-    form.append("lighting.mode", "ai.auto");
-    form.append("padding", "0.1");
-    form.append("outputSize", "hd");
-  } else if (operation === "studio_shadow") {
-    const shadowMode = parameters?.shadow_mode || "ai.soft";
-    form.append("background.color", "FFFFFF");
-    form.append("shadow.mode", shadowMode);
-    form.append("lighting.mode", "ai.auto");
-    form.append("padding", "0.1");
-    form.append("outputSize", "hd");
-  } else if (operation === "ai_background") {
-    const bgPrompt = parameters?.bg_prompt || "clean marble surface with soft natural lighting, professional product photography";
-    form.append("background.prompt", bgPrompt);
-    form.append("lighting.mode", "ai.auto");
-    form.append("padding", "0.05");
-    form.append("outputSize", "hd");
+    // v1/segment — Basic plan, proven working
+    url = "https://sdk.photoroom.com/v1/segment";
+  } else {
+    // v1/edit — handles shadow, lighting, backgrounds, and sell_ready combo
+    url = "https://sdk.photoroom.com/v1/edit";
+
+    if (operation === "sell_ready") {
+      form.append("background.color", "#FFFFFF");
+      form.append("shadow.mode", "ai.soft");
+      form.append("lighting.mode", "ai.balanced");
+      form.append("padding", "0.1");
+      form.append("outputSize", "hd");
+    } else if (operation === "studio_shadow") {
+      const shadowMode = parameters?.shadow_mode || "ai.soft";
+      form.append("background.color", "#FFFFFF");
+      form.append("shadow.mode", shadowMode);
+      form.append("lighting.mode", "ai.balanced");
+      form.append("padding", "0.1");
+      form.append("outputSize", "hd");
+    } else if (operation === "ai_background") {
+      const bgPrompt = parameters?.bg_prompt || "marble countertop with soft morning light";
+      form.append("background.prompt", bgPrompt);
+      form.append("shadow.mode", "ai.soft");
+      form.append("lighting.mode", "ai.balanced");
+      form.append("padding", "0.05");
+      form.append("outputSize", "hd");
+    }
   }
 
   const res = await fetch(url, {
