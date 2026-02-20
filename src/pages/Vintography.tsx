@@ -14,6 +14,7 @@ import { PhotoFilmstrip, type PhotoEditState } from "@/components/vintography/Ph
 import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
 import { ModelOptions } from "@/components/vintography/ModelOptions";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { MobileConfigDrawer } from "@/components/vintography/MobileConfigDrawer";
 import ImageLightbox from "@/components/ImageLightbox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -88,6 +89,10 @@ export default function Vintography() {
   const [upgradeReason, setUpgradeReason] = useState<string | null>(null);
   const [upgradeTier, setUpgradeTier] = useState<string | undefined>(undefined);
 
+  // Mobile config drawer
+  const [configDrawerOpen, setConfigDrawerOpen] = useState(false);
+  const [previousOpLabel, setPreviousOpLabel] = useState<string | null>(null);
+
   // File input refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
@@ -101,6 +106,8 @@ export default function Vintography() {
   const creditsRemaining = credits ? credits.credits_limit - totalUsed : 0;
   const unlimited = (credits?.credits_limit ?? 0) >= 999999;
   const selectedOpConfig = selectedOp ? PHOTO_OPERATIONS[selectedOp] : null;
+  const opHasConfig = selectedOp === "put_on_model" || selectedOp === "virtual_tryon" || selectedOp === "swap_model" || selectedOp === "ai_background";
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
 
   // ── Load item photos ───────────────────────────────────────────────
   useEffect(() => {
@@ -290,18 +297,19 @@ export default function Vintography() {
       setUpgradeOpen(true);
       return;
     }
+    try { navigator?.vibrate?.(10); } catch {}
     setSelectedOp(op);
     setOpParams({});
     setResultPhoto(null);
 
-    // Auto-scroll to config panel on mobile for ops that have options
     const hasConfig = op === "put_on_model" || op === "virtual_tryon" || op === "swap_model" || op === "ai_background";
+
     if (hasConfig && window.innerWidth < 1024) {
-      // Single scroll after AnimatePresence mounts the config panel — no double-scroll
-      setTimeout(() => {
-        configPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }, 450);
+      // Mobile: open the config drawer instead of scrolling
+      setTimeout(() => setConfigDrawerOpen(true), 150);
     }
+    // Desktop: config renders inline, no scrolling needed
+    // No-config ops: sticky process button is already visible
   };
 
   // ── Process ────────────────────────────────────────────────────────
@@ -320,14 +328,19 @@ export default function Vintography() {
       return;
     }
 
+    // Close the config drawer on mobile — this returns focus to the photo
+    setConfigDrawerOpen(false);
+
     setIsProcessing(true);
     setProcessingElapsed(0);
     processingTimerRef.current = setInterval(() => setProcessingElapsed((s) => s + 1), 1000);
 
-    // Scroll to photo preview so user sees the processing animation
+    // Scroll to photo preview so user sees the processing animation (after drawer exit)
     if (window.innerWidth < 1024) {
-      const preview = document.querySelector("[data-photo-preview]");
-      preview?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setTimeout(() => {
+        const preview = document.querySelector("[data-photo-preview]");
+        if (preview) preview.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
     }
 
     try {
@@ -508,6 +521,8 @@ export default function Vintography() {
   // ── Edit again ─────────────────────────────────────────────────────
   const handleEditAgain = () => {
     setResultPhoto(null);
+    setConfigDrawerOpen(false);
+    setPreviousOpLabel(null);
     clearSession();
   };
 
@@ -687,26 +702,30 @@ export default function Vintography() {
                           key={s.op}
                           className="w-full rounded-xl border border-border bg-card p-3.5 sm:p-3 min-h-[52px] text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-sm flex items-center gap-3"
                           onClick={() => {
-                            // Set the result as the new input photo
+                            // Track what we just completed for the drawer header
+                            const justCompleted = selectedOpConfig?.label || null;
+
                             setPhotoLoading(true);
                             setSelectedPhoto(resultPhoto);
                             setResultPhoto(null);
                             setOpParams({});
                             clearSession();
-                            // Step 1: Scroll to top so user sees their new input photo
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                            // Step 2: Select op after scroll settles (decoupled from handleSelectOp to avoid nested scroll chains)
+
                             const chainHasConfig = ["put_on_model", "virtual_tryon", "swap_model", "ai_background"].includes(s.op);
+
+                            // Scroll to top to show the new input photo
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+
+                            // Set the new operation after scroll settles
                             setTimeout(() => {
                               setSelectedOp(s.op as PhotoOperation);
-                              setOpParams({});
-                              // Step 3: Scroll to config ONLY if needed, after it renders
+                              setPreviousOpLabel(justCompleted);
+
+                              // Open drawer for ops with config on mobile
                               if (chainHasConfig && window.innerWidth < 1024) {
-                                setTimeout(() => {
-                                  configPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                                }, 500);
+                                setTimeout(() => setConfigDrawerOpen(true), 300);
                               }
-                            }, 600);
+                            }, 400);
                           }}
                         >
                           <div className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -1041,7 +1060,7 @@ export default function Vintography() {
           </div>
         )}
 
-        {/* Config panel */}
+        {/* Config panel — desktop only (mobile uses the drawer) */}
         {!resultPhoto && (() => {
           const configContent = renderConfig();
           return (
@@ -1054,7 +1073,7 @@ export default function Vintography() {
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.25, ease: "easeOut" }}
-                    className="overflow-hidden"
+                    className="overflow-hidden hidden lg:block"
                   >
                     <Card className="p-4">
                       {configContent}
@@ -1133,8 +1152,8 @@ export default function Vintography() {
         </div>
       </div>
 
-      {/* Mobile sticky process button */}
-      {!resultPhoto && selectedOp && selectedPhoto && (
+      {/* Mobile sticky process button — only for no-config ops (config ops use drawer) */}
+      {!resultPhoto && selectedOp && selectedPhoto && !(opHasConfig && isMobile) && (
         <div className={`fixed bottom-20 left-3 right-3 z-40 lg:hidden transition-all duration-200 ${keyboardVisible ? "translate-y-[200%] opacity-0 pointer-events-none" : ""}`}>
           <Button
             size="lg"
@@ -1168,6 +1187,21 @@ export default function Vintography() {
           onClose={() => setLightboxOpen(false)}
         />
       )}
+
+      {/* Mobile config drawer — replaces inline config + scroll chaos on mobile */}
+      <MobileConfigDrawer
+        open={configDrawerOpen}
+        onClose={() => setConfigDrawerOpen(false)}
+        photoUrl={selectedPhoto}
+        previousOpLabel={previousOpLabel}
+        selectedOp={selectedOp}
+        selectedOpConfig={selectedOpConfig}
+        canProcess={!!canProcess}
+        isProcessing={isProcessing}
+        onProcess={handleProcess}
+      >
+        {renderConfig()}
+      </MobileConfigDrawer>
 
       <UpgradeModal
         open={upgradeOpen}
