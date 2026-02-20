@@ -29,9 +29,9 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
-  const gender = value.gender || "Female";
-  const pose = value.pose || "Front Standing";
-  const ethnicity = value.ethnicity || "Auto";
+  const gender = (value.gender || "female").toLowerCase();
+  const pose = (value.pose || "front standing").toLowerCase();
+  const ethnicity = (value.ethnicity || "auto").toLowerCase();
 
   const set = (patch: Partial<ModelParams>) => onChange({ ...value, ...patch });
 
@@ -81,7 +81,7 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
               type="button"
               onClick={() => set({ gender: g })}
               className={`flex-1 rounded-xl border-2 px-3 min-h-[44px] text-xs font-semibold transition-all active:scale-[0.97] ${
-                gender === g
+                gender === g.toLowerCase()
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border text-muted-foreground hover:border-primary/30"
               }`}
@@ -103,7 +103,7 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
                 type="button"
                 onClick={() => set({ pose: p })}
                 className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition-all active:scale-[0.97] ${
-                  pose === p
+                  pose === p.toLowerCase()
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:border-primary/30"
                 }`}
@@ -126,7 +126,7 @@ export function ModelOptions({ operation, value, onChange, selfieUrl, onSelfieUp
                 type="button"
                 onClick={() => set({ ethnicity: eth })}
                 className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-all active:scale-95 ${
-                  ethnicity === eth
+                  ethnicity === eth.toLowerCase()
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:border-primary/30"
                 }`}
