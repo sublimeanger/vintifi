@@ -1067,20 +1067,28 @@ export default function Vintography() {
 
       {/* Gallery */}
         <div className="space-y-3 pt-4">
-          <h3 className="text-sm font-semibold text-foreground">Recent Edits</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">Recent Edits</h3>
+            {gallery.length > 0 && (
+              <p className="text-[10px] text-muted-foreground">{gallery.length} edit{gallery.length > 1 ? "s" : ""}</p>
+            )}
+          </div>
           {galleryLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-[4/5] rounded-xl" />
+                <Skeleton key={i} className={`aspect-[4/5] rounded-xl ${i >= 2 ? "hidden sm:block" : ""}`} />
               ))}
             </div>
           ) : gallery.length === 0 ? (
-            <Card className="p-8 text-center">
-              <ImageIcon className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
-              <p className="text-sm text-muted-foreground">Your edited photos will appear here</p>
+            <Card className="p-6 sm:p-8 text-center border-dashed border-2 border-border/60">
+              <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto mb-3">
+                <ImageIcon className="w-6 h-6 text-muted-foreground/40" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground">No edits yet</p>
+              <p className="text-[11px] text-muted-foreground/60 mt-0.5">Your photo transformations will appear here</p>
             </Card>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
               {gallery.map((job) => (
                 <GalleryCard
                   key={job.id}
