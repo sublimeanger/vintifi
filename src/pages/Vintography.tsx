@@ -83,6 +83,7 @@ export default function Vintography() {
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Persist state to sessionStorage whenever it changes
   useEffect(() => {
@@ -239,23 +240,28 @@ export default function Vintography() {
 
   const handleFileSelect = useCallback(async (files: FileList | File[]) => {
     if (!user) return;
-    const fileArr = Array.from(files).slice(0, 10);
-    if (fileArr.length === 1) {
-      const url = await uploadFile(fileArr[0]);
-      if (url) {
-        dispatch({ type: "RESET_ALL" });
-        dispatch({ type: "SET_ORIGINAL_PHOTO", url });
+    setIsUploading(true);
+    try {
+      const fileArr = Array.from(files).slice(0, 10);
+      if (fileArr.length === 1) {
+        const url = await uploadFile(fileArr[0]);
+        if (url) {
+          dispatch({ type: "RESET_ALL" });
+          dispatch({ type: "SET_ORIGINAL_PHOTO", url });
+        }
+      } else {
+        const uploaded: string[] = [];
+        for (const f of fileArr) {
+          const url = await uploadFile(f);
+          if (url) uploaded.push(url);
+        }
+        if (uploaded.length > 0) {
+          dispatch({ type: "SET_ITEM_PHOTOS", urls: uploaded });
+          dispatch({ type: "SET_ORIGINAL_PHOTO", url: uploaded[0] });
+        }
       }
-    } else {
-      const uploaded: string[] = [];
-      for (const f of fileArr) {
-        const url = await uploadFile(f);
-        if (url) uploaded.push(url);
-      }
-      if (uploaded.length > 0) {
-        dispatch({ type: "SET_ITEM_PHOTOS", urls: uploaded });
-        dispatch({ type: "SET_ORIGINAL_PHOTO", url: uploaded[0] });
-      }
+    } finally {
+      setIsUploading(false);
     }
   }, [user]);
 
@@ -699,6 +705,7 @@ export default function Vintography() {
                 itemId={itemId}
                 linkedItemTitle={linkedItemTitle}
                 onFilesSelected={handleFileSelect}
+                isUploading={isUploading}
               />
             </motion.div>
           ) : (
