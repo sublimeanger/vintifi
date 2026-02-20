@@ -2,22 +2,23 @@ import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Camera, Package } from "lucide-react";
+import { Camera, Package, Loader2 } from "lucide-react";
 import { ItemPickerDialog } from "@/components/ItemPickerDialog";
 
 type Props = {
   itemId: string | null;
   linkedItemTitle: string;
   onFilesSelected: (files: FileList) => void;
+  isUploading?: boolean;
 };
 
-export function EmptyState({ itemId, linkedItemTitle, onFilesSelected }: Props) {
+export function EmptyState({ itemId, linkedItemTitle, onFilesSelected, isUploading }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   return (
     <Card
-      className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-colors p-8 sm:p-12 text-center"
+      className="relative border-2 border-dashed border-primary/30 hover:border-primary/60 transition-colors p-8 sm:p-12 text-center"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
@@ -52,6 +53,7 @@ export function EmptyState({ itemId, linkedItemTitle, onFilesSelected }: Props) 
           <Button
             size="lg"
             className="h-12 px-8 text-sm active:scale-95 transition-transform"
+            disabled={isUploading}
             onClick={() => fileInputRef.current?.click()}
           >
             <Camera className="w-4 h-4 mr-2" /> Choose Photos
@@ -83,6 +85,12 @@ export function EmptyState({ itemId, linkedItemTitle, onFilesSelected }: Props) 
           if (e.target.files?.length) onFilesSelected(e.target.files);
         }}
       />
+      {isUploading && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-xl z-10">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-sm font-semibold">Uploading…</p>
+        </div>
+      )}
     </Card>
   );
 }
