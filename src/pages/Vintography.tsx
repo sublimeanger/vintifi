@@ -431,7 +431,7 @@ export default function Vintography() {
   return (
     <PageShell title="Photo Studio" maxWidth="3xl">
       {/* Credit bar */}
-      <div className="sticky top-[52px] lg:top-0 z-30 bg-background/90 backdrop-blur-xl border-b border-border/40 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2.5 lg:-mx-6 lg:px-6">
+      <div className="sticky top-[52px] lg:top-0 z-20 bg-background/90 backdrop-blur-xl border-b border-border/40 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2.5 lg:-mx-6 lg:px-6 overflow-hidden">
         <div className="flex items-center justify-between">
           <CreditBar used={totalUsed} limit={credits?.credits_limit ?? 5} unlimited={unlimited} loading={!credits} />
           <Button
