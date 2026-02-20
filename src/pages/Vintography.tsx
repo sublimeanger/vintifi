@@ -497,18 +497,23 @@ export default function Vintography() {
 
   // ── Gallery actions ────────────────────────────────────────────────
   const handleGalleryRestore = (job: VintographyJob) => {
-    if (job.original_url) { setPhotoLoading(true); setSelectedPhoto(job.original_url); }
+    if (job.original_url) setSelectedPhoto(job.original_url);
     if (job.processed_url) setResultPhoto(job.processed_url);
     if (job.operation && PHOTO_OPERATIONS[job.operation as PhotoOperation]) {
       setSelectedOp(job.operation as PhotoOperation);
     }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setConfigDrawerOpen(false);
+    setPreviousOpLabel(null);
+    setTimeout(() => {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
   };
 
   const handleGalleryUseAsInput = (job: VintographyJob) => {
-    setPhotoLoading(true);
     setSelectedPhoto(job.processed_url || job.original_url);
     setResultPhoto(null);
+    setConfigDrawerOpen(false);
+    setPreviousOpLabel(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
