@@ -45,13 +45,13 @@ const personas = [
     emoji: "💪",
     headline: "Side hustlers",
     desc: "50 credits, all 6 Photo Studio tools, AI pricing and listing optimiser. Pays for itself the first time you avoid underpricing.",
-    highlight: true,
   },
   {
     tier: "Pro",
     emoji: "⚡",
     headline: "Growing resellers",
     desc: "200 credits, multi-language listings, bulk processing, and Niche Finder to spot trends before the competition.",
+    highlight: true,
   },
   {
     tier: "Business",
@@ -63,15 +63,20 @@ const personas = [
 
 const comparisonFeatures = [
   { name: "Credits / month", free: "5", starter: "50", pro: "200", business: "600" },
+  { name: "Per-credit cost", free: "—", starter: "£0.12", pro: "£0.075", business: "£0.05" },
   { name: "Remove Background", free: "✓", starter: "✓", pro: "✓", business: "✓" },
-  { name: "Full Photo Studio (all 6 tools)", free: "—", starter: "✓", pro: "✓", business: "✓" },
+  { name: "Studio Shadow", free: "—", starter: "✓", pro: "✓", business: "✓" },
+  { name: "AI Background", free: "—", starter: "✓", pro: "✓", business: "✓" },
+  { name: "Put on Model", free: "—", starter: "✓", pro: "✓", business: "✓" },
+  { name: "Virtual Try-On", free: "—", starter: "✓", pro: "✓", business: "✓" },
+  { name: "Swap Model", free: "—", starter: "✓", pro: "✓", business: "✓" },
   { name: "AI Price Check", free: "1/mo", starter: "✓", pro: "✓", business: "✓" },
   { name: "AI Listing Optimiser", free: "—", starter: "✓", pro: "✓", business: "✓" },
+  { name: "Multi-language listings", free: "—", starter: "—", pro: "5 languages", business: "All languages" },
+  { name: "Bulk Processing", free: "—", starter: "—", pro: "10 at once", business: "50 at once" },
   { name: "Trend Radar", free: "Preview", starter: "Full", pro: "Full + Niche Finder", business: "Full + Niche Finder" },
-  { name: "Multi-language listings", free: "—", starter: "—", pro: "✓ (5 languages)", business: "✓ (All)" },
-  { name: "Bulk processing", free: "—", starter: "—", pro: "10 at once", business: "50 at once" },
-  { name: "Competitor tracking", free: "—", starter: "—", pro: "—", business: "✓ (20 sellers)" },
-  { name: "Items tracked", free: "10", starter: "100", pro: "500", business: "Unlimited" },
+  { name: "Competitor Tracking", free: "—", starter: "—", pro: "—", business: "20 sellers" },
+  { name: "Items Tracked", free: "10", starter: "100", pro: "500", business: "Unlimited" },
   { name: "Support", free: "Community", starter: "Community", pro: "Email", business: "Priority" },
 ];
 
@@ -82,7 +87,7 @@ const faqs = [
   },
   {
     q: "What if I only sell a few items a month?",
-    a: "Free plan gives you 3 credits — that's one Photo Studio edit, one price check, and one listing optimisation. Enough to try a complete sell. No card required.",
+    a: "Free plan gives you 5 credits — enough to try background removal and a price check. No card required.",
   },
   {
     q: "Does it work on all Vinted categories?",
@@ -90,19 +95,15 @@ const faqs = [
   },
   {
     q: "What's a credit?",
-    a: "One credit = one action. A Price Check costs 1 credit. An AI Listing Optimisation costs 1 credit. A Vintography photo edit (background removal, AI Model, Mannequin, or Flat-Lay) costs 1 credit. Credits reset monthly on your billing date.",
-  },
-  {
-    q: "What can I do with Vintography Photo Studio?",
-    a: "Three modes: AI Model (place your garment on a photorealistic male or female model — Editorial, Natural Photo, or Street Style), Mannequin (Headless, Ghost, Dress Form, or Half-Body), and Flat-Lay Pro (5 styling presets). All include 16 background scene options.",
+    a: "One credit = one action. A Price Check costs 1 credit. An AI Listing Optimisation costs 1 credit. Photo Studio operations cost 1–3 credits depending on the tool. Credits reset monthly on your billing date.",
   },
   {
     q: "Can I really start for free?",
-    a: "Absolutely. Our Free plan gives you 3 credits per month — no credit card required. That's one Photo Studio edit, one price check, and one listing optimisation. Enough to see the value before committing.",
+    a: "Absolutely. Our Free plan gives you 5 credits per month — no credit card required. That's enough to try background removal and a price check.",
   },
   {
     q: "What happens when I run out of credits?",
-    a: "You can purchase additional credit packs starting from £2.99 for 10 credits, or upgrade to a higher plan for more monthly credits. Your data and listings are never lost.",
+    a: "You can purchase additional credit packs starting from £1.99 for 10 credits, or upgrade to a higher plan for more monthly credits. Your data and listings are never lost.",
   },
   {
     q: "Can I switch plans at any time?",
@@ -160,10 +161,7 @@ export default function Pricing() {
             </motion.p>
 
             {/* Photo Studio Before/After Visual */}
-            <motion.div
-              variants={fadeUp}
-              className="max-w-sm mx-auto mb-8 sm:mb-12"
-            >
+            <motion.div variants={fadeUp} className="max-w-sm mx-auto mb-8 sm:mb-12">
               <BeforeAfterSlider
                 beforeSrc="/marketing/denim-dress-before.png"
                 afterSrc="/marketing/denim-dress-after.png"
@@ -173,7 +171,7 @@ export default function Pricing() {
                 aspectRatio="4/5"
               />
               <p className="text-[11px] sm:text-xs text-muted-foreground text-center mt-3">
-                Included in every plan. Your first 3 credits are free — no card required.
+                Included in every plan. Your first 5 credits are free — no card required.
               </p>
             </motion.div>
 
@@ -221,14 +219,12 @@ export default function Pricing() {
             className="max-w-4xl mx-auto rounded-2xl bg-primary/10 border border-primary/20 p-4 sm:p-6 text-center"
           >
             <div className="flex items-center justify-center gap-2 mb-2">
-              <Star className="w-4 h-4 text-primary fill-primary" />
-              <Star className="w-4 h-4 text-primary fill-primary" />
-              <Star className="w-4 h-4 text-primary fill-primary" />
-              <Star className="w-4 h-4 text-primary fill-primary" />
-              <Star className="w-4 h-4 text-primary fill-primary" />
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-4 h-4 text-primary fill-primary" />
+              ))}
             </div>
             <p className="font-display text-base sm:text-xl font-extrabold text-foreground mb-1">
-              Phone snap to studio shot in one tap. AI pricing in 30 seconds. Your first 3 credits are free.
+              Phone snap to studio shot in one tap. AI pricing in 30 seconds. Your first 5 credits are free.
             </p>
             <p className="text-muted-foreground text-xs sm:text-sm">The plan pays for itself the first time you avoid underpricing an item.</p>
           </motion.div>
@@ -240,10 +236,12 @@ export default function Pricing() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 max-w-6xl mx-auto">
             {tiers.map(([key, tier], i) => {
-              const isPopular = key === "starter";
+              const isPopular = key === "pro";
               const price = annual && tier.price > 0 && 'annual_price' in tier
                 ? ((tier as any).annual_price / 12).toFixed(2)
                 : tier.price;
+              const annualTotal = 'annual_price' in tier ? (tier as any).annual_price : null;
+              const perCredit = 'perCredit' in tier ? (tier as any).perCredit : null;
               return (
                 <motion.div
                   key={key}
@@ -274,6 +272,12 @@ export default function Pricing() {
                       {annual && tier.price > 0 && (
                         <p className="text-xs text-muted-foreground mt-1 line-through">£{tier.price}/mo</p>
                       )}
+                      {!annual && annualTotal && (
+                        <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">£{(annualTotal / 12).toFixed(2)}/month billed annually</p>
+                      )}
+                      {perCredit && (
+                        <p className="text-[10px] sm:text-xs text-primary font-medium mt-0.5">£{perCredit}/credit</p>
+                      )}
                       {tier.price > 0 && (
                         <p className="text-[10px] sm:text-xs text-success font-medium mt-1">7-day free trial included</p>
                       )}
@@ -291,7 +295,7 @@ export default function Pricing() {
                       className={`w-full font-semibold h-11 sm:h-10 active:scale-95 transition-transform ${isPopular ? "shadow-lg shadow-primary/25" : ""}`}
                       onClick={() => navigate("/auth?mode=signup")}
                     >
-                      {tier.price === 0 ? "Get Started Free" : "Start Free Trial"}
+                      {tier.price === 0 ? "Get Started" : "Start Free Trial"}
                     </Button>
                   </Card>
                 </motion.div>
@@ -343,12 +347,12 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* Credit Packs */}
+      {/* Credit Top-Up Packs */}
       <section className="py-10 sm:py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-6 sm:mb-10">
-            <h2 className="font-display text-lg sm:text-2xl md:text-3xl font-extrabold mb-2">Need a top-up?</h2>
-            <p className="text-muted-foreground text-sm sm:text-base">One-time credit packs — no subscription required. Never expire.</p>
+            <h2 className="font-display text-lg sm:text-2xl md:text-3xl font-extrabold mb-2">Credit Top-Up Packs</h2>
+            <p className="text-muted-foreground text-sm sm:text-base">Top up anytime. Credits never expire.</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
             {CREDIT_PACKS.map((pack, i) => (
@@ -385,7 +389,7 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* Comparison table */}
+      {/* All Features Comparison Table */}
       <section className="py-10 sm:py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <motion.h2
@@ -394,16 +398,16 @@ export default function Pricing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            Full Feature Comparison
+            All Features
           </motion.h2>
 
-          {/* Desktop table */}
-          <div className="hidden lg:block max-w-4xl mx-auto">
-            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          {/* Scrollable table for all screen sizes */}
+          <div className="max-w-5xl mx-auto overflow-x-auto -mx-4 px-4">
+            <div className="rounded-2xl border border-border bg-card overflow-hidden min-w-[600px]">
               <div className="grid grid-cols-5 bg-muted/50 border-b border-border sticky top-0 z-10">
-                <div className="p-4 font-semibold text-sm">Feature</div>
+                <div className="p-3 sm:p-4 font-semibold text-xs sm:text-sm">Feature</div>
                 {tiers.map(([key, tier]) => (
-                  <div key={key} className={`p-4 text-center font-semibold text-sm ${key === "starter" ? "bg-primary/5 text-primary" : ""}`}>
+                  <div key={key} className={`p-3 sm:p-4 text-center font-semibold text-xs sm:text-sm ${key === "pro" ? "bg-primary/5 text-primary" : ""}`}>
                     {tier.name}
                   </div>
                 ))}
@@ -413,34 +417,14 @@ export default function Pricing() {
                   key={feature.name}
                   className={`grid grid-cols-5 border-b border-border last:border-0 ${i % 2 === 0 ? "" : "bg-muted/20"}`}
                 >
-                  <div className="p-4 text-sm text-foreground">{feature.name}</div>
-                  <div className="p-4 text-center text-sm text-muted-foreground">{feature.free}</div>
-                  <div className={`p-4 text-center text-sm bg-primary/5 ${feature.starter === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.starter}</div>
-                  <div className={`p-4 text-center text-sm ${feature.pro === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.pro}</div>
-                  <div className={`p-4 text-center text-sm ${feature.business === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.business}</div>
+                  <div className="p-3 sm:p-4 text-xs sm:text-sm text-foreground">{feature.name}</div>
+                  <div className="p-3 sm:p-4 text-center text-xs sm:text-sm text-muted-foreground">{feature.free}</div>
+                  <div className={`p-3 sm:p-4 text-center text-xs sm:text-sm ${feature.starter === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.starter}</div>
+                  <div className={`p-3 sm:p-4 text-center text-xs sm:text-sm bg-primary/5 ${feature.pro === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.pro}</div>
+                  <div className={`p-3 sm:p-4 text-center text-xs sm:text-sm ${feature.business === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{feature.business}</div>
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Mobile stacked cards */}
-          <div className="lg:hidden space-y-3 max-w-md mx-auto">
-            {tiers.map(([key, tier]) => (
-              <Card key={key} className={`p-3.5 ${key === "starter" ? "border-primary ring-1 ring-primary" : ""}`}>
-                <h3 className="font-display font-bold text-base mb-2">{tier.name}</h3>
-                <ul className="space-y-1.5">
-                  {comparisonFeatures.map((f) => {
-                    const val = f[key as keyof typeof f];
-                    return (
-                      <li key={f.name} className="flex items-center justify-between text-xs min-h-[32px]">
-                        <span className="text-muted-foreground">{f.name}</span>
-                        <span className={`text-right ${val === "—" ? "text-muted-foreground" : "text-foreground font-medium"}`}>{val}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Card>
-            ))}
           </div>
         </div>
       </section>
@@ -500,7 +484,7 @@ export default function Pricing() {
               Start free today. See results tonight.
             </motion.h2>
             <motion.p variants={fadeUp} className="text-secondary-foreground/70 text-sm sm:text-base mb-2 max-w-xl mx-auto">
-              Your first 3 credits are waiting — no card needed.
+              Your first 5 credits are waiting — no card needed.
             </motion.p>
             <motion.p variants={fadeUp} className="text-secondary-foreground/50 text-xs sm:text-sm mb-6 sm:mb-8">
               One studio shot. One price check. One optimised listing. A complete first sell — on us.
