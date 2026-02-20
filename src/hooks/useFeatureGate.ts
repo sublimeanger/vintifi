@@ -9,9 +9,6 @@ export type FeatureKey =
   | "niche_finder"
   | "trend_radar_full"
   | "vintography"
-  | "vintography_flatlay"
-  | "vintography_mannequin"
-  | "vintography_ai_model"
   | "sell_wizard";
 
 type FeatureConfig = {
@@ -28,9 +25,6 @@ const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
   niche_finder: { minTier: "pro", usesCredits: false, label: "Niche Finder" },
   trend_radar_full: { minTier: "starter", usesCredits: false, label: "Full Trend Radar" },
   vintography: { minTier: "free", usesCredits: true, creditType: "optimizations", label: "Photo Studio" },
-  vintography_flatlay: { minTier: "starter", usesCredits: true, creditType: "optimizations", label: "Flat-Lay Pro" },
-  vintography_mannequin: { minTier: "starter", usesCredits: true, creditType: "optimizations", label: "Mannequin Shot" },
-  vintography_ai_model: { minTier: "business", usesCredits: true, creditType: "optimizations", label: "AI Model Shot" },
   sell_wizard: { minTier: "free", usesCredits: true, creditType: "optimizations", label: "Sell Wizard" },
 };
 

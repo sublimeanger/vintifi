@@ -18,11 +18,12 @@ type Props = {
 };
 
 const OP_SHORT: Record<string, string> = {
-  clean_bg: "BG",
-  lifestyle_bg: "Scene",
-  virtual_model: "Model",
-  enhance: "Enhance",
-  decrease: "Steam",
+  remove_bg: "BG",
+  studio_shadow: "Shadow",
+  ai_background: "Scene",
+  put_on_model: "Model",
+  virtual_tryon: "Try-On",
+  swap_model: "Swap",
 };
 
 export function PhotoFilmstrip({ photos, activeUrl, editStates, itemId, onSelect, onAddPhoto }: Props) {

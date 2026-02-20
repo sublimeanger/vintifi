@@ -25,12 +25,11 @@ type Props = {
 
 const OP_ICONS: Record<string, typeof ImageOff> = {
   remove_bg: ImageOff,
-  smart_bg: Paintbrush,
-  model_shot: UserIcon,
-  mannequin_shot: UserIcon,
-  ghost_mannequin: UserIcon,
-  flatlay_style: ImageIcon,
-  enhance: Sparkles,
+  studio_shadow: Sparkles,
+  ai_background: Paintbrush,
+  put_on_model: UserIcon,
+  virtual_tryon: UserIcon,
+  swap_model: UserIcon,
 };
 
 export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }: Props) {

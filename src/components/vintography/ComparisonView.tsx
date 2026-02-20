@@ -23,37 +23,40 @@ type Props = {
 type ViewMode = "overlay" | "side-by-side";
 
 const TIPS: Record<string, string[]> = {
-  clean_bg: [
-    "Clean Background works best with high-contrast photos",
+  remove_bg: [
+    "Remove Background works best with high-contrast photos",
     "For lace and transparent fabrics, use a contrasting background when photographing",
     "Natural shadows are preserved for a grounded, professional look",
   ],
-  lifestyle_bg: [
-    "Lifestyle mode matches your garment's lighting to the scene",
+  studio_shadow: [
+    "Studio Shadow adds a professional drop shadow on a white background",
+    "Great for clean product shots that look like studio photography",
+    "Works best with well-lit photos of the full garment",
+  ],
+  ai_background: [
+    "AI Background matches your garment's lighting to the scene",
     "Try different backgrounds — each creates a unique mood for your listing",
     "Great for social media posts and Instagram-style product shots",
   ],
-  ai_model: [
-    "AI Model Concept creates an interpretation — exact logos and prints may vary",
-    "Add a garment description for better accuracy (e.g., 'Nike crewneck sweatshirt')",
-    "For pixel-perfect results, try Clean Background or Enhance instead",
-    "Try different poses and looks to find the best representation",
+  put_on_model: [
+    "Put on Model creates an interpretation — exact logos and prints may vary",
+    "Works best with flat-lay photos of the full garment",
+    "Try different genders and poses for the best result",
   ],
-  enhance: [
-    "Enhance corrects white balance and colour temperature automatically",
-    "Fabric textures become more visible with micro-contrast enhancement",
-    "Phone photos can look like professional studio shots after enhancement",
+  virtual_tryon: [
+    "Virtual Try-On shows how the garment looks on you",
+    "Upload a clear selfie for the best results",
+    "Works with most clothing categories automatically",
   ],
-  decrease: [
-    "Works best with full garment photos — front view, hanger or flat-lay shots",
-    "Deep Press mode is perfect for items that came direct from storage or shipping",
-    "Fabric texture, logos, and prints are preserved — only creases are removed",
-    "Chain with Clean Background for a perfect Vinted listing in 2 credits",
+  swap_model: [
+    "Swap Model changes the model while keeping the garment",
+    "Works best with on-model photos",
+    "Try different demographics for diverse representation",
   ],
   default: [
-    "Each operation uses 1 credit from your monthly allowance",
-    "You can chain operations — try Clean Background then Lifestyle",
+    "Each operation uses 1–3 credits from your monthly allowance",
     "Download your results or they're saved in your gallery automatically",
+    "Top up credits anytime — they never expire",
   ],
 };
 
@@ -523,11 +526,11 @@ export function ComparisonView({
         </div>
       )}
 
-      {/* Post-result suggestion for AI Model Concept */}
-      {processedUrl && operationId === "ai_model" && (
+      {/* Post-result suggestion for Put on Model */}
+      {processedUrl && operationId === "put_on_model" && (
         <div className="px-4 py-3 border-t border-border bg-warning/10">
           <p className="text-[11px] text-muted-foreground">
-            💡 Not quite right? <strong>Clean Background</strong> and <strong>Enhance</strong> preserve your garment pixel-perfectly — ideal for accurate listings.
+            💡 Not quite right? <strong>Remove Background</strong> preserves your garment pixel-perfectly — ideal for accurate listings.
           </p>
         </div>
       )}
