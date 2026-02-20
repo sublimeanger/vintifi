@@ -788,8 +788,8 @@ export default function SellWizard() {
     if (!createdItem?.image_url || quickBgProcessing) return;
     setQuickBgProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vintography", {
-        body: { operation: "remove_bg", image_url: createdItem.image_url, itemId: createdItem.id, sell_wizard: true },
+      const { data, error } = await supabase.functions.invoke("photo-studio", {
+        body: { operation: "remove_bg", image_url: createdItem.image_url, sell_wizard: true },
       });
       if (error) throw error;
       const processedUrl = data?.processed_url || data?.url;
