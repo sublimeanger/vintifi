@@ -137,7 +137,15 @@ export default function Vintography() {
     if (session.result) setResultPhoto(session.result);
   }, []);
 
-  // ── Load gallery ───────────────────────────────────────────────────
+  // Auto-open drawer if arriving with a config-requiring op pre-selected
+  useEffect(() => {
+    if (!preselectedOp || !imageUrlParam) return;
+    const hasConfig = ["put_on_model", "virtual_tryon", "swap_model", "ai_background"].includes(preselectedOp);
+    if (hasConfig && window.innerWidth < 1024) {
+      setTimeout(() => setConfigDrawerOpen(true), 500);
+    }
+  }, [preselectedOp, imageUrlParam]);
+
   useEffect(() => {
     if (!user) return;
     (async () => {
