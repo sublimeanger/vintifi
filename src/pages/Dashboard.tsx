@@ -12,7 +12,7 @@ import { AppShellV2 } from "@/components/AppShellV2";
 import {
   Search, Loader2, Zap, Package, AlertTriangle,
   ChevronRight, Sparkles, ImageIcon, ArrowDown, Rocket, X,
-  TrendingUp, TrendingDown, Minus,
+  TrendingUp, TrendingDown, Minus, Eraser, User, Camera,
 } from "lucide-react";
 
 type RecentItem = {
@@ -36,7 +36,7 @@ type TrendItem = {
 };
 
 export default function Dashboard() {
-  const { user, profile } = useAuth();
+  const { user, profile, credits } = useAuth();
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [activeCount, setActiveCount] = useState(0);
@@ -274,24 +274,58 @@ export default function Dashboard() {
             </button>
           </motion.div>
         ) : (
-          <div className="flex gap-1.5 sm:gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
-              onClick={() => navigate("/sell")}
-            >
-              <Package className="w-4 h-4 mr-1" />
-              Add Item
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
-              onClick={() => navigate("/vintography")}
-            >
-              <ImageIcon className="w-4 h-4 mr-1" />
-              Enhance Photos
-            </Button>
-          </div>
+          <>
+            <div className="flex gap-1.5 sm:gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+                onClick={() => navigate("/sell")}
+              >
+                <Package className="w-4 h-4 mr-1" />
+                Add Item
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+                onClick={() => navigate("/vintography?op=remove_bg")}
+              >
+                <Eraser className="w-4 h-4 mr-1" />
+                Remove BG
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+                onClick={() => navigate("/vintography?op=put_on_model")}
+              >
+                <User className="w-4 h-4 mr-1" />
+                On Model
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+                onClick={() => navigate("/vintography?op=virtual_tryon")}
+              >
+                <Camera className="w-4 h-4 mr-1" />
+                Try It On
+              </Button>
+            </div>
+            {credits && (
+              <div className="flex items-center gap-1.5 px-0.5">
+                <Sparkles className={`w-3.5 h-3.5 shrink-0 ${
+                  (credits.credits_limit - credits.price_checks_used - credits.optimizations_used - credits.vintography_used) <= 0
+                    ? "text-destructive"
+                    : (credits.credits_limit - credits.price_checks_used - credits.optimizations_used - credits.vintography_used) <= 5
+                      ? "text-warning"
+                      : "text-primary"
+                }`} />
+                <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
+                  {credits.credits_limit >= 999999
+                    ? "Unlimited credits"
+                    : `${Math.max(0, credits.credits_limit - credits.price_checks_used - credits.optimizations_used - credits.vintography_used)} of ${credits.credits_limit} credits remaining`}
+                </span>
+              </div>
+            )}
+          </>
         )}
 
         {/* 2 Metric Cards */}
