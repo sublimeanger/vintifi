@@ -150,6 +150,7 @@ export const TIMEZONES = [
 
 export const PHOTO_OPERATIONS = {
   remove_bg:      { label: "Remove Background", credits: 1, api: "photoroom",      tier: "free" as TierKey,    icon: "Eraser",    description: "Clean cutout with white or transparent background" },
+  sell_ready:     { label: "Sell-Ready",         credits: 2, api: "photoroom",      tier: "free" as TierKey,    icon: "Sparkles",  description: "White background + studio shadow + auto-relight — all in one" },
   studio_shadow:  { label: "Studio Shadow",     credits: 2, api: "photoroom_plus", tier: "starter" as TierKey, icon: "Sun",       description: "White background with realistic drop shadow" },
   ai_background:  { label: "AI Background",     credits: 2, api: "photoroom_plus", tier: "starter" as TierKey, icon: "Image",     description: "Place garment in a styled scene" },
   put_on_model:   { label: "Put on Model",      credits: 3, api: "fashn",          tier: "starter" as TierKey, icon: "User",      description: "Transform flat-lay into on-model photo" },

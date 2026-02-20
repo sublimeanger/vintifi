@@ -397,6 +397,7 @@ export default function Vintography() {
 
     switch (selectedOp) {
       case "remove_bg":
+      case "sell_ready":
       case "studio_shadow":
         return null;
 
@@ -513,6 +514,93 @@ export default function Vintography() {
                   <RefreshCw className="w-4 h-4 mr-1.5" /> Edit Again
                 </Button>
               </div>
+
+              {/* Chain next — suggest logical next operations */}
+              {(() => {
+                const CHAIN_SUGGESTIONS: Record<string, { op: PhotoOperation; label: string; description: string }[]> = {
+                  remove_bg: [
+                    { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
+                    { op: "studio_shadow", label: "Add Shadow", description: "Add a studio drop shadow" },
+                    { op: "ai_background", label: "Scene Background", description: "Place in a lifestyle setting" },
+                  ],
+                  sell_ready: [
+                    { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
+                    { op: "ai_background", label: "Scene Background", description: "Place in a lifestyle setting" },
+                  ],
+                  studio_shadow: [
+                    { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
+                  ],
+                  ai_background: [
+                    { op: "put_on_model", label: "Put on Model", description: "Now try it on a model" },
+                  ],
+                  put_on_model: [
+                    { op: "swap_model", label: "Swap Model", description: "Try a different model look" },
+                  ],
+                  swap_model: [],
+                  virtual_tryon: [],
+                };
+
+                const suggestions = selectedOp ? (CHAIN_SUGGESTIONS[selectedOp] || []) : [];
+                const available = suggestions.filter((s) => isAtLeastTier(userTier, PHOTO_OPERATIONS[s.op].tier));
+                const locked = suggestions.filter((s) => !isAtLeastTier(userTier, PHOTO_OPERATIONS[s.op].tier));
+
+                if (suggestions.length === 0) return null;
+
+                return (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Continue editing</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {available.map((s) => (
+                        <button
+                          key={s.op}
+                          className="w-full rounded-xl border border-border bg-card p-3 text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-sm flex items-center gap-3"
+                          onClick={() => {
+                            setSelectedPhoto(resultPhoto);
+                            setResultPhoto(null);
+                            setSelectedOp(s.op);
+                            setOpParams({});
+                            clearSession();
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            <ArrowRight className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold">{s.label}</p>
+                            <p className="text-[11px] text-muted-foreground">{s.description}</p>
+                          </div>
+                          <Badge variant="secondary" className="text-[10px] shrink-0">
+                            {PHOTO_OPERATIONS[s.op].credits} cr
+                          </Badge>
+                        </button>
+                      ))}
+                      {locked.map((s) => (
+                        <button
+                          key={s.op}
+                          className="w-full rounded-xl border border-border bg-muted/20 p-3 text-left opacity-60 flex items-center gap-3"
+                          onClick={() => {
+                            setUpgradeReason(`${s.label} requires the ${PHOTO_OPERATIONS[s.op].tier} plan.`);
+                            setUpgradeTier(PHOTO_OPERATIONS[s.op].tier);
+                            setUpgradeOpen(true);
+                          }}
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                            <Lock className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-muted-foreground">{s.label}</p>
+                            <p className="text-[11px] text-muted-foreground/60">{s.description}</p>
+                          </div>
+                          <Badge variant="outline" className="text-[9px] shrink-0">
+                            {PHOTO_OPERATIONS[s.op].tier.charAt(0).toUpperCase() + PHOTO_OPERATIONS[s.op].tier.slice(1)}
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>
@@ -652,7 +740,7 @@ export default function Vintography() {
                         ? "opacity-60 hover:opacity-80"
                         : isDisabled
                         ? "opacity-40 cursor-not-allowed"
-                        : "hover:border-primary/30 hover:shadow-sm"
+                        : key === "sell_ready" ? "border-primary/20 hover:border-primary/40 hover:shadow-sm" : "hover:border-primary/30 hover:shadow-sm"
                     }`}
                   >
                     {isSelected && <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-accent to-primary" />}
@@ -673,9 +761,14 @@ export default function Vintography() {
                         {op.credits} cr
                       </Badge>
                     </div>
-                    <p className={`text-sm font-semibold mb-0.5 ${isSelected ? "text-primary" : "text-foreground"}`}>
-                      {op.label}
-                    </p>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <p className={`text-sm font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}>
+                        {op.label}
+                      </p>
+                      {key === "sell_ready" && (
+                        <span className="inline-flex items-center rounded-full bg-primary/15 text-primary text-[8px] font-extrabold uppercase tracking-wider px-1.5 py-0">Top Pick</span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-muted-foreground leading-snug">{op.description}</p>
                     {isLocked && (
                       <Badge variant="outline" className="absolute top-2 right-2 text-[9px] py-0 border-muted-foreground/30">
