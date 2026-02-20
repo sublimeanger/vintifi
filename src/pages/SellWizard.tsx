@@ -1316,7 +1316,7 @@ export default function SellWizard() {
       {/* Add pb-20 sm:pb-0 to the form so content isn't hidden behind the sticky bar */}
       <div className="pb-20 sm:pb-0" />
       {createdItem ? (
-        <div className="sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2">
+        <div className={`sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2 transition-all ${keyboardVisible ? "translate-y-full opacity-0 pointer-events-none" : ""}`}>
           <Button
             className="w-full h-11 lg:h-12 font-semibold lg:text-base"
             disabled={!form.title || !form.condition || creating}
@@ -1358,7 +1358,7 @@ export default function SellWizard() {
           </Button>
         </div>
       ) : (
-        <div className="sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2">
+        <div className={`sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2 transition-all ${keyboardVisible ? "translate-y-full opacity-0 pointer-events-none" : ""}`}>
           <Button
             className="w-full h-11 lg:h-12 font-semibold lg:text-base"
             disabled={!form.title || !form.condition || creating || uploading}
@@ -2380,7 +2380,7 @@ export default function SellWizard() {
 
   const showFooterNav = currentStep !== 1 && currentStep !== 5;
   // Bug 7: only use large bottom padding when footer nav is visible
-  const scrollPadding = showFooterNav ? "pb-32 lg:pb-36" : "pb-8 lg:pb-16";
+  const scrollPadding = showFooterNav && !keyboardVisible ? "pb-32 lg:pb-36" : "pb-8 lg:pb-16";
   const blocked = advanceBlockedReason();
 
   // Truncated item title for header (shown from step 2 onwards)
@@ -2461,7 +2461,7 @@ export default function SellWizard() {
       </div>
 
       {/* ── Sticky footer nav (not on step 1 or 5) ── */}
-      {showFooterNav && (
+      {showFooterNav && !keyboardVisible && (
         <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border px-4 lg:px-8 pt-3 lg:pt-4 pb-4 lg:pb-6 space-y-1.5">
           <div className="flex gap-3">
             {currentStep > 1 && (
