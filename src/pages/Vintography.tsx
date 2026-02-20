@@ -349,7 +349,11 @@ export default function Vintography() {
       body: { image_url: imageUrl, operation, parameters: params, garment_context: garmentContext || undefined, sell_wizard: fromWizard || undefined },
     });
     if (error) throw error;
-    if (data?.error) { toast.error(data.error); return null; }
+    if (data?.error) {
+      const error = new Error(data.error);
+      (error as any).context = data;
+      throw error;
+    }
     const deducted = data?.credits_deducted ?? 1;
     toast.success(isUnlimited ? "Step done!" : `Step done! −${deducted} credit${deducted !== 1 ? "s" : ""}`);
     refreshCredits();
@@ -390,8 +394,27 @@ export default function Vintography() {
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 200);
       setTimeout(() => dispatch({ type: "RESULT_READY_FLASH" }), 3000);
     } catch (err: any) {
-      toast.error(err.message || "Processing failed. Try again.");
       dispatch({ type: "PROCESSING_FAILED" });
+      const msg = err?.message?.toLowerCase() || "";
+      const data = err?.context || err?.data || {};
+
+      if (msg.includes("safety") || msg.includes("blocked") || data.finishReason === "SAFETY") {
+        toast.error("This image was flagged by our safety system. Try a different photo or angle.", { duration: 6000 });
+      } else if (msg.includes("credit") || msg.includes("quota") || msg.includes("insufficient")) {
+        toast.error("You've run out of credits.", {
+          duration: 8000,
+          action: { label: "Top Up", onClick: () => navigate("/settings?tab=billing") },
+        });
+      } else if (msg.includes("timeout") || msg.includes("network") || msg.includes("fetch")) {
+        toast.error("Connection failed. Check your internet and try again.", {
+          duration: 6000,
+          action: { label: "Retry", onClick: handleProcess },
+        });
+      } else if (msg.includes("rate") || msg.includes("429") || msg.includes("too many")) {
+        toast.error("Too many requests — please wait a moment and try again.", { duration: 6000 });
+      } else {
+        toast.error(err.message || "Something went wrong. Please try again.", { duration: 5000 });
+      }
     }
   };
 
