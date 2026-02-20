@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Check, Plus, Wand2 } from "lucide-react";
 
@@ -27,6 +27,20 @@ const OP_SHORT: Record<string, string> = {
 
 export function PhotoFilmstrip({ photos, activeUrl, editStates, itemId, onSelect, onAddPhoto }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Preload adjacent photos for instant switching
+  useEffect(() => {
+    const currentIndex = photos.indexOf(activeUrl || "");
+    const toPreload = [
+      photos[currentIndex - 1],
+      photos[currentIndex + 1],
+    ].filter(Boolean);
+
+    toPreload.forEach((url) => {
+      const img = new Image();
+      img.src = url;
+    });
+  }, [activeUrl, photos]);
 
   if (photos.length === 0) return null;
 
