@@ -409,6 +409,11 @@ export default function SellWizard() {
         localStorage.setItem("vintifi_first_listing_seen", "1");
       }
 
+      // Mark first-item-free pass as used — value has been delivered
+      if (profile?.first_item_pass_used === false) {
+        supabase.from("profiles").update({ first_item_pass_used: true }).eq("user_id", user.id);
+      }
+
       // Check if this is the 5th listing
       supabase
         .from("listings")
@@ -422,6 +427,35 @@ export default function SellWizard() {
         });
     }
   }, [currentStep, createdItem]);
+
+  // ─── Pre-fill form when going back to Step 1 ───
+  useEffect(() => {
+    if (currentStep === 1 && createdItem && !form.title) {
+      setForm((f) => ({
+        ...f,
+        title: createdItem.title || f.title,
+        brand: createdItem.brand || f.brand,
+        category: createdItem.category || f.category,
+        size: createdItem.size || f.size,
+        condition: createdItem.condition || f.condition,
+        colour: createdItem.colour || f.colour,
+        material: createdItem.material || f.material,
+        currentPrice: createdItem.current_price ? String(createdItem.current_price) : f.currentPrice,
+        purchasePrice: createdItem.purchase_price ? String(createdItem.purchase_price) : f.purchasePrice,
+      }));
+    }
+  }, [currentStep, createdItem]);
+
+  // ─── ESC shortcut to exit wizard ───
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        navigate("/dashboard");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [navigate]);
 
   // ─── Cleanup polling ───
   useEffect(() => {
@@ -1112,14 +1146,42 @@ export default function SellWizard() {
         <div className="sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2">
           <Button
             className="w-full h-11 lg:h-12 font-semibold lg:text-base"
-            onClick={() => {
+            disabled={!form.title || !form.condition || creating}
+            onClick={async () => {
+              setCreating(true);
+              try {
+                await supabase.from("listings").update({
+                  title: form.title.trim(),
+                  brand: form.brand.trim() || null,
+                  category: form.category.trim() || null,
+                  size: form.size.trim() || null,
+                  condition: form.condition || null,
+                  colour: form.colour.trim() || null,
+                  material: form.material.trim() || null,
+                  current_price: form.currentPrice ? parseFloat(form.currentPrice) : null,
+                  purchase_price: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
+                }).eq("id", createdItem.id);
+                setCreatedItem((prev) => prev ? {
+                  ...prev,
+                  title: form.title.trim(),
+                  brand: form.brand.trim() || null,
+                  category: form.category.trim() || null,
+                  size: form.size.trim() || null,
+                  condition: form.condition || null,
+                  colour: form.colour.trim() || null,
+                  material: form.material.trim() || null,
+                  current_price: form.currentPrice ? parseFloat(form.currentPrice) : null,
+                  purchase_price: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
+                } : prev);
+              } catch {}
+              setCreating(false);
               setStepStatus((s) => ({ ...s, 1: "done" }));
               setDirection(1);
               setCurrentStep(2);
               scrollToTop();
             }}
           >
-            Continue to Photos <ArrowRight className="w-4 h-4 ml-1.5" />
+            {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…</> : <>Save & Continue <ArrowRight className="w-4 h-4 ml-1.5" /></>}
           </Button>
         </div>
       ) : (
@@ -1214,7 +1276,14 @@ export default function SellWizard() {
                     }`}
                     onClick={() => {
                       if (locked) {
-                        toast.info(`${label} requires the Starter plan`);
+                        toast(`${label} requires Starter plan`, {
+                          description: "Upgrade to unlock all Photo Studio effects",
+                          action: {
+                            label: "Upgrade",
+                            onClick: () => navigate("/settings?tab=billing"),
+                          },
+                          duration: 5000,
+                        });
                         return;
                       }
                       if (op === "remove_bg") {
@@ -1670,6 +1739,10 @@ export default function SellWizard() {
                 <span className="text-muted-foreground">Sell Price</span>
                 <span>£{createdItem.current_price.toFixed(2)}</span>
               </div>
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>Vinted fee (~5%)</span>
+                <span>−£{(createdItem.current_price * 0.05).toFixed(2)}</span>
+              </div>
               {(() => {
                 const netProfit = createdItem.current_price * 0.95 - createdItem.purchase_price;
                 const marginPct = createdItem.purchase_price > 0
@@ -1678,7 +1751,7 @@ export default function SellWizard() {
                 const isNeg = netProfit < 0;
                 return (
                   <div className={`border-t border-border mt-2 pt-2 flex justify-between items-center font-bold ${isNeg ? "text-destructive" : "text-success"}`}>
-                    <span>Est. Net Profit</span>
+                    <span className="flex items-center gap-1">Est. Net Profit <span className="text-[9px] font-normal text-muted-foreground">(after ~5% fee)</span></span>
                     <div className="flex items-center gap-2">
                       <span>£{netProfit.toFixed(2)}</span>
                       {marginPct !== null && (
@@ -1706,8 +1779,8 @@ export default function SellWizard() {
           >
             <VintedReadyPack
               item={createdItem as any}
-              onOptimise={() => setCurrentStep(3)}
-              onPhotoStudio={() => setCurrentStep(2)}
+              onOptimise={() => { setDirection(-1); setStepStatus((s) => ({ ...s, 5: "pending" })); setCurrentStep(3); scrollToTop(); }}
+              onPhotoStudio={() => { setDirection(-1); setStepStatus((s) => ({ ...s, 5: "pending", 4: "pending", 3: "pending" })); setCurrentStep(2); scrollToTop(); }}
             />
           </motion.div>
         )}
