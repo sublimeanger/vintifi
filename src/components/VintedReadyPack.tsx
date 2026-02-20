@@ -131,21 +131,39 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
   const handleDownloadAll = async () => {
     if (allImages.length === 0) return;
     setDownloading(true);
+    const files: File[] = [];
     for (let i = 0; i < allImages.length; i++) {
       try {
         const res = await fetch(allImages[i]);
         const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `vintifi-${item.title.slice(0, 20).replace(/\s+/g, "-")}-${i + 1}.png`;
-        a.style.display = "none";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        await new Promise((r) => setTimeout(r, 400));
+        const fileName = `vintifi-${item.title.slice(0, 20).replace(/\s+/g, "-")}-${i + 1}.png`;
+        files.push(new File([blob], fileName, { type: blob.type || "image/png" }));
       } catch {}
+    }
+
+    // On mobile, use Web Share API → native share sheet → "Save Image"
+    if (files.length > 0 && navigator.canShare?.({ files })) {
+      try {
+        await navigator.share({ files, title: "Vintifi Photos" });
+        setDownloading(false);
+        return;
+      } catch (err: any) {
+        if (err?.name === "AbortError") { setDownloading(false); return; }
+      }
+    }
+
+    // Fallback: standard download
+    for (const file of files) {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      await new Promise((r) => setTimeout(r, 400));
     }
     setDownloading(false);
     toast.success("All photos downloaded!");
@@ -353,10 +371,16 @@ export function VintedReadyPack({ item, onOptimise, onPhotoStudio }: VintedReady
                       try {
                         const res = await fetch(url);
                         const blob = await res.blob();
+                        const fileName = `vintifi-${item.title.slice(0, 20).replace(/\s+/g, "-")}-${i + 1}.png`;
+                        const file = new File([blob], fileName, { type: blob.type || "image/png" });
+                        if (navigator.canShare?.({ files: [file] })) {
+                          await navigator.share({ files: [file], title: fileName });
+                          return;
+                        }
                         const href = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = href;
-                        a.download = `vintifi-${item.title.slice(0, 20).replace(/\s+/g, "-")}-${i + 1}.png`;
+                        a.download = fileName;
                         a.click();
                         URL.revokeObjectURL(href);
                       } catch {}

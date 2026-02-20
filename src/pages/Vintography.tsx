@@ -419,19 +419,31 @@ export default function Vintography() {
     }
   };
 
-  // ── Download ───────────────────────────────────────────────────────
+  // ── Download (saves to camera roll on mobile via Share API) ────────
   const handleDownload = async () => {
     if (!resultPhoto) return;
     try {
       const res = await fetch(resultPhoto);
       const blob = await res.blob();
+      const fileName = `vintifi-${selectedOp}-${Date.now()}.png`;
+      const file = new File([blob], fileName, { type: blob.type || "image/png" });
+
+      // On mobile, use Web Share API → native share sheet → "Save Image"
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: fileName });
+        return;
+      }
+
+      // Fallback: standard download
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `vintifi-${selectedOp}-${Date.now()}.png`;
+      a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
+    } catch (err: any) {
+      // User cancelled the share sheet — not an error
+      if (err?.name === "AbortError") return;
       toast.error("Download failed");
     }
   };
