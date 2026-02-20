@@ -41,7 +41,8 @@ import { SavePresetDialog } from "@/components/vintography/SavePresetDialog";
 
 // State / types
 import {
-  vintographyReducer,
+  vintographyReducerWithHistory,
+  createInitialHistory,
   initialState,
   Operation,
   OP_MAP,
@@ -71,7 +72,12 @@ export default function Vintography() {
   const itemId = searchParams.get("itemId");
 
   const sessionData = useRef(loadSession());
-  const [state, rawDispatch] = useReducer(vintographyReducer, sessionData.current.state);
+  const [history, rawDispatch] = useReducer(
+    vintographyReducerWithHistory,
+    sessionData.current.state,
+    createInitialHistory
+  );
+  const state = history.present;
   const dispatch = useCallback((action: Parameters<typeof rawDispatch>[0]) => {
     rawDispatch(action);
   }, []);
@@ -518,6 +524,20 @@ export default function Vintography() {
         return;
       }
 
+      // Cmd+Z → Undo
+      if (meta && e.key === "z" && !e.shiftKey && history.canUndo) {
+        e.preventDefault();
+        rawDispatch({ type: "UNDO" });
+        return;
+      }
+
+      // Cmd+Shift+Z → Redo
+      if (meta && e.key === "z" && e.shiftKey && history.canRedo) {
+        e.preventDefault();
+        rawDispatch({ type: "REDO" });
+        return;
+      }
+
       if (meta && e.key === "s" && state.resultPhotoUrl && itemId) {
         e.preventDefault();
         handleSaveToItem("replace");
@@ -548,7 +568,7 @@ export default function Vintography() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [state.isProcessing, state.originalPhotoUrl, state.resultPhotoUrl, itemId]);
+  }, [state.isProcessing, state.originalPhotoUrl, state.resultPhotoUrl, itemId, history.canUndo, history.canRedo]);
 
   const opLabel = (op: string) => {
     const opKey = Object.entries(OP_MAP).find(([, v]) => v === op)?.[0];
