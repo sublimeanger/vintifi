@@ -333,11 +333,28 @@ export default function Vintography() {
       .eq("id", itemId)
       .single();
     const existing = Array.isArray(listing?.images) ? (listing.images as string[]) : [];
-    await supabase
-      .from("listings")
-      .update({ images: [...existing, resultPhoto], last_photo_edit_at: new Date().toISOString() })
-      .eq("id", itemId);
-    toast.success("Photo saved to listing");
+
+    // Replace the original with the enhanced version at the same position (not append)
+    const sourceIndex = selectedPhoto ? existing.indexOf(selectedPhoto) : -1;
+    let updatedImages: string[];
+    if (sourceIndex >= 0) {
+      updatedImages = [...existing];
+      updatedImages[sourceIndex] = resultPhoto;
+    } else {
+      updatedImages = [...existing, resultPhoto];
+    }
+
+    const isFirstPhoto = sourceIndex === 0;
+    const updateData: Record<string, unknown> = {
+      images: updatedImages,
+      last_photo_edit_at: new Date().toISOString(),
+    };
+    if (isFirstPhoto) {
+      updateData.image_url = resultPhoto;
+    }
+
+    await supabase.from("listings").update(updateData).eq("id", itemId);
+    toast.success(sourceIndex >= 0 ? "Photo replaced in listing" : "Photo saved to listing");
     if (selectedPhoto) {
       setEditStates((prev) => ({
         ...prev,
