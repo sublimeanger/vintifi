@@ -240,9 +240,11 @@ ${compositionMandates[mannequinType] || ""}
 GARMENT DISPLAY (NON-NEGOTIABLE):
 - The garment must be positioned perfectly centred on the mannequin with completely natural fabric drape and realistic weight
 - Show the COMPLETE garment from neckline to bottom hem — NEVER crop the garment at any edge
+- CRITICAL LENGTH PRESERVATION: The garment's EXACT length must be preserved. If the input is a cropped top, it MUST remain a cropped top — do NOT extend it into a longer top or dress. If the input is a mini skirt, it MUST remain a mini skirt — do NOT extend it into a midi or maxi. If the input is a blouse that ends at the waist, it MUST end at the waist. NEVER add fabric length that does not exist in the original garment. The hemline position relative to the body (waist, hip, knee, ankle) must match the original EXACTLY.
 - Fabric must show natural gravity, proper drape based on fabric weight and construction, and realistic wrinkle physics
 - All buttons, zippers, and closures should be in their natural wearing position (buttoned/zipped unless it's a jacket that would naturally be open)
 - The garment must fill the mannequin form convincingly — not baggy or ill-fitting
+- If the garment only covers part of the mannequin (e.g., a crop top on a full mannequin), the rest of the mannequin body below the garment hemline MUST remain visible and uncovered
 
 LIGHTING: ${lightings[lighting] || lightings.soft_studio}
 
