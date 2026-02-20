@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Upload, Eraser, Sun, Image as ImageIcon, User, Camera, RefreshCw,
-  Lock, Download, ArrowRight, Sparkles, X, ArrowLeft, Link2, ZoomIn,
+  Lock, Download, ArrowRight, Sparkles, X, ArrowLeft, Link2, ZoomIn, Check,
 } from "lucide-react";
 
 // ── Icon map ─────────────────────────────────────────────────────────
@@ -664,26 +664,26 @@ export default function Vintography() {
               {(() => {
                 const CHAIN_SUGGESTIONS: Record<string, { op: PhotoOperation; label: string; description: string }[]> = {
                   remove_bg: [
-                    { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
+                    { op: "put_on_model", label: "Put on Model", description: "Use your clean-background photo to generate a model shot" },
                   ],
                   sell_ready: [
-                    { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
+                    { op: "put_on_model", label: "Put on Model", description: "Use this enhanced photo to generate a model shot" },
                   ],
                   studio_shadow: [
-                    { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
+                    { op: "put_on_model", label: "Put on Model", description: "Use this studio photo to generate a model shot" },
                   ],
                   ai_background: [
-                    { op: "put_on_model", label: "Put on Model", description: "Now try it on a model" },
+                    { op: "put_on_model", label: "Put on Model", description: "Use this styled photo to generate a model shot" },
                   ],
                   put_on_model: [
-                    { op: "remove_bg", label: "Remove Background", description: "Clean up the background on this result" },
-                    { op: "swap_model", label: "Swap Model", description: "Try a different model look" },
+                    { op: "remove_bg", label: "Clean Background", description: "Remove the background from this model shot" },
+                    { op: "swap_model", label: "Try Different Model", description: "Keep the outfit, change the model's look" },
                   ],
                   swap_model: [
-                    { op: "remove_bg", label: "Remove Background", description: "Clean up the background on this result" },
+                    { op: "remove_bg", label: "Clean Background", description: "Remove the background from this model shot" },
                   ],
                   virtual_tryon: [
-                    { op: "remove_bg", label: "Remove Background", description: "Clean up the background on this result" },
+                    { op: "remove_bg", label: "Clean Background", description: "Remove the background from this try-on result" },
                   ],
                 };
 
@@ -694,52 +694,68 @@ export default function Vintography() {
                 if (suggestions.length === 0) return null;
 
                 return (
-                  <div data-chain-suggestions className="mt-4 space-y-2">
-                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Continue editing</p>
-                    <div className="grid grid-cols-1 gap-2">
-                      {available.map((s) => (
-                        <button
-                          key={s.op}
-                          className="w-full rounded-xl border border-border bg-card p-3.5 sm:p-3 min-h-[52px] text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-sm flex items-center gap-3"
-                          onClick={() => {
-                            // Track what we just completed for the drawer header
-                            const justCompleted = selectedOpConfig?.label || null;
+                  <>
+                    {/* Saved confirmation */}
+                    <div className="mt-4 flex items-center gap-2.5 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                      <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0">
+                        <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-green-700 dark:text-green-400">{selectedOpConfig?.label} complete</p>
+                        <p className="text-[11px] text-green-600/70 dark:text-green-400/70">
+                          {effectiveItemId
+                            ? "Saved to your gallery. You can also save to your listing above."
+                            : "Saved to your gallery. Download anytime."
+                          }
+                        </p>
+                      </div>
+                    </div>
 
-                            setPhotoLoading(true);
-                            setSelectedPhoto(resultPhoto);
-                            setResultPhoto(null);
-                            setOpParams({});
-                            clearSession();
+                    <div data-chain-suggestions className="mt-4 space-y-2">
+                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Continue editing</p>
+                      <div className="grid grid-cols-1 gap-2">
+                        {available.map((s) => (
+                          <button
+                            key={s.op}
+                            className="w-full rounded-xl border border-border bg-card p-3.5 sm:p-3 min-h-[52px] text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-sm flex items-center gap-3"
+                            onClick={() => {
+                              const justCompleted = selectedOpConfig?.label || null;
 
-                            const chainHasConfig = ["put_on_model", "virtual_tryon", "swap_model", "ai_background"].includes(s.op);
+                              setPhotoLoading(true);
+                              setSelectedPhoto(resultPhoto);
+                              setResultPhoto(null);
+                              setOpParams({});
+                              clearSession();
 
-                            // Scroll to top to show the new input photo
-                            window.scrollTo({ top: 0, behavior: "smooth" });
+                              const chainHasConfig = ["put_on_model", "virtual_tryon", "swap_model", "ai_background"].includes(s.op);
 
-                            // Set the new operation after scroll settles
-                            setTimeout(() => {
-                              setSelectedOp(s.op as PhotoOperation);
-                              setPreviousOpLabel(justCompleted);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
 
-                              // Open drawer for ops with config on mobile
-                              if (chainHasConfig && window.innerWidth < 1024) {
-                                setTimeout(() => setConfigDrawerOpen(true), 300);
-                              }
-                            }, 400);
-                          }}
-                        >
-                          <div className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                            <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold">{s.label}</p>
-                            <p className="text-[11px] text-muted-foreground">{s.description}</p>
-                          </div>
-                          <Badge variant="secondary" className="text-[10px] shrink-0">
-                            {PHOTO_OPERATIONS[s.op].credits} cr
-                          </Badge>
-                        </button>
-                      ))}
+                              setTimeout(() => {
+                                setSelectedOp(s.op as PhotoOperation);
+                                setPreviousOpLabel(justCompleted);
+
+                                if (chainHasConfig && window.innerWidth < 1024) {
+                                  setTimeout(() => setConfigDrawerOpen(true), 300);
+                                }
+                              }, 400);
+                            }}
+                          >
+                            <div className="w-11 h-11 rounded-xl overflow-hidden border border-border shrink-0 bg-muted relative">
+                              <img src={resultPhoto!} alt="" className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 flex items-center justify-center bg-primary/20">
+                                <ArrowRight className="w-4 h-4 text-primary drop-shadow" />
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold">{s.label}</p>
+                              <p className="text-[11px] text-muted-foreground">{s.description}</p>
+                            </div>
+                            <Badge variant="secondary" className="text-[10px] shrink-0">
+                              {PHOTO_OPERATIONS[s.op].credits} cr
+                            </Badge>
+                          </button>
+                        ))}
                       {locked.map((s) => (
                         <button
                           key={s.op}
@@ -764,6 +780,7 @@ export default function Vintography() {
                       ))}
                     </div>
                   </div>
+                  </>
                 );
               })()}
             </motion.div>
