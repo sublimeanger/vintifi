@@ -267,6 +267,11 @@ export default function Vintography() {
       toast.success(`${photos.length} photo${photos.length > 1 ? "s" : ""} imported from Vinted!`, {
         description: result.title || undefined,
       });
+
+      // Scroll to show imported photos in filmstrip, then down to operation grid
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 300);
     } catch (err: any) {
       console.error("Vinted import failed:", err);
       toast.error("Couldn't import listing — check the URL and try again");
@@ -295,6 +300,17 @@ export default function Vintography() {
       setTimeout(() => {
         configPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 450);
+
+      // After config renders, scroll back slightly so user sees both the photo and the config
+      setTimeout(() => {
+        const preview = document.querySelector("[data-photo-preview]");
+        if (preview && window.innerWidth < 1024) {
+          const rect = preview.getBoundingClientRect();
+          if (rect.top < -50) {
+            window.scrollBy({ top: rect.top - 20, behavior: "smooth" });
+          }
+        }
+      }, 800);
     }
   };
 
@@ -373,10 +389,18 @@ export default function Vintography() {
           }));
         }
 
-        // Auto-scroll to result on mobile
+        // Scroll to result with smooth reveal
         setTimeout(() => {
           resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 100);
+        }, 250);
+
+        // After user admires the result, gently nudge to show chain suggestions exist
+        setTimeout(() => {
+          const chainSection = document.querySelector("[data-chain-suggestions]");
+          if (chainSection && window.innerWidth < 1024) {
+            chainSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        }, 2500);
       }
     } catch (err: any) {
       const msg = err?.message || "";
@@ -641,7 +665,7 @@ export default function Vintography() {
                 if (suggestions.length === 0) return null;
 
                 return (
-                  <div className="mt-4 space-y-2">
+                  <div data-chain-suggestions className="mt-4 space-y-2">
                     <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Continue editing</p>
                     <div className="grid grid-cols-1 gap-2">
                       {available.map((s) => (
@@ -707,7 +731,7 @@ export default function Vintography() {
             onDrop={(e) => { e.currentTarget.classList.remove("border-primary"); handleFileDrop(e); }}
           >
             {selectedPhoto ? (
-              <div className="relative rounded-2xl overflow-hidden border border-border bg-muted/30">
+              <div data-photo-preview className="relative rounded-2xl overflow-hidden border border-border bg-muted/30">
                 {isProcessing && (
                   <div className="absolute inset-0 z-10 bg-background/70 backdrop-blur-[6px] flex flex-col items-center justify-center gap-3">
                     <motion.div
