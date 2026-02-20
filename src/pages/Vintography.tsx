@@ -86,6 +86,7 @@ export default function Vintography() {
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Persist state to sessionStorage whenever it changes
   useEffect(() => {
@@ -792,7 +793,28 @@ export default function Vintography() {
             </motion.div>
           ) : (
             /* ─── Editor: three-zone layout ─── */
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                if (e.dataTransfer.files.length > 0) handleFileSelect(e.dataTransfer.files);
+              }}
+              className="relative"
+            >
+              {isDragging && (
+                <div className="absolute inset-0 z-50 bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary rounded-xl flex items-center justify-center pointer-events-none">
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-primary">Drop photo here</p>
+                    <p className="text-sm text-muted-foreground">Replace current image</p>
+                  </div>
+                </div>
+              )}
               {/* ════ MOBILE layout (< lg) ════ */}
               <div className="lg:hidden space-y-3 pb-36">
                 {/* Zone 1: Canvas — always visible at top */}
