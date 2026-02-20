@@ -290,7 +290,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(["pro", "business", "scale"] as TierKey[]).map((key, i) => {
+            {(["starter", "pro", "business"] as TierKey[]).map((key, i) => {
               const tier = STRIPE_TIERS[key];
               const isCurrent = currentTier === key;
               const displayPrice = billingAnnual && 'annual_price' in tier
