@@ -598,6 +598,7 @@ export default function Vintography() {
                 const CHAIN_SUGGESTIONS: Record<string, { op: PhotoOperation; label: string; description: string }[]> = {
                   remove_bg: [
                     { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
+                    { op: "swap_model", label: "Swap Model", description: "Try a different model look" },
                   ],
                   sell_ready: [
                     { op: "put_on_model", label: "Put on Model", description: "Generate a model wearing this item" },
