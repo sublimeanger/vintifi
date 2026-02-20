@@ -190,6 +190,9 @@ export function UpgradeModal({ open, onClose, reason, tierRequired, showCredits 
                       )}
                     </div>
                     <p className="text-[10px] text-muted-foreground">{t.credits.toLocaleString()} credits/mo</p>
+                    {"perCredit" in t && t.perCredit && (
+                      <p className="text-[9px] text-muted-foreground">£{t.perCredit}/credit</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
