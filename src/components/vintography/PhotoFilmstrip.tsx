@@ -155,7 +155,7 @@ export function PhotoFilmstrip({ photos, activeUrl, editStates, itemId, onSelect
             className="shrink-0 w-[72px] h-[72px] lg:w-20 lg:h-20 rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1 transition-colors bg-muted/30 hover:bg-primary/[0.04]"
           >
             <Plus className="w-4 h-4 text-muted-foreground" />
-            <span className="text-[9px] text-muted-foreground font-medium">Add</span>
+            <span className="text-[10px] text-muted-foreground font-medium">Add</span>
           </button>
         )}
       </div>

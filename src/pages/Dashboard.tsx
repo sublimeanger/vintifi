@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -337,7 +338,7 @@ export default function Dashboard() {
             >
               <div className="flex items-center gap-1 mb-0.5">
                 <Package className="w-3 h-3 text-primary" />
-                <span className="text-[9px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Active</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Active</span>
               </div>
               <p className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight">{loaded ? activeCount : "—"}</p>
               <p className="text-[10px] text-muted-foreground font-medium mt-0.5">listings</p>
@@ -350,7 +351,7 @@ export default function Dashboard() {
             >
               <div className="flex items-center gap-1 mb-0.5">
                 <AlertTriangle className="w-3 h-3 text-warning" />
-                <span className="text-[9px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Attention</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Attention</span>
               </div>
               <p className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight">{loaded ? needsAttentionCount : "—"}</p>
               <p className="text-[10px] text-muted-foreground font-medium mt-0.5">items</p>
@@ -370,8 +371,16 @@ export default function Dashboard() {
             </Button>
           </div>
           {!loaded ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+            <div className="space-y-2 py-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl">
+                  <Skeleton className="w-10 h-10 rounded-lg" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-3/4 rounded" />
+                    <Skeleton className="h-2.5 w-1/3 rounded" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : recentItems.length === 0 ? (
             <button
@@ -467,7 +476,7 @@ export default function Dashboard() {
                           }`} />
                         </div>
                         {trend.opportunity_score != null && (
-                          <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-bold">
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-bold">
                             {trend.opportunity_score}
                           </Badge>
                         )}

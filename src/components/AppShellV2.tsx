@@ -238,7 +238,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
               <Menu className="w-[18px] h-[18px]" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0 bg-sidebar text-sidebar-foreground flex flex-col h-full">
+          <SheetContent side="left" className="w-72 p-0 bg-sidebar text-sidebar-foreground flex flex-col h-full !duration-300">
             <SheetHeader className="p-5 border-b border-sidebar-border shrink-0">
               <SheetTitle className="font-display text-xl font-extrabold text-sidebar-foreground">
                 <span className="text-gradient">Vintifi</span>
@@ -323,12 +323,12 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
               {active && (
                 <motion.div
                   layoutId="bottom-nav-pill-v2"
-                  className="absolute inset-x-3 inset-y-2 bg-primary/8 rounded-xl"
+                  className="absolute inset-x-2 inset-y-1.5 bg-primary/12 rounded-xl"
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}
               <tab.icon className={cn("w-5 h-5 relative z-10 transition-all", active && "w-[22px] h-[22px]")} />
-              <span className={cn("text-[9px] font-medium relative z-10 mt-0.5", active && "font-bold text-[10px]")}>
+              <span className={cn("text-[10px] font-medium relative z-10 mt-0.5", active && "font-bold text-[11px]")}>
                 {tab.label}
               </span>
             </button>
@@ -346,7 +346,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
           )}>
             <Plus className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className={cn("text-[9px] font-bold mt-0.5", isActive("/sell") ? "text-primary" : "text-muted-foreground")}>
+          <span className={cn("text-[10px] font-bold mt-0.5", isActive("/sell") ? "text-primary" : "text-muted-foreground")}>
             Sell
           </span>
         </button>
@@ -366,12 +366,12 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
               {active && (
                 <motion.div
                   layoutId="bottom-nav-pill-v2"
-                  className="absolute inset-x-3 inset-y-2 bg-primary/8 rounded-xl"
+                  className="absolute inset-x-2 inset-y-1.5 bg-primary/12 rounded-xl"
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}
               <tab.icon className={cn("w-5 h-5 relative z-10 transition-all", active && "w-[22px] h-[22px]")} />
-              <span className={cn("text-[9px] font-medium relative z-10 mt-0.5", active && "font-bold text-[10px]")}>
+              <span className={cn("text-[10px] font-medium relative z-10 mt-0.5", active && "font-bold text-[11px]")}>
                 {tab.label}
               </span>
             </button>
@@ -388,7 +388,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
               )}
             >
               <MoreHorizontal className="w-5 h-5 relative z-10" />
-              <span className="text-[9px] font-medium relative z-10 mt-0.5">More</span>
+              <span className="text-[10px] font-medium relative z-10 mt-0.5">More</span>
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="p-0 bg-background rounded-t-2xl">
