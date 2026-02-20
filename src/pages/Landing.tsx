@@ -32,30 +32,13 @@ const heroFeatures = [
             <div key={tab} className={`flex-1 text-center py-1.5 rounded-md text-[10px] font-medium transition-colors ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{tab}</div>
           ))}
         </div>
-        <div className="grid grid-cols-3 gap-1.5 text-center mb-1">
-          {["Editorial", "Natural Photo", "Street Style"].map((style, i) => (
-            <div key={style} className={`rounded-lg p-1.5 border text-[10px] font-medium ${i === 1 ? "border-primary bg-primary/5 text-primary" : "border-border bg-card text-muted-foreground"}`}>
-              {style}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg bg-muted/50 border border-border p-2 text-center">
-            <div className="w-full h-20 rounded bg-muted flex items-center justify-center mb-1.5">
-              <span className="text-[10px] text-muted-foreground">📱 Phone snap</span>
-            </div>
-            <p className="text-[10px] text-muted-foreground">Before</p>
-          </div>
-          <div className="rounded-lg bg-success/5 border border-success/30 p-2 text-center">
-            <div className="w-full h-20 rounded bg-gradient-to-br from-success/10 to-primary/10 flex items-center justify-center mb-1.5">
-              <div className="text-center">
-                <span className="text-base">✨</span>
-                <p className="text-[10px] text-success font-medium mt-0.5">Studio quality</p>
-              </div>
-            </div>
-            <p className="text-[10px] text-success font-medium">After — 1 tap</p>
-          </div>
-        </div>
+        <BeforeAfterSlider
+          beforeSrc="/marketing/nike-sweatshirt-before.jpeg"
+          afterSrc="/marketing/nike-sweatshirt-after.png"
+          beforeLabel="Phone snap"
+          afterLabel="AI Enhanced"
+          className="rounded-xl overflow-hidden"
+        />
         <div className="text-[10px] text-muted-foreground text-center">16 background scenes · Batch processing · Gallery included</div>
       </div>
     ),
