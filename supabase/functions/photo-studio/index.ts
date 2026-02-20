@@ -51,16 +51,17 @@ async function callPhotoroom(
   apiKey: string,
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
   const form = new FormData();
-  form.append("image_file", new Blob([imageBytes]), "image.jpg");
 
   let url: string;
 
   if (operation === "remove_bg") {
-    // v1/segment — Basic plan, proven working
+    // v1/segment — Basic plan, proven working (uses "image_file")
     url = "https://sdk.photoroom.com/v1/segment";
+    form.append("image_file", new Blob([imageBytes]), "image.jpg");
   } else {
-    // v1/edit — handles shadow, lighting, backgrounds, and sell_ready combo
-    url = "https://sdk.photoroom.com/v1/edit";
+    // v2/edit — handles shadow, lighting, backgrounds, and sell_ready combo (uses "imageFile")
+    url = "https://image-api.photoroom.com/v2/edit";
+    form.append("imageFile", new Blob([imageBytes]), "image.jpg");
 
     if (operation === "sell_ready") {
       form.append("background.color", "#FFFFFF");
