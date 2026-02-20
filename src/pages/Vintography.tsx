@@ -494,6 +494,14 @@ export default function Vintography() {
     }
   };
 
+  const handleReset = () => {
+    if (state.resultPhotoUrl && !activePhotoSaved) {
+      const confirmed = window.confirm("You have an unsaved edit. Are you sure you want to start over?");
+      if (!confirmed) return;
+    }
+    dispatch({ type: "RESET_ALL" });
+  };
+
   const opLabel = (op: string) => {
     const opKey = Object.entries(OP_MAP).find(([, v]) => v === op)?.[0];
     return opKey ? OP_LABEL[opKey as Operation] : op;
@@ -851,7 +859,7 @@ export default function Vintography() {
                   creditsLow={creditsLow}
                   onReprocess={handleProcess}
                   onDownload={handleDownload}
-                  onReset={() => dispatch({ type: "RESET_ALL" })}
+                  onReset={handleReset}
                   onSaveReplace={() => handleSaveToItem("replace")}
                   onSaveAdd={() => handleSaveToItem("add")}
                   onUseAsStartingPoint={handleUseResultAsStart}
@@ -966,7 +974,7 @@ export default function Vintography() {
                     creditsLow={creditsLow}
                     onReprocess={handleProcess}
                     onDownload={handleDownload}
-                    onReset={() => dispatch({ type: "RESET_ALL" })}
+                    onReset={handleReset}
                     onSaveReplace={() => handleSaveToItem("replace")}
                     onSaveAdd={() => handleSaveToItem("add")}
                     onUseAsStartingPoint={handleUseResultAsStart}

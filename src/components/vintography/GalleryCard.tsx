@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,8 +35,16 @@ const OP_ICONS: Record<string, typeof ImageOff> = {
 
 export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }: Props) {
   const [showProcessed, setShowProcessed] = useState(true);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const hasBeforeAfter = !!job.processed_url && !!job.original_url;
   const OpIcon = OP_ICONS[job.operation] || Sparkles;
+
+  // Auto-reset confirm state
+  useEffect(() => {
+    if (!confirmingDelete) return;
+    const timer = setTimeout(() => setConfirmingDelete(false), 3000);
+    return () => clearTimeout(timer);
+  }, [confirmingDelete]);
 
   // Mobile tap toggle
   const handleTap = () => {
@@ -120,10 +128,18 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
             )}
             <Button
               size="icon"
-              variant="destructive"
-              className="h-7 w-7 rounded-full"
-              onClick={(e) => { e.stopPropagation(); onDelete(job.id); }}
-              title="Delete"
+              variant={confirmingDelete ? "destructive" : "secondary"}
+              className={`h-7 w-7 rounded-full ${confirmingDelete ? "animate-pulse" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirmingDelete) {
+                  onDelete(job.id);
+                  setConfirmingDelete(false);
+                } else {
+                  setConfirmingDelete(true);
+                }
+              }}
+              title={confirmingDelete ? "Click again to confirm" : "Delete"}
             >
               <Trash2 className="w-3 h-3" />
             </Button>
@@ -179,13 +195,22 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
             )}
             <div className="flex-1" />
             <Button
-              size="icon"
+              size={confirmingDelete ? "sm" : "icon"}
               variant="ghost"
-              className="h-7 w-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={(e) => { e.stopPropagation(); onDelete(job.id); }}
-              title="Delete"
+              className={`h-7 rounded-lg ${confirmingDelete ? "text-destructive bg-destructive/10 px-2" : "w-7 text-destructive hover:text-destructive hover:bg-destructive/10"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirmingDelete) {
+                  onDelete(job.id);
+                  setConfirmingDelete(false);
+                } else {
+                  setConfirmingDelete(true);
+                }
+              }}
+              title={confirmingDelete ? "Tap again to confirm" : "Delete"}
             >
               <Trash2 className="w-3 h-3" />
+              {confirmingDelete && <span className="text-[10px] ml-1">Confirm</span>}
             </Button>
           </div>
         </div>
