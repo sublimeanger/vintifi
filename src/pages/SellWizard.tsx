@@ -728,6 +728,19 @@ export default function SellWizard() {
     setOptimiseLoading(true);
     try {
       const storedNotes = (createdItem as any)?.source_meta?.seller_notes || "";
+
+      // Gather item photos for AI vision analysis
+      const itemPhotos: string[] = [];
+      if (Array.isArray((createdItem as any)?.images)) {
+        for (const img of (createdItem as any).images as any[]) {
+          const u = typeof img === "string" ? img : img?.url;
+          if (u && u.startsWith("http") && itemPhotos.length < 4) itemPhotos.push(u);
+        }
+      }
+      if (itemPhotos.length === 0 && createdItem.image_url) {
+        itemPhotos.push(createdItem.image_url);
+      }
+
       const { data, error } = await supabase.functions.invoke("optimize-listing", {
         body: {
           itemId: createdItem.id,
@@ -741,6 +754,7 @@ export default function SellWizard() {
           material: createdItem.material,
           seller_notes: form.seller_notes.trim() || storedNotes,
           sell_wizard: true,
+          photoUrls: itemPhotos,
         },
       });
       if (error) throw error;
