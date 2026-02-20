@@ -565,7 +565,17 @@ export default function Vintography() {
             value={{ gender: opParams.gender || "female" }}
             onChange={(params) => setOpParams({ ...opParams, ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, (v || "").toLowerCase()])) })}
             selfieUrl={selfiePhoto || undefined}
-            onSelfieUpload={(url) => setSelfiePhoto(url)}
+            onSelfieUpload={(url) => {
+              setSelfiePhoto(url);
+              try { navigator?.vibrate?.([8, 30, 10]); } catch {}
+              // On desktop, scroll to preview. On mobile, the drawer handles it.
+              if (window.innerWidth >= 1024) {
+                setTimeout(() => {
+                  const preview = document.querySelector("[data-photo-preview]");
+                  if (preview) preview.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 400);
+              }
+            }}
           />
         );
 
