@@ -124,10 +124,10 @@ export default function Dashboard() {
       <div className="space-y-3 sm:space-y-8">
         {/* Welcome */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-          <h2 className="font-display text-base sm:text-2xl lg:text-3xl font-bold mb-0 leading-tight">
+          <h2 className="font-display text-lg sm:text-2xl lg:text-3xl font-bold mb-0 leading-tight">
             Welcome back, {profile?.display_name?.split(" ")[0] || "there"} 👋
           </h2>
-          <p className="text-muted-foreground text-[10px] sm:text-sm">Your selling command centre</p>
+          <p className="text-muted-foreground text-xs sm:text-sm">Your selling command centre</p>
         </motion.div>
 
         {/* First-item-free banner */}
@@ -275,38 +275,38 @@ export default function Dashboard() {
           </motion.div>
         ) : (
           <>
-            <div className="flex gap-1.5 sm:gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
               <Button
                 variant="outline"
-                className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+                className="shrink-0 w-[calc(25%-6px)] min-w-[80px] h-12 sm:h-11 font-semibold active:scale-95 transition-all touch-card rounded-xl text-xs sm:text-sm flex flex-col items-center justify-center gap-1 border-border/60 hover:border-primary/40 hover:bg-primary/[0.04]"
                 onClick={() => navigate("/sell")}
               >
-                <Package className="w-4 h-4 mr-1" />
-                Add Item
+                <Package className="w-4 h-4" />
+                <span className="text-[10px] sm:text-xs font-semibold leading-tight">Add Item</span>
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+                className="shrink-0 w-[calc(25%-6px)] min-w-[80px] h-12 sm:h-11 font-semibold active:scale-95 transition-all touch-card rounded-xl text-xs sm:text-sm flex flex-col items-center justify-center gap-1 border-border/60 hover:border-primary/40 hover:bg-primary/[0.04]"
                 onClick={() => navigate("/vintography?op=remove_bg")}
               >
-                <Eraser className="w-4 h-4 mr-1" />
-                Remove BG
+                <Eraser className="w-4 h-4" />
+                <span className="text-[10px] sm:text-xs font-semibold leading-tight">Remove BG</span>
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+                className="shrink-0 w-[calc(25%-6px)] min-w-[80px] h-12 sm:h-11 font-semibold active:scale-95 transition-all touch-card rounded-xl text-xs sm:text-sm flex flex-col items-center justify-center gap-1 border-border/60 hover:border-primary/40 hover:bg-primary/[0.04]"
                 onClick={() => navigate("/vintography?op=put_on_model")}
               >
-                <User className="w-4 h-4 mr-1" />
-                On Model
+                <User className="w-4 h-4" />
+                <span className="text-[10px] sm:text-xs font-semibold leading-tight">On Model</span>
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 h-11 sm:h-10 font-semibold active:scale-95 transition-transform touch-card rounded-xl text-xs sm:text-sm"
+                className="shrink-0 w-[calc(25%-6px)] min-w-[80px] h-12 sm:h-11 font-semibold active:scale-95 transition-all touch-card rounded-xl text-xs sm:text-sm flex flex-col items-center justify-center gap-1 border-border/60 hover:border-primary/40 hover:bg-primary/[0.04]"
                 onClick={() => navigate("/vintography?op=virtual_tryon")}
               >
-                <Camera className="w-4 h-4 mr-1" />
-                Try It On
+                <Camera className="w-4 h-4" />
+                <span className="text-[10px] sm:text-xs font-semibold leading-tight">Try It On</span>
               </Button>
             </div>
             {credits && (
@@ -332,26 +332,28 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
             <Card
-              className="p-2.5 sm:p-3 border-l-[3px] border-l-primary bg-primary/[0.03] cursor-pointer active:scale-[0.97] transition-all touch-card rounded-xl"
+              className="p-2.5 sm:p-3 border-l-[3px] border-l-primary bg-primary/[0.03] cursor-pointer active:scale-[0.97] transition-all touch-card rounded-xl inner-glow"
               onClick={() => navigate("/listings?status=active")}
             >
               <div className="flex items-center gap-1 mb-0.5">
                 <Package className="w-3 h-3 text-primary" />
                 <span className="text-[9px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Active</span>
               </div>
-              <p className="font-display text-xl sm:text-3xl font-bold">{loaded ? activeCount : "—"}</p>
+              <p className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight">{loaded ? activeCount : "—"}</p>
+              <p className="text-[10px] text-muted-foreground font-medium mt-0.5">listings</p>
             </Card>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <Card
-              className="p-2.5 sm:p-3 border-l-[3px] border-l-warning bg-warning/[0.03] cursor-pointer active:scale-[0.97] transition-all touch-card rounded-xl"
+              className="p-2.5 sm:p-3 border-l-[3px] border-l-warning bg-warning/[0.03] cursor-pointer active:scale-[0.97] transition-all touch-card rounded-xl inner-glow"
               onClick={() => navigate("/listings?filter=needs_attention")}
             >
               <div className="flex items-center gap-1 mb-0.5">
                 <AlertTriangle className="w-3 h-3 text-warning" />
                 <span className="text-[9px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider">Attention</span>
               </div>
-              <p className="font-display text-xl sm:text-3xl font-bold">{loaded ? needsAttentionCount : "—"}</p>
+              <p className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight">{loaded ? needsAttentionCount : "—"}</p>
+              <p className="text-[10px] text-muted-foreground font-medium mt-0.5">items</p>
             </Card>
           </motion.div>
         </div>
@@ -400,14 +402,14 @@ export default function Dashboard() {
               {recentItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-2 p-2 rounded-xl bg-muted/30 active:bg-muted/50 cursor-pointer transition-colors touch-card"
+                  className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/20 hover:bg-muted/40 border border-transparent hover:border-border/40 active:bg-muted/50 cursor-pointer transition-colors touch-card"
                   onClick={() => navigate(`/items/${item.id}`)}
                 >
                   {item.image_url ? (
-                    <img src={item.image_url} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                    <img src={item.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                   ) : (
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <ImageIcon className="w-3 h-3 text-muted-foreground" />
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <ImageIcon className="w-4 h-4 text-muted-foreground" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
@@ -454,7 +456,8 @@ export default function Dashboard() {
                     className="shrink-0 w-36 sm:w-44"
                     onClick={() => navigate(`/trends?brand=${encodeURIComponent(trend.brand_or_item)}`)}
                   >
-                    <Card className="p-3 cursor-pointer hover:border-primary/30 transition-all active:scale-[0.97]">
+                    <Card className="p-3 cursor-pointer hover:border-primary/30 transition-all active:scale-[0.97] overflow-hidden relative">
+                      <div className={`absolute top-0 left-0 right-0 h-0.5 ${isRising ? "bg-gradient-to-r from-emerald-400 to-emerald-500" : isFalling ? "bg-gradient-to-r from-red-400 to-red-500" : "bg-muted"}`} />
                       <div className="flex items-center gap-1.5 mb-2">
                         <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
                           isRising ? "bg-emerald-500/10" : isFalling ? "bg-destructive/10" : "bg-muted"
