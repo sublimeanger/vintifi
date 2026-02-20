@@ -503,19 +503,18 @@ export default function SellWizard() {
     setPhotoUrls((prev) => [...prev, ...objectUrls]);
     if (fileInputRef.current) fileInputRef.current.value = "";
     // Trigger background colour detection from first uploaded photo if colour is blank
-    if (!form.colour && objectUrls.length > 0) {
-      detectColourFromPhoto(objectUrls[0]);
+    if (!form.colour && files.length > 0) {
+      detectColourFromPhoto(objectUrls[0], files[0]);
     }
   };
 
   // ─── Background colour auto-detection from photo ───
-  const detectColourFromPhoto = async (photoUrl: string) => {
+  const detectColourFromPhoto = async (photoUrl: string, directFile?: File) => {
     if (form.colour) return; // Already has a colour — don't overwrite
     setColourDetecting(true);
     try {
       // Upload the file first if it's a blob URL so the edge function can access it
-      const firstFileIdx = photoUrls.length; // index of new photo in photoFiles
-      const fileToUpload = photoFiles[firstFileIdx] || null;
+      const fileToUpload = directFile || null;
       let accessibleUrl = photoUrl;
       if (photoUrl.startsWith("blob:") && user && fileToUpload) {
         const ext = fileToUpload.name.split(".").pop() || "jpg";
@@ -899,6 +898,14 @@ export default function SellWizard() {
           >
             {scraping ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Importing…</> : "Import & Review Details"}
           </Button>
+          {form.description && !form.title && null}
+          {form.description && form.title && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1.5">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Imported Description</p>
+              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{form.description}</p>
+              <p className="text-[10px] text-primary/70">This will be AI-rewritten in the Optimise step</p>
+            </div>
+          )}
           {form.title && renderDetailsForm()}
         </div>
       );
@@ -1064,6 +1071,13 @@ export default function SellWizard() {
           </div>
         );
       })()}
+      {/* Material field */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Material <span className="text-[10px] font-normal text-muted-foreground ml-1">(helps AI accuracy)</span>
+        </Label>
+        <Input value={form.material} onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))} placeholder="Cotton, Polyester, Leather, Denim…" className="h-10 lg:h-12" />
+      </div>
       {/* Seller notes / defect disclosure */}
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
