@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  Loader2, Wand2, RotateCcw, Info, X, Coins, Package, Star, ChevronDown,
+  Loader2, Wand2, RotateCcw, Info, X, Coins, Package, Star, ChevronDown, ChevronRight, Sparkles,
 } from "lucide-react";
 import {
   Collapsible, CollapsibleTrigger, CollapsibleContent,
@@ -555,6 +555,21 @@ export default function Vintography() {
     return opKey ? OP_LABEL[opKey as Operation] : op;
   };
 
+  const getAutoSuggestion = (): { op: Operation; label: string; reason: string } | null => {
+    if (!state.resultPhotoUrl || state.pipeline.length >= 4) return null;
+    const ops = state.pipeline.map(s => s.operation);
+    if (ops.includes("clean_bg") && !ops.includes("enhance")) {
+      return { op: "enhance", label: "Add Enhance", reason: "Most sellers add Enhance after Clean Background for professional colour correction" };
+    }
+    if (ops.includes("lifestyle_bg") && !ops.includes("enhance")) {
+      return { op: "enhance", label: "Add Enhance", reason: "Enhance perfects the lighting to match your scene" };
+    }
+    if (ops.includes("decrease") && !ops.includes("clean_bg") && !ops.includes("lifestyle_bg")) {
+      return { op: "clean_bg", label: "Add Clean Background", reason: "A clean background after steaming creates a perfect listing photo" };
+    }
+    return null;
+  };
+
   const returnTo = searchParams.get("returnTo");
   const fromWizard = returnTo === "/sell";
   const hasFilmstrip = itemId && state.itemPhotos.length > 0;
@@ -939,6 +954,32 @@ export default function Vintography() {
                   showSavePreset={state.pipeline.length >= 2 && !state.isProcessing}
                 />
 
+                {(() => {
+                  const suggestion = getAutoSuggestion();
+                  if (!suggestion || state.isProcessing) return null;
+                  const cost = getOperationCreditCost(suggestion.op);
+                  return (
+                    <Card
+                      onClick={() => {
+                        dispatch({ type: "ADD_PIPELINE_STEP", step: { operation: suggestion.op, params: defaultParams(suggestion.op) } });
+                        handleProcess();
+                      }}
+                      className="p-3 cursor-pointer border-accent/20 bg-accent/[0.04] hover:bg-accent/[0.08] hover:border-accent/30 transition-all active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-4 h-4 text-accent" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold">{suggestion.label} · {cost} credit{cost !== 1 ? "s" : ""}</p>
+                          <p className="text-[10px] text-muted-foreground">{suggestion.reason}</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                      </div>
+                    </Card>
+                  );
+                })()}
+
                 {state.resultPhotoUrl && itemId && (
                   <Card className="p-3 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Next Steps</p>
@@ -1052,7 +1093,33 @@ export default function Vintography() {
                     onTopUp={() => navigate("/settings?tab=billing")}
                     onSavePreset={handleSavePreset}
                     showSavePreset={state.pipeline.length >= 2 && !state.isProcessing}
-                  />
+                   />
+
+                  {(() => {
+                    const suggestion = getAutoSuggestion();
+                    if (!suggestion || state.isProcessing) return null;
+                    const cost = getOperationCreditCost(suggestion.op);
+                    return (
+                      <Card
+                        onClick={() => {
+                          dispatch({ type: "ADD_PIPELINE_STEP", step: { operation: suggestion.op, params: defaultParams(suggestion.op) } });
+                          handleProcess();
+                        }}
+                        className="p-3 cursor-pointer border-accent/20 bg-accent/[0.04] hover:bg-accent/[0.08] hover:border-accent/30 transition-all active:scale-[0.98]"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                            <Sparkles className="w-4 h-4 text-accent" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold">{suggestion.label} · {cost} credit{cost !== 1 ? "s" : ""}</p>
+                            <p className="text-[10px] text-muted-foreground">{suggestion.reason}</p>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                        </div>
+                      </Card>
+                    );
+                  })()}
 
                   {/* Next steps card for linked items */}
                   {state.resultPhotoUrl && itemId && (
