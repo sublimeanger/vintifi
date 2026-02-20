@@ -347,7 +347,13 @@ export default function Vintography() {
     if (window.innerWidth < 1024) {
       setTimeout(() => {
         const preview = document.querySelector("[data-photo-preview]");
-        if (preview) preview.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (preview) {
+          const rect = preview.getBoundingClientRect();
+          // Only scroll if the photo is mostly off-screen
+          if (rect.top < -50 || rect.top > window.innerHeight * 0.6) {
+            preview.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
       }, 300);
     }
 
@@ -413,13 +419,7 @@ export default function Vintography() {
           resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 250);
 
-        // After user admires the result, gently nudge to show chain suggestions exist
-        setTimeout(() => {
-          const chainSection = document.querySelector("[data-chain-suggestions]");
-          if (chainSection && window.innerWidth < 1024) {
-            chainSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
-          }
-        }, 2500);
+        // Chain suggestions are visible below the result — user scrolls naturally
       }
     } catch (err: any) {
       const msg = err?.message || "";
