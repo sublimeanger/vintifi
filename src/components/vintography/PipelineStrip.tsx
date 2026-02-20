@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, ChevronRight } from "lucide-react";
+import { X, Plus, ChevronRight, Layers } from "lucide-react";
 import { Operation, OP_LABEL, PipelineStep, getAvailableOpsToAdd, defaultParams } from "./vintographyReducer";
 
 type Props = {
@@ -46,8 +46,53 @@ export function PipelineStrip({
     return () => document.removeEventListener("mousedown", handler);
   }, [dropdownOpen]);
 
+  // Nothing to show if single step and no available ops to add
   if (pipeline.length <= 1 && available.length === 0) return null;
 
+  // ── Compact mode: 1 step — just show a "+ Chain" button ──
+  if (pipeline.length === 1 && available.length > 0) {
+    return (
+      <div className="relative" ref={dropdownRef}>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setDropdownOpen((v) => !v)}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-2 border border-dashed border-primary/25 text-[11px] font-semibold text-primary/70 hover:border-primary/50 hover:text-primary transition-all bg-primary/[0.02] active:scale-[0.97]"
+        >
+          <Layers className="w-3.5 h-3.5" />
+          Chain another effect
+          <Plus className="w-3 h-3 ml-0.5" />
+        </motion.button>
+
+        <AnimatePresence>
+          {dropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 4, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.97 }}
+              transition={{ duration: 0.12 }}
+              className="absolute left-0 bottom-full mb-1.5 z-[100] min-w-[180px] rounded-xl border border-border bg-card shadow-xl p-1"
+            >
+              <p className="px-3 pt-1.5 pb-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Add as step 2</p>
+              {available.map((op) => (
+                <button
+                  key={op}
+                  onClick={() => {
+                    onAddStep(op);
+                    setDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-medium text-foreground hover:bg-primary/[0.06] hover:text-primary transition-colors text-left active:scale-[0.97]"
+                >
+                  {OP_LABEL[op]}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // ── Full mode: 2+ steps — show numbered pipeline ──
   return (
     <div className="space-y-2">
       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -90,8 +135,8 @@ export function PipelineStrip({
           );
         })}
 
-        {/* + Add Effect button with controlled dropdown */}
-        {available.length > 0 && (
+        {/* + Add Effect button */}
+        {available.length > 0 && pipeline.length < 4 && (
           <div className="relative" ref={dropdownRef}>
             <motion.button
               whileTap={{ scale: 0.95 }}
