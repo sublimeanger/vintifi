@@ -393,11 +393,37 @@ export default function SellWizard() {
 
   // Helper to scroll the wizard content to top
   const scrollToTop = () => {
-    // FIX 8: scroll to top on step advance
     setTimeout(() => {
       const el = document.getElementById("sell-wizard-scroll");
       if (el) el.scrollTop = 0;
     }, 50);
+  };
+
+  // Scroll a data-attribute element into view within the wizard scroll container
+  const scrollIntoWizardView = (selector: string, delay: number, block: ScrollLogicalPosition = "center") => {
+    setTimeout(() => {
+      const el = document.querySelector(selector);
+      el?.scrollIntoView({ behavior: "smooth", block });
+    }, delay);
+  };
+
+  // Scroll to reveal an element with a slight offset
+  const scrollToReveal = (selector: string, delay: number) => {
+    setTimeout(() => {
+      const el = document.querySelector(selector);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, delay);
+  };
+
+  // Temporarily add cta-breathe class to an element
+  const addCtaBreathe = (selector: string, delay: number, duration = 4000) => {
+    setTimeout(() => {
+      const el = document.querySelector(selector);
+      if (el) {
+        el.classList.add("cta-breathe");
+        setTimeout(() => el.classList.remove("cta-breathe"), duration);
+      }
+    }, delay);
   };
 
   const goNext = useCallback(() => {
@@ -432,6 +458,20 @@ export default function SellWizard() {
       setSelectedForEnhance(new Set(photos));
     }
   }, [currentStep, createdItem?.image_url]);
+
+  // ─── Step 2 mount nudge: briefly scroll to show effects section then scroll back ───
+  useEffect(() => {
+    if (currentStep !== 2 || !createdItem || photoDone) return;
+    const scrollEl = document.getElementById("sell-wizard-scroll");
+    if (!scrollEl) return;
+    const timer = setTimeout(() => {
+      scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: "smooth" });
+      setTimeout(() => {
+        scrollEl.scrollTo({ top: Math.max(0, scrollEl.scrollTop - 100), behavior: "smooth" });
+      }, 800);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [currentStep, createdItem, photoDone]);
 
   // ─── Auto-fire optimise on entering step 3 ───
   useEffect(() => {
@@ -662,7 +702,24 @@ export default function SellWizard() {
         if (Array.isArray(result.photos) && result.photos.length > 0) {
           setPhotoUrls(result.photos.filter((u: string) => typeof u === "string" && u.startsWith("http")));
         }
+        const hasPhotos = Array.isArray(result.photos) && result.photos.length > 0;
         toast.success(importedCondition ? "Listing details imported!" : "Listing imported — please verify the Condition field");
+
+        // Scroll choreography after URL scrape
+        if (!importedCondition && hasPhotos) {
+          scrollIntoWizardView("[data-form-fields]", 300, "start");
+          setTimeout(() => scrollIntoWizardView("[data-condition-field]", 0, "center"), 1100);
+        } else if (!importedCondition) {
+          scrollIntoWizardView("[data-condition-field]", 400, "center");
+        } else if (hasPhotos) {
+          setTimeout(() => {
+            const el = document.getElementById("sell-wizard-scroll");
+            if (el) el.scrollTop = 0;
+          }, 200);
+          scrollIntoWizardView("[data-form-fields]", 800, "start");
+        } else {
+          scrollIntoWizardView("[data-form-fields]", 400, "start");
+        }
       }
     } catch {
       toast.info("Couldn't auto-detect details — fill them in manually");
@@ -773,6 +830,7 @@ export default function SellWizard() {
     setCreatedItem((prev) => prev ? { ...prev, current_price: price, recommended_price: price } : prev);
     setPriceAccepted(true);
     toast.success(`Price set to £${price.toFixed(2)}`);
+    addCtaBreathe(".flex-1.h-12.lg\\:h-14", 600, 4000);
   };
 
   // ─── Step 3: Optimise ───
@@ -849,6 +907,7 @@ export default function SellWizard() {
     } : prev);
     setOptimiseSaved(true);
     toast.success("Optimised listing saved!");
+    addCtaBreathe(".flex-1.h-12.lg\\:h-14", 800, 4000);
   };
 
   // ─── Step 2 (Photos): Photo polling ───
@@ -1007,6 +1066,24 @@ export default function SellWizard() {
       setPhotoDone(true);
       setStepStatus((s) => ({ ...s, 2: "done" }));
       toast.success(`${successCount} of ${photosToProcess.length} photo${photosToProcess.length > 1 ? "s" : ""} enhanced!`);
+
+      // Scroll choreography after batch enhancement
+      requestAnimationFrame(() => {
+        if (window.innerWidth < 640) {
+          const scrollEl = document.getElementById("sell-wizard-scroll");
+          if (scrollEl) scrollEl.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+          scrollIntoWizardView("[data-photo-success]", 200, "center");
+        }
+        scrollToReveal("[data-whats-next]", 1200);
+        setTimeout(() => {
+          if (window.innerWidth < 640) {
+            addCtaBreathe("[data-continue-to-optimise]", 0, 4000);
+          } else {
+            addCtaBreathe(".flex-1.h-12", 0, 4000);
+          }
+        }, 1700);
+      });
     } else {
       toast.error("Enhancement failed — please try again");
     }
@@ -1194,13 +1271,13 @@ export default function SellWizard() {
 
   /* Details form shared between all entry methods */
   const renderDetailsForm = () => (
-    <div className="space-y-3 lg:space-y-4">
+    <div data-form-fields className="space-y-3 lg:space-y-4">
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
         <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Nike Air Force 1 White Trainers" className="text-base" />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5">
+        <div data-condition-field className="space-y-1.5">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             Condition *
             {urlImportedNoCondition && !form.condition && (
@@ -1771,11 +1848,12 @@ export default function SellWizard() {
       )}
 
       {photoDone && !batchProcessing && (
-        <div className="space-y-3 pt-2">
+        <div data-whats-next className="space-y-3 pt-2">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">What's next?</p>
 
           {/* Continue to Step 3 */}
           <button
+            data-continue-to-optimise
             className="w-full rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/[0.04] to-transparent p-4 text-left transition-all hover:border-primary/50 hover:shadow-sm active:scale-[0.98] flex items-center gap-3.5"
             onClick={() => {
               setDirection(1);
