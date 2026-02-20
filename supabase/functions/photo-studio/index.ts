@@ -59,9 +59,9 @@ async function callPhotoroom(
     url = "https://sdk.photoroom.com/v1/segment";
     form.append("image_file", new Blob([imageBytes]), "image.jpg");
   } else {
-    // v2/edit — handles shadow, lighting, backgrounds, and sell_ready combo (uses "imageFile")
-    url = "https://image-api.photoroom.com/v2/edit";
-    form.append("imageFile", new Blob([imageBytes]), "image.jpg");
+    // v1/edit — handles shadow, lighting, backgrounds, and sell_ready combo
+    url = "https://sdk.photoroom.com/v1/edit";
+    form.append("image_file", new Blob([imageBytes]), "image.jpg");
 
     if (operation === "sell_ready") {
       form.append("background.color", "#FFFFFF");
