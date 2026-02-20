@@ -16,7 +16,7 @@ import {
   Check, ChevronLeft, Loader2, Copy, Search, Sparkles, ImageIcon,
   Camera, Rocket, PoundSterling, Link2, Pencil, Upload, Plus, X,
   ArrowRight, Package, AlertCircle, ExternalLink, RotateCcw, Home,
-  Share2, MessageCircle,
+  Share2, MessageCircle, Eraser, User, Sun, Lock,
 } from "lucide-react";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
@@ -1164,6 +1164,51 @@ export default function SellWizard() {
 
       {!photoDone && !photoPolling && (
         <div className="space-y-2">
+          {/* Quick operation shortcuts */}
+          {createdItem && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Effects</p>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { op: "remove_bg", label: "Remove BG", icon: Eraser, credits: 1, locked: false },
+                  { op: "studio_shadow", label: "Studio Shadow", icon: Sun, credits: 2, locked: isFreeUser },
+                  { op: "put_on_model", label: "Put on Model", icon: User, credits: 3, locked: isFreeUser },
+                ] as const).map(({ op, label, icon: Icon, credits: cost, locked }) => (
+                  <button
+                    key={op}
+                    className={`relative rounded-xl border p-2.5 text-left transition-all active:scale-[0.97] ${
+                      locked
+                        ? "border-border bg-muted/30 opacity-70"
+                        : "border-primary/25 bg-primary/[0.04] hover:bg-primary/[0.08]"
+                    }`}
+                    onClick={() => {
+                      if (locked) {
+                        toast.info(`${label} requires the Starter plan`);
+                        return;
+                      }
+                      sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
+                      sessionStorage.setItem("sell_wizard_step", "2");
+                      hasNavigatedToPhotoStudioRef.current = true;
+                      navigate(`/vintography?op=${op}&itemId=${createdItem.id}&returnTo=/sell`);
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Icon className={`w-4 h-4 ${locked ? "text-muted-foreground" : "text-primary"}`} />
+                      {locked && <Lock className="w-3 h-3 text-muted-foreground" />}
+                    </div>
+                    <p className={`text-[11px] font-semibold leading-tight ${locked ? "text-muted-foreground" : "text-foreground"}`}>{label}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[9px] text-muted-foreground">{cost} credit{cost > 1 ? "s" : ""}</span>
+                      {locked && (
+                        <Badge variant="outline" className="text-[8px] py-0 px-1 h-3.5 font-bold">Starter</Badge>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Quick Remove Background — only when item has a photo and hasn't run yet */}
           {createdItem?.image_url && !quickBgResult && (
             <Button
@@ -1175,7 +1220,7 @@ export default function SellWizard() {
               {quickBgProcessing ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Removing background…</>
               ) : (
-                <><Sparkles className="w-4 h-4" /> Quick Remove Background</>
+                <><Eraser className="w-4 h-4" /> Quick Remove Background</>
               )}
             </Button>
           )}
@@ -1183,8 +1228,6 @@ export default function SellWizard() {
             className="w-full h-11 lg:h-12 font-semibold"
             onClick={() => {
               if (createdItem) {
-                // Mark that user has intentionally gone to Photo Studio
-                // so the re-entry useEffect knows to start polling on return
                 hasNavigatedToPhotoStudioRef.current = true;
                 sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
                 sessionStorage.setItem("sell_wizard_step", "2");
@@ -1192,7 +1235,7 @@ export default function SellWizard() {
               }
             }}
           >
-            <ImageIcon className="w-4 h-4 mr-2" /> Open Photo Studio
+            <ImageIcon className="w-4 h-4 mr-2" /> Open Full Photo Studio
           </Button>
           <Button variant="ghost" size="sm" className="w-full text-muted-foreground text-xs" onClick={skipPhotos}>
             Skip for now
