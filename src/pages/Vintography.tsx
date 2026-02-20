@@ -1102,7 +1102,30 @@ export default function Vintography() {
           );
         })()}
 
-        {/* Process button — desktop inline */}
+        {/* Mobile: "Configure" button to reopen the drawer */}
+        {!resultPhoto && selectedOp && selectedPhoto && opHasConfig && !configDrawerOpen && (
+          <div className="lg:hidden">
+            <button
+              onClick={() => setConfigDrawerOpen(true)}
+              className="w-full rounded-2xl border-2 border-primary/30 bg-primary/[0.04] p-4 flex items-center gap-3 transition-all active:scale-[0.98]"
+            >
+              <div className="w-11 h-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                {(() => {
+                  const Icon = ICON_MAP[PHOTO_OPERATIONS[selectedOp].icon] || Sparkles;
+                  return <Icon className="w-5 h-5 text-primary" />;
+                })()}
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-[15px] font-bold text-foreground">{selectedOpConfig?.label}</p>
+                <p className="text-xs text-primary font-medium">Tap to configure options →</p>
+              </div>
+              <Badge variant="secondary" className="text-[10px] shrink-0">
+                {selectedOpConfig?.credits} cr
+              </Badge>
+            </button>
+          </div>
+        )}
+
         {!resultPhoto && selectedOp && selectedPhoto && (
           <div className="hidden lg:block">
           <Button
