@@ -47,7 +47,10 @@ export default function Vintography() {
   const [opParams, setOpParams] = useState<Record<string, string>>({});
   const [selfiePhoto, setSelfiePhoto] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingElapsed, setProcessingElapsed] = useState(0);
+  const processingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [resultPhoto, setResultPhoto] = useState<string | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
   const [gallery, setGallery] = useState<VintographyJob[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
 
@@ -202,6 +205,9 @@ export default function Vintography() {
     }
 
     setIsProcessing(true);
+    setProcessingElapsed(0);
+    processingTimerRef.current = setInterval(() => setProcessingElapsed((s) => s + 1), 1000);
+
     try {
       const { data, error } = await supabase.functions.invoke("photo-studio", {
         body: {
@@ -215,11 +221,20 @@ export default function Vintography() {
 
       if (error) throw error;
       if (data?.error) {
-        if (data.upgrade_required) {
-          setUpgradeReason(data.error);
+        const errMsg: string = data.error;
+        if (data.upgrade_required || errMsg.toLowerCase().includes("credit")) {
+          toast.error(errMsg);
+          setUpgradeReason(errMsg);
           setUpgradeOpen(true);
+        } else if (errMsg.toLowerCase().includes("requires") && errMsg.toLowerCase().includes("plan")) {
+          toast.error("Requires Starter plan");
+          setUpgradeReason("Requires Starter plan");
+          setUpgradeTier("starter");
+          setUpgradeOpen(true);
+        } else if (errMsg.toLowerCase().includes("timeout") || errMsg.toLowerCase().includes("timed out")) {
+          toast.error("Taking longer than expected. Please try again.");
         } else {
-          toast.error(data.error);
+          toast.error("Something went wrong. Credits not charged. Please try again.");
         }
         return;
       }
@@ -227,7 +242,6 @@ export default function Vintography() {
       if (data?.processed_url) {
         setResultPhoto(data.processed_url);
         refreshCredits();
-        // Add to gallery
         setGallery((prev) => [{
           id: data.job_id,
           original_url: selectedPhoto,
@@ -237,7 +251,6 @@ export default function Vintography() {
           created_at: new Date().toISOString(),
         }, ...prev].slice(0, 12));
 
-        // Update edit state for item-linked
         if (itemId) {
           setEditStates((prev) => ({
             ...prev,
@@ -248,12 +261,23 @@ export default function Vintography() {
             },
           }));
         }
+
+        // Auto-scroll to result on mobile
+        setTimeout(() => {
+          resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
       }
     } catch (err: any) {
-      const msg = err?.message || "Processing failed";
-      toast.error(msg);
+      const msg = err?.message || "";
+      if (msg.toLowerCase().includes("timeout")) {
+        toast.error("Taking longer than expected. Please try again.");
+      } else {
+        toast.error("Something went wrong. Credits not charged. Please try again.");
+      }
     } finally {
       setIsProcessing(false);
+      setProcessingElapsed(0);
+      if (processingTimerRef.current) clearInterval(processingTimerRef.current);
     }
   };
 
@@ -491,10 +515,11 @@ export default function Vintography() {
         <AnimatePresence>
           {resultPhoto && selectedPhoto && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              ref={resultRef}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
             >
               <ComparisonView
                 originalUrl={selectedPhoto}
@@ -533,10 +558,31 @@ export default function Vintography() {
             {selectedPhoto ? (
               <div className="relative rounded-2xl overflow-hidden border border-border bg-muted/30">
                 {isProcessing && (
-                  <div className="absolute inset-0 z-10 bg-background/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                    <p className="text-sm font-medium text-foreground">Processing...</p>
-                    <p className="text-xs text-muted-foreground">This usually takes 5–15 seconds</p>
+                  <div className="absolute inset-0 z-10 bg-background/70 backdrop-blur-[6px] flex flex-col items-center justify-center gap-3">
+                    <motion.div
+                      animate={{ scale: [1, 1.08, 1], rotate: [0, 4, -4, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <Sparkles className="w-8 h-8 text-primary" />
+                    </motion.div>
+                    <p className="text-sm font-semibold text-foreground">Transforming your photo…</p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedOp === "remove_bg" || selectedOp === "studio_shadow"
+                        ? "~3 seconds"
+                        : "~10–15 seconds"}
+                    </p>
+                    {processingElapsed >= 30 && (
+                      <p className="text-xs text-muted-foreground/80 animate-fade-in">Still working on this one…</p>
+                    )}
+                    <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full bg-primary rounded-full"
+                        initial={{ x: "-100%" }}
+                        animate={{ x: "100%" }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        style={{ width: "40%" }}
+                      />
+                    </div>
                   </div>
                 )}
                 <img
@@ -549,20 +595,25 @@ export default function Vintography() {
                   variant="secondary"
                   className="absolute bottom-3 right-3 text-xs shadow-md"
                   onClick={() => fileInputRef.current?.click()}
+                  aria-label="Change photo"
                 >
                   Change Photo
                 </Button>
               </div>
             ) : (
               <label
-                className="flex flex-col items-center justify-center gap-3 p-8 lg:p-12 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-primary/[0.02] cursor-pointer transition-colors text-center"
+                className="flex flex-col items-center justify-center gap-4 p-8 lg:p-12 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-primary/[0.02] cursor-pointer transition-colors text-center"
+                role="button"
+                tabIndex={0}
+                aria-label="Upload a photo"
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
               >
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Upload className="w-6 h-6 text-primary" />
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Camera className="w-7 h-7 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Drop a photo here, or tap to upload</p>
-                  <p className="text-xs text-muted-foreground mt-1">JPEG, PNG, HEIC • You can also paste from clipboard</p>
+                  <p className="text-base font-bold text-foreground">Upload a photo to get started</p>
+                  <p className="text-xs text-muted-foreground mt-1">Drag & drop, paste, or tap to upload</p>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -598,7 +649,7 @@ export default function Vintography() {
         {!resultPhoto && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Choose Effect</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5" role="radiogroup" aria-label="Photo effects">
               {(Object.entries(PHOTO_OPERATIONS) as [PhotoOperation, typeof PHOTO_OPERATIONS[PhotoOperation]][]).map(([key, op]) => {
                 const Icon = ICON_MAP[op.icon] || Sparkles;
                 const isLocked = !isAtLeastTier(userTier, op.tier);
@@ -608,8 +659,13 @@ export default function Vintography() {
                 return (
                   <Card
                     key={key}
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={`${op.label} — ${op.credits} credit${op.credits > 1 ? "s" : ""}${isLocked ? `, requires ${op.tier} plan` : ""}`}
+                    tabIndex={isDisabled ? -1 : 0}
                     onClick={() => !isDisabled && handleSelectOp(key)}
-                    className={`relative p-3.5 cursor-pointer transition-all duration-200 ${
+                    onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isDisabled) { e.preventDefault(); handleSelectOp(key); } }}
+                    className={`relative p-3.5 cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                       isSelected
                         ? "border-primary bg-primary/[0.04] shadow-sm ring-1 ring-primary/20"
                         : isLocked
@@ -675,26 +731,28 @@ export default function Vintography() {
         {/* Process button — desktop inline */}
         {!resultPhoto && selectedOp && selectedPhoto && (
           <div className="hidden lg:block">
-            <Button
-              size="lg"
-              className="w-full h-12 text-sm font-semibold"
-              disabled={!canProcess}
-              onClick={handleProcess}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...
-                </>
-              ) : (
-                <>
-                  <ArrowRight className="w-4 h-4 mr-2" /> {processButtonText}
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+          <Button
+            size="lg"
+            className="w-full h-12 text-sm font-semibold"
+            disabled={!canProcess}
+            onClick={handleProcess}
+            aria-busy={isProcessing}
+            aria-label={isProcessing ? "Processing photo" : processButtonText}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing…
+              </>
+            ) : (
+              <>
+                <ArrowRight className="w-4 h-4 mr-2" /> {processButtonText}
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
-        {/* Gallery */}
+      {/* Gallery */}
         <div className="space-y-3 pt-4">
           <h3 className="text-sm font-semibold text-foreground">Recent Edits</h3>
           {galleryLoading ? (
@@ -733,10 +791,12 @@ export default function Vintography() {
             className="w-full h-12 text-sm font-semibold"
             disabled={!canProcess}
             onClick={handleProcess}
+            aria-busy={isProcessing}
+            aria-label={isProcessing ? "Processing photo" : processButtonText}
           >
             {isProcessing ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing…
               </>
             ) : (
               <>
