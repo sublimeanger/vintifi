@@ -14,6 +14,7 @@ import { PhotoFilmstrip, type PhotoEditState } from "@/components/vintography/Ph
 import { BackgroundPicker } from "@/components/vintography/BackgroundPicker";
 import { ModelOptions } from "@/components/vintography/ModelOptions";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import ImageLightbox from "@/components/ImageLightbox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Upload, Eraser, Sun, Image as ImageIcon, User, Camera, RefreshCw,
-  Lock, Download, ArrowRight, Sparkles, X, ArrowLeft, Link2,
+  Lock, Download, ArrowRight, Sparkles, X, ArrowLeft, Link2, ZoomIn,
 } from "lucide-react";
 
 // ── Icon map ─────────────────────────────────────────────────────────
@@ -82,6 +83,7 @@ export default function Vintography() {
 
   // Upgrade modal
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | null>(null);
   const [upgradeTier, setUpgradeTier] = useState<string | undefined>(undefined);
 
@@ -748,8 +750,18 @@ export default function Vintography() {
                 <img
                   src={selectedPhoto}
                   alt="Selected photo"
-                  className="w-full max-h-[300px] lg:max-h-[400px] object-contain"
+                  className="w-full max-h-[300px] lg:max-h-[400px] object-contain cursor-pointer"
+                  onClick={() => { if (!isProcessing) setLightboxOpen(true); }}
                 />
+                {!isProcessing && (
+                  <button
+                    className="absolute bottom-3 left-3 w-9 h-9 rounded-xl bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors active:scale-95 sm:hidden"
+                    onClick={(e) => { e.stopPropagation(); setLightboxOpen(true); }}
+                    aria-label="Zoom photo"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                )}
                 <Button
                   size="sm"
                   variant="secondary"
@@ -763,14 +775,14 @@ export default function Vintography() {
             ) : (
               <div className="space-y-3">
                 {/* Vinted Import — the hero feature */}
-                <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/[0.06] via-primary/[0.02] to-transparent p-5 space-y-3">
+                <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/[0.06] via-primary/[0.02] to-transparent p-4 sm:p-5 space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 sm:w-11 sm:h-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
                       <Link2 className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                       <p className="text-sm font-bold text-foreground">Import from Vinted</p>
-                      <p className="text-[11px] text-muted-foreground">Paste a listing URL to import all photos for enhancement</p>
+                      <p className="text-[11px] text-muted-foreground leading-snug">Paste a listing URL to import all photos for enhancement</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -780,11 +792,11 @@ export default function Vintography() {
                       value={vintedUrl}
                       onChange={(e) => setVintedUrl(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") handleVintedImport(); }}
-                      className="flex-1 h-11 text-sm"
+                      className="flex-1 h-11 text-sm rounded-xl"
                       disabled={importingFromVinted}
                     />
                     <Button
-                      className="h-11 px-5 font-semibold shrink-0"
+                      className="h-11 px-5 font-semibold shrink-0 rounded-xl active:scale-[0.97] transition-transform"
                       onClick={handleVintedImport}
                       disabled={!vintedUrl.trim() || importingFromVinted}
                     >
@@ -812,12 +824,13 @@ export default function Vintography() {
                   aria-label="Upload a photo"
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center">
-                    <Upload className="w-6 h-6 text-muted-foreground" />
+                  <div className="w-16 h-16 sm:w-14 sm:h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <Upload className="w-7 h-7 sm:w-6 sm:h-6 text-primary/60" />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-foreground">Upload a photo</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">or drag & drop · paste from clipboard</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">or drag & drop · paste from clipboard</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 sm:hidden">from gallery or paste from clipboard</p>
                   </div>
                   <input
                     ref={fileInputRef}
@@ -831,6 +844,39 @@ export default function Vintography() {
                     }}
                   />
                 </label>
+
+                {/* Mobile camera capture option */}
+                <div className="flex gap-2 sm:hidden">
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-11 rounded-xl active:scale-[0.97] transition-transform"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <ImageIcon className="w-4 h-4 mr-1.5" /> Gallery
+                  </Button>
+                  <label className="flex-1">
+                    <Button
+                      variant="outline"
+                      className="w-full h-11 rounded-xl active:scale-[0.97] transition-transform"
+                      asChild
+                    >
+                      <span>
+                        <Camera className="w-4 h-4 mr-1.5" /> Camera
+                      </span>
+                    </Button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleFileUpload(f);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
             )}
             {/* Hidden file input for "Change Photo" button */}
@@ -1039,6 +1085,14 @@ export default function Vintography() {
             )}
           </Button>
         </div>
+      )}
+
+      {selectedPhoto && (
+        <ImageLightbox
+          images={[selectedPhoto]}
+          open={lightboxOpen}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
 
       <UpgradeModal
