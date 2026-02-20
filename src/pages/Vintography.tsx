@@ -367,6 +367,8 @@ export default function Vintography() {
 
       if (data?.processed_url) {
         setResultPhoto(data.processed_url);
+        toast.success(`${selectedOpConfig?.label || "Edit"} complete!`, { duration: 2000 });
+        try { navigator?.vibrate?.([10, 30, 15]); } catch {}
         refreshCredits();
         setGallery((prev) => [{
           id: data.job_id,
@@ -606,7 +608,10 @@ export default function Vintography() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
+              className="relative overflow-hidden rounded-2xl"
             >
+              {/* One-time sparkle sweep */}
+              <div className="absolute inset-0 sparkle-sweep pointer-events-none z-10" />
               <ComparisonView
                 originalUrl={selectedPhoto}
                 processedUrl={resultPhoto}
