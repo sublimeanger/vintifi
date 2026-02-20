@@ -156,6 +156,8 @@ export function ComparisonView({
 
   // Overlay swipe
   const overlaySwipeActive = useRef(false);
+  const swipeStartX = useRef(0);
+  const [hasSwiped, setHasSwiped] = useState(false);
 
   // ── Smart animation loop ─────────────────
   const animate = useCallback(() => {
@@ -293,6 +295,7 @@ export function ComparisonView({
       lastTapTime.current = now;
       if (viewMode === "overlay" && processedUrl && targetZoom.current <= 1) {
         overlaySwipeActive.current = true;
+        swipeStartX.current = e.touches[0].clientX;
         return;
       }
       if (targetZoom.current > 1) {
@@ -330,11 +333,21 @@ export function ComparisonView({
     }
   }, [setTargetZoom, startAnimation]);
 
-  const handleTouchEnd = useCallback(() => {
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    // Snap swipe for overlay: if horizontal swipe > 50px, snap to 0 or 100
+    if (overlaySwipeActive.current && processedUrl && targetZoom.current <= 1) {
+      const endX = e.changedTouches[0]?.clientX ?? swipeStartX.current;
+      const dx = endX - swipeStartX.current;
+      if (Math.abs(dx) > 50) {
+        setSliderValue(dx < 0 ? [100] : [0]);
+        try { navigator?.vibrate?.(6); } catch {}
+        if (!hasSwiped) setHasSwiped(true);
+      }
+    }
     lastTouchDist.current = 0;
     isTouchPanning.current = false;
     overlaySwipeActive.current = false;
-  }, []);
+  }, [processedUrl, hasSwiped]);
 
   const showVariationNav = variations.length > 1;
   const clipPercent = sliderValue[0];
@@ -526,6 +539,11 @@ export function ComparisonView({
           <p className="text-center text-[10px] text-muted-foreground/60 mt-1 sm:hidden">
             Drag slider to compare · Pinch to zoom
           </p>
+          {!hasSwiped && (
+            <p className="text-[10px] text-muted-foreground text-center mt-1 lg:hidden animate-pulse">
+              ← Swipe to compare →
+            </p>
+          )}
         </div>
       )}
 
