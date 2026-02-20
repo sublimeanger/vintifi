@@ -414,10 +414,10 @@ export function ComparisonView({
           </div>
         ) : (
           <div style={{ ...transformStyle, width: "100%", height: "100%" }}>
-            <img src={processedUrl || originalUrl} alt={resultLabel || "Enhanced"} className="absolute inset-0 w-full h-full object-contain bg-background" draggable={false} />
+            <img src={originalUrl} alt="Original" className="absolute inset-0 w-full h-full object-contain bg-muted/30" draggable={false} />
             {processedUrl && (
               <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - clipPercent}% 0 0)` }}>
-                <img src={originalUrl} alt="Original" className="w-full h-full object-contain bg-muted/30" draggable={false} />
+                <img src={processedUrl} alt="Processed" className="w-full h-full object-contain bg-background" draggable={false} />
               </div>
             )}
             {processedUrl && (
