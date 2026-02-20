@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { PHOTO_OPERATIONS, type PhotoOperation, isAtLeastTier, type TierKey } from "@/lib/constants";
+import { saveSession, loadSession, clearSession } from "@/components/vintography/vintographyReducer";
 import { PageShell } from "@/components/PageShell";
 import { CreditBar } from "@/components/vintography/CreditBar";
 import { ComparisonView } from "@/components/vintography/ComparisonView";
@@ -107,6 +108,15 @@ export default function Vintography() {
       }
     })();
   }, [itemId, user]);
+
+  // ── Restore session ────────────────────────────────────────────────
+  useEffect(() => {
+    if (selectedPhoto || preselectedOp || imageUrlParam) return;
+    const session = loadSession();
+    if (session.photo) setSelectedPhoto(session.photo);
+    if (session.operation) setSelectedOp(session.operation);
+    if (session.result) setResultPhoto(session.result);
+  }, []);
 
   // ── Load gallery ───────────────────────────────────────────────────
   useEffect(() => {
@@ -266,6 +276,7 @@ export default function Vintography() {
           created_at: new Date().toISOString(),
         }, ...prev].slice(0, 12));
 
+        saveSession({ photo: selectedPhoto, result: data.processed_url, operation: selectedOp });
         if (itemId) {
           setEditStates((prev) => ({
             ...prev,
@@ -360,6 +371,7 @@ export default function Vintography() {
   // ── Edit again ─────────────────────────────────────────────────────
   const handleEditAgain = () => {
     setResultPhoto(null);
+    clearSession();
   };
 
   // ── Render config panel ────────────────────────────────────────────
@@ -422,7 +434,7 @@ export default function Vintography() {
       {/* Credit bar */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border -mx-4 px-4 py-2.5 lg:-mx-6 lg:px-6">
         <div className="flex items-center justify-between">
-          <CreditBar used={totalUsed} limit={credits?.credits_limit ?? 5} unlimited={unlimited} />
+          <CreditBar used={totalUsed} limit={credits?.credits_limit ?? 5} unlimited={unlimited} loading={!credits} />
           <Button
             size="sm"
             variant="ghost"
