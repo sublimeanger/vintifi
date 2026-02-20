@@ -1,0 +1,400 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+// ── Operation config ─────────────────────────────────────────────────
+const OPERATIONS: Record<string, { credits: number; api: "photoroom" | "fashn"; tier: string }> = {
+  remove_bg:     { credits: 1, api: "photoroom", tier: "free" },
+  studio_shadow: { credits: 2, api: "photoroom", tier: "starter" },
+  ai_background: { credits: 2, api: "photoroom", tier: "starter" },
+  put_on_model:  { credits: 3, api: "fashn",     tier: "starter" },
+  virtual_tryon: { credits: 3, api: "fashn",     tier: "starter" },
+  swap_model:    { credits: 3, api: "fashn",     tier: "starter" },
+};
+
+const TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3 };
+
+function isAtLeastTier(userTier: string, requiredTier: string): boolean {
+  return (TIER_ORDER[userTier] ?? 0) >= (TIER_ORDER[requiredTier] ?? 0);
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+async function fetchImageBytes(url: string): Promise<Uint8Array> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+function getExtFromContentType(ct: string | null): string {
+  if (ct?.includes("png")) return "png";
+  if (ct?.includes("webp")) return "webp";
+  return "png";
+}
+
+// ── Photoroom calls ──────────────────────────────────────────────────
+async function callPhotoroom(
+  operation: string,
+  imageBytes: Uint8Array,
+  parameters: Record<string, string>,
+  apiKey: string,
+): Promise<{ bytes: Uint8Array; contentType: string }> {
+  const form = new FormData();
+  form.append("image_file", new Blob([imageBytes]), "image.jpg");
+
+  let url: string;
+
+  if (operation === "remove_bg") {
+    url = "https://sdk.photoroom.com/v1/segment";
+  } else {
+    url = "https://sdk.photoroom.com/v1/edit";
+
+    if (operation === "studio_shadow") {
+      form.append("background.color", "#FFFFFF");
+      form.append("shadow.mode", "ai.soft");
+      form.append("lighting.mode", "ai.balanced");
+      form.append("padding", "0.1");
+      form.append("outputSize", "hd");
+    } else if (operation === "ai_background") {
+      const bgPrompt = parameters?.bg_prompt || "marble countertop with soft morning light";
+      form.append("background.prompt", bgPrompt);
+      form.append("shadow.mode", "ai.soft");
+      form.append("lighting.mode", "ai.balanced");
+      form.append("padding", "0.05");
+      form.append("outputSize", "hd");
+    }
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "x-api-key": apiKey },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    console.error(`[photoroom] ${operation} failed (${res.status}): ${errText}`);
+    throw new Error(`Photoroom ${operation} failed: ${errText}`);
+  }
+
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const contentType = res.headers.get("content-type") || "image/png";
+  return { bytes, contentType };
+}
+
+// ── Fashn calls ──────────────────────────────────────────────────────
+async function callFashn(
+  operation: string,
+  imageUrl: string,
+  selfieUrl: string | undefined,
+  parameters: Record<string, string>,
+  apiKey: string,
+): Promise<{ bytes: Uint8Array; contentType: string }> {
+  const gender = parameters?.gender || "female";
+  const ethnicity = parameters?.ethnicity || "default";
+
+  let body: Record<string, unknown>;
+
+  if (operation === "put_on_model") {
+    body = {
+      model_image: `https://api.fashn.ai/v1/models/stock/${gender}-front-1`,
+      garment_image: imageUrl,
+      garment_photo_type: "flat-lay",
+      category: "auto",
+      mode: "quality",
+      model_name: "product-to-model",
+    };
+  } else if (operation === "virtual_tryon") {
+    if (!selfieUrl) throw new Error("selfie_url is required for virtual try-on");
+    body = {
+      model_image: selfieUrl,
+      garment_image: imageUrl,
+      garment_photo_type: "auto",
+      category: "auto",
+      mode: "quality",
+      model_name: "tryon-v1.6",
+    };
+  } else {
+    // swap_model
+    body = {
+      model_image: `https://api.fashn.ai/v1/models/stock/${gender}-${ethnicity}-front-1`,
+      garment_image: imageUrl,
+      garment_photo_type: "on-model",
+      category: "auto",
+      mode: "quality",
+      model_name: "model-swap",
+    };
+  }
+
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+
+  // Submit job
+  const submitRes = await fetch("https://api.fashn.ai/v1/run", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!submitRes.ok) {
+    const errText = await submitRes.text().catch(() => "Unknown error");
+    console.error(`[fashn] ${operation} submit failed (${submitRes.status}): ${errText}`);
+    throw new Error(`Fashn ${operation} submission failed: ${errText}`);
+  }
+
+  const submitData = await submitRes.json();
+  const jobId = submitData.id;
+  if (!jobId) throw new Error("Fashn did not return a job ID");
+
+  console.log(`[fashn] ${operation} job submitted: ${jobId}`);
+
+  // Poll for completion
+  const MAX_POLLS = 30;
+  const POLL_INTERVAL = 2000;
+
+  for (let i = 0; i < MAX_POLLS; i++) {
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+
+    const statusRes = await fetch(`https://api.fashn.ai/v1/status/${jobId}`, { headers });
+    if (!statusRes.ok) {
+      console.error(`[fashn] poll failed (${statusRes.status})`);
+      continue;
+    }
+
+    const statusData = await statusRes.json();
+    console.log(`[fashn] poll ${i + 1}/${MAX_POLLS}: status=${statusData.status}`);
+
+    if (statusData.status === "completed") {
+      const outputUrl = statusData.output?.[0];
+      if (!outputUrl) throw new Error("Fashn completed but returned no output URL");
+
+      const imgRes = await fetch(outputUrl);
+      if (!imgRes.ok) throw new Error("Failed to download Fashn result image");
+      const bytes = new Uint8Array(await imgRes.arrayBuffer());
+      const contentType = imgRes.headers.get("content-type") || "image/png";
+      return { bytes, contentType };
+    }
+
+    if (statusData.status === "failed") {
+      const errMsg = statusData.error || "Processing failed";
+      throw new Error(`Fashn processing failed: ${errMsg}`);
+    }
+  }
+
+  throw new Error("TIMEOUT");
+}
+
+// ── Main handler ─────────────────────────────────────────────────────
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // ── Auth ──────────────────────────────────────────────────────────
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return json({ error: "Not authenticated" }, 401);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const photoroomKey = Deno.env.get("PHOTOROOM_API_KEY");
+    const fashnKey = Deno.env.get("FASHN_API_KEY");
+
+    const token = authHeader.replace("Bearer ", "");
+    const admin = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: { user }, error: authError } = await admin.auth.getUser(token);
+    if (authError || !user) return json({ error: "Invalid auth" }, 401);
+
+    // ── Parse request ────────────────────────────────────────────────
+    const { image_url, operation, parameters = {}, selfie_url, sell_wizard } = await req.json();
+
+    if (!image_url || !operation) {
+      return json({ error: "image_url and operation are required" }, 400);
+    }
+
+    const opConfig = OPERATIONS[operation];
+    if (!opConfig) {
+      return json({ error: `Invalid operation: ${operation}` }, 400);
+    }
+
+    // ── Check API key availability ───────────────────────────────────
+    if (opConfig.api === "photoroom" && !photoroomKey) {
+      return json({ error: "Photoroom service not configured" }, 500);
+    }
+    if (opConfig.api === "fashn" && !fashnKey) {
+      return json({ error: "Fashn service not configured" }, 500);
+    }
+
+    // ── Selfie validation for virtual_tryon ──────────────────────────
+    if (operation === "virtual_tryon" && !selfie_url) {
+      return json({ error: "selfie_url is required for virtual try-on" }, 400);
+    }
+
+    // ── Tier check ───────────────────────────────────────────────────
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("subscription_tier, first_item_pass_used")
+      .eq("user_id", user.id)
+      .single();
+
+    const tier = profile?.subscription_tier || "free";
+
+    if (!isAtLeastTier(tier, opConfig.tier)) {
+      return json(
+        { error: `${operation} requires the ${opConfig.tier} plan or above. You're on ${tier}.`, upgrade_required: true },
+        403,
+      );
+    }
+
+    // ── Credit check ─────────────────────────────────────────────────
+    const creditsToDeduct = opConfig.credits;
+
+    const { data: credits } = await admin
+      .from("usage_credits")
+      .select("price_checks_used, optimizations_used, vintography_used, credits_limit")
+      .eq("user_id", user.id)
+      .single();
+
+    const limit = credits?.credits_limit ?? 5;
+
+    // First-item-free pass
+    let useFirstItemPass = false;
+    if (sell_wizard) {
+      if (profile?.first_item_pass_used === false) {
+        useFirstItemPass = true;
+        console.log(`[first-item-pass] User ${user.id} — skipping credit deduction for photo-studio (${operation})`);
+      }
+    }
+
+    if (!useFirstItemPass && credits && limit < 999999) {
+      const totalUsed = (credits.price_checks_used || 0) + (credits.optimizations_used || 0) + (credits.vintography_used || 0);
+      if (totalUsed + creditsToDeduct > limit) {
+        return json(
+          {
+            error: `This operation costs ${creditsToDeduct} credit${creditsToDeduct > 1 ? "s" : ""}. You have ${Math.max(0, limit - totalUsed)} remaining. Upgrade your plan or buy a top-up pack.`,
+            upgrade_required: true,
+          },
+          403,
+        );
+      }
+    }
+
+    // ── Create job record ────────────────────────────────────────────
+    const { data: job, error: jobError } = await admin
+      .from("vintography_jobs")
+      .insert({
+        user_id: user.id,
+        original_url: image_url,
+        operation,
+        parameters: parameters || {},
+        status: "processing",
+      })
+      .select("id")
+      .single();
+
+    if (jobError) {
+      console.error("[photo-studio] Failed to create job:", jobError);
+      return json({ error: "Failed to create processing job" }, 500);
+    }
+
+    const jobId = job.id;
+    console.log(`[photo-studio] Processing ${operation} (${opConfig.api}) for user ${user.id}, job ${jobId}`);
+
+    // ── Process ──────────────────────────────────────────────────────
+    let resultBytes: Uint8Array;
+    let resultContentType: string;
+
+    try {
+      if (opConfig.api === "photoroom") {
+        const imageBytes = await fetchImageBytes(image_url);
+        const result = await callPhotoroom(operation, imageBytes, parameters, photoroomKey!);
+        resultBytes = result.bytes;
+        resultContentType = result.contentType;
+      } else {
+        const result = await callFashn(operation, image_url, selfie_url, parameters, fashnKey!);
+        resultBytes = result.bytes;
+        resultContentType = result.contentType;
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[photo-studio] Processing failed for job ${jobId}:`, errMsg);
+
+      await admin
+        .from("vintography_jobs")
+        .update({ status: "failed", error_message: errMsg })
+        .eq("id", jobId);
+
+      if (errMsg === "TIMEOUT") {
+        return json({ error: "Processing took too long. Please try again — your credits were not charged." }, 504);
+      }
+      return json({ error: "Image processing failed. Your credits were not charged." }, 500);
+    }
+
+    // ── Upload result to storage ─────────────────────────────────────
+    const ext = getExtFromContentType(resultContentType);
+    const storagePath = `${user.id}/${jobId}.${ext}`;
+
+    const { error: uploadError } = await admin.storage
+      .from("vintography")
+      .upload(storagePath, resultBytes, {
+        contentType: resultContentType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("[photo-studio] Storage upload failed:", uploadError);
+      await admin
+        .from("vintography_jobs")
+        .update({ status: "failed", error_message: "Failed to save result image" })
+        .eq("id", jobId);
+      return json({ error: "Failed to save result image. Your credits were not charged." }, 500);
+    }
+
+    const { data: publicUrlData } = admin.storage.from("vintography").getPublicUrl(storagePath);
+    const processedUrl = publicUrlData.publicUrl;
+
+    // ── Update job record ────────────────────────────────────────────
+    await admin
+      .from("vintography_jobs")
+      .update({ status: "completed", processed_url: processedUrl })
+      .eq("id", jobId);
+
+    // ── Deduct credits ───────────────────────────────────────────────
+    if (!useFirstItemPass) {
+      const { error: creditError } = await admin.rpc("increment_usage_credit", {
+        p_user_id: user.id,
+        p_column: "vintography_used",
+        p_amount: creditsToDeduct,
+      });
+
+      if (creditError) {
+        console.error("[photo-studio] Credit deduction failed, issuing refund is not needed since RPC failed:", creditError);
+      }
+    }
+
+    console.log(`[photo-studio] Job ${jobId} completed. Credits deducted: ${useFirstItemPass ? 0 : creditsToDeduct}`);
+
+    return json({
+      job_id: jobId,
+      processed_url: processedUrl,
+      operation,
+      credits_deducted: useFirstItemPass ? 0 : creditsToDeduct,
+    });
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("[photo-studio] Unhandled error:", errMsg);
+    return json({ error: errMsg }, 500);
+  }
+});
