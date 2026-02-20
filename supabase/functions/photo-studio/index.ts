@@ -16,6 +16,7 @@ const json = (body: unknown, status = 200) =>
 // ── Operation config ─────────────────────────────────────────────────
 const OPERATIONS: Record<string, { credits: number; api: "photoroom" | "fashn"; tier: string }> = {
   remove_bg:     { credits: 1, api: "photoroom", tier: "free" },
+  sell_ready:    { credits: 2, api: "photoroom", tier: "free" },
   studio_shadow: { credits: 2, api: "photoroom", tier: "starter" },
   ai_background: { credits: 2, api: "photoroom", tier: "starter" },
   put_on_model:  { credits: 3, api: "fashn",     tier: "starter" },
@@ -59,7 +60,13 @@ async function callPhotoroom(
   } else {
     url = "https://sdk.photoroom.com/v1/edit";
 
-    if (operation === "studio_shadow") {
+    if (operation === "sell_ready") {
+      form.append("background.color", "#FFFFFF");
+      form.append("shadow.mode", "ai.soft");
+      form.append("lighting.mode", "ai.balanced");
+      form.append("padding", "0.1");
+      form.append("outputSize", "hd");
+    } else if (operation === "studio_shadow") {
       form.append("background.color", "#FFFFFF");
       form.append("shadow.mode", "ai.soft");
       form.append("lighting.mode", "ai.balanced");
