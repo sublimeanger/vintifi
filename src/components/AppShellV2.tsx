@@ -120,11 +120,13 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
   /* ── Desktop sidebar ── */
   const sidebar = (
-    <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border h-screen sticky top-0">
-      <div className="p-6 pb-4">
+    <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border h-screen sticky top-0 relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
+      <div className="p-6 pb-5">
         <h1 className="font-display text-xl font-extrabold">
           <span className="text-gradient">Vintifi</span>
         </h1>
+        <p className="text-[10px] text-sidebar-foreground/40 font-medium tracking-wide mt-0.5">SELL SMARTER</p>
       </div>
 
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto scrollbar-hide">
@@ -135,7 +137,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
               isActive(item.path)
-                ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
+                ? "bg-gradient-to-r from-primary/15 to-primary/5 text-sidebar-foreground font-semibold border-l-2 border-primary -ml-[2px]"
                 : "text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
             )}
           >
@@ -159,7 +161,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150",
                 isActive(item.path)
-                  ? "bg-sidebar-accent text-sidebar-foreground font-semibold"
+                   ? "bg-gradient-to-r from-primary/15 to-primary/5 text-sidebar-foreground font-semibold border-l-2 border-primary -ml-[2px]"
                   : "text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
               )}
             >
@@ -187,7 +189,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
         </button>
 
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
+          <div className="w-8 h-8 rounded-full bg-primary/20 ring-2 ring-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
             {profile?.display_name?.[0]?.toUpperCase() || "U"}
           </div>
           <div className="flex-1 min-w-0">
@@ -209,7 +211,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
   /* ── Mobile header ── */
   const mobileHeader = (
-    <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-2xl border-b border-border/60 flex items-center justify-between px-4 h-12">
+    <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-2xl border-b border-border/40 flex items-center justify-between px-4 h-[52px]">
       <h1 className="font-display text-base font-extrabold">
         <span className="text-gradient">Vintifi</span>
       </h1>
@@ -304,8 +306,8 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
   /* ── Mobile bottom nav ── */
   const bottomNav = (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-background/90 backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around h-14">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-2xl shadow-[0_-1px_3px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-center justify-around h-16">
         {/* Left 2 tabs: Home, Photos */}
         {BOTTOM_TABS.slice(0, 2).map((tab) => {
           const active = isActive(tab.path);
@@ -340,7 +342,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
         >
           <div className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all",
-            isActive("/sell") ? "bg-primary scale-110" : "bg-primary"
+            isActive("/sell") ? "bg-primary shadow-coral scale-110" : "bg-primary shadow-coral"
           )}>
             <Plus className="w-5 h-5 text-primary-foreground" />
           </div>
@@ -438,7 +440,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
       {sidebar}
       <div className="flex-1 flex flex-col min-w-0">
         {mobileHeader}
-        <main className="flex-1 pt-12 lg:pt-0 pb-20 lg:pb-0">
+        <main className="flex-1 pt-[52px] lg:pt-0 pb-20 lg:pb-0">
           <div className={cn("container mx-auto px-3 sm:px-4 py-4 sm:py-8", maxWidth)}>
             {children}
           </div>
