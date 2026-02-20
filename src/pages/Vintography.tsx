@@ -1049,7 +1049,11 @@ export default function Vintography() {
               </>
             ) : (
               <>
-                <ArrowRight className="w-4 h-4 mr-2" /> {processButtonText}
+                {(() => {
+                  const Icon = selectedOpConfig ? (ICON_MAP[selectedOpConfig.icon] || Sparkles) : ArrowRight;
+                  return <Icon className="w-4 h-4 mr-2" />;
+                })()}
+                {processButtonText}
               </>
             )}
           </Button>
@@ -1092,7 +1096,7 @@ export default function Vintography() {
         <div className={`fixed bottom-20 left-3 right-3 z-40 lg:hidden transition-all duration-200 ${keyboardVisible ? "translate-y-[200%] opacity-0 pointer-events-none" : ""}`}>
           <Button
             size="lg"
-            className={`w-full h-14 rounded-2xl font-bold text-base shadow-coral active:scale-[0.97] transition-all ${canProcess && !resultPhoto ? "animate-[glow-pulse_2s_ease-in-out_infinite]" : ""}`}
+            className={`w-full h-14 rounded-2xl font-bold text-base shadow-coral shadow-lg active:scale-[0.97] transition-all ${canProcess && !resultPhoto ? "cta-breathe" : ""}`}
             disabled={!canProcess}
             onClick={handleProcess}
             aria-busy={isProcessing}
@@ -1104,7 +1108,11 @@ export default function Vintography() {
               </>
             ) : (
               <>
-                <ArrowRight className="w-4 h-4 mr-2" /> {processButtonText}
+                {(() => {
+                  const Icon = selectedOpConfig ? (ICON_MAP[selectedOpConfig.icon] || Sparkles) : ArrowRight;
+                  return <Icon className="w-4 h-4 mr-2" />;
+                })()}
+                {processButtonText}
               </>
             )}
           </Button>
