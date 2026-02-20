@@ -244,6 +244,16 @@ export default function SellWizard() {
   const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
   // Track which photos have been enhanced (maps original URL → enhanced URL)
   const [enhancedMap, setEnhancedMap] = useState<Record<string, string>>({});
+  const [selectedForEnhance, setSelectedForEnhance] = useState<Set<string>>(new Set());
+
+  const togglePhotoSelection = (url: string) => {
+    setSelectedForEnhance((prev) => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url);
+      else next.add(url);
+      return next;
+    });
+  };
 
   // Step 5 — Pack
   const [vintedUrlInput, setVintedUrlInput] = useState("");
@@ -336,6 +346,7 @@ export default function SellWizard() {
     setBatchProcessing(false);
     setBatchProgress({ done: 0, total: 0 });
     setEnhancedMap({});
+    setSelectedForEnhance(new Set());
     setVintedUrlInput("");
     setMarkingListed(false);
     // Clear session storage when resetting
@@ -391,6 +402,18 @@ export default function SellWizard() {
   useEffect(() => {
     if (currentStep === 2 && createdItem?.image_url && !originalImageUrl) {
       setOriginalImageUrl(createdItem.image_url);
+    }
+    // Auto-select all unenhanced photos when entering Step 2
+    if (currentStep === 2 && createdItem) {
+      const photos: string[] = [];
+      if (Array.isArray((createdItem as any)?.images)) {
+        for (const img of (createdItem as any).images as any[]) {
+          const u = typeof img === "string" ? img : img?.url;
+          if (u && u.startsWith("http")) photos.push(u);
+        }
+      }
+      if (photos.length === 0 && createdItem.image_url) photos.push(createdItem.image_url);
+      setSelectedForEnhance(new Set(photos));
     }
   }, [currentStep, createdItem?.image_url]);
 
@@ -863,10 +886,10 @@ export default function SellWizard() {
     }
   };
 
-  // ─── Batch Remove Background (Step 2) ───
+  // ─── Batch Effect Processing (Step 2) ───
   const runBatchEffect = async (effectOp: string = "remove_bg") => {
     if (!createdItem || batchProcessing) return;
-    
+
     const allPhotos: string[] = [];
     if (Array.isArray((createdItem as any)?.images)) {
       for (const img of (createdItem as any).images as any[]) {
@@ -877,47 +900,96 @@ export default function SellWizard() {
     if (allPhotos.length === 0 && createdItem.image_url) {
       allPhotos.push(createdItem.image_url);
     }
-    if (allPhotos.length === 0) return;
-    
+
+    // Only process selected, unenhanced photos
+    const photosToProcess = allPhotos.filter(
+      (url) => selectedForEnhance.has(url) && !enhancedMap[url] && !Object.values(enhancedMap).includes(url)
+    );
+    if (photosToProcess.length === 0) {
+      toast.error("Select at least one photo to enhance");
+      return;
+    }
+
+    // Upfront credit check
+    const costPer = effectOp === "sell_ready" ? 2 : 1;
+    const totalCost = photosToProcess.length * costPer;
+    const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
+    const isFreePass = profile?.first_item_pass_used === false;
+
+    if (!isUnlimited && !isFreePass) {
+      const totalUsed = credits
+        ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used
+        : 0;
+      const remaining = credits ? credits.credits_limit - totalUsed : 0;
+      if (totalCost > remaining) {
+        toast.error(`Need ${totalCost} credits but you have ${remaining}`, {
+          action: { label: "Upgrade", onClick: () => navigate("/settings?tab=billing") },
+        });
+        return;
+      }
+    }
+
     setBatchProcessing(true);
-    setBatchProgress({ done: 0, total: allPhotos.length });
-    
+    setBatchProgress({ done: 0, total: photosToProcess.length });
+
     const newEnhanced: Record<string, string> = { ...enhancedMap };
     const updatedImages = [...allPhotos];
-    
-    for (let i = 0; i < allPhotos.length; i++) {
+    let successCount = 0;
+
+    for (let i = 0; i < photosToProcess.length; i++) {
+      const photoUrl = photosToProcess[i];
       try {
         const { data, error } = await supabase.functions.invoke("photo-studio", {
-          body: { operation: effectOp, image_url: allPhotos[i], sell_wizard: true },
+          body: { operation: effectOp, image_url: photoUrl, sell_wizard: true },
         });
         if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
         const processedUrl = data?.processed_url;
         if (processedUrl) {
-          newEnhanced[allPhotos[i]] = processedUrl;
-          updatedImages[i] = processedUrl;
+          newEnhanced[photoUrl] = processedUrl;
+          const idx = allPhotos.indexOf(photoUrl);
+          if (idx >= 0) updatedImages[idx] = processedUrl;
+          successCount++;
         }
       } catch (err: any) {
-        console.error(`Batch remove bg failed for photo ${i + 1}:`, err);
+        console.error(`Batch ${effectOp} failed for photo ${i + 1}:`, err);
+        const msg = err?.message || "";
+        if (msg.toLowerCase().includes("credit") || msg.toLowerCase().includes("upgrade")) {
+          toast.error("Credits exhausted — remaining photos skipped", {
+            action: { label: "Upgrade", onClick: () => navigate("/settings?tab=billing") },
+          });
+          break;
+        }
         toast.error(`Photo ${i + 1} failed — skipping`);
       }
-      setBatchProgress({ done: i + 1, total: allPhotos.length });
+      setBatchProgress({ done: i + 1, total: photosToProcess.length });
+
+      // 1.5 second delay between API calls to prevent rate limiting
+      if (i < photosToProcess.length - 1) {
+        await new Promise((r) => setTimeout(r, 1500));
+      }
     }
-    
-    const updateData: Record<string, unknown> = {
-      images: updatedImages,
-      image_url: updatedImages[0],
-      last_photo_edit_at: new Date().toISOString(),
-    };
-    await supabase.from("listings").update(updateData).eq("id", createdItem.id);
-    
-    setEnhancedMap(newEnhanced);
-    setCreatedItem((prev) => prev ? { ...prev, images: updatedImages as any, image_url: updatedImages[0] } : prev);
+
+    if (successCount > 0) {
+      await supabase.from("listings").update({
+        images: updatedImages,
+        image_url: updatedImages[0],
+        last_photo_edit_at: new Date().toISOString(),
+      }).eq("id", createdItem.id);
+
+      setEnhancedMap(newEnhanced);
+      setCreatedItem((prev) =>
+        prev ? { ...prev, images: updatedImages as any, image_url: updatedImages[0] } : prev
+      );
+      setPhotoDone(true);
+      setStepStatus((s) => ({ ...s, 2: "done" }));
+      toast.success(`${successCount} of ${photosToProcess.length} photo${photosToProcess.length > 1 ? "s" : ""} enhanced!`);
+    } else {
+      toast.error("Enhancement failed — please try again");
+    }
+
     setBatchProcessing(false);
-    setPhotoDone(true);
-    setStepStatus((s) => ({ ...s, 2: "done" }));
-    
-    const successCount = Object.keys(newEnhanced).length;
-    toast.success(`${successCount} of ${allPhotos.length} photos enhanced!`);
   };
 
   // ─── Step 5: Mark as listed — also marks first_item_pass as used ───
@@ -1311,20 +1383,52 @@ export default function SellWizard() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {allPhotos.map((url, i) => {
                 const isEnhanced = !!enhancedMap[url] || Object.values(enhancedMap).includes(url);
+                const isSelected = selectedForEnhance.has(url);
                 return (
-                  <div key={url + i} className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-muted/50 border border-border shadow-sm hover:shadow-md transition-shadow group">
+                  <div
+                    key={url + i}
+                    className={`relative aspect-[4/5] rounded-2xl overflow-hidden bg-muted/50 border-2 shadow-sm transition-all group cursor-pointer ${
+                      isEnhanced
+                        ? "border-success/40"
+                        : isSelected
+                        ? "border-primary/50 shadow-md"
+                        : "border-border hover:border-border"
+                    }`}
+                    onClick={() => !isEnhanced && !batchProcessing && togglePhotoSelection(url)}
+                  >
                     <img src={enhancedMap[url] || url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+
+                    {/* Selection checkbox — top right */}
+                    {!isEnhanced && !batchProcessing && (
+                      <div className={`absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center transition-all z-10 ${
+                        isSelected
+                          ? "bg-primary text-white shadow-sm"
+                          : "bg-background/70 backdrop-blur-sm border border-border/60"
+                      }`}>
+                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                    )}
+
+                    {/* Status badge — top left */}
                     <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       isEnhanced
                         ? "bg-success text-white shadow-sm shadow-success/30"
                         : "bg-background/80 backdrop-blur-sm text-muted-foreground border border-border/60"
                     }`}>
-                      {isEnhanced ? "✓ Enhanced" : "Original"}
+                      {isEnhanced ? "✓ Enhanced" : `${i + 1}`}
                     </div>
-                    {!isEnhanced && !batchProcessing && (
+
+                    {/* Dim overlay when deselected */}
+                    {!isEnhanced && !isSelected && !batchProcessing && (
+                      <div className="absolute inset-0 bg-background/30 pointer-events-none" />
+                    )}
+
+                    {/* Per-photo Studio button — bottom */}
+                    {!isEnhanced && !batchProcessing && isSelected && (
                       <button
                         className="absolute bottom-2 left-2 right-2 h-8 rounded-lg bg-background/90 backdrop-blur-sm border border-border/60 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (createdItem) {
                             sessionStorage.setItem("sell_wizard_item_id", createdItem.id);
                             sessionStorage.setItem("sell_wizard_step", "2");
@@ -1333,10 +1437,12 @@ export default function SellWizard() {
                           }
                         }}
                       >
-                        <Eraser className="w-3.5 h-3.5" /> Enhance
+                        <ImageIcon className="w-3.5 h-3.5" /> Open in Studio
                       </button>
                     )}
-                    {batchProcessing && !isEnhanced && batchProgress.done < i + 1 && (
+
+                    {/* Batch processing spinner */}
+                    {batchProcessing && selectedForEnhance.has(url) && !isEnhanced && (
                       <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
                         <Loader2 className="w-5 h-5 animate-spin text-primary" />
                       </div>
@@ -1346,13 +1452,39 @@ export default function SellWizard() {
               })}
             </div>
             
-            {!photoDone && !batchProcessing && allPhotos.length > 0 && (
+            {!photoDone && !batchProcessing && allPhotos.length > 0 && (() => {
+              const unenhancedPhotos = allPhotos.filter((u) => !enhancedMap[u] && !Object.values(enhancedMap).includes(u));
+              const selectedCount = unenhancedPhotos.filter((u) => selectedForEnhance.has(u)).length;
+
+              return (
               <div className="space-y-3 pt-1">
-                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Choose an effect</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Choose an effect</p>
+                  {unenhancedPhotos.length > 1 && (
+                    <button
+                      className="text-[11px] text-primary font-semibold hover:underline"
+                      onClick={() => {
+                        if (selectedCount === unenhancedPhotos.length) {
+                          setSelectedForEnhance(new Set());
+                        } else {
+                          setSelectedForEnhance(new Set(unenhancedPhotos));
+                        }
+                      }}
+                    >
+                      {selectedCount === unenhancedPhotos.length ? "Deselect all" : "Select all"}
+                    </button>
+                  )}
+                </div>
+
+                {selectedCount === 0 && (
+                  <p className="text-xs text-muted-foreground bg-muted/30 rounded-xl p-3 text-center">
+                    Tap the photos above to select which ones to enhance
+                  </p>
+                )}
 
                 {/* ── Sell-Ready preset (RECOMMENDED) ── */}
                 <button
-                  className="relative w-full overflow-hidden rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent p-4 text-left transition-all active:scale-[0.98] hover:border-primary/60 hover:shadow-lg hover:shadow-primary/10 group"
+                  className={`relative w-full overflow-hidden rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent p-4 text-left transition-all active:scale-[0.98] hover:border-primary/60 hover:shadow-lg hover:shadow-primary/10 group${selectedCount === 0 ? " opacity-40 pointer-events-none" : ""}`}
                   onClick={() => runBatchEffect("sell_ready")}
                 >
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/40" />
@@ -1368,15 +1500,15 @@ export default function SellWizard() {
                       <p className="text-[11px] text-muted-foreground leading-snug">White background · studio shadow · auto-relight — all in one</p>
                     </div>
                     <div className="text-right shrink-0 pl-2">
-                      <p className="text-sm font-extrabold text-primary">{allPhotos.length * 2}</p>
-                      <p className="text-[9px] text-muted-foreground -mt-0.5">credits</p>
+                      <p className="text-sm font-extrabold text-primary">{selectedCount * 2}</p>
+                      <p className="text-[9px] text-muted-foreground -mt-0.5">{selectedCount} photo{selectedCount !== 1 ? "s" : ""}</p>
                     </div>
                   </div>
                 </button>
 
                 {/* ── Clean Background preset ── */}
                 <button
-                  className="w-full rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-md group"
+                  className={`w-full rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/30 hover:shadow-md group${selectedCount === 0 ? " opacity-40 pointer-events-none" : ""}`}
                   onClick={() => runBatchEffect("remove_bg")}
                 >
                   <div className="flex items-center gap-3.5">
@@ -1388,8 +1520,8 @@ export default function SellWizard() {
                       <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">Remove background · white backdrop · auto-relight</p>
                     </div>
                     <div className="text-right shrink-0 pl-2">
-                      <p className="text-sm font-extrabold">{allPhotos.length}</p>
-                      <p className="text-[9px] text-muted-foreground -mt-0.5">credits</p>
+                      <p className="text-sm font-extrabold">{selectedCount}</p>
+                      <p className="text-[9px] text-muted-foreground -mt-0.5">{selectedCount} photo{selectedCount !== 1 ? "s" : ""}</p>
                     </div>
                   </div>
                 </button>
@@ -1461,7 +1593,8 @@ export default function SellWizard() {
                   </Button>
                 </div>
               </div>
-            )}
+              );
+            })()}
             
             {batchProcessing && (
               <div className="p-5 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] space-y-3">
