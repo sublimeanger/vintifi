@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Upload, Eraser, Sun, Image as ImageIcon, User, Camera, RefreshCw,
-  Lock, Download, ArrowRight, Sparkles, X, ArrowLeft,
+  Lock, Download, ArrowRight, Sparkles, X, ArrowLeft, Link2,
 } from "lucide-react";
 
 // ── Icon map ─────────────────────────────────────────────────────────
@@ -74,6 +74,11 @@ export default function Vintography() {
   const [itemPhotos, setItemPhotos] = useState<string[]>([]);
   const [editStates, setEditStates] = useState<Record<string, PhotoEditState>>({});
 
+  // Vinted import state
+  const [vintedUrl, setVintedUrl] = useState("");
+  const [importingFromVinted, setImportingFromVinted] = useState(false);
+  const [importedItemId, setImportedItemId] = useState<string | null>(null);
+
   // Upgrade modal
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | null>(null);
@@ -84,6 +89,7 @@ export default function Vintography() {
   const selfieInputRef = useRef<HTMLInputElement>(null);
 
   // ── Derived values ─────────────────────────────────────────────────
+  const effectiveItemId = itemId || importedItemId;
   const userTier = (profile?.subscription_tier || "free") as TierKey;
   const totalUsed = credits ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used : 0;
   const creditsRemaining = credits ? credits.credits_limit - totalUsed : 0;
@@ -92,12 +98,12 @@ export default function Vintography() {
 
   // ── Load item photos ───────────────────────────────────────────────
   useEffect(() => {
-    if (!itemId || !user) return;
+    if (!effectiveItemId || !user) return;
     (async () => {
       const { data } = await supabase
         .from("listings")
         .select("images, image_url")
-        .eq("id", itemId)
+        .eq("id", effectiveItemId)
         .eq("user_id", user.id)
         .single();
       if (data) {
@@ -107,7 +113,7 @@ export default function Vintography() {
         if (all.length > 0 && !selectedPhoto) setSelectedPhoto(all[0]);
       }
     })();
-  }, [itemId, user]);
+  }, [effectiveItemId, user]);
 
   // ── Restore session ────────────────────────────────────────────────
   useEffect(() => {
@@ -199,6 +205,71 @@ export default function Vintography() {
     return () => document.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
 
+  // ── Vinted import handler ──────────────────────────────────────────
+  const handleVintedImport = async () => {
+    if (!vintedUrl.trim() || !user || importingFromVinted) return;
+
+    const url = vintedUrl.trim();
+    if (!url.includes("vinted.")) {
+      toast.error("Please paste a valid Vinted listing URL");
+      return;
+    }
+
+    setImportingFromVinted(true);
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke("scrape-vinted-url", {
+        body: { url },
+      });
+
+      if (error) throw error;
+      if (!result || result.error) throw new Error(result?.error || "Failed to scrape listing");
+
+      const photos: string[] = Array.isArray(result.photos)
+        ? result.photos.filter((u: string) => typeof u === "string" && u.startsWith("http"))
+        : [];
+
+      if (photos.length === 0) {
+        toast.error("No photos found in that listing");
+        return;
+      }
+
+      // Create a listing in DB so "Save to Listing" works
+      const { data: inserted, error: insertError } = await supabase.from("listings").insert({
+        user_id: user.id,
+        title: result.title || "Imported from Vinted",
+        brand: result.brand || null,
+        category: result.category || null,
+        size: result.size || null,
+        condition: result.condition || null,
+        description: result.description || null,
+        current_price: result.price || null,
+        images: photos,
+        image_url: photos[0],
+        vinted_url: url,
+        source_type: "vinted_url",
+      }).select("id").single();
+
+      if (insertError) throw insertError;
+
+      const newItemId = inserted.id;
+      setImportedItemId(newItemId);
+      setItemPhotos(photos);
+      setSelectedPhoto(photos[0]);
+      setResultPhoto(null);
+      setVintedUrl("");
+
+      toast.success(`${photos.length} photo${photos.length > 1 ? "s" : ""} imported from Vinted!`, {
+        description: result.title || undefined,
+      });
+    } catch (err: any) {
+      console.error("Vinted import failed:", err);
+      toast.error("Couldn't import listing — check the URL and try again");
+    } finally {
+      setImportingFromVinted(false);
+    }
+  };
+
   // ── Operation selection ────────────────────────────────────────────
   const handleSelectOp = (op: PhotoOperation) => {
     const config = PHOTO_OPERATIONS[op];
@@ -240,7 +311,7 @@ export default function Vintography() {
           operation: selectedOp,
           parameters: opParams,
           selfie_url: selfiePhoto,
-          sell_wizard: !!itemId,
+          sell_wizard: !!effectiveItemId,
         },
       });
 
@@ -277,7 +348,7 @@ export default function Vintography() {
         }, ...prev].slice(0, 12));
 
         saveSession({ photo: selectedPhoto, result: data.processed_url, operation: selectedOp });
-        if (itemId) {
+        if (effectiveItemId) {
           setEditStates((prev) => ({
             ...prev,
             [selectedPhoto!]: {
@@ -326,11 +397,11 @@ export default function Vintography() {
 
   // ── Save to item ───────────────────────────────────────────────────
   const handleSaveToItem = async () => {
-    if (!resultPhoto || !itemId || !user) return;
+    if (!resultPhoto || !effectiveItemId || !user) return;
     const { data: listing } = await supabase
       .from("listings")
       .select("images")
-      .eq("id", itemId)
+      .eq("id", effectiveItemId)
       .single();
     const existing = Array.isArray(listing?.images) ? (listing.images as string[]) : [];
 
@@ -353,7 +424,7 @@ export default function Vintography() {
       updateData.image_url = resultPhoto;
     }
 
-    await supabase.from("listings").update(updateData).eq("id", itemId);
+    await supabase.from("listings").update(updateData).eq("id", effectiveItemId);
     toast.success(sourceIndex >= 0 ? "Photo replaced in listing" : "Photo saved to listing");
     if (selectedPhoto) {
       setEditStates((prev) => ({
@@ -471,14 +542,21 @@ export default function Vintography() {
 
       <div className="space-y-6 pt-4 pb-32 lg:pb-8">
         {/* Item photo filmstrip */}
-        {itemId && itemPhotos.length > 0 && (
-          <PhotoFilmstrip
-            photos={itemPhotos}
-            activeUrl={selectedPhoto}
-            editStates={editStates}
-            itemId={itemId}
-            onSelect={(url) => { setSelectedPhoto(url); setResultPhoto(null); }}
-          />
+        {effectiveItemId && itemPhotos.length > 0 && (
+          <div className="space-y-2">
+            <PhotoFilmstrip
+              photos={itemPhotos}
+              activeUrl={selectedPhoto}
+              editStates={editStates}
+              itemId={effectiveItemId}
+              onSelect={(url) => { setSelectedPhoto(url); setResultPhoto(null); }}
+            />
+            {importedItemId && !itemId && (
+              <p className="text-[10px] text-muted-foreground text-center">
+                Imported from Vinted · {itemPhotos.length} photo{itemPhotos.length > 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
         )}
 
         {/* Result area */}
@@ -505,7 +583,7 @@ export default function Vintography() {
                 <Button size="sm" variant="outline" onClick={handleDownload} className="flex-1">
                   <Download className="w-4 h-4 mr-1.5" /> Download
                 </Button>
-                {itemId && (
+                {effectiveItemId && (
                   <Button size="sm" onClick={handleSaveToItem} className="flex-1">
                     Save to Listing
                   </Button>
@@ -669,32 +747,77 @@ export default function Vintography() {
                 </Button>
               </div>
             ) : (
-              <label
-                className="flex flex-col items-center justify-center gap-4 p-8 lg:p-12 rounded-2xl border-2 border-dashed border-primary/30 hover:border-primary/60 bg-muted/10 hover:bg-primary/[0.03] cursor-pointer transition-all text-center min-h-[200px] lg:min-h-[260px]"
-                role="button"
-                tabIndex={0}
-                aria-label="Upload a photo"
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
-              >
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center float-animation">
-                  <Upload className="w-7 h-7 text-primary" />
+              <div className="space-y-3">
+                {/* Vinted Import — the hero feature */}
+                <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/[0.06] via-primary/[0.02] to-transparent p-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                      <Link2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">Import from Vinted</p>
+                      <p className="text-[11px] text-muted-foreground">Paste a listing URL to import all photos for enhancement</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="url"
+                      placeholder="https://www.vinted.co.uk/items/..."
+                      value={vintedUrl}
+                      onChange={(e) => setVintedUrl(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleVintedImport(); }}
+                      className="flex-1 h-11 text-sm"
+                      disabled={importingFromVinted}
+                    />
+                    <Button
+                      className="h-11 px-5 font-semibold shrink-0"
+                      onClick={handleVintedImport}
+                      disabled={!vintedUrl.trim() || importingFromVinted}
+                    >
+                      {importingFromVinted ? (
+                        <><Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Importing…</>
+                      ) : (
+                        "Import"
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-base font-bold text-foreground">Drop your photo here</p>
-                  <p className="text-xs text-muted-foreground mt-1">or tap to upload · paste from clipboard</p>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">or</span>
+                  <div className="flex-1 h-px bg-border" />
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,.heic,.heif"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleFileUpload(f);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
+
+                {/* Standard upload zone */}
+                <label
+                  className="flex flex-col items-center justify-center gap-3 p-6 lg:p-10 rounded-2xl border-2 border-dashed border-border hover:border-primary/40 bg-muted/10 hover:bg-primary/[0.03] cursor-pointer transition-all text-center min-h-[160px] lg:min-h-[200px]"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Upload a photo"
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center">
+                    <Upload className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Upload a photo</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">or drag & drop · paste from clipboard</p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,.heic,.heif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFileUpload(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
             )}
             {/* Hidden file input for "Change Photo" button */}
             {selectedPhoto && (
