@@ -314,7 +314,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
           return (
             <button
               key={tab.path}
-              onClick={() => navigate(tab.path)}
+              onClick={() => { try { navigator?.vibrate?.(6); } catch {} navigate(tab.path); }}
               className={cn(
                 "relative flex flex-col items-center justify-center gap-0 flex-1 h-full transition-all min-w-0 active:scale-90",
                 active ? "text-primary" : "text-muted-foreground",
@@ -337,7 +337,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
         {/* Centre Sell CTA */}
         <button
-          onClick={() => navigate("/sell")}
+          onClick={() => { try { navigator?.vibrate?.(6); } catch {} navigate("/sell"); }}
           className="relative flex flex-col items-center justify-center flex-1 h-full active:scale-90 transition-transform"
         >
           <div className={cn(
@@ -357,7 +357,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
           const active = isActive(tab.path);
           return (
             <button
-              onClick={() => navigate(tab.path)}
+              onClick={() => { try { navigator?.vibrate?.(6); } catch {} navigate(tab.path); }}
               className={cn(
                 "relative flex flex-col items-center justify-center gap-0 flex-1 h-full transition-all min-w-0 active:scale-90",
                 active ? "text-primary" : "text-muted-foreground",
@@ -382,6 +382,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
         <Sheet open={moreSheetOpen} onOpenChange={setMoreSheetOpen}>
           <SheetTrigger asChild>
             <button
+              onClick={() => { try { navigator?.vibrate?.(6); } catch {} }}
               className={cn(
                 "relative flex flex-col items-center justify-center gap-0 flex-1 h-full transition-all min-w-0 active:scale-90",
                 moreSheetOpen ? "text-primary" : "text-muted-foreground",
@@ -407,7 +408,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
               ].map((item) => (
                 <button
                   key={item.path}
-                  onClick={() => { navigate(item.path); setMoreSheetOpen(false); }}
+                  onClick={() => { try { navigator?.vibrate?.(6); } catch {} navigate(item.path); setMoreSheetOpen(false); }}
                   className={cn(
                     "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors active:scale-[0.98]",
                     isActive(item.path)
