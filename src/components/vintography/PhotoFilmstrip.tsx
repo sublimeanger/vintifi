@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Check, Plus, Wand2 } from "lucide-react";
+import { ProgressiveImage } from "@/components/ProgressiveImage";
 
 export type PhotoEditState = {
   editedUrl: string | null;
@@ -81,7 +82,7 @@ export function PhotoFilmstrip({ photos, activeUrl, editStates, itemId, onSelect
                 }`}
               >
                 {/* Photo thumbnail — show edited version if available */}
-                <img
+                <ProgressiveImage
                   src={displayUrl}
                   alt={`Photo ${idx + 1}`}
                   className="w-full h-full object-cover"
