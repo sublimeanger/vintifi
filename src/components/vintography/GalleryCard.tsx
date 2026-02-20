@@ -90,8 +90,8 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
 
           {/* Operation icon badge */}
           <div className="absolute top-1 left-1 z-10">
-            <div className="w-5 h-5 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
-              <OpIcon className="w-2.5 h-2.5 text-primary" />
+            <div className="w-6 h-6 sm:w-5 sm:h-5 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
+              <OpIcon className="w-3 h-3 sm:w-2.5 sm:h-2.5 text-primary" />
             </div>
           </div>
 
@@ -155,15 +155,15 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
 
           {/* Mobile tap hint */}
           {hasBeforeAfter && (
-            <div className="absolute bottom-1 right-1 z-10 sm:hidden">
-              <Badge variant="secondary" className="text-[7px] px-1 py-0 bg-background/60 backdrop-blur-sm">
+            <div className="absolute bottom-1.5 right-1.5 z-10 sm:hidden">
+              <Badge variant="secondary" className="text-[8px] px-1 py-0 bg-background/60 backdrop-blur-sm">
                 Tap to compare
               </Badge>
             </div>
           )}
         </div>
-        <div className="p-2 lg:p-3">
-          <p className="text-xs lg:text-sm font-medium truncate">{opLabel}</p>
+        <div className="p-2.5 lg:p-3">
+          <p className="text-[13px] lg:text-sm font-medium truncate">{opLabel}</p>
           <p className="text-[10px] lg:text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
           </p>
@@ -174,29 +174,29 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 rounded-lg"
+                className="h-9 w-9 rounded-xl"
                 onClick={(e) => { e.stopPropagation(); onUseAsInput(job); }}
                 title="Edit again"
               >
-                <Wand2 className="w-3 h-3" />
+                <Wand2 className="w-3.5 h-3.5" />
               </Button>
             )}
             {job.processed_url && (
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 rounded-lg"
+                className="h-9 w-9 rounded-xl"
                 onClick={(e) => { e.stopPropagation(); onRestore(job); }}
                 title="View in editor"
               >
-                <ImageIcon className="w-3 h-3" />
+                <ImageIcon className="w-3.5 h-3.5" />
               </Button>
             )}
             <div className="flex-1" />
             <Button
               size={confirmingDelete ? "sm" : "icon"}
               variant="ghost"
-              className={`h-7 rounded-lg ${confirmingDelete ? "text-destructive bg-destructive/10 px-2" : "w-7 text-destructive hover:text-destructive hover:bg-destructive/10"}`}
+              className={`h-9 rounded-xl ${confirmingDelete ? "text-destructive bg-destructive/10 px-2" : "w-9 text-destructive hover:text-destructive hover:bg-destructive/10"}`}
               onClick={(e) => {
                 e.stopPropagation();
                 if (confirmingDelete) {
@@ -208,7 +208,7 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
               }}
               title={confirmingDelete ? "Tap again to confirm" : "Delete"}
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2 className="w-3.5 h-3.5" />
               {confirmingDelete && <span className="text-[10px] ml-1">Confirm</span>}
             </Button>
           </div>
