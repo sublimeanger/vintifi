@@ -35,7 +35,7 @@ export function CreditBar({ used, limit, unlimited, loading }: Props) {
 
   return (
     <div className="flex items-center gap-3 px-1 lg:px-2">
-      <Sparkles className={`w-4 h-4 lg:w-5 lg:h-5 shrink-0 ${isEmpty ? "text-destructive" : isLow ? "text-accent" : "text-primary"}`} />
+      <Sparkles className={`w-4 h-4 lg:w-5 lg:h-5 shrink-0 ${isEmpty ? "text-destructive" : isLow ? "text-accent animate-pulse" : "text-primary"}`} />
       <Progress
         value={pct}
         className={`h-2 flex-1 ${isEmpty ? "[&>div]:bg-destructive" : isLow ? "[&>div]:bg-accent" : ""}`}
