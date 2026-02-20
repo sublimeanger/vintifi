@@ -117,7 +117,7 @@ export function QuickPresets({ onSelect, onLockedTap, disabled, userTier, savedP
             <Star className="w-4 h-4 text-accent fill-accent" />
             <p className="text-sm font-semibold">My Presets</p>
             <Badge variant="secondary" className="text-[9px]">Saved</Badge>
-            <div className="ml-auto flex gap-1">
+            <div className="ml-auto flex gap-1 lg:hidden">
               <button
                 onClick={() => scroll(savedScrollRef, "left")}
                 className="w-6 h-6 rounded-md border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
@@ -132,7 +132,7 @@ export function QuickPresets({ onSelect, onLockedTap, disabled, userTier, savedP
               </button>
             </div>
           </div>
-          <div ref={savedScrollRef} className="w-full flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5">
+          <div ref={savedScrollRef} className="w-full flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5 lg:grid lg:grid-cols-2 lg:overflow-visible">
             {savedPresets.map((sp) => (
               <Card
                 key={sp.id}
@@ -140,7 +140,7 @@ export function QuickPresets({ onSelect, onLockedTap, disabled, userTier, savedP
                   if (disabled) return;
                   onSavedPresetSelect?.(sp);
                 }}
-                className={`p-3 cursor-pointer transition-all active:scale-[0.97] flex-shrink-0 w-[140px] group relative border-accent/30 hover:border-accent/60 ${
+                className={`p-3 cursor-pointer transition-all active:scale-[0.97] flex-shrink-0 w-[140px] lg:w-auto group relative border-accent/30 hover:border-accent/60 ${
                   disabled ? "opacity-50 pointer-events-none" : ""
                 }`}
               >
@@ -179,7 +179,7 @@ export function QuickPresets({ onSelect, onLockedTap, disabled, userTier, savedP
           <Zap className="w-4 h-4 text-accent" />
           <p className="text-sm font-semibold">Quick Presets</p>
           <Badge variant="secondary" className="text-[9px]">Multi-step</Badge>
-          <div className="ml-auto flex gap-1">
+          <div className="ml-auto flex gap-1 lg:hidden">
             <button
               onClick={() => scroll(scrollRef, "left")}
               className="w-6 h-6 rounded-md border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
@@ -194,7 +194,7 @@ export function QuickPresets({ onSelect, onLockedTap, disabled, userTier, savedP
             </button>
           </div>
         </div>
-        <div ref={scrollRef} className="w-full flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5">
+        <div ref={scrollRef} className="w-full flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5 lg:grid lg:grid-cols-2 lg:overflow-visible">
           {presets.map((p) => (
             <Card
               key={p.id}
@@ -206,7 +206,7 @@ export function QuickPresets({ onSelect, onLockedTap, disabled, userTier, savedP
                   onSelect(p);
                 }
               }}
-              className={`p-3 cursor-pointer transition-all active:scale-[0.97] flex-shrink-0 w-[140px] ${
+              className={`p-3 cursor-pointer transition-all active:scale-[0.97] flex-shrink-0 w-[140px] lg:w-auto ${
                 disabled ? "opacity-50 pointer-events-none" :
                 isLocked(p) ? "opacity-60 border-border/50" :
                 "hover:border-accent/40"
