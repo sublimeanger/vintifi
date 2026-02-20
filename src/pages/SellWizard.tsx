@@ -1430,9 +1430,14 @@ export default function SellWizard() {
                   >
                     <img src={enhancedMap[url] || url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
 
+                    {/* Sparkle sweep on enhanced photos */}
+                    {isEnhanced && (
+                      <div className="absolute inset-0 sparkle-sweep pointer-events-none" />
+                    )}
+
                     {/* Selection checkbox — top right */}
                     {!isEnhanced && !batchProcessing && (
-                      <div className={`absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center transition-all z-10 ${
+                      <div className={`absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition-all z-10 ${
                         isSelected
                           ? "bg-primary text-white shadow-sm"
                           : "bg-background/70 backdrop-blur-sm border border-border/60"
@@ -1455,10 +1460,27 @@ export default function SellWizard() {
                       <div className="absolute inset-0 bg-background/30 pointer-events-none" />
                     )}
 
+                    {/* Enhanced photo: Before/After preview button */}
+                    {isEnhanced && (
+                      <button
+                        className="absolute bottom-2 left-2 right-2 h-9 rounded-xl bg-background/90 backdrop-blur-sm border border-border/60 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-foreground transition-all active:scale-95"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (enhancedMap[url]) {
+                            openLightbox([url, enhancedMap[url]], 1, ["Before", "After"]);
+                          } else {
+                            openLightbox(allPhotos.map((u) => enhancedMap[u] || u), i);
+                          }
+                        }}
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" /> {enhancedMap[url] ? "Before / After" : "Preview"}
+                      </button>
+                    )}
+
                     {/* Per-photo Studio button — bottom */}
                     {!isEnhanced && !batchProcessing && isSelected && (
                       <button
-                        className="absolute bottom-2 left-2 right-2 h-8 rounded-lg bg-background/90 backdrop-blur-sm border border-border/60 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                        className="absolute bottom-2 left-2 right-2 h-9 rounded-xl bg-background/90 backdrop-blur-sm border border-border/60 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-primary sm:opacity-0 sm:group-hover:opacity-100 transition-opacity active:scale-95"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (createdItem) {
