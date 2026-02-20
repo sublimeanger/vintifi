@@ -503,6 +503,52 @@ export default function Vintography() {
     dispatch({ type: "RESET_ALL" });
   };
 
+  // Keyboard shortcuts (desktop only)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      const meta = e.metaKey || e.ctrlKey;
+
+      if (e.key === "Enter" && !state.isProcessing && state.originalPhotoUrl) {
+        e.preventDefault();
+        handleProcess();
+        return;
+      }
+
+      if (meta && e.key === "s" && state.resultPhotoUrl && itemId) {
+        e.preventDefault();
+        handleSaveToItem("replace");
+        return;
+      }
+
+      if (meta && e.key === "d" && state.resultPhotoUrl) {
+        e.preventDefault();
+        handleDownload();
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        return;
+      }
+
+      if (!meta && !e.shiftKey && !e.altKey) {
+        const ops: Operation[] = ["clean_bg", "enhance", "decrease", "lifestyle_bg", "flatlay", "mannequin", "ai_model"];
+        const num = parseInt(e.key);
+        if (num >= 1 && num <= 7) {
+          e.preventDefault();
+          handleOpSelect(ops[num - 1]);
+          return;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [state.isProcessing, state.originalPhotoUrl, state.resultPhotoUrl, itemId]);
+
   const opLabel = (op: string) => {
     const opKey = Object.entries(OP_MAP).find(([, v]) => v === op)?.[0];
     return opKey ? OP_LABEL[opKey as Operation] : op;
@@ -608,6 +654,7 @@ export default function Vintography() {
           ? <Loader2 className="w-4 h-4 animate-spin mr-2" />
           : <Wand2 className="w-4 h-4 mr-2" />}
         {state.isProcessing ? "Processing…" : label}
+        <kbd className="hidden lg:inline-flex ml-2 px-1.5 py-0.5 text-[9px] font-mono bg-primary-foreground/20 rounded">↵</kbd>
       </Button>
     );
   };
