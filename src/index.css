@@ -240,6 +240,56 @@
   50% { box-shadow: 0 0 40px hsl(var(--primary) / 0.3); }
 }
 
+/* Success checkmark bounce for step completion */
+@keyframes success-bounce {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.15); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.success-bounce {
+  animation: success-bounce 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Before/After reveal wipe */
+@keyframes reveal-wipe {
+  0% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+.reveal-wipe {
+  animation: reveal-wipe 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+/* Gentle attention pulse for CTA buttons */
+@keyframes cta-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+  50% { box-shadow: 0 0 0 6px hsl(var(--primary) / 0.15); }
+}
+.cta-breathe {
+  animation: cta-breathe 2s ease-in-out infinite;
+}
+
+/* Photo enhancement sparkle overlay */
+@keyframes sparkle-sweep {
+  0% { transform: translateX(-100%) rotate(-15deg); }
+  100% { transform: translateX(200%) rotate(-15deg); }
+}
+.sparkle-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    hsla(0 0% 100% / 0.4) 45%,
+    hsla(0 0% 100% / 0.6) 50%,
+    hsla(0 0% 100% / 0.4) 55%,
+    transparent 70%
+  );
+  animation: sparkle-sweep 0.8s ease-out forwards;
+  pointer-events: none;
+}
+
 /* Mobile-optimised card touch feedback */
 @media (hover: none) {
   .touch-card {
