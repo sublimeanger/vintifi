@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,7 +108,7 @@ export default function Vintography() {
   const unlimited = (credits?.credits_limit ?? 0) >= 999999;
   const selectedOpConfig = selectedOp ? PHOTO_OPERATIONS[selectedOp] : null;
   const opHasConfig = selectedOp === "put_on_model" || selectedOp === "virtual_tryon" || selectedOp === "swap_model" || selectedOp === "ai_background";
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
+  const isMobile = useIsMobile(1024);
 
   // ── Load item photos ───────────────────────────────────────────────
   useEffect(() => {
