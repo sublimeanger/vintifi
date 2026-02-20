@@ -16,7 +16,7 @@ import {
   Check, ChevronLeft, Loader2, Copy, Search, Sparkles, ImageIcon,
   Camera, Rocket, PoundSterling, Link2, Pencil, Upload, Plus, X,
   ArrowRight, Package, AlertCircle, ExternalLink, RotateCcw, Home,
-  Share2, MessageCircle, Eraser, User, Sun, Lock,
+  Share2, MessageCircle, Eraser, User, Sun, Lock, ZoomIn,
 } from "lucide-react";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
@@ -24,6 +24,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import ImageLightbox from "@/components/ImageLightbox";
+import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
 
 // ─── Types ───
 type Listing = {
@@ -247,6 +249,15 @@ export default function SellWizard() {
   const [selectedForEnhance, setSelectedForEnhance] = useState<Set<string>>(new Set());
   const [pendingEffect, setPendingEffect] = useState<{ op: string; label: string; creditsPer: number } | null>(null);
 
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxLabels, setLightboxLabels] = useState<string[] | undefined>();
+
+  // Keyboard detection
+  const keyboardVisible = useKeyboardVisible();
+
   const togglePhotoSelection = (url: string) => {
     setSelectedForEnhance((prev) => {
       const next = new Set(prev);
@@ -349,6 +360,9 @@ export default function SellWizard() {
     setEnhancedMap({});
     setSelectedForEnhance(new Set());
     setPendingEffect(null);
+    setLightboxOpen(false);
+    setLightboxImages([]);
+    setLightboxLabels(undefined);
     setVintedUrlInput("");
     setMarkingListed(false);
     // Clear session storage when resetting
@@ -610,6 +624,12 @@ export default function SellWizard() {
     }
   };
 
+  const openLightbox = (images: string[], index = 0, labels?: string[]) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+    setLightboxLabels(labels);
+    setLightboxOpen(true);
+  };
 
 
   const removePhoto = (idx: number) => {
@@ -2463,6 +2483,13 @@ export default function SellWizard() {
           )}
         </div>
       )}
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        labels={lightboxLabels}
+      />
     </div>
     </TooltipProvider>
   );
