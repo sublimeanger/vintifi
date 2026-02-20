@@ -1259,13 +1259,20 @@ export default function Vintography() {
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing…
               </>
             ) : (
-              <>
+              <span className="flex items-center gap-2">
                 {(() => {
                   const Icon = selectedOpConfig ? (ICON_MAP[selectedOpConfig.icon] || Sparkles) : ArrowRight;
-                  return <Icon className="w-4 h-4 mr-2" />;
+                  return <Icon className="w-4 h-4" />;
                 })()}
-                {processButtonText}
-              </>
+                <span className="flex flex-col items-start leading-tight">
+                  <span>{processButtonText}</span>
+                  {selectedOpConfig && (
+                    <span className="text-[10px] font-normal opacity-70">
+                      {selectedOpConfig.credits} credit{selectedOpConfig.credits > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </span>
+              </span>
             )}
           </Button>
         </div>
