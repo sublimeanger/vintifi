@@ -69,7 +69,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <div className="bg-primary text-primary-foreground px-4 py-2 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium relative">
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
               <span>
-                Vintography Photo Studio — AI Model, Mannequin &amp; Flat-Lay. Turn your phone snap into a studio shot →{" "}
+                Photo Studio — Remove BG, Put on Model, AI Backgrounds &amp; more. Turn your phone snap into a studio shot →{" "}
                 <Link to="/features" className="underline underline-offset-2 hover:opacity-80 transition-opacity">
                   Try free
                 </Link>

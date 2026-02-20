@@ -20,7 +20,7 @@ const stagger = {
 
 // Photo stats lead — scroll-stopping photography is the hook
 const outcomeStats = [
-  { value: "3 modes", label: "AI Model, Mannequin & Flat-Lay" },
+  { value: "6 tools", label: "BG Removal, Shadow, Model, Try-On, AI BG, Swap" },
   { value: "1-tap", label: "Phone snap to studio shot" },
   { value: "16", label: "Background scenes available" },
   { value: "40×", label: "Faster than manual research" },
@@ -37,15 +37,15 @@ const features = [
     title: "Vintography Photo Studio",
     headline: "Your phone snap. Studio quality. One tap.",
     desc1: "Buyers scroll through hundreds of listings in minutes. The photo is the first thing they see — and the only thing that makes them click. Vintography takes your phone snap and produces the kind of shot you'd expect from a professional product photographer.",
-    desc2: "Three modes built for Vinted. AI Model places your garment on a photorealistic model — choose male or female, Editorial, Natural Photo, or Street Style. Mannequin gives you ghost, headless, and dress form effects. Flat-Lay Pro creates clean overhead compositions in 5 styles. 16 background scenes, batch processing, and a full gallery included.",
-    callout: "You don't need a studio, a mannequin, or any experience. You need Vintifi and five seconds. Tap once — your bedroom floor becomes a professional product shot.",
+    desc2: "Six tools built for Vinted sellers. Remove Background gives you a clean cutout on white. Studio Shadow adds a professional drop shadow. AI Background places your garment in styled scenes. Put on Model transforms flat-lays into on-model shots. Virtual Try-On lets buyers see it on themselves. Swap Model changes demographics and pose.",
+    callout: "You don't need a studio or any experience. You need Vintifi and five seconds. Upload a photo — your bedroom floor becomes a professional product shot.",
     stat: "1 tap",
     statLabel: "from phone snap to studio-quality product shot",
     mockTitle: "Vintography Photo Studio",
     mockContent: (
       <div className="space-y-3">
         <div className="flex gap-1.5">
-          {["AI Model", "Mannequin", "Flat-Lay"].map((tab, i) => (
+          {["Remove BG", "Put on Model", "AI Background"].map((tab, i) => (
             <div key={tab} className={`flex-1 text-center py-1.5 rounded-md text-[10px] font-medium transition-colors ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{tab}</div>
           ))}
         </div>
