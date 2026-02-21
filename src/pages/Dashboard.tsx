@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -432,7 +433,9 @@ export default function Dashboard() {
                   onClick={() => navigate(`/items/${item.id}`)}
                 >
                   {item.image_url ? (
-                    <img src={item.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                    <div className="w-10 h-10 shrink-0">
+                      <ProgressiveImage src={item.image_url} alt={item.title} className="rounded-lg" />
+                    </div>
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                       <ImageIcon className="w-4 h-4 text-muted-foreground" />
