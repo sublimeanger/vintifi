@@ -333,21 +333,13 @@ export function ComparisonView({
     }
   }, [setTargetZoom, startAnimation]);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    // Snap swipe for overlay: if horizontal swipe > 50px, snap to 0 or 100
-    if (overlaySwipeActive.current && processedUrl && targetZoom.current <= 1) {
-      const endX = e.changedTouches[0]?.clientX ?? swipeStartX.current;
-      const dx = endX - swipeStartX.current;
-      if (Math.abs(dx) > 50) {
-        setSliderValue(dx < 0 ? [100] : [0]);
-        try { navigator?.vibrate?.(6); } catch {}
-        if (!hasSwiped) setHasSwiped(true);
-      }
-    }
+  const handleTouchEnd = useCallback((_e: React.TouchEvent) => {
+    // Slider stays wherever the finger left it — no snapping
+    if (overlaySwipeActive.current && !hasSwiped) setHasSwiped(true);
     lastTouchDist.current = 0;
     isTouchPanning.current = false;
     overlaySwipeActive.current = false;
-  }, [processedUrl, hasSwiped]);
+  }, [hasSwiped]);
 
   const showVariationNav = variations.length > 1;
   const clipPercent = sliderValue[0];
