@@ -178,6 +178,26 @@ export default function Auth() {
             <div>
               <Label htmlFor="password" className="text-xs sm:text-sm">Password</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" minLength={6} required className="h-11 text-base sm:text-sm" />
+              {mode === "signin" && (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-1.5 ml-auto block"
+                  onClick={async () => {
+                    if (!email.trim()) { toast.error("Enter your email address first"); return; }
+                    try {
+                      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+                        redirectTo: `${window.location.origin}/auth`,
+                      });
+                      if (error) throw error;
+                      toast.success("Password reset link sent! Check your email.");
+                    } catch {
+                      toast.error("Failed to send reset link. Try again.");
+                    }
+                  }}
+                >
+                  Forgot password?
+                </button>
+              )}
             </div>
             <Button type="submit" className="w-full font-semibold h-12 sm:h-11 shadow-lg shadow-primary/20 active:scale-95 transition-transform" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
