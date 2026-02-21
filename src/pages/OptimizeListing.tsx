@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +49,7 @@ type OptimiseResult = {
 };
 
 export default function OptimizeListing() {
+  usePageMeta("AI Listing Optimiser — Vintifi", "SEO-optimised titles and descriptions");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, session, profile, credits, refreshCredits } = useAuth();

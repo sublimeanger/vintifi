@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +12,7 @@ import { ArrowRight, ArrowLeft, Sparkles, Globe, Check } from "lucide-react";
 import { SELLING_CATEGORIES, LISTING_COUNTS, PRIMARY_GOALS, TIMEZONES } from "@/lib/constants";
 
 export default function Onboarding() {
+  usePageMeta("Get Started — Vintifi", "Set up your Vintifi account");
   const [step, setStep] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [listingCount, setListingCount] = useState("");

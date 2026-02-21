@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Camera, Link2, ArrowRight, Sparkles, Gift } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Welcome() {
+  usePageMeta("Welcome — Vintifi", "Your first item is free");
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
