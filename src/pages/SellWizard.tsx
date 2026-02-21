@@ -464,8 +464,10 @@ export default function SellWizard() {
   }, [currentStep, canAdvance]);
 
   const goBack = () => {
+    const prevStep = Math.max(1, currentStep - 1);
+    setStepStatus((s) => ({ ...s, [prevStep]: "pending" }));
     setDirection(-1);
-    setCurrentStep((s) => Math.max(1, s - 1));
+    setCurrentStep(prevStep);
     scrollToTop();
   };
 
