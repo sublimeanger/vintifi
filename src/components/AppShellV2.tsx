@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCreditsRemaining } from "@/hooks/useCreditsRemaining";
 import { STRIPE_TIERS } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -110,11 +111,9 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
 
   const tier = (profile?.subscription_tier || "free") as keyof typeof STRIPE_TIERS;
   const tierInfo = STRIPE_TIERS[tier] || STRIPE_TIERS.free;
-  const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
+  const { remaining: checksRemaining, isUnlimited, isLow, isDepleted } = useCreditsRemaining();
   const isFirstItemFree = profile?.first_item_pass_used === false;
-  const totalUsed = credits ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used : 0;
-  const checksRemaining = isUnlimited ? Infinity : (credits ? credits.credits_limit - totalUsed : 0);
-  const creditsLow = !isUnlimited && !isFirstItemFree && checksRemaining <= 2;
+  const creditsLow = isLow && !isFirstItemFree;
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -184,7 +183,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
           <span className="text-base leading-none shrink-0">{isFirstItemFree ? "🎁" : ""}</span>
           {!isFirstItemFree && <Zap className={cn("w-3.5 h-3.5 shrink-0", creditsLow ? "text-warning" : "text-primary")} />}
           <span className={cn("text-xs font-medium leading-tight", isFirstItemFree ? "text-primary" : creditsLow ? "text-warning" : "text-sidebar-foreground/80")}>
-            {isFirstItemFree ? "First Item Free" : isUnlimited ? "Unlimited" : `${checksRemaining} AI credits`}
+            {isFirstItemFree ? "First Item Free" : isUnlimited ? "Unlimited" : `${checksRemaining ?? 0} AI credits`}
           </span>
         </button>
 
@@ -228,7 +227,7 @@ export function AppShellV2({ children, maxWidth = "max-w-5xl" }: AppShellV2Props
           ) : (
             <>
               <Zap className={cn("w-3 h-3", creditsLow ? "text-warning" : "text-primary")} />
-              <span className={cn("text-[11px] font-bold tabular-nums", creditsLow && "text-warning")}>{isUnlimited ? "∞" : checksRemaining}</span>
+              <span className={cn("text-[11px] font-bold tabular-nums", creditsLow && "text-warning")}>{isUnlimited ? "∞" : checksRemaining ?? 0}</span>
             </>
           )}
         </button>
