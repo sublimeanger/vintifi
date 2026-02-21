@@ -122,6 +122,12 @@ export default function Listings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editField, setEditField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -311,9 +317,9 @@ export default function Listings() {
   const filteredListings = useMemo(() => {
     let result = listings.filter((l) => {
       const matchesSearch =
-        !searchQuery ||
-        l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        l.brand?.toLowerCase().includes(searchQuery.toLowerCase());
+        !debouncedSearch ||
+        l.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        l.brand?.toLowerCase().includes(debouncedSearch.toLowerCase());
 
       if (needsOptimisingFilter) {
         return matchesSearch && l.status === "active" && !l.description && l.health_score == null;
@@ -357,7 +363,7 @@ export default function Listings() {
     });
 
     return result;
-  }, [listings, searchQuery, statusFilter, needsOptimisingFilter, filterCategory, filterCondition, filterMinPrice, filterMaxPrice, filterHealthBand, sortBy]);
+  }, [listings, debouncedSearch, statusFilter, needsOptimisingFilter, filterCategory, filterCondition, filterMinPrice, filterMaxPrice, filterHealthBand, sortBy]);
 
   const deadStockListings = listings.filter(
     (l) => l.status === "active" && getDaysListed(l.created_at) >= 30
