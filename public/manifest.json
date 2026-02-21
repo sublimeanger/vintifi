@@ -1,0 +1,22 @@
+{
+  "name": "Vintifi — AI Selling Tools",
+  "short_name": "Vintifi",
+  "description": "AI photo studio, pricing, and listing optimisation for Vinted sellers",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#faf9f7",
+  "theme_color": "#e83e5a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
