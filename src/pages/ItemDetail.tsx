@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -231,8 +232,30 @@ export default function ItemDetail() {
   if (loading) {
     return (
       <PageShell title="Loading..." icon={<Package className="w-5 h-5" />} subtitle="">
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <div className="space-y-4">
+          <Skeleton className="h-5 w-48 rounded-lg" />
+          <Skeleton className="h-4 w-32 rounded-lg" />
+          <Skeleton className="h-4 w-24 rounded-lg" />
+        </div>
+
+        <div className="mt-6 space-y-3">
+          <Skeleton className="h-48 w-full rounded-2xl" />
+          <div className="flex gap-3">
+            <Skeleton className="h-12 w-12 rounded-xl" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-3/4 rounded-lg" />
+              <Skeleton className="h-4 w-1/2 rounded-lg" />
+              <div className="flex gap-2 mt-1">
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex gap-2">
+          <Skeleton className="h-10 flex-1 rounded-xl" />
+          <Skeleton className="h-10 flex-1 rounded-xl" />
         </div>
       </PageShell>
     );
