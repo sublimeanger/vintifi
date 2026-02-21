@@ -1453,6 +1453,11 @@ export default function SellWizard() {
                 }, 400);
                 return;
               }
+              if (!form.condition) {
+                toast.error("Please select a condition — it helps the AI price accurately");
+                scrollIntoWizardView("[data-condition-field]", 100, "center");
+                return;
+              }
               setCreating(true);
               try {
                 await supabase.from("listings").update({
@@ -1502,6 +1507,11 @@ export default function SellWizard() {
                   const el = document.querySelector("[data-form-fields] input:first-of-type") as HTMLInputElement;
                   el?.focus();
                 }, 400);
+                return;
+              }
+              if (!form.condition) {
+                toast.error("Please select a condition — it helps the AI price accurately");
+                scrollIntoWizardView("[data-condition-field]", 100, "center");
                 return;
               }
               createItem();
