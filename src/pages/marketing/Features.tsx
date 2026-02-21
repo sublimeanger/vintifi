@@ -20,9 +20,9 @@ const stagger = {
 
 // Photo stats lead — scroll-stopping photography is the hook
 const outcomeStats = [
-  { value: "6 tools", label: "BG Removal, Shadow, Model, Try-On, AI BG, Swap" },
+  { value: "4 tools", label: "BG Removal, Model, Try-On, Swap" },
   { value: "1-tap", label: "Phone snap to studio shot" },
-  { value: "16", label: "Background scenes available" },
+  { value: "—", label: "Studio Shadow, AI BG & more coming soon" },
   { value: "40×", label: "Faster than manual research" },
   { value: "100/100", label: "Max listing Health Score" },
   { value: "£0", label: "Extra fees on top of Vinted" },
@@ -37,7 +37,7 @@ const features = [
     title: "Photo Studio",
     headline: "Your phone snap. Studio quality. One tap.",
     desc1: "Buyers scroll through hundreds of listings in minutes. The photo is the first thing they see — and the only thing that makes them click. Photo Studio takes your phone snap and produces the kind of shot you'd expect from a professional product photographer.",
-    desc2: "Six tools built for Vinted sellers. Remove Background gives you a clean cutout on white. Studio Shadow adds a professional drop shadow. AI Background places your garment in styled scenes. Put on Model transforms flat-lays into on-model shots. Virtual Try-On lets buyers see it on themselves. Swap Model changes demographics and pose.",
+    desc2: "Four tools built for Vinted sellers. Remove Background gives you a clean cutout on white. Put on Model transforms flat-lays into on-model shots. Virtual Try-On lets buyers see it on themselves. Swap Model changes demographics and pose. Coming soon: Studio Shadow, AI Background, and Sell-Ready — more tools on the way.",
     callout: "You don't need a studio or any experience. You need Vintifi and five seconds. Upload a photo — your bedroom floor becomes a professional product shot.",
     stat: "1 tap",
     statLabel: "from phone snap to studio-quality product shot",
@@ -45,7 +45,7 @@ const features = [
     mockContent: (
       <div className="space-y-3">
         <div className="flex gap-1.5">
-          {["Remove BG", "Put on Model", "AI Background"].map((tab, i) => (
+          {["Remove BG", "Put on Model", "Try On"].map((tab, i) => (
             <div key={tab} className={`flex-1 text-center py-1.5 rounded-md text-[10px] font-medium transition-colors ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{tab}</div>
           ))}
         </div>

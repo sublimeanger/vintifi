@@ -39,7 +39,7 @@ const heroFeatures = [
           afterLabel="AI Enhanced"
           className="rounded-xl overflow-hidden"
         />
-        <div className="text-[10px] text-muted-foreground text-center">16 background scenes · Batch processing · Gallery included</div>
+        <div className="text-[10px] text-muted-foreground text-center">4 AI tools · Batch processing · Gallery included</div>
       </div>
     ),
   },
@@ -151,12 +151,12 @@ const pillars = [
 
 const howSteps = [
   { num: "01", label: "Add your item", desc: "Paste a Vinted URL or upload photos. Brand, size, condition — all set in seconds. No form-filling." },
-  { num: "02", label: "Enhance your photos", desc: "One tap. Remove Background, Put on Model, or AI Background. Your phone snap becomes a studio shot." },
+  { num: "02", label: "Enhance your photos", desc: "One tap. Remove Background, Put on Model, or Virtual Try-On. Your phone snap becomes a studio shot." },
   { num: "03", label: "Price & optimise", desc: "AI prices it to sell fast. AI-written title and description. Ready to post." },
 ];
 
 const impactStats = [
-  { value: "6 tools", label: "BG Removal, Shadow, AI BG, Model, Try-On, Swap" },
+  { value: "4 tools", label: "BG Removal, Model, Try-On, Swap" },
   { value: "1-tap", label: "Phone snap to studio shot" },
   { value: "18", label: "Vinted markets supported" },
   { value: "40×", label: "Faster than manual research" },
@@ -164,7 +164,7 @@ const impactStats = [
 
 const resultsItems = [
   { icon: "📸", claim: "The photo is the first thing buyers see — and the only thing that makes them click", sub: "Buyers decide in under two seconds. Studio-quality images are the single highest-impact upgrade a seller can make." },
-  { icon: "✨", claim: "One tap from phone snap to studio shot — no setup, no equipment, no experience", sub: "Remove Background, Studio Shadow, or Put on Model. Your bedroom floor becomes a professional product shot." },
+  { icon: "✨", claim: "One tap from phone snap to studio shot — no setup, no equipment, no experience", sub: "Remove Background, Put on Model, or Virtual Try-On. Your bedroom floor becomes a professional product shot." },
   { icon: "⚡", claim: "Price any item in under 30 seconds — AI analyses hundreds of comparables", sub: "Not the first page you happen to browse. Hundreds of real sold listings, confidence-scored." },
   { icon: "🎯", claim: "Stop leaving money on the table — AI pricing means you're never 20% under market", sub: "AI pricing means you're never 20% under market. Never overpriced collecting dust either." },
 ];
