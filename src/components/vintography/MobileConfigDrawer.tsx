@@ -64,6 +64,7 @@ export function MobileConfigDrawer({
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 400, damping: 34 }}
             className="fixed inset-x-0 bottom-0 z-[60] flex flex-col max-h-[85vh] rounded-t-2xl bg-card border-t border-border shadow-2xl"
+            style={{ willChange: "transform" }}
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1">

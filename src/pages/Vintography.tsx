@@ -395,7 +395,12 @@ export default function Vintography() {
       if (data?.processed_url) {
         setResultPhoto(data.processed_url);
         setProcessingFailed(false);
-        toast.success(`${selectedOpConfig?.label || "Edit"} complete!`, { duration: 2000 });
+        // First-ever edit celebration
+        if (gallery.length === 0) {
+          toast.success("🎉 First edit complete! Your photo studio is live.", { duration: 4000 });
+        } else {
+          toast.success(`${selectedOpConfig?.label || "Edit"} complete!`, { duration: 2000 });
+        }
         try { navigator?.vibrate?.([10, 30, 15]); } catch {}
         refreshCredits();
         setGallery((prev) => [{
@@ -900,9 +905,7 @@ export default function Vintography() {
                   </div>
                 )}
                 {photoLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-muted/30 z-[5]">
-                    <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-                  </div>
+                  <div className="absolute inset-0 z-[5] animate-pulse bg-gradient-to-br from-muted via-muted-foreground/5 to-muted rounded-2xl" />
                 )}
                 <img
                   src={selectedPhoto}
@@ -1081,7 +1084,7 @@ export default function Vintography() {
                     onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isDisabled) { e.preventDefault(); handleSelectOp(key); } }}
                     className={`relative p-3 sm:p-3.5 cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 overflow-hidden active:scale-[0.97] ${
                       isSelected
-                        ? "border-primary bg-primary/[0.04] shadow-sm ring-1 ring-primary/20"
+                        ? "border-primary bg-primary/[0.04] shadow-md ring-2 ring-primary/20 scale-[1.02]"
                         : isLocked
                         ? "opacity-60 hover:opacity-80"
                         : isDisabled
@@ -1234,13 +1237,13 @@ export default function Vintography() {
               ))}
             </div>
           ) : gallery.length === 0 ? (
-            <Card className="p-6 sm:p-8 text-center border-dashed border-2 border-border/60">
-              <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto mb-3">
-                <ImageIcon className="w-6 h-6 text-muted-foreground/40" />
+            <div className="text-center py-8">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Camera className="w-7 h-7 text-primary/60" />
               </div>
-              <p className="text-sm font-semibold text-muted-foreground">No edits yet</p>
-              <p className="text-[11px] text-muted-foreground/60 mt-0.5">Your photo transformations will appear here</p>
-            </Card>
+              <p className="text-sm font-semibold text-foreground">Your gallery is empty</p>
+              <p className="text-xs text-muted-foreground mt-1">Edited photos will appear here automatically</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
               {gallery.map((job) => (
