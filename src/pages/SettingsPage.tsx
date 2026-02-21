@@ -252,17 +252,16 @@ export default function SettingsPage() {
         </Section>
 
         {/* ─── Platform Connections ─── */}
-        <Section icon={Link2} title="eBay Connection" tint="border-blue-500/5">
-          <p className="text-[11px] sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-            Connect your eBay seller account to publish listings with one click.
-          </p>
-          <Button
-            variant="outline"
-            className="h-11 sm:h-10 active:scale-95 transition-transform text-xs sm:text-sm"
-            onClick={() => navigate("/platforms")}
-          >
-            <Link2 className="w-4 h-4 mr-2" /> Manage Connection
-          </Button>
+        <Section icon={Link2} title="Platform Connections" tint="border-blue-500/5">
+          <div className="flex items-center gap-3 rounded-xl bg-muted/30 border border-dashed border-border p-3.5">
+            <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Link2 className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-muted-foreground">eBay & Depop coming soon</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">Publish listings to multiple platforms with one click.</p>
+            </div>
+          </div>
         </Section>
 
         {/* ─── Subscription ─── */}
