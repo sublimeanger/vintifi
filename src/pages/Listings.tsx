@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { HealthScoreMini } from "@/components/HealthScoreGauge";
@@ -133,6 +133,9 @@ export default function Listings() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const touchStartY = useRef<number | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
   const tier = profile?.subscription_tier || "free";
   const listingLimit = LISTING_LIMITS[tier] || 20;
   const isUnlimited = listingLimit > 99999;
@@ -459,8 +462,40 @@ export default function Listings() {
       actions={headerActions}
       maxWidth="max-w-5xl"
     >
+      <div
+        onTouchStart={(e) => {
+          const scrollEl = e.currentTarget;
+          if (scrollEl.scrollTop <= 0) {
+            touchStartY.current = e.touches[0].clientY;
+          }
+        }}
+        onTouchMove={(e) => {
+          if (touchStartY.current === null) return;
+          const dy = e.touches[0].clientY - touchStartY.current;
+          if (dy > 0 && dy < 120) setPullDistance(dy);
+        }}
+        onTouchEnd={async () => {
+          if (pullDistance > 60) {
+            setRefreshing(true);
+            await fetchListings();
+            setRefreshing(false);
+            toast.success("Refreshed");
+          }
+          setPullDistance(0);
+          touchStartY.current = null;
+        }}
+      >
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          className="flex items-center justify-center overflow-hidden transition-all"
+          style={{ height: refreshing ? 40 : pullDistance * 0.5 }}
+        >
+          <Loader2 className={`w-5 h-5 text-primary ${refreshing ? "animate-spin" : ""}`}
+            style={{ opacity: Math.min(1, pullDistance / 60), transform: `rotate(${pullDistance * 3}deg)` }}
+          />
+        </div>
+      )}
 
-      {/* Stats Bar */}
       <div className="grid grid-cols-4 gap-1 sm:gap-3 mb-3 sm:mb-6">
         {[
           { label: "Total", value: stats.total.toString(), icon: Package, tint: "" },
@@ -1112,6 +1147,7 @@ export default function Listings() {
           onSold={handleSoldConfirmed}
         />
       )}
+      </div>
     </PageShell>
   );
 }
