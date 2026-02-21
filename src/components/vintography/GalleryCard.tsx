@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ProgressiveImage } from "@/components/ProgressiveImage";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,24 +66,25 @@ export function GalleryCard({ job, opLabel, onRestore, onDelete, onUseAsInput }:
         >
           {hasBeforeAfter ? (
             <>
-              <ProgressiveImage
+              <img
                 src={job.original_url}
                 alt="Original"
-                className={`absolute inset-0 transition-opacity duration-500 ${showProcessed ? "opacity-0" : "opacity-100"}`}
-                aspectRatio="aspect-[4/5]"
+                loading="lazy"
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showProcessed ? "opacity-0" : "opacity-100"}`}
               />
-              <ProgressiveImage
+              <img
                 src={job.processed_url!}
                 alt="Processed"
-                className={`absolute inset-0 transition-opacity duration-500 ${showProcessed ? "opacity-100" : "opacity-0"}`}
-                aspectRatio="aspect-[4/5]"
+                loading="lazy"
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showProcessed ? "opacity-100" : "opacity-0"}`}
               />
             </>
           ) : (
-            <ProgressiveImage
+            <img
               src={job.processed_url || job.original_url}
               alt="Vintography edit"
-              aspectRatio="aspect-[4/5]"
+              loading="lazy"
+              className="w-full h-full object-cover"
             />
           )}
 
