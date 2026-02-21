@@ -420,12 +420,12 @@ export default function SellWizard() {
     return "";
   };
 
-  // Helper to scroll the wizard content to top
+  // Helper to scroll the wizard content to top (after 200ms exit animation)
   const scrollToTop = () => {
     setTimeout(() => {
       const el = document.getElementById("sell-wizard-scroll");
-      if (el) el.scrollTop = 0;
-    }, 50);
+      if (el) el.scrollTo({ top: 0, behavior: "instant" });
+    }, 250);
   };
 
   // Scroll a data-attribute element into view within the wizard scroll container
