@@ -22,32 +22,7 @@ import {
 } from "lucide-react";
 
 /* ─── Types ─── */
-type Listing = {
-  id: string;
-  title: string;
-  description: string | null;
-  optimised_title: string | null;
-  optimised_description: string | null;
-  brand: string | null;
-  category: string | null;
-  size: string | null;
-  condition: string | null;
-  status: string;
-  current_price: number | null;
-  recommended_price: number | null;
-  purchase_price: number | null;
-  sale_price: number | null;
-  health_score: number | null;
-  image_url: string | null;
-  images: unknown;
-  vinted_url: string | null;
-  last_price_check_at: string | null;
-  last_optimised_at: string | null;
-  last_photo_edit_at: string | null;
-  colour: string | null;
-  material: string | null;
-  shipping_cost: number | null;
-};
+import type { Listing } from "@/types/listing";
 
 type StepStatus = "pending" | "loading" | "done" | "skipped";
 
