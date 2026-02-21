@@ -472,7 +472,12 @@ export default function Listings() {
         onTouchMove={(e) => {
           if (touchStartY.current === null) return;
           const dy = e.touches[0].clientY - touchStartY.current;
-          if (dy > 0 && dy < 120) setPullDistance(dy);
+          if (dy > 0 && dy < 120) {
+            setPullDistance(dy);
+          } else if (dy <= 0) {
+            setPullDistance(0);
+            touchStartY.current = null;
+          }
         }}
         onTouchEnd={async () => {
           if (pullDistance > 60) {
