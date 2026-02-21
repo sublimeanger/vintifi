@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { CREDIT_PACKS, STRIPE_TIERS } from "@/lib/constants";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useCreditsRemaining } from "@/hooks/useCreditsRemaining";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -137,6 +137,7 @@ function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepSta
 export default function SellWizard() {
   usePageMeta("Sell Wizard — Vintifi", "List your item in under 2 minutes");
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, credits, profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -291,6 +292,56 @@ export default function SellWizard() {
         toast.info("Welcome back! Resuming where you left off.");
       });
   // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // ─── Welcome page handoff: photo upload or URL paste ───
+  const welcomeHandoffRan = useRef(false);
+  useEffect(() => {
+    if (welcomeHandoffRan.current || !user) return;
+
+    // 1) URL prefill from Welcome page
+    const prefillUrl = searchParams.get("prefill_url");
+    if (prefillUrl) {
+      welcomeHandoffRan.current = true;
+      // Clear the param from the URL bar
+      searchParams.delete("prefill_url");
+      setSearchParams(searchParams, { replace: true });
+      // Set entry method and populate URL input, then auto-trigger scrape
+      setEntryMethod("url");
+      setVintedUrl(prefillUrl);
+      setTimeout(() => scrapeVintedUrl(prefillUrl), 100);
+      return;
+    }
+
+    // 2) Photo prefill from Welcome page
+    const welcomePhotoUrl = sessionStorage.getItem("welcome_photo_url");
+    const welcomePhotoName = sessionStorage.getItem("welcome_photo_name");
+    if (welcomePhotoUrl && welcomePhotoName) {
+      welcomeHandoffRan.current = true;
+      sessionStorage.removeItem("welcome_photo_url");
+      sessionStorage.removeItem("welcome_photo_name");
+      // Convert blob URL back to a File and inject into photo state
+      (async () => {
+        try {
+          const res = await fetch(welcomePhotoUrl);
+          const blob = await res.blob();
+          const file = new File([blob], welcomePhotoName, { type: blob.type || "image/jpeg" });
+          const objectUrl = URL.createObjectURL(file);
+          setEntryMethod("photo");
+          setPhotoFiles([file]);
+          setPhotoUrls([objectUrl]);
+          // Trigger colour detection
+          if (!form.colour) {
+            detectColourFromPhoto(objectUrl, file);
+          }
+        } catch {
+          toast.error("Could not load photo — please re-upload");
+        } finally {
+          URL.revokeObjectURL(welcomePhotoUrl);
+        }
+      })();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
