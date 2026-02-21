@@ -88,25 +88,29 @@ function CopyBtn({ text, label }: { text: string; label?: string }) {
 function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepStatus: Record<number, StepStatus> }) {
   const currentStepData = STEPS.find((s) => s.id === currentStep);
   return (
-    <div className="border-b border-border bg-background/80 backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-0.5 sm:gap-1 px-3 lg:px-8 pt-2.5 lg:pt-3 pb-1 lg:pb-2">
+    <div className="border-b border-border bg-background/80 backdrop-blur-sm" role="navigation" aria-label="Sell Wizard progress">
+      <div className="flex items-center justify-between gap-0.5 sm:gap-1 px-3 lg:px-8 pt-2.5 lg:pt-3 pb-1 lg:pb-2" role="list">
         {STEPS.map((step, i) => {
           const status = stepStatus[step.id];
           const isCurrent = currentStep === step.id;
           const isDone = status === "done" || step.id < currentStep;
           const isSkipped = status === "skipped";
           return (
-            <div key={step.id} className="flex items-center flex-1 gap-0.5">
+            <div key={step.id} className="flex items-center flex-1 gap-0.5" role="listitem">
               <div className="flex flex-col items-center gap-0.5 min-w-0">
-                <div className={`w-7 h-7 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-sm font-bold transition-all shrink-0 ${
-                  isDone
-                    ? "bg-success text-success-foreground"
-                    : isSkipped
-                    ? "bg-warning/20 text-warning border border-warning/40"
-                    : isCurrent
-                    ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
-                    : "bg-muted text-muted-foreground"
-                }`}>
+                <div
+                  className={`w-7 h-7 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-sm font-bold transition-all shrink-0 ${
+                    isDone
+                      ? "bg-success text-success-foreground"
+                      : isSkipped
+                      ? "bg-warning/20 text-warning border border-warning/40"
+                      : isCurrent
+                      ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                  aria-label={`Step ${step.id}: ${step.label}${isDone ? ", completed" : isCurrent ? ", current" : isSkipped ? ", skipped" : ""}`}
+                  aria-current={isCurrent ? "step" : undefined}
+                >
                   {isDone ? <Check className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> : step.id}
                 </div>
                 <span className={`text-[8px] sm:text-[10px] lg:text-xs font-medium hidden sm:block truncate max-w-[44px] sm:max-w-[48px] lg:max-w-[60px] text-center ${
@@ -1369,6 +1373,7 @@ export default function SellWizard() {
                   <button
                     key={chip}
                     type="button"
+                    aria-pressed={form.colour === chip}
                     onClick={() => setForm((f) => ({ ...f, colour: f.colour === chip ? "" : chip }))}
                     className={`px-2.5 py-1.5 rounded-full text-[11px] lg:text-xs font-medium border transition-all shrink-0 ${
                       form.colour === chip
@@ -1580,11 +1585,15 @@ export default function SellWizard() {
 
                     {/* Selection checkbox — top right */}
                     {!isEnhanced && !batchProcessing && (
-                      <div className={`absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition-all z-10 ${
-                        isSelected
-                          ? "bg-primary text-white shadow-sm"
-                          : "bg-background/70 backdrop-blur-sm border border-border/60"
-                      }`}>
+                      <div
+                        role="checkbox"
+                        aria-checked={isSelected}
+                        aria-label={`Select photo ${i + 1} for enhancement`}
+                        className={`absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition-all z-10 ${
+                          isSelected
+                            ? "bg-primary text-white shadow-sm"
+                            : "bg-background/70 backdrop-blur-sm border border-border/60"
+                        }`}>
                         {isSelected && <Check className="w-3.5 h-3.5" />}
                       </div>
                     )}
@@ -2643,7 +2652,9 @@ export default function SellWizard() {
       {/* ── Progress bar ── */}
       <ProgressBar currentStep={currentStep} stepStatus={stepStatus} />
 
-      {/* ── Step content ── FIX 8: id for scroll-to-top targeting */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        Step {currentStep} of {STEPS.length}: {stepMeta[currentStep]?.title}
+      </div>
       <div id="sell-wizard-scroll" className="flex-1 overflow-y-auto">
         <div className={`max-w-lg lg:max-w-2xl mx-auto px-4 lg:px-8 py-6 lg:py-10 ${scrollPadding}`}>
           <AnimatePresence mode="wait" custom={direction}>
