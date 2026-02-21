@@ -36,9 +36,9 @@ interface ListingWizardProps {
 /* ─── Step definitions ─── */
 const STEPS = [
   { id: 1, label: "Details",  shortLabel: "Details",  icon: Package },
-  { id: 2, label: "Price",    shortLabel: "Price",    icon: Search },
+  { id: 2, label: "Photos",   shortLabel: "Photos",   icon: Camera },
   { id: 3, label: "Optimise", shortLabel: "Optimise", icon: Sparkles },
-  { id: 4, label: "Photos",   shortLabel: "Photos",   icon: Camera },
+  { id: 4, label: "Price",    shortLabel: "Price",    icon: Search },
   { id: 5, label: "Pack ✓",   shortLabel: "Pack",     icon: Rocket },
 ] as const;
 
@@ -179,17 +179,17 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
     }
   }, [isOpen]);
 
-  /* ── Auto-trigger price check on entering step 2 ── */
-  useEffect(() => {
-    if (currentStep === 2 && !priceResult && !priceLoading) {
-      runPriceCheck();
-    }
-  }, [currentStep]);
-
   /* ── Auto-trigger optimise on entering step 3 ── */
   useEffect(() => {
     if (currentStep === 3 && !optimiseResult && !optimiseLoading) {
       runOptimise();
+    }
+  }, [currentStep]);
+
+  /* ── Auto-trigger price check on entering step 4 ── */
+  useEffect(() => {
+    if (currentStep === 4 && !priceResult && !priceLoading) {
+      runPriceCheck();
     }
   }, [currentStep]);
 
@@ -203,18 +203,18 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
   /* ─── Navigation helpers ─── */
   const canAdvance = (): boolean => {
     if (currentStep === 1) return !!(fieldValues.title && fieldValues.condition);
-    if (currentStep === 2) return priceAccepted;
+    if (currentStep === 2) return photoDone || stepStatus[2] === "skipped";
     if (currentStep === 3) return optimiseSaved;
-    if (currentStep === 4) return photoDone || stepStatus[4] === "skipped";
+    if (currentStep === 4) return priceAccepted;
     return true;
   };
 
   const advanceBlockedReason = (): string => {
     if (currentStep === 1 && !fieldValues.title) return "Add a title to continue";
     if (currentStep === 1 && !fieldValues.condition) return "Set the condition to continue";
-    if (currentStep === 2 && !priceAccepted) return "Accept the price to continue";
+    if (currentStep === 2 && !photoDone && stepStatus[2] !== "skipped") return "Enhance or skip photos to continue";
     if (currentStep === 3 && !optimiseSaved) return "Save the optimised listing to continue";
-    if (currentStep === 4 && !photoDone && stepStatus[4] !== "skipped") return "Enhance or skip photos to continue";
+    if (currentStep === 4 && !priceAccepted) return "Accept the price to continue";
     return "";
   };
 
@@ -250,7 +250,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
   /* ─── Step 2: Price check ─── */
   const runPriceCheck = async () => {
     setPriceLoading(true);
-    setStepStatus((s) => ({ ...s, 2: "loading" }));
+    setStepStatus((s) => ({ ...s, 4: "loading" }));
     try {
       const { data, error } = await supabase.functions.invoke("price-check", {
         body: {
@@ -271,10 +271,10 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
         confidence_score: data?.confidence_score ?? null,
         ai_insights: data?.ai_insights ?? null,
       });
-      setStepStatus((s) => ({ ...s, 2: "pending" }));
+      setStepStatus((s) => ({ ...s, 4: "pending" }));
     } catch {
       toast.error("Price check failed — try again");
-      setStepStatus((s) => ({ ...s, 2: "pending" }));
+      setStepStatus((s) => ({ ...s, 4: "pending" }));
     } finally {
       setPriceLoading(false);
     }
@@ -368,7 +368,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
         clearInterval(photoIntervalRef.current!);
         setPhotoPolling(false);
         setPhotoDone(true);
-        setStepStatus((s) => ({ ...s, 4: "done" }));
+        setStepStatus((s) => ({ ...s, 2: "done" }));
         const updated = { ...localItem, last_photo_edit_at: data.last_photo_edit_at };
         setLocalItem(updated);
         onItemUpdate(updated);
@@ -381,7 +381,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
   const skipPhotos = () => {
     if (photoIntervalRef.current) clearInterval(photoIntervalRef.current);
     setPhotoPolling(false);
-    setStepStatus((s) => ({ ...s, 4: "skipped" }));
+    setStepStatus((s) => ({ ...s, 2: "skipped" }));
     goNext();
   };
 
@@ -819,7 +819,7 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
       <VintedReadyPack
         item={localItem}
         onOptimise={() => setCurrentStep(3)}
-        onPhotoStudio={() => setCurrentStep(4)}
+        onPhotoStudio={() => setCurrentStep(2)}
       />
 
       {/* Open Vinted button */}
@@ -866,9 +866,9 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
 
   const STEP_COMPONENTS: Record<number, React.ComponentType> = {
     1: Step1,
-    2: Step2,
-    3: Step3,
-    4: Step4,
+    2: Step4,  // Photos (was step 4)
+    3: Step3,  // Optimise (unchanged)
+    4: Step2,  // Price (was step 2)
     5: Step5,
   };
 
@@ -902,16 +902,16 @@ export function ListingWizard({ item, isOpen, onClose, onItemUpdate }: ListingWi
         <div className="px-4 pt-3 pb-1 shrink-0">
           <h2 className="font-display font-bold text-base">
             {currentStep === 1 && "① Review Details"}
-            {currentStep === 2 && "② Price Check"}
+            {currentStep === 2 && "② Photo Studio"}
             {currentStep === 3 && "③ Optimise Listing"}
-            {currentStep === 4 && "④ Photo Studio"}
+            {currentStep === 4 && "④ Price Check"}
             {currentStep === 5 && "⑤ Vinted-Ready Pack"}
           </h2>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {currentStep === 1 && "Check your item details are complete — AI tools need these to work well."}
-            {currentStep === 2 && "AI is checking live market prices across Vinted, eBay & Depop."}
+            {currentStep === 2 && "Enhance your photos with AI backgrounds, flat-lay or model shots."}
             {currentStep === 3 && "AI is generating a keyword-rich title and compelling description."}
-            {currentStep === 4 && "Enhance your photos with AI backgrounds, flat-lay or model shots."}
+            {currentStep === 4 && "AI is checking live market prices across Vinted, eBay & Depop."}
             {currentStep === 5 && "Your pack is ready — copy and paste into Vinted in seconds."}
           </p>
         </div>
