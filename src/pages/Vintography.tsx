@@ -452,24 +452,45 @@ export default function Vintography() {
     try {
       const res = await fetch(resultPhoto);
       const blob = await res.blob();
-      const fileName = `vintifi-${selectedOp}-${Date.now()}.png`;
-      const file = new File([blob], fileName, { type: blob.type || "image/png" });
 
-      // On mobile, use Web Share API → native share sheet → "Save Image"
+      // For remove_bg results, composite onto white background
+      let downloadBlob = blob;
+      if (selectedOp === "remove_bg") {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("Image load failed"));
+          img.src = URL.createObjectURL(blob);
+        });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(img.src);
+        downloadBlob = await new Promise<Blob>((resolve) =>
+          canvas.toBlob((b) => resolve(b!), "image/png")
+        );
+      }
+
+      const fileName = `vintifi-${selectedOp}-${Date.now()}.png`;
+      const file = new File([downloadBlob], fileName, { type: "image/png" });
+
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: fileName });
         return;
       }
 
-      // Fallback: standard download
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(downloadBlob);
       const a = document.createElement("a");
       a.href = url;
       a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      // User cancelled the share sheet — not an error
       if (err?.name === "AbortError") return;
       toast.error("Download failed");
     }
