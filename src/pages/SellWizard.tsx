@@ -548,16 +548,47 @@ export default function SellWizard() {
     }
   }, [currentStep, createdItem]);
 
-  // ─── ESC shortcut to exit wizard ───
+  // ─── Browser back button: step back through wizard instead of exiting ───
+  useEffect(() => {
+    if (currentStep > 1) {
+      window.history.pushState({ wizardStep: currentStep }, "");
+    }
+  }, [currentStep]);
+
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (currentStep > 1) {
+        e.preventDefault();
+        goBack();
+      } else if (currentStep === 1 && entryMethod) {
+        e.preventDefault();
+        setEntryMethod(null);
+        window.history.pushState({}, "");
+      }
+      // If currentStep === 1 and no entryMethod, let browser navigate normally
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [currentStep, entryMethod, goBack]);
+
+  // ─── ESC shortcut to exit wizard (with confirmation if work in progress) ───
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        navigate("/dashboard");
+        const hasUnsavedWork = form.title.trim() || createdItem;
+        if (hasUnsavedWork) {
+          if (window.confirm("Leave the wizard? Your progress will be lost.")) {
+            navigate("/dashboard");
+          }
+        } else {
+          navigate("/dashboard");
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate]);
+  }, [navigate, form.title, createdItem]);
 
   // ─── Cleanup polling ───
   useEffect(() => {
