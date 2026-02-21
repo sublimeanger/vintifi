@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,6 +67,7 @@ const CONDITION_OPTIONS = [
 ];
 
 export default function PriceCheck() {
+  usePageMeta("Price Check — Vintifi", "AI-powered market pricing for your items");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, profile, credits, refreshCredits } = useAuth();

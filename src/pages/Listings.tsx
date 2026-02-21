@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { HealthScoreMini } from "@/components/HealthScoreGauge";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -117,6 +118,7 @@ const LISTING_LIMITS: Record<string, number> = { free: 20, pro: 200, business: 1
 const IMPORT_LIMITS: Record<string, number> = { free: 20, pro: 200, business: 9999, scale: 9999 };
 
 export default function Listings() {
+  usePageMeta("My Items — Vintifi", "Manage your wardrobe inventory");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, session, profile } = useAuth();

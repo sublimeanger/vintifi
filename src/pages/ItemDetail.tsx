@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -102,6 +103,10 @@ export default function ItemDetail() {
   const { user } = useAuth();
 
   const [item, setItem] = useState<Listing | null>(null);
+  usePageMeta(
+    item ? `${item.title} — Vintifi` : "Loading — Vintifi",
+    item ? `${[item.brand, item.category].filter(Boolean).join(" · ")}` : ""
+  );
   const [priceReports, setPriceReports] = useState<PriceReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);

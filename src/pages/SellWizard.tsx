@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -157,6 +158,7 @@ function ProgressBar({ currentStep, stepStatus }: { currentStep: number; stepSta
 // SELL WIZARD PAGE
 // ═══════════════════════════════════════
 export default function SellWizard() {
+  usePageMeta("Sell Wizard — Vintifi", "List your item in under 2 minutes");
   const navigate = useNavigate();
   const { user, credits, profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +39,7 @@ type TrendItem = {
 };
 
 export default function Dashboard() {
+  usePageMeta("Dashboard — Vintifi", "Your selling command centre");
   const { user, profile, credits } = useAuth();
   const navigate = useNavigate();
   const [url, setUrl] = useState("");

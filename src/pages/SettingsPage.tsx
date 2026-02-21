@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageShell } from "@/components/PageShell";
 
 import { motion } from "framer-motion";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 /* ─── Section wrapper ─── */
 function Section({ icon: Icon, title, children, tint = "" }: {
@@ -32,6 +33,7 @@ function Section({ icon: Icon, title, children, tint = "" }: {
 }
 
 export default function SettingsPage() {
+  usePageMeta("Settings — Vintifi", "Manage your account and subscription");
   const { user, profile, credits, signOut, refreshProfile } = useAuth();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const navigate = useNavigate();

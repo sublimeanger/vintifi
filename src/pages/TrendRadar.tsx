@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageShell } from "@/components/PageShell";
@@ -199,6 +200,7 @@ function HotStripCard({ trend }: { trend: Trend }) {
 }
 
 export default function TrendRadar() {
+  usePageMeta("Trend Radar — Vintifi", "Real-time market intelligence for resellers");
   const [trends, setTrends] = useState<Trend[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("All");
