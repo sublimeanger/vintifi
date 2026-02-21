@@ -3,7 +3,7 @@ import { CREDIT_PACKS, STRIPE_TIERS } from "@/lib/constants";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useCreditsRemaining } from "@/hooks/useCreditsRemaining";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -1153,12 +1153,17 @@ export default function SellWizard() {
     setTimeout(() => navigate(`/items/${createdItem.id}`), 1000);
   };
 
+  // ─── Reduced motion preference ───
+  const shouldReduceMotion = useReducedMotion();
+
   // ─── Slide variants ───
-  const slideVariants = {
-    enter: (dir: number) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (dir: number) => ({ x: dir > 0 ? -60 : 60, opacity: 0 }),
-  };
+  const slideVariants = shouldReduceMotion
+    ? { enter: { opacity: 0 }, center: { opacity: 1 }, exit: { opacity: 0 } }
+    : {
+        enter: (dir: number) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
+        center: { x: 0, opacity: 1 },
+        exit: (dir: number) => ({ x: dir > 0 ? -60 : 60, opacity: 0 }),
+      };
 
   // ═══════════════════════════════════
   // STEP CONTENT
