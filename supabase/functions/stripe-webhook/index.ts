@@ -13,16 +13,25 @@ const TIER_MAP: Record<string, { tier: string; credits: number }> = {
   "prod_TzRG9zNhsXMQcm": { tier: "business", credits: 600 },
   "prod_Tyyp074Dme7iUa": { tier: "pro", credits: 200 },
   "prod_TyypfEhNSNWn69": { tier: "business", credits: 600 },
-  // New tier products (price_ids to be filled in)
-  // starter monthly/annual → will be added when Stripe products are created
-  // pro monthly/annual → will be added when Stripe products are created
-  // business monthly/annual → will be added when Stripe products are created
+  // Current tier products (monthly + annual share the same product mapping)
+  "prod_U17dtQeaUwTEqe": { tier: "starter", credits: 50 },   // Starter monthly
+  "prod_U17d2AzcozQ5b0": { tier: "starter", credits: 50 },   // Starter annual
+  "prod_U17d1a1Mz5jOD5": { tier: "pro", credits: 200 },      // Pro monthly
+  "prod_U17d4Gyml90VWk": { tier: "pro", credits: 200 },      // Pro annual
+  "prod_U17dfL48mNFNYE": { tier: "business", credits: 600 },  // Business monthly
+  "prod_U17dtz4hDJfvcu": { tier: "business", credits: 600 },  // Business annual
 };
 
 const CREDIT_PACK_MAP: Record<string, number> = {
+  // Legacy packs
   "prod_TyqrAktXCAAqXl": 10,
   "prod_Tyqr7S9IGVN5Aa": 25,
   "prod_TyqrLZZTTXPoMt": 50,
+  // Current packs
+  "prod_U17dctlnov5iL9": 10,
+  "prod_U17dG1NzLTVbLm": 30,
+  "prod_U17dxqkW4oYQy3": 75,
+  "prod_U17d1jumXGXX1J": 150,
 };
 
 /** Find user by email using Supabase admin API with proper filtering */
