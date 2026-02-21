@@ -1168,13 +1168,7 @@ export default function SellWizard() {
     if (entryMethod === "url") {
       return (
         <div className="space-y-4">
-          {/* Bug 2: proper ghost Button with icon; Bug 3: breadcrumb badge */}
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground -ml-2" onClick={() => setEntryMethod(null)}>
-              <ChevronLeft className="w-4 h-4" /> Back
-            </Button>
-            <Badge variant="secondary" className="text-[10px] font-medium">{methodLabel}</Badge>
-          </div>
+          {/* Back+badge now in step header */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vinted Listing URL</Label>
             <Input
@@ -1211,13 +1205,7 @@ export default function SellWizard() {
     if (entryMethod === "photo") {
       return (
         <div className="space-y-4">
-          {/* Bug 2 & 3 */}
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground -ml-2" onClick={() => setEntryMethod(null)}>
-              <ChevronLeft className="w-4 h-4" /> Back
-            </Button>
-            <Badge variant="secondary" className="text-[10px] font-medium">{methodLabel}</Badge>
-          </div>
+          {/* Back+badge now in step header */}
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item Photos</Label>
           {photoUrls.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
@@ -1270,13 +1258,7 @@ export default function SellWizard() {
     // Manual entry
     return (
       <div className="space-y-4">
-        {/* Bug 2 & 3 */}
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground -ml-2" onClick={() => setEntryMethod(null)}>
-            <ChevronLeft className="w-4 h-4" /> Back
-          </Button>
-          <Badge variant="secondary" className="text-[10px] font-medium">{methodLabel}</Badge>
-        </div>
+        {/* Back+badge now in step header */}
         {renderDetailsForm()}
       </div>
     );
@@ -1284,137 +1266,147 @@ export default function SellWizard() {
 
   /* Details form shared between all entry methods */
   const renderDetailsForm = () => (
-    <div data-form-fields className="space-y-3 lg:space-y-4">
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
-        <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Nike Air Force 1 White Trainers" className="text-base" />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div data-condition-field className="space-y-1.5">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            Condition *
-            {urlImportedNoCondition && !form.condition && (
-              <span className="text-[10px] font-normal" style={{ color: "hsl(38 92% 50%)" }}>— please verify</span>
-            )}
-          </Label>
-          <Select value={form.condition} onValueChange={(v) => { setForm((f) => ({ ...f, condition: v })); setUrlImportedNoCondition(false); }}>
-          <SelectTrigger
-              className="h-10 lg:h-12"
-              style={urlImportedNoCondition && !form.condition ? {
-                boxShadow: "0 0 0 2px hsl(38 92% 50% / 0.7)",
-                borderColor: "hsl(38 92% 50% / 0.5)",
-                animation: "condition-pulse 1.8s ease-in-out infinite",
-              } : undefined}
-            >
-              <SelectValue placeholder="Select…" />
-            </SelectTrigger>
-            <SelectContent>{conditions.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
+    <div data-form-fields className="space-y-4 lg:space-y-5">
+      {/* ── Essentials ── */}
+      <div className="rounded-xl border border-border bg-card p-3.5 lg:p-5 space-y-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Essentials</p>
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
-          <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
-            <SelectTrigger className="h-10 lg:h-12"><SelectValue placeholder="Select…" /></SelectTrigger>
-            <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-          </Select>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
+          <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Nike Air Force 1 White Trainers" className="text-base" />
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
-          {/* Polish 2: h-12 on lg to match Select height */}
-          <Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Nike, Zara…" className="h-10 lg:h-12" />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
-          <Input value={form.size} onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))} placeholder="M, 10, XL…" className="h-10 lg:h-12" />
-        </div>
-      </div>
-      {/* Colour field with chip selector */}
-      {(() => {
-        const colourNeedsAttention = photoUrls.length > 0 && !form.colour && !colourDetecting;
-        const COLOUR_CHIPS = ["Black","White","Grey","Navy","Blue","Green","Red","Pink","Brown","Beige","Cream","Purple","Yellow","Orange","Multi"];
-        return (
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-2 gap-2">
+          <div data-condition-field className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              Colour
-              <span className="text-[10px] font-normal text-muted-foreground">(helps AI accuracy)</span>
-              {colourDetecting && <span className="text-[10px] font-normal" style={{ color: "hsl(38 92% 50%)" }}>— detecting…</span>}
+              Condition *
+              {urlImportedNoCondition && !form.condition && (
+                <span className="text-[10px] font-normal" style={{ color: "hsl(38 92% 50%)" }}>— please verify</span>
+              )}
             </Label>
-            {/* Colour chip row */}
-            <div className="flex gap-1.5 flex-wrap">
-              {COLOUR_CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, colour: f.colour === chip ? "" : chip }))}
-                  className={`px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full text-[11px] lg:text-xs font-medium border transition-all ${
-                    form.colour === chip
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-muted/60 text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
-                  }`}
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-            {/* Text input for custom colour override */}
-            <Input
-              value={form.colour}
-              onChange={(e) => setForm((f) => ({ ...f, colour: e.target.value }))}
-              placeholder={colourDetecting ? "Detecting from photo…" : "Or type a colour (e.g. Burgundy)"}
-              disabled={colourDetecting}
-              style={colourNeedsAttention ? {
-                boxShadow: "0 0 0 2px hsl(38 92% 50% / 0.7)",
-                borderColor: "hsl(38 92% 50% / 0.5)",
-                animation: "condition-pulse 1.8s ease-in-out infinite",
-              } : undefined}
-            />
-            {colourNeedsAttention && (
-              <p className="text-[10px]" style={{ color: "hsl(38 92% 50%)" }}>
-                Colour helps the AI write an accurate title — select a chip or type it above
-              </p>
-            )}
+            <Select value={form.condition} onValueChange={(v) => { setForm((f) => ({ ...f, condition: v })); setUrlImportedNoCondition(false); }}>
+              <SelectTrigger
+                className="h-10 lg:h-12"
+                style={urlImportedNoCondition && !form.condition ? {
+                  boxShadow: "0 0 0 2px hsl(38 92% 50% / 0.7)",
+                  borderColor: "hsl(38 92% 50% / 0.5)",
+                  animation: "condition-pulse 1.8s ease-in-out infinite",
+                } : undefined}
+              >
+                <SelectValue placeholder="Select…" />
+              </SelectTrigger>
+              <SelectContent>{conditions.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+            </Select>
           </div>
-        );
-      })()}
-      {/* Material field */}
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Material <span className="text-[10px] font-normal text-muted-foreground ml-1">(helps AI accuracy)</span>
-        </Label>
-        <Input value={form.material} onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))} placeholder="Cotton, Polyester, Leather, Denim…" className="h-10 lg:h-12" />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
+            <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
+              <SelectTrigger className="h-10 lg:h-12"><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
-      {/* Seller notes / defect disclosure */}
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Anything the buyer should know?
-          <span className="text-[10px] font-normal text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <Textarea
-          value={form.seller_notes}
-          onChange={(e) => setForm((f) => ({ ...f, seller_notes: e.target.value }))}
-          placeholder="e.g. Small bobble on the back, faded slightly on the left shoulder, tiny mark on the inside collar — these things happen with worn items. Leave blank if none."
-          rows={2}
-          className="text-sm resize-none"
-        />
-        <p className="text-[10px] text-muted-foreground leading-relaxed">
-          Honest disclosures build trust with buyers and protect you from disputes. The AI will weave these naturally into the description.
+
+      {/* ── Details — helps AI ── */}
+      <div className="rounded-xl border border-border bg-card p-3.5 lg:p-5 space-y-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          Details <span className="text-muted-foreground/60 font-normal">— improves AI accuracy</span>
         </p>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sell Price (£)</Label>
-          <Input type="number" value={form.currentPrice} onChange={(e) => setForm((f) => ({ ...f, currentPrice: e.target.value }))} placeholder="0.00" inputMode="decimal" />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand</Label>
+            <Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Nike, Zara…" className="h-10 lg:h-12" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</Label>
+            <Input value={form.size} onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))} placeholder="M, 10, XL…" className="h-10 lg:h-12" />
+          </div>
         </div>
+        {/* Colour field with chip selector */}
+        {(() => {
+          const colourNeedsAttention = photoUrls.length > 0 && !form.colour && !colourDetecting;
+          const COLOUR_CHIPS = ["Black","White","Grey","Navy","Blue","Green","Red","Pink","Brown","Beige","Cream","Purple","Yellow","Orange","Multi"];
+          return (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                Colour
+                <span className="text-[10px] font-normal text-muted-foreground">(helps AI accuracy)</span>
+                {colourDetecting && <span className="text-[10px] font-normal" style={{ color: "hsl(38 92% 50%)" }}>— detecting…</span>}
+              </Label>
+              {/* Colour chip row — horizontal scroll */}
+              <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5 scrollbar-hide">
+                {COLOUR_CHIPS.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, colour: f.colour === chip ? "" : chip }))}
+                    className={`px-2.5 py-1.5 rounded-full text-[11px] lg:text-xs font-medium border transition-all shrink-0 ${
+                      form.colour === chip
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/60 text-muted-foreground border-border hover:border-primary/40"
+                    }`}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+              {/* Text input for custom colour override */}
+              <Input
+                value={form.colour}
+                onChange={(e) => setForm((f) => ({ ...f, colour: e.target.value }))}
+                placeholder={colourDetecting ? "Detecting from photo…" : "Or type a colour (e.g. Burgundy)"}
+                disabled={colourDetecting}
+                style={colourNeedsAttention ? {
+                  boxShadow: "0 0 0 2px hsl(38 92% 50% / 0.7)",
+                  borderColor: "hsl(38 92% 50% / 0.5)",
+                  animation: "condition-pulse 1.8s ease-in-out infinite",
+                } : undefined}
+              />
+              {colourNeedsAttention && (
+                <p className="text-[10px]" style={{ color: "hsl(38 92% 50%)" }}>
+                  Colour helps the AI write an accurate title — select a chip or type it above
+                </p>
+              )}
+            </div>
+          );
+        })()}
+        {/* Material field */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cost Price (£)</Label>
-          <Input type="number" value={form.purchasePrice} onChange={(e) => setForm((f) => ({ ...f, purchasePrice: e.target.value }))} placeholder="0.00" inputMode="decimal" />
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Material <span className="text-[10px] font-normal text-muted-foreground ml-1">(helps AI accuracy)</span>
+          </Label>
+          <Input value={form.material} onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))} placeholder="Cotton, Polyester, Leather, Denim…" className="h-10 lg:h-12" />
         </div>
       </div>
-      {/* Bug 4: sticky mobile CTA — fixed on mobile, normal on desktop */}
-      {/* Add pb-20 sm:pb-0 to the form so content isn't hidden behind the sticky bar */}
-      <div className="pb-20 sm:pb-0" />
+
+      {/* ── Optional ── */}
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 lg:p-5 space-y-3 mb-20 sm:mb-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Optional</p>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Anything the buyer should know?
+          </Label>
+          <Textarea
+            value={form.seller_notes}
+            onChange={(e) => setForm((f) => ({ ...f, seller_notes: e.target.value }))}
+            placeholder="e.g. Small bobble on the back, faded slightly on the left shoulder — leave blank if none."
+            rows={2}
+            className="text-sm resize-none"
+          />
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Honest disclosures build trust with buyers. The AI will weave these naturally into the description.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sell Price (£)</Label>
+            <Input type="number" value={form.currentPrice} onChange={(e) => setForm((f) => ({ ...f, currentPrice: e.target.value }))} placeholder="0.00" inputMode="decimal" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cost Price (£)</Label>
+            <Input type="number" value={form.purchasePrice} onChange={(e) => setForm((f) => ({ ...f, purchasePrice: e.target.value }))} placeholder="0.00" inputMode="decimal" />
+          </div>
+        </div>
+      </div>
       {createdItem ? (
         <div className={`sm:static fixed bottom-0 left-0 right-0 z-30 sm:z-auto bg-background/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] sm:pb-0 pt-3 sm:pt-0 border-t border-border sm:border-0 mt-2 transition-all ${keyboardVisible ? "translate-y-full opacity-0 pointer-events-none" : ""}`}>
           <Button
@@ -2624,7 +2616,17 @@ export default function SellWizard() {
               transition={{ duration: 0.2, ease: "easeInOut" }}
             >
               {/* Step header */}
-              <div className="mb-5 lg:mb-8">
+              <div className="mb-4 lg:mb-8">
+                {currentStep === 1 && entryMethod ? (
+                  <div className="flex items-center gap-2 mb-1">
+                    <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground -ml-2 h-8 px-2" onClick={() => setEntryMethod(null)}>
+                      <ChevronLeft className="w-4 h-4" /> Back
+                    </Button>
+                    <Badge variant="secondary" className="text-[10px] font-medium">
+                      {entryMethod === "url" ? "🔗 URL Import" : entryMethod === "photo" ? "📷 Photos" : "✏️ Manual"}
+                    </Badge>
+                  </div>
+                ) : null}
                 <h2 className="font-display font-bold text-xl lg:text-3xl">
                   {stepMeta[currentStep]?.title}
                 </h2>
