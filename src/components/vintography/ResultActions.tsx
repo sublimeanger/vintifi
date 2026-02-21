@@ -1,3 +1,4 @@
+import { CREDIT_PACKS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -163,7 +164,7 @@ export function ResultActions({
           onClick={onTopUp}
           className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
         >
-          Running low on credits? <span className="text-primary font-medium underline">Top up 10 for £2.99 →</span>
+          Running low on credits? <span className="text-primary font-medium underline">Top up {CREDIT_PACKS[0].credits} for £{CREDIT_PACKS[0].price} →</span>
         </button>
       )}
     </div>

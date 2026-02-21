@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { CREDIT_PACKS, STRIPE_TIERS } from "@/lib/constants";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useCreditsRemaining } from "@/hooks/useCreditsRemaining";
 import { useNavigate } from "react-router-dom";
@@ -2465,7 +2466,7 @@ export default function SellWizard() {
                 className="flex-1 h-10 font-semibold text-xs border-warning/40 hover:bg-warning/10 hover:text-warning hover:border-warning"
                 onClick={() => navigate("/settings?tab=billing")}
               >
-                Buy 10 credits — £2.99
+                Buy {CREDIT_PACKS[0].credits} credits — £{CREDIT_PACKS[0].price}
               </Button>
               {isFreeUser && (
                 <Button
@@ -2473,7 +2474,7 @@ export default function SellWizard() {
                   className="flex-1 h-10 font-semibold text-xs"
                   onClick={() => navigate("/pricing")}
                 >
-                  Upgrade to Pro — £9.99/mo
+                  Upgrade to Pro — £{STRIPE_TIERS.pro.price}/mo
                 </Button>
               )}
             </div>
