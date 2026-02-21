@@ -29,8 +29,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Upload, Eraser, Sun, Image as ImageIcon, User, Camera, RefreshCw,
   Lock, Download, ArrowRight, Sparkles, X, ArrowLeft, Link2, ZoomIn, Check,
-  AlertTriangle, RotateCcw,
+  AlertTriangle, RotateCcw, Package,
 } from "lucide-react";
+import { ItemPickerDialog } from "@/components/ItemPickerDialog";
 
 // ── Icon map ─────────────────────────────────────────────────────────
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -683,10 +684,27 @@ export default function Vintography() {
                 <Button variant="outline" onClick={handleDownload} className="flex-1 h-11 sm:h-9 text-sm font-semibold rounded-xl active:scale-[0.97] transition-transform">
                   <Download className="w-4 h-4 mr-1.5" /> Download
                 </Button>
-                {effectiveItemId && (
+                {effectiveItemId ? (
                   <Button onClick={handleSaveToItem} className="flex-1 h-11 sm:h-9 text-sm font-bold rounded-xl active:scale-[0.97] transition-transform">
                     Save to Listing
                   </Button>
+                ) : (
+                  <ItemPickerDialog onSelect={async (item) => {
+                    if (!resultPhoto) return;
+                    const { error } = await supabase
+                      .from("listings")
+                      .update({ image_url: resultPhoto, last_photo_edit_at: new Date().toISOString() })
+                      .eq("id", item.id);
+                    if (error) {
+                      toast.error("Couldn't save to listing");
+                    } else {
+                      toast.success("Photo saved to listing!");
+                    }
+                  }}>
+                    <Button variant="outline" className="flex-1 h-11 sm:h-9 text-sm font-semibold rounded-xl active:scale-[0.97] transition-transform">
+                      <Package className="w-4 h-4 mr-1.5" /> Save to Listing
+                    </Button>
+                  </ItemPickerDialog>
                 )}
                 <Button variant="ghost" onClick={handleEditAgain} className="h-11 sm:h-9 text-sm rounded-xl active:scale-[0.97] transition-transform">
                   <RefreshCw className="w-4 h-4 mr-1.5" /> Edit Again
