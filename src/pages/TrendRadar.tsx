@@ -239,6 +239,19 @@ export default function TrendRadar() {
 
   return (
     <PageShell title="Trend Radar" subtitle="Real-time market intelligence" maxWidth="max-w-4xl">
+      {/* ── Empty state ── */}
+      {trends.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+            <TrendingUp className="w-7 h-7 text-primary/60" />
+          </div>
+          <p className="text-sm font-semibold text-foreground">No trends yet</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+            Trends update daily based on real Vinted search data. Check back tomorrow for fresh insights.
+          </p>
+        </div>
+      )}
+
       {/* ── Hot Right Now Strip ── */}
       {!loading && hotTrends.length > 0 && (
         <div className="mb-4 sm:mb-6">

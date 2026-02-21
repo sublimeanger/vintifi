@@ -302,6 +302,21 @@ export default function PriceCheck() {
       maxWidth="max-w-4xl"
     >
 
+      {/* Guidance card for first-time users */}
+      {!report && !itemId && (
+        <Card className="p-4 mb-4 border-primary/20 bg-primary/[0.02]">
+          <div className="flex items-start gap-3">
+            <Zap className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold">How it works</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter a brand, category, and condition — or paste a Vinted URL — and AI analyses live market data to find your ideal selling price in seconds.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Input Section */}
       <Card className="p-3 sm:p-6 mb-3 sm:mb-8 border-border/50">
         {/* Mode Toggle */}
