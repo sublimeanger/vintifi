@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useCreditsRemaining } from "@/hooks/useCreditsRemaining";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +42,7 @@ type TrendItem = {
 export default function Dashboard() {
   usePageMeta("Dashboard — Vintifi", "Your selling command centre");
   const { user, profile, credits } = useAuth();
+  const creditsInfo = useCreditsRemaining();
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [activeCount, setActiveCount] = useState(0);
@@ -313,22 +315,19 @@ export default function Dashboard() {
                 <span className="text-[10px] sm:text-xs font-semibold leading-tight">Try It On</span>
               </Button>
             </div>
-            {credits && (
+            {credits && (() => {
+              const { remaining, limit, isUnlimited, isDepleted, isLow } = creditsInfo;
+              return (
               <div className="flex items-center gap-1.5 px-0.5">
                 <Sparkles className={`w-3.5 h-3.5 shrink-0 ${
-                  (credits.credits_limit - credits.price_checks_used - credits.optimizations_used - credits.vintography_used) <= 0
-                    ? "text-destructive"
-                    : (credits.credits_limit - credits.price_checks_used - credits.optimizations_used - credits.vintography_used) <= 5
-                      ? "text-warning"
-                      : "text-primary"
+                  isDepleted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
                 }`} />
                 <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
-                  {credits.credits_limit >= 999999
-                    ? "Unlimited credits"
-                    : `${Math.max(0, credits.credits_limit - credits.price_checks_used - credits.optimizations_used - credits.vintography_used)} of ${credits.credits_limit} credits remaining`}
+                  {isUnlimited ? "Unlimited credits" : `${remaining} of ${limit} credits remaining`}
                 </span>
               </div>
-            )}
+              );
+            })()}
           </>
         )}
 

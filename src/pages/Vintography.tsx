@@ -5,6 +5,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useCreditsRemaining } from "@/hooks/useCreditsRemaining";
 import { PHOTO_OPERATIONS, type PhotoOperation, isAtLeastTier, type TierKey } from "@/lib/constants";
 import { saveSession, loadSession, clearSession } from "@/components/vintography/vintographyReducer";
 import { PageShell } from "@/components/PageShell";
@@ -105,9 +106,7 @@ export default function Vintography() {
   // ── Derived values ─────────────────────────────────────────────────
   const effectiveItemId = itemId || importedItemId;
   const userTier = (profile?.subscription_tier || "free") as TierKey;
-  const totalUsed = credits ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used : 0;
-  const creditsRemaining = credits ? credits.credits_limit - totalUsed : 0;
-  const unlimited = (credits?.credits_limit ?? 0) >= 999999;
+  const { remaining: creditsRemaining, isUnlimited: unlimited } = useCreditsRemaining();
   const selectedOpConfig = selectedOp ? PHOTO_OPERATIONS[selectedOp] : null;
   const opHasConfig = selectedOp === "put_on_model" || selectedOp === "virtual_tryon" || selectedOp === "swap_model" || selectedOp === "ai_background";
   const isMobile = useIsMobile(1024);
@@ -620,7 +619,7 @@ export default function Vintography() {
       {/* Credit bar */}
       <div className="sticky top-[52px] lg:top-0 z-20 bg-background/90 backdrop-blur-xl border-b border-border/40 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2.5 lg:mx-0 lg:px-0">
         <div className="flex items-center justify-between">
-          <CreditBar used={totalUsed} limit={credits?.credits_limit ?? 5} unlimited={unlimited} loading={!credits} />
+          <CreditBar used={creditsRemaining != null ? (credits?.credits_limit ?? 5) - creditsRemaining : 0} limit={credits?.credits_limit ?? 5} unlimited={unlimited} loading={!credits} />
           <Button
             size="sm"
             variant="ghost"
