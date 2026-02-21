@@ -16,6 +16,7 @@ import { PageShell } from "@/components/PageShell";
 
 import { motion } from "framer-motion";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useCreditsRemaining } from "@/hooks/useCreditsRemaining";
 
 /* ─── Section wrapper ─── */
 function Section({ icon: Icon, title, children, tint = "" }: {
@@ -35,6 +36,7 @@ function Section({ icon: Icon, title, children, tint = "" }: {
 export default function SettingsPage() {
   usePageMeta("Settings — Vintifi", "Manage your account and subscription");
   const { user, profile, credits, signOut, refreshProfile } = useAuth();
+  const settingsCredits = useCreditsRemaining();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
@@ -269,8 +271,7 @@ export default function SettingsPage() {
             <p className="text-[11px] sm:text-sm text-muted-foreground">Current plan</p>
             <p className="font-display font-bold text-lg sm:text-2xl capitalize">{STRIPE_TIERS[currentTier].name}</p>
             {credits && (() => {
-              const isUnlimited = credits.credits_limit >= 999999;
-              const totalUsed = credits.price_checks_used + credits.optimizations_used + credits.vintography_used;
+              const { isUnlimited, used, limit } = settingsCredits;
               return isUnlimited ? (
                 <Badge className="mt-2 bg-primary/10 text-primary border-primary/20">Unlimited credits</Badge>
               ) : (
@@ -278,11 +279,11 @@ export default function SettingsPage() {
                   <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${Math.min(100, (totalUsed / credits.credits_limit) * 100)}%` }}
+                      style={{ width: `${Math.min(100, ((used ?? 0) / (limit ?? 1)) * 100)}%` }}
                     />
                   </div>
                   <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
-                    {totalUsed}/{credits.credits_limit} used
+                    {used}/{limit} used
                   </span>
                 </div>
               );

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useCreditsRemaining } from "@/hooks/useCreditsRemaining";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -139,12 +140,7 @@ export default function SellWizard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Derived credit state for nudge banners
-  const isUnlimitedUser = (credits?.credits_limit ?? 0) >= 999999;
-  const creditsRemaining = isUnlimitedUser
-    ? Infinity
-    : credits
-    ? Math.max(0, credits.credits_limit - (credits.price_checks_used + credits.optimizations_used + credits.vintography_used))
-    : Infinity;
+  const { remaining: creditsRemaining, isUnlimited: isUnlimitedUser, isDepleted, isLow } = useCreditsRemaining();
   const isFreeUser = (profile?.subscription_tier || "free") === "free";
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -961,14 +957,12 @@ export default function SellWizard() {
     // Upfront credit check
     const costPer = effectOp === "sell_ready" ? 2 : 1;
     const totalCost = photosToProcess.length * costPer;
-    const isUnlimited = (credits?.credits_limit ?? 0) >= 999999;
+    const isUnlimited = isUnlimitedUser;
     const isFreePass = profile?.first_item_pass_used === false;
 
     if (!isUnlimited && !isFreePass) {
-      const totalUsed = credits
-        ? credits.price_checks_used + credits.optimizations_used + credits.vintography_used
-        : 0;
-      const remaining = credits ? credits.credits_limit - totalUsed : 0;
+      const remaining = creditsRemaining ?? 0;
+
       if (totalCost > remaining) {
         toast.error(`Need ${totalCost} credits but you have ${remaining}`, {
           action: { label: "Upgrade", onClick: () => navigate("/settings?tab=billing") },
