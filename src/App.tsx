@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { MotionConfig } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -51,6 +52,7 @@ const App = () => (
       <BrowserRouter>
         <ScrollToTop />
         <AuthProvider>
+          <MotionConfig reducedMotion="user">
           <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Landing />} />
@@ -89,6 +91,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </ErrorBoundary>
+          </MotionConfig>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
