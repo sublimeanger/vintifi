@@ -318,6 +318,7 @@ export function ComparisonView({
     }
     if (e.touches.length === 1) {
       if (overlaySwipeActive.current && containerRef.current) {
+        e.preventDefault();
         const rect = containerRef.current.getBoundingClientRect();
         const pct = Math.max(0, Math.min(100, ((e.touches[0].clientX - rect.left) / rect.width) * 100));
         setSliderValue([pct]);
@@ -396,7 +397,7 @@ export function ComparisonView({
       <div
         ref={containerRef}
         className={`relative w-full overflow-hidden select-none max-h-[500px] lg:max-h-[800px] ${isZoomed ? "cursor-grab active:cursor-grabbing" : ""}`}
-        style={{ aspectRatio: viewMode === "side-by-side" && processedUrl ? "8/5" : "4/5", touchAction: isZoomed ? "none" : "pan-y" }}
+        style={{ aspectRatio: viewMode === "side-by-side" && processedUrl ? "8/5" : "4/5", touchAction: isZoomed ? "none" : (viewMode === "overlay" && processedUrl ? "none" : "pan-y") }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
