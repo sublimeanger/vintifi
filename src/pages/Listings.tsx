@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { HealthScoreMini } from "@/components/HealthScoreGauge";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -887,7 +888,7 @@ export default function Listings() {
                         {/* Image */}
                         <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
                           {listing.image_url ? (
-                            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover rounded-xl" />
+                            <ProgressiveImage src={listing.image_url} alt={listing.title} className="rounded-xl" />
                           ) : (
                             <Package className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground/40" />
                           )}
