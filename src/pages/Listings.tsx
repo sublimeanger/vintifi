@@ -44,29 +44,7 @@ import { PageShell } from "@/components/PageShell";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { Crown } from "lucide-react";
 
-type Listing = {
-  id: string;
-  title: string;
-  description: string | null;
-  brand: string | null;
-  category: string | null;
-  size: string | null;
-  condition: string | null;
-  status: string;
-  current_price: number | null;
-  recommended_price: number | null;
-  purchase_price: number | null;
-  sale_price: number | null;
-  health_score: number | null;
-  views_count: number | null;
-  favourites_count: number | null;
-  image_url: string | null;
-  vinted_url: string | null;
-  days_listed: number | null;
-  created_at: string;
-  updated_at: string;
-  sold_at: string | null;
-};
+import type { Listing } from "@/types/listing";
 
 const statusColors: Record<string, string> = {
   active: "bg-success/10 text-success border-success/20",

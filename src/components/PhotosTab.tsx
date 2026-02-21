@@ -31,13 +31,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-type Listing = {
-  id: string;
-  title: string;
-  image_url: string | null;
-  images: unknown;
-  last_photo_edit_at: string | null;
-};
+import type { Listing } from "@/types/listing";
 
 type Props = {
   item: Listing;
